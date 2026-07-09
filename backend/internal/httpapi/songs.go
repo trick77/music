@@ -4,6 +4,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -54,10 +55,22 @@ func (h *songHandlers) upload(w http.ResponseWriter, r *http.Request) {
 	r.Body = http.MaxBytesReader(w, r.Body, h.maxBytes)
 	file, header, err := r.FormFile("file")
 	if err != nil {
+		var tooLarge *http.MaxBytesError
+		if errors.As(err, &tooLarge) {
+			httpError(w, http.StatusRequestEntityTooLarge, "file exceeds size limit")
+			return
+		}
 		httpError(w, http.StatusBadRequest, "missing file field")
 		return
 	}
 	defer file.Close()
+	// net/http spills large multipart parts to disk and does not auto-delete
+	// them; clean those up regardless of outcome.
+	defer func() {
+		if r.MultipartForm != nil {
+			_ = r.MultipartForm.RemoveAll()
+		}
+	}()
 	if !isMP3(header.Filename, header.Header.Get("Content-Type")) {
 		httpError(w, http.StatusUnsupportedMediaType, "only mp3 uploads are supported")
 		return
@@ -100,6 +113,14 @@ func (h *songHandlers) upload(w http.ResponseWriter, r *http.Request) {
 		httpError(w, http.StatusInternalServerError, "store file")
 		return
 	}
+	// Remove the freshly-created media file unless the whole import succeeds,
+	// so a later failure never leaves an orphaned file the DB doesn't reference.
+	stored := false
+	defer func() {
+		if !stored {
+			_ = h.media.Remove(relPath)
+		}
+	}()
 	if _, err := tmp.Seek(0, io.SeekStart); err != nil {
 		dst.Close()
 		httpError(w, http.StatusInternalServerError, "seek")
@@ -132,9 +153,17 @@ func (h *songHandlers) upload(w http.ResponseWriter, r *http.Request) {
 		Genres:      tags.Genres,
 	})
 	if err != nil {
+		// A concurrent upload of the same bytes can slip in between our dedupe
+		// check and this insert, tripping the content_hash unique index. Treat
+		// it as a dedupe hit and return the winner's song rather than a 500.
+		if existing, findErr := h.repo.FindByContentHash(r.Context(), hash); findErr == nil && existing != nil {
+			writeJSONStatus(w, http.StatusOK, existing)
+			return
+		}
 		httpError(w, http.StatusInternalServerError, "save song")
 		return
 	}
+	stored = true
 	writeJSONStatus(w, http.StatusCreated, song)
 }
 

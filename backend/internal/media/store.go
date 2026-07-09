@@ -99,3 +99,16 @@ func (s *Store) Open(rel string) (*os.File, error) {
 	}
 	return os.Open(abs)
 }
+
+// Remove deletes rel from the store. A missing file is not an error, so callers
+// can use it for best-effort cleanup of a partially-written import.
+func (s *Store) Remove(rel string) error {
+	abs, err := s.Resolve(rel)
+	if err != nil {
+		return err
+	}
+	if err := os.Remove(abs); err != nil && !errors.Is(err, os.ErrNotExist) {
+		return err
+	}
+	return nil
+}

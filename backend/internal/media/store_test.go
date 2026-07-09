@@ -78,3 +78,29 @@ func TestCreateThenOpen_roundTrips(t *testing.T) {
 		t.Fatalf("round-trip = %q, want hello", buf)
 	}
 }
+
+func TestRemove_deletesAndToleratesMissing(t *testing.T) {
+	st, err := New(t.TempDir())
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+	f, err := st.Create("songs/gone.mp3")
+	if err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+	f.Close()
+	if err := st.Remove("songs/gone.mp3"); err != nil {
+		t.Fatalf("Remove: %v", err)
+	}
+	if _, err := st.Open("songs/gone.mp3"); err == nil {
+		t.Fatal("file still present after Remove")
+	}
+	// Removing a missing file is not an error.
+	if err := st.Remove("songs/gone.mp3"); err != nil {
+		t.Fatalf("Remove missing = %v, want nil", err)
+	}
+	// Unsafe paths are still rejected.
+	if err := st.Remove("../escape"); err == nil {
+		t.Fatal("Remove unsafe path = nil, want rejection")
+	}
+}

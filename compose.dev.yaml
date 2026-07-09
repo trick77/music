@@ -1,0 +1,16 @@
+services:
+  music:
+    build:
+      context: .
+      dockerfile: backend/Containerfile
+    ports:
+      - "8080:8080"
+    environment:
+      BACKEND_SESSION_SECRET: dev-secret-change-me
+      BACKEND_AUTH_MODE: dev
+      BACKEND_DB_PATH: /data/music.db
+      BACKEND_MEDIA_DIR: /data/media
+    volumes:
+      - music-data:/data
+volumes:
+  music-data:

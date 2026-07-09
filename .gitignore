@@ -6,3 +6,5 @@ ui/dist/
 backend/web/dist/*
 !backend/web/dist/index.html
 .env
+# Playwright MCP scratch output
+.playwright-mcp/

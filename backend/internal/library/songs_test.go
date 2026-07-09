@@ -112,6 +112,44 @@ func TestFindByContentHash(t *testing.T) {
 	}
 }
 
+func TestBrowse_artistsAndGenres(t *testing.T) {
+	r := newRepo(t)
+	ctx := context.Background()
+	makeSong(t, r, "A", "Album", "h1", "songs/a.mp3")
+	makeSong(t, r, "B", "Album", "h2", "songs/b.mp3")
+
+	artists, err := r.ListArtists(ctx)
+	if err != nil {
+		t.Fatalf("ListArtists: %v", err)
+	}
+	if len(artists) != 1 || artists[0].Name != "Test Artist" || artists[0].SongCount != 2 {
+		t.Fatalf("artists = %#v", artists)
+	}
+	art, songs, err := r.GetArtist(ctx, artists[0].ID)
+	if err != nil || art == nil {
+		t.Fatalf("GetArtist: %v", err)
+	}
+	if len(songs) != 2 {
+		t.Fatalf("artist songs = %d, want 2", len(songs))
+	}
+
+	genres, err := r.ListGenres(ctx)
+	if err != nil {
+		t.Fatalf("ListGenres: %v", err)
+	}
+	// Fixture has two genres: Synthwave, Dream Pop.
+	if len(genres) != 2 {
+		t.Fatalf("genres = %#v", genres)
+	}
+	_, gsongs, err := r.GetGenre(ctx, genres[0].ID)
+	if err != nil {
+		t.Fatalf("GetGenre: %v", err)
+	}
+	if len(gsongs) != 2 {
+		t.Fatalf("genre songs = %d, want 2", len(gsongs))
+	}
+}
+
 func TestUpdate_editsFieldsAndReplacesGenres(t *testing.T) {
 	r := newRepo(t)
 	ctx := context.Background()

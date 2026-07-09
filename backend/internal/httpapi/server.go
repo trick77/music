@@ -39,6 +39,12 @@ func New(cfg config.Config, st *store.Store, spa http.Handler) http.Handler {
 			mux.HandleFunc("GET /api/songs/{id}/download", h.download)
 			mux.HandleFunc("PATCH /api/songs/{id}", h.patch)
 			mux.HandleFunc("GET /api/suggest", h.suggest)
+			mux.HandleFunc("PUT /api/songs/{id}/cover", h.putCover)
+			mux.HandleFunc("GET /api/cover/{id}", h.getCover)
+			mux.HandleFunc("GET /api/artists", h.listArtists)
+			mux.HandleFunc("GET /api/artists/{id}", h.getArtist)
+			mux.HandleFunc("GET /api/genres", h.listGenres)
+			mux.HandleFunc("GET /api/genres/{id}", h.getGenre)
 		}
 	}
 

@@ -392,6 +392,23 @@ hr.rule{border:0;border-top:1px solid var(--border);margin:44px 0}
 .imgpick .up{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;color:var(--muted);border:1.5px dashed #4a473f;background:var(--bg);font-size:.72rem}
 .imgpick .up svg{width:18px;height:18px}
 .hintline{margin-top:12px;font-size:.8rem;color:var(--muted)}
+.imgpick .opt .pin-fav{position:absolute;top:6px;right:6px;width:22px;height:22px;border-radius:50%;background:rgba(20,18,17,.6);backdrop-filter:blur(3px);display:grid;place-items:center;color:#fff;border:1px solid rgba(255,255,255,.18)}
+.imgpick .opt .pin-fav svg{width:12px;height:12px}
+.imgpick .opt.generating{display:grid;place-items:center}
+.gen-overlay{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:7px;background:rgba(18,16,15,.55);color:#e8ded7;font-size:.7rem;z-index:2}
+.gen-overlay svg{width:17px;height:17px;animation:spin 1s linear infinite}
+.shimmer{position:absolute;inset:0;background:linear-gradient(100deg,transparent 20%,rgba(255,255,255,.09) 50%,transparent 80%);background-size:220% 100%;animation:sh 1.3s linear infinite;z-index:1}
+@keyframes sh{from{background-position:220% 0}to{background-position:-220% 0}}
+@keyframes spin{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){.shimmer,.gen-overlay svg{animation:none}}
+.genpanel{margin-top:20px;border:1px solid var(--border);border-radius:12px;padding:16px 16px 15px;background:var(--panel)}
+.genpanel > label{font-size:.68rem;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);display:flex;align-items:center;gap:7px;margin-bottom:10px}
+.genpanel > label svg{width:14px;height:14px;color:var(--accent-strong)}
+.promptbox{background:var(--bg);border:1px solid var(--border);border-radius:9px;padding:11px 13px;font-size:.9rem;color:var(--ink);min-height:62px;line-height:1.55}
+.promptbox.foc{border-color:var(--accent-strong);box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 22%,transparent)}
+.genrow{display:flex;align-items:center;gap:12px;margin-top:12px}
+.genrow .meta{font-size:.75rem;color:var(--muted)}
+.genrow .btn.accent svg{width:15px;height:15px;margin-right:2px}
 
 /* playlist editor */
 .plsongs{margin-top:6px;display:flex;flex-direction:column;gap:2px}
@@ -843,9 +860,10 @@ hr.rule{border:0;border-top:1px solid var(--border);margin:44px 0}
 
   <!-- ===== GENRE BACKGROUND EDITOR (signed in) ===== -->
   <div class="sec-head"><h2>Set a genre's background</h2><span class="tag">signed in only</span></div>
-  <p class="sec-note">From a genre page, the “Edit” action opens this. Upload one or more images for
-    the genre and pick which one is its background; the same picker feeds the featured Home hero.
-    This is how the fanart gets assigned.</p>
+  <p class="sec-note">From a genre page, the “Edit” action opens this. A genre keeps a small gallery
+    — <b>upload</b> images or <b>generate</b> them from a text prompt — then pick which one is the
+    background (the starred one also feeds the Home hero). This is how the fanart gets made and
+    assigned.</p>
 
   <div class="frame">
     <div class="chrome"><i></i><i></i><i></i><span class="url">aurel.trick77.com/genre/synthwave — edit</span></div>
@@ -856,19 +874,28 @@ hr.rule{border:0;border-top:1px solid var(--border);margin:44px 0}
           <div class="mhead"><h3>Edit genre · Synthwave</h3><span class="x"><svg class="i"><use href="#i-x"/></svg></span></div>
           <div class="mbodyp">
             <div class="gpreview"><span class="ph p-chrome"></span><div class="scr"></div><span class="gt">Synthwave</span></div>
-            <div class="hintline">Background image — choose one, or drop a new image to add it.</div>
+            <div class="hintline">A genre can hold several images — pick the one shown as its background. The starred image also feeds the Home hero.</div>
             <div class="imgpick">
-              <div class="opt on"><span class="ph p-chrome"></span></div>
+              <div class="opt on"><span class="ph p-chrome"></span><span class="pin-fav"><svg class="i" style="fill:#fff;stroke:none"><use href="#i-check"/></svg></span></div>
               <div class="opt"><span class="ph p-rose"></span></div>
               <div class="opt"><span class="ph p-dusk"></span></div>
+              <div class="opt generating"><span class="ph p-fog"></span><span class="shimmer"></span><span class="gen-overlay"><svg class="i"><use href="#i-repeat"/></svg>Generating…</span></div>
               <div class="up"><svg class="i"><use href="#i-upload"/></svg>Upload</div>
+            </div>
+            <div class="genpanel">
+              <label><svg class="i"><use href="#i-spark"/></svg>Generate a new image</label>
+              <div class="promptbox foc">Neon-drenched chrome cityscape at dusk, long synthwave sunset, wet asphalt reflections, cinematic wide shot, 35mm film grain<span style="color:var(--accent-strong)">▌</span></div>
+              <div class="genrow">
+                <button class="btn accent"><svg class="i"><use href="#i-spark"/></svg>Generate</button>
+                <span class="meta">Landscape · adds to this genre's images · takes a few seconds</span>
+              </div>
             </div>
             <div class="editgrid" style="margin-top:20px;grid-template-columns:1fr 1fr">
               <div class="field"><label>Name</label><div class="inp">Synthwave</div></div>
-              <div class="field"><label>Primary color accent <span style="color:var(--muted);text-transform:none;letter-spacing:0">· auto</span></label><div class="inp dim">Sampled from image</div></div>
+              <div class="field"><label>Accent color <span style="color:var(--muted);text-transform:none;letter-spacing:0">· auto</span></label><div class="inp dim">Sampled from background</div></div>
             </div>
           </div>
-          <div class="mfoot"><span class="spacer">Applies to the genre page and, if featured, the Home hero</span>
+          <div class="mfoot"><span class="spacer">Background applies to the genre page and, if starred, the Home hero</span>
             <button class="btn">Cancel</button><button class="btn accent">Save genre</button></div>
         </div>
       </div>

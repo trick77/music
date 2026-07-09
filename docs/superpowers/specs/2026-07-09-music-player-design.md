@@ -131,11 +131,36 @@ Photographic imagery is a **first-class** element, managed by authenticated user
 
 - Upload images and **assign** them: as **genre art** (one or more per genre) or as **featured hero**
   picks. Stored on the volume like cover art (`fanart` table, §5).
+- **Multiple images per genre.** A genre keeps a small **gallery** (`fanart` rows,
+  `kind=genre`, `genre_id`), each image either uploaded or generated. One is marked the **active
+  background**; one may be **starred** as the featured Home hero. A per-genre accent color is
+  auto-sampled from the active background.
 - **Genre background editor** (authenticated): from a genre page, an "Edit" action opens a modal
-  with a large preview, an image picker (thumbnails of images already uploaded for that genre + an
-  Upload tile to add more), and the genre's name; the selected image becomes the genre's background,
-  and the same picker can mark a featured Home hero. A per-genre accent color is auto-sampled from
-  the chosen image.
+  with a large preview, the image gallery (pick background / star for hero / Upload tile), the
+  generate panel (below), and the genre's name.
+
+### 8a. AI image generation (mirror loom's `imagegen`/BFL)
+
+Authenticated users can **generate** a genre image (or Home-hero image) from a **text prompt**,
+reusing loom's approach verbatim:
+
+- **Engine:** Black Forest Labs (**BFL / FLUX**) — port loom's `backend/internal/imagegen`
+  (`bfl.go`): async submit `{prompt, width, height, safety_tolerance, output_format, seed?}` to
+  `{BASE_URL}/{model}` with an `x-key` header → receive `{id, polling_url}` → poll until
+  `ready`/`completed` → download `result.sample`. Handles `request moderated` / `content moderated`
+  gracefully. Optional `input_image` (base64) enables regenerating a variation of an existing image.
+- **Config (loom-identical):** `BACKEND_BFL_BASE_URL` (`https://api.bfl.ai/v1`),
+  `BACKEND_BFL_API_KEY`, `BACKEND_BFL_MODEL` (`flux-2-klein-4b`), `BACKEND_BFL_POLL_TIMEOUT`
+  (`1m`). Generation is available only when `BACKEND_BFL_API_KEY` is set; otherwise the editor shows
+  only Upload.
+- **Flow & storage:** the app requests a **landscape** image sized for the hero/background, stores
+  the returned bytes on the volume as a new `fanart` row (recording the prompt + model + seed for
+  reference), and adds it to the genre's gallery in a "generating…" state until it resolves.
+- **No-AI-in-UI holds:** the prompt box is an **owner-only, authenticated** tool. Anonymous
+  visitors never see prompts, "generate", or any AI reference — only the finished imagery presented
+  as ordinary art.
+- Endpoint: `POST /api/fanart/generate` (authenticated) `{prompt, kind, genre_id?}` → returns the
+  new `fanart` id; the client polls `GET /api/fanart/{id}` for readiness.
 - Anonymous visitors see the imagery but cannot change it.
 - Because remote images can't load in the preview, the mockup fakes fanart with atmospheric CSS
   (bloom + vignette + grain); the **treatment** (moody, cinematic, heavy scrim under text) is what
@@ -205,7 +230,9 @@ favorites are localStorage-only (§1).
 `BACKEND_SESSION_SECRET` (required), `BACKEND_AUTH_MODE` (`oidc`|`dev`),
 `BACKEND_OIDC_ISSUER/_CLIENT_ID/_CLIENT_SECRET/_REDIRECT_URL/_POST_LOGOUT_REDIRECT_URL`,
 `BACKEND_OIDC_ALLOWED_GROUP` (optional), `BACKEND_DEV_USER_USERNAME` (dev),
-`BACKEND_DB_PATH`, `BACKEND_MEDIA_DIR`, `BACKEND_MAX_UPLOAD_MB`. Provide `.env.example`.
+`BACKEND_DB_PATH`, `BACKEND_MEDIA_DIR`, `BACKEND_MAX_UPLOAD_MB`. Image generation (optional, §8a):
+`BACKEND_BFL_BASE_URL`, `BACKEND_BFL_API_KEY`, `BACKEND_BFL_MODEL`, `BACKEND_BFL_POLL_TIMEOUT`.
+Provide `.env.example`.
 
 ## 14. Security invariants (must hold)
 

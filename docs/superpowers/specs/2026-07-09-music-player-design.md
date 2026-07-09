@@ -1,6 +1,6 @@
 # Music player webapp — design spec
 
-**Status:** draft for review · **Date:** 2026-07-09 · **Visual reference:**
+**Status:** approved — ready for implementation planning · **Date:** 2026-07-09 · **Visual reference:**
 [`docs/mockups/music-player-mockup.html`](../../mockups/music-player-mockup.html)
 (open in a browser; also published as a claude.ai artifact during design).
 
@@ -73,11 +73,11 @@ Reuse loom's auth model directly (`backend/internal/auth`, `BACKEND_AUTH_MODE`):
   `BACKEND_DEV_USER_USERNAME`, default `dev`) is treated as an authenticated, full-access identity
   with **no login round-trip**, so every signed-in feature is exercisable locally without Authentik.
 
-**Authorization scope — ASSUMPTION, please confirm at review.** Because music has no admin tier
-(unlike loom, which gates on an admin group), the default is: **any successful Authentik login =
-authenticated (full access)**. An optional loom-style `BACKEND_OIDC_ALLOWED_GROUP` may restrict the
-authenticated role to a named group; unset = any valid login. Confirm whether you want it open or
-group-restricted.
+**Authorization scope — decided: group-gated, just like loom.** Membership in a configured
+Authentik group (`BACKEND_OIDC_ALLOWED_GROUP`, mirroring loom's `BACKEND_OIDC_ADMIN_GROUP` gating)
+grants the **authenticated / full-access** role. A user who authenticates but is **not** in the
+group is treated as **read-only** (identical to anonymous). This reuses loom's OIDC group-claim
+handling directly.
 
 **Session model:** a single role bit — `authenticated` vs `anonymous`. No per-user data isolation is
 required (one owner); all content is a single shared library. (This is the one place music
@@ -169,10 +169,12 @@ reusing loom's approach verbatim:
   (bloom + vignette + grain); the **treatment** (moody, cinematic, heavy scrim under text) is what
   real photography inherits. Every image needs a graceful **no-image fallback**.
 
-**Placement is a PROPOSAL, not locked.** The mockup's current direction — a full-bleed featured hero
-on Home + genres returning lower as immersive "chapters", and a full-immersion detail template
-(art owns the top two-thirds, song list on a glass panel) — is adjustable. The maintainer has not
-committed to where imagery ultimately sits; treat the layout as the starting point for iteration.
+**Placement — build the proposal, validate with real images.** The mockup's direction (full-bleed
+featured hero on Home + genres returning lower as immersive "chapters"; a full-immersion detail
+template where art owns the top two-thirds over a glass song-list panel) is the **build starting
+point**. The maintainer can't judge final placement from CSS stand-ins — so once BFL generation is
+wired up and real photographic images exist, placement is the **first thing to tune in the running
+app**. Keep the layout componentized so hero/chapter/detail arrangements can shift without a rewrite.
 
 ## 9. Play counting & Top Ten
 
@@ -320,8 +322,9 @@ here yet" anonymous), and the **queue** (up-next, drag-reorder) + per-song **"�
 
 ---
 
-## Open items for review
+## Resolved decisions
 
-1. **Auth scope** (§4) — any successful Authentik login = full access, or restrict to a named group?
-2. **Imagery placement** (§8) — is the mockup's hero + genre-chapter + full-immersion-detail
-   direction the one to build on, or do you want to explore placement further first?
+1. **Auth scope** (§4) — group-gated, just like loom: a configured Authentik group grants full
+   access; non-members are read-only.
+2. **Imagery placement** (§8) — build the mockup's direction as the starting point; tune it against
+   real generated images in the running app (can't be judged from CSS stand-ins).

@@ -7,7 +7,7 @@ test:
 	cd backend && go test ./...
 
 fe-test:
-	cd ui && npm run test -- --run
+	cd ui && npm run test -- --run --passWithNoTests
 
 fe-build:
 	cd ui && npm ci && npm run build

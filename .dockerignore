@@ -1,0 +1,9 @@
+# Keep host-native node_modules out of the build context — the ui stage runs its
+# own npm ci inside alpine; copying darwin/arm64 binaries in breaks the build.
+**/node_modules
+.git
+/data/
+/bin/
+ui/dist
+backend/web/dist
+.env

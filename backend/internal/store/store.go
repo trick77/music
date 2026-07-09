@@ -4,6 +4,7 @@ package store
 import (
 	"database/sql"
 	"embed"
+	"errors"
 	"fmt"
 	"sort"
 
@@ -51,16 +52,36 @@ func (s *Store) migrate() error {
 		if err == nil {
 			continue // already applied
 		}
+		if !errors.Is(err, sql.ErrNoRows) {
+			return fmt.Errorf("check migration %s: %w", name, err)
+		}
 		body, err := migrationsFS.ReadFile("migrations/" + name)
 		if err != nil {
 			return err
 		}
-		if _, err := s.db.Exec(string(body)); err != nil {
-			return fmt.Errorf("apply migration %s: %w", name, err)
+		if err := s.applyMigration(name, string(body)); err != nil {
+			return err
 		}
-		if _, err := s.db.Exec(`INSERT INTO schema_migrations(name) VALUES (?)`, name); err != nil {
-			return fmt.Errorf("record migration %s: %w", name, err)
-		}
+	}
+	return nil
+}
+
+// applyMigration runs one migration and records it in a single transaction, so
+// a migration that fails partway leaves no partial schema and no orphan record.
+func (s *Store) applyMigration(name, body string) error {
+	tx, err := s.db.Begin()
+	if err != nil {
+		return fmt.Errorf("begin migration %s: %w", name, err)
+	}
+	defer tx.Rollback()
+	if _, err := tx.Exec(body); err != nil {
+		return fmt.Errorf("apply migration %s: %w", name, err)
+	}
+	if _, err := tx.Exec(`INSERT INTO schema_migrations(name) VALUES (?)`, name); err != nil {
+		return fmt.Errorf("record migration %s: %w", name, err)
+	}
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit migration %s: %w", name, err)
 	}
 	return nil
 }

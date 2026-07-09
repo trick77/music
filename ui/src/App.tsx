@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { getSession, listSongs, uploadSong, streamUrl, type Session, type Song } from "./api";
 import { formatDuration } from "./format";
+import { TagEditor } from "./TagEditor";
+import { coverUrl, coverInitial } from "./cover";
 
 export function App() {
   const [session, setSession] = useState<Session | null>(null);
@@ -8,6 +10,7 @@ export function App() {
   const [nowPlaying, setNowPlaying] = useState<Song | null>(null);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [editing, setEditing] = useState<Song | null>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
 
   const refresh = () => listSongs().then(setSongs).catch(() => setError("Could not load songs"));
@@ -73,15 +76,23 @@ export function App() {
                 onClick={() => play(song)}
                 style={{
                   display: "flex",
+                  alignItems: "center",
                   justifyContent: "space-between",
-                  gap: "1rem",
-                  padding: "0.7rem 0.85rem",
+                  gap: "0.85rem",
+                  padding: "0.6rem 0.85rem",
                   borderRadius: "var(--radius-ui, 10px)",
                   cursor: "pointer",
                   background: active ? "var(--color-active)" : "transparent",
                 }}
               >
-                <span style={{ minWidth: 0 }}>
+                <span style={{ width: 44, height: 44, flexShrink: 0, borderRadius: 8, overflow: "hidden", background: "var(--color-active)", display: "grid", placeItems: "center", border: "1px solid var(--color-border)" }}>
+                  {song.coverArtId ? (
+                    <img src={coverUrl(song.coverArtId)} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                  ) : (
+                    <span style={{ fontFamily: "var(--font-serif)", fontSize: "0.9rem", color: "var(--color-muted)" }}>{coverInitial(song.artistName)}</span>
+                  )}
+                </span>
+                <span style={{ minWidth: 0, flex: 1 }}>
                   <span style={{ display: "block", color: "var(--color-ink)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                     {song.title}
                   </span>
@@ -93,6 +104,14 @@ export function App() {
                 <span style={{ color: "var(--color-muted)", fontVariantNumeric: "tabular-nums", flexShrink: 0 }}>
                   {formatDuration(song.durationMs)}
                 </span>
+                {session?.authenticated && (
+                  <button
+                    onClick={(e) => { e.stopPropagation(); setEditing(song); }}
+                    style={{ background: "none", border: "1px solid var(--color-border)", color: "var(--color-ink)", borderRadius: 8, padding: "0.25rem 0.6rem", cursor: "pointer", fontSize: "0.8rem", flexShrink: 0 }}
+                  >
+                    Edit
+                  </button>
+                )}
               </li>
             );
           })}
@@ -121,6 +140,17 @@ export function App() {
             </audio>
           </div>
         </div>
+      )}
+
+      {editing && (
+        <TagEditor
+          song={editing}
+          onClose={() => setEditing(null)}
+          onSaved={(saved) => {
+            setSongs((prev) => prev.map((s) => (s.id === saved.id ? saved : s)));
+            setEditing(saved);
+          }}
+        />
       )}
     </div>
   );

@@ -1,0 +1,8 @@
+/bin/
+/data/
+node_modules/
+ui/dist/
+# Built SPA assets are not tracked; only the placeholder index.html is.
+backend/web/dist/*
+!backend/web/dist/index.html
+.env

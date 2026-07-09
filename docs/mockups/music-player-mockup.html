@@ -424,6 +424,89 @@ hr.rule{border:0;border-top:1px solid var(--border);margin:44px 0}
 .addrow svg{width:16px;height:16px}
 .tarea{background:var(--bg);border:1px solid var(--border);border-radius:9px;padding:10px 12px;font-size:.9rem;color:var(--ink);min-height:66px}
 
+/* ===== library / search / empty / overlays ============================== */
+.pagehead{padding:30px 44px 0}
+.pagehead h1{font-size:2.7rem}
+.pagehead .sub{color:var(--muted);margin-top:8px;font-size:.92rem}
+.seg{display:inline-flex;background:var(--panel);border:1px solid var(--border);border-radius:999px;padding:3px;gap:2px;margin-top:20px}
+.seg button{padding:7px 17px;border-radius:999px;font-size:.84rem;color:var(--muted)}
+.seg button.on{background:var(--active);color:var(--ink)}
+
+.slhead{display:grid;grid-template-columns:44px 1fr 1fr 84px 60px;gap:16px;padding:0 10px 8px;border-bottom:1px solid var(--border);
+  font-size:.68rem;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-top:18px}
+.songlist{display:flex;flex-direction:column;margin-top:4px}
+.srow{display:grid;grid-template-columns:44px 1fr 1fr 84px 60px;gap:16px;align-items:center;padding:9px 10px;border-radius:8px}
+.srow:hover{background:var(--panel)}
+.srow .sc{width:44px;height:44px;border-radius:7px;overflow:hidden;position:relative;flex:0 0 auto}
+.srow .st{font-size:.92rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.srow .sa{font-size:.78rem;color:var(--muted)}
+.srow .sal{font-size:.84rem;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.srow .sd{font-size:.8rem;color:var(--muted);font-variant-numeric:tabular-nums;text-align:right}
+.srow .sract{display:flex;justify-content:flex-end;gap:2px;color:var(--muted)}
+
+/* search */
+.searchpage{padding:26px 44px 0}
+.bigsearch{display:flex;align-items:center;gap:12px;background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:14px 18px;font-size:1rem;color:var(--ink)}
+.bigsearch svg{width:20px;height:20px;color:var(--muted)}
+.bigsearch .cur{color:var(--muted)}
+.sgroup{margin-top:30px}
+.sgroup > h4{font-size:1.15rem;margin-bottom:14px}
+.topresult{display:flex;align-items:center;gap:18px;background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:16px;max-width:520px}
+.topresult .tc{width:96px;height:96px;border-radius:12px;overflow:hidden;position:relative;flex:0 0 auto}
+.topresult .tk{font-size:.72rem;letter-spacing:.14em;text-transform:uppercase;color:var(--accent-strong);font-weight:600}
+.topresult h3{font-size:1.6rem;margin:6px 0 4px}
+.topresult .tm{color:var(--muted);font-size:.85rem}
+.chips-row{display:flex;gap:10px;flex-wrap:wrap}
+.artist-row{display:flex;gap:22px;flex-wrap:wrap}
+.artist{display:flex;flex-direction:column;align-items:center;gap:9px;width:96px}
+.artist .aav{width:78px;height:78px;border-radius:50%;overflow:hidden;position:relative;border:1px solid var(--border)}
+.artist .an{font-size:.82rem;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;width:100%}
+
+/* empty state */
+.empty{height:100%;display:grid;place-items:center;text-align:center;padding:40px}
+.empty .inner{max-width:460px}
+.empty .ei{width:84px;height:84px;border-radius:22px;margin:0 auto 22px;display:grid;place-items:center;position:relative;overflow:hidden}
+.empty .ei svg{width:34px;height:34px;color:#fff;position:relative;z-index:2}
+.empty h2{font-size:2.3rem;margin-bottom:12px}
+.empty p{color:var(--muted);font-size:1rem;line-height:1.55;margin-bottom:24px}
+.empty .cta{display:inline-flex;align-items:center;gap:10px;background:var(--accent);color:#fff;border-radius:999px;padding:13px 24px;font-weight:500;font-size:.92rem}
+.empty .cta svg{width:17px;height:17px}
+.empty .anon-note{margin-top:20px;font-size:.82rem;color:var(--muted)}
+
+/* overlays showcase */
+.showcase{width:1240px;min-height:560px;background:
+  radial-gradient(120% 120% at 20% 0,rgba(60,45,90,.35),transparent 55%),var(--bg);
+  padding:40px;display:flex;gap:34px;flex-wrap:wrap;align-items:flex-start;justify-content:center}
+.ov-wrap{display:flex;flex-direction:column;gap:12px;align-items:center}
+.ov-label{font-size:.72rem;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+.menu{width:238px;background:var(--panel);border:1px solid var(--border);border-radius:12px;box-shadow:0 28px 70px -26px rgba(0,0,0,.9);padding:6px}
+.menu .mi{display:flex;align-items:center;gap:12px;padding:9px 11px;border-radius:8px;font-size:.87rem;color:var(--ink)}
+.menu .mi svg{width:16px;height:16px;color:var(--muted);flex:0 0 auto}
+.menu .mi:hover{background:var(--active)}
+.menu .mi .chev{margin-left:auto;color:var(--muted);font-size:1.1rem;line-height:1}
+.menu .mi.danger{color:var(--danger)}
+.menu .mi.danger svg{color:var(--danger)}
+.menu .sep{height:1px;background:var(--border);margin:5px 8px}
+.menu .mtitle{font-size:.68rem;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);padding:8px 11px 6px}
+.menu .mi .cnt{margin-left:auto;color:var(--muted);font-size:.74rem}
+.menu .mi.add{color:var(--accent-strong)}.menu .mi.add svg{color:var(--accent-strong)}
+
+.qdrawer{width:352px;background:var(--panel);border:1px solid var(--border);border-radius:14px;box-shadow:0 28px 70px -26px rgba(0,0,0,.9);padding:16px 16px 10px}
+.qdrawer .qh{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+.qdrawer .qh h4{font-size:1.15rem}
+.qdrawer .qh .x{color:var(--muted)}
+.qlabel{font-size:.68rem;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin:6px 0 8px}
+.qnow{display:flex;align-items:center;gap:12px;padding:9px;border-radius:9px;background:var(--active);margin-bottom:6px}
+.qnow .qc{width:42px;height:42px;border-radius:7px;overflow:hidden;position:relative;flex:0 0 auto}
+.qnow .qt{font-size:.88rem}.qnow .qa{font-size:.75rem;color:var(--accent-strong)}
+.qitem{display:grid;grid-template-columns:18px 38px 1fr auto;gap:11px;align-items:center;padding:7px 9px;border-radius:8px}
+.qitem:hover{background:var(--bg)}
+.qitem .qg{color:var(--muted)}.qitem .qg svg{width:15px;height:15px;stroke-width:2.4}
+.qitem .qc{width:38px;height:38px;border-radius:6px;overflow:hidden;position:relative}
+.qitem .qt{font-size:.86rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.qitem .qa2{font-size:.73rem;color:var(--muted)}
+.qitem .qd{font-size:.76rem;color:var(--muted);font-variant-numeric:tabular-nums}
+
 .foot{margin-top:80px;border-top:1px solid var(--border);padding-top:34px;color:var(--muted)}
 .foot h3{color:var(--ink);font-size:1.4rem;margin-bottom:16px}
 .qa{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:16px}
@@ -460,6 +543,8 @@ hr.rule{border:0;border-top:1px solid var(--border);margin:44px 0}
   <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12l4 4L19 7"/></symbol>
   <symbol id="i-share" viewBox="0 0 24 24"><circle cx="6" cy="12" r="2.6"/><circle cx="18" cy="6" r="2.6"/><circle cx="18" cy="18" r="2.6"/><path d="m8.3 10.8 7.4-3.5M8.3 13.2l7.4 3.5"/></symbol>
   <symbol id="i-grip" viewBox="0 0 24 24"><path d="M9 6h.01M9 12h.01M9 18h.01M15 6h.01M15 12h.01M15 18h.01"/></symbol>
+  <symbol id="i-user" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4.5 20.5c0-4 3.5-6.5 7.5-6.5s7.5 2.5 7.5 6.5"/></symbol>
+  <symbol id="i-trash" viewBox="0 0 24 24"><path d="M4 7h16M9 7V5h6v2M6.5 7l1 13h9l1-13"/></symbol>
 </svg>
 
 <div class="wrap">
@@ -943,6 +1028,238 @@ hr.rule{border:0;border-top:1px solid var(--border);margin:44px 0}
           <div class="mfoot"><span class="spacer">Unauthenticated visitors can play this, but not edit it</span>
             <button class="btn">Cancel</button><button class="btn accent">Create playlist</button></div>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== EMPTY / FIRST RUN ===== -->
+  <div class="sec-head"><h2>First run · empty state</h2><span class="tag">fresh deploy</span></div>
+  <p class="sec-note">Day one: no songs, genres, playlists or images yet. Signed in, the whole app
+    resolves to a single clear call to action. (Anonymous on an empty library sees a quiet “nothing
+    here yet” instead.)</p>
+
+  <div class="frame">
+    <div class="chrome"><i></i><i></i><i></i><span class="url">aurel.trick77.com</span></div>
+    <div class="hscroll">
+      <div class="app" style="grid-template-rows:1fr">
+        <nav class="rail">
+          <span class="mk"><span class="ph p-fog"></span></span>
+          <a class="r on"><svg class="i"><use href="#i-home"/></svg></a>
+          <a class="r"><svg class="i"><use href="#i-search"/></svg></a>
+          <a class="r"><svg class="i"><use href="#i-disc"/></svg></a>
+          <a class="r"><svg class="i"><use href="#i-lib"/></svg></a>
+          <a class="r"><svg class="i"><use href="#i-upload"/></svg></a>
+          <a class="r soon"><svg class="i"><use href="#i-spark"/></svg></a>
+          <span class="sp"></span>
+          <span class="avatar">JT</span>
+        </nav>
+        <main class="main" style="padding-bottom:0">
+          <div class="empty">
+            <div class="inner">
+              <div class="ei"><span class="ph p-dusk"></span><svg class="i"><use href="#i-upload"/></svg></div>
+              <h2>Your library is empty</h2>
+              <p>Upload your first songs to begin. Tags are read automatically, and you can generate
+                cover and genre artwork from a prompt as you go.</p>
+              <button class="cta"><svg class="i"><use href="#i-upload"/></svg>Upload music</button>
+              <div class="anon-note">Signed out, this reads “Nothing here yet — check back soon.”</div>
+            </div>
+          </div>
+        </main>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== LIBRARY / FAVORITES ===== -->
+  <div class="sec-head"><h2>Library · Favorites</h2><span class="tag">where hearts live</span></div>
+  <p class="sec-note">The Library tab collects everything: all songs, your playlists, and — the piece
+    that was missing — your <b>Favorites</b> (the hearted songs, from localStorage, so it works for
+    anyone on their own device). Sortable song table with album and duration.</p>
+
+  <div class="frame">
+    <div class="chrome"><i></i><i></i><i></i><span class="url">aurel.trick77.com/library</span></div>
+    <div class="hscroll">
+      <div class="app">
+        <nav class="rail">
+          <span class="mk"><span class="ph p-dusk"></span></span>
+          <a class="r"><svg class="i"><use href="#i-home"/></svg></a>
+          <a class="r"><svg class="i"><use href="#i-search"/></svg></a>
+          <a class="r"><svg class="i"><use href="#i-disc"/></svg></a>
+          <a class="r on"><svg class="i"><use href="#i-lib"/></svg></a>
+          <a class="r"><svg class="i"><use href="#i-upload"/></svg></a>
+          <a class="r soon"><svg class="i"><use href="#i-spark"/></svg></a>
+          <span class="sp"></span>
+          <span class="avatar">JT</span>
+        </nav>
+        <main class="main">
+          <div class="pagehead">
+            <h1>Library</h1>
+            <div class="seg"><button>All songs</button><button class="on">Favorites</button><button>Playlists</button></div>
+          </div>
+          <div class="flow" style="padding-top:8px">
+            <div class="slhead"><span></span><span>Title</span><span>Album</span><span>Genre</span><span style="text-align:right">Time</span></div>
+            <div class="songlist">
+              <div class="srow"><span class="sc"><span class="ph p-dusk"></span></span>
+                <span><div class="st">Neon Undertow</div><div class="sa">Vesper Lake</div></span>
+                <span class="sal">Midnight Cartography</span><span class="sal">Synthwave</span>
+                <span class="sract"><button class="iconbtn hearted"><svg class="i"><use href="#i-heart"/></svg></button><button class="iconbtn"><svg class="i"><use href="#i-dots"/></svg></button></span></div>
+              <div class="srow"><span class="sc"><span class="ph p-rose"></span></span>
+                <span><div class="st">Slow Motion Coast</div><div class="sa">Marisol</div></span>
+                <span class="sal">—</span><span class="sal">Dream Pop</span>
+                <span class="sract"><button class="iconbtn hearted"><svg class="i"><use href="#i-heart"/></svg></button><button class="iconbtn"><svg class="i"><use href="#i-dots"/></svg></button></span></div>
+              <div class="srow"><span class="sc"><span class="ph p-gold"></span></span>
+                <span><div class="st">Amber in the Rearview</div><div class="sa">The Long Way</div></span>
+                <span class="sal">—</span><span class="sal">Lo-fi</span>
+                <span class="sract"><button class="iconbtn hearted"><svg class="i"><use href="#i-heart"/></svg></button><button class="iconbtn"><svg class="i"><use href="#i-dots"/></svg></button></span></div>
+              <div class="srow"><span class="sc"><span class="ph p-tide"></span></span>
+                <span><div class="st">Glass Horizon</div><div class="sa">Halcyon Field</div></span>
+                <span class="sal">Tidal Glass</span><span class="sal">Ambient</span>
+                <span class="sract"><button class="iconbtn hearted"><svg class="i"><use href="#i-heart"/></svg></button><button class="iconbtn"><svg class="i"><use href="#i-dots"/></svg></button></span></div>
+              <div class="srow"><span class="sc nocover" style="display:grid;place-items:center"><span class="ph p-fog" style="opacity:.4"></span></span>
+                <span><div class="st">Untitled Take 3</div><div class="sa">Marisol</div></span>
+                <span class="sal">—</span><span class="sal">—</span>
+                <span class="sract"><button class="iconbtn hearted"><svg class="i"><use href="#i-heart"/></svg></button><button class="iconbtn"><svg class="i"><use href="#i-dots"/></svg></button></span></div>
+            </div>
+          </div>
+
+          <div class="nowbar">
+            <div class="np-left"><span class="cv"><span class="ph p-dusk"></span></span>
+              <span><div class="t">Neon Undertow</div><div class="a">Vesper Lake</div></span>
+              <button class="iconbtn hearted" style="margin-left:6px"><svg class="i"><use href="#i-heart"/></svg></button></div>
+            <div class="np-center">
+              <div class="transport"><button class="s"><svg class="i"><use href="#i-shuffle"/></svg></button><button class="s"><svg class="i"><use href="#i-prev"/></svg></button><button class="p"><svg><use href="#i-pause"/></svg></button><button class="s"><svg class="i"><use href="#i-next"/></svg></button><button class="s"><svg class="i"><use href="#i-repeat"/></svg></button></div>
+              <div class="scrub"><span>1:29</span><span class="bar"></span><span>3:52</span></div>
+            </div>
+            <div class="np-right"><button class="iconbtn"><svg class="i"><use href="#i-download"/></svg></button><button class="iconbtn"><svg class="i"><use href="#i-plus"/></svg></button><button class="iconbtn"><svg class="i"><use href="#i-queue"/></svg></button><button class="iconbtn"><svg class="i"><use href="#i-vol"/></svg></button><span class="vol"></span></div>
+          </div>
+        </main>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== SEARCH RESULTS ===== -->
+  <div class="sec-head"><h2>Search</h2><span class="tag">as you type</span></div>
+  <p class="sec-note">One field, grouped results — a top match, then songs, artists, genres and
+    playlists. Everything here is playable by anyone.</p>
+
+  <div class="frame">
+    <div class="chrome"><i></i><i></i><i></i><span class="url">aurel.trick77.com/search?q=neon</span></div>
+    <div class="hscroll">
+      <div class="app">
+        <nav class="rail">
+          <span class="mk"><span class="ph p-dusk"></span></span>
+          <a class="r"><svg class="i"><use href="#i-home"/></svg></a>
+          <a class="r on"><svg class="i"><use href="#i-search"/></svg></a>
+          <a class="r"><svg class="i"><use href="#i-disc"/></svg></a>
+          <a class="r"><svg class="i"><use href="#i-lib"/></svg></a>
+          <a class="r"><svg class="i"><use href="#i-upload"/></svg></a>
+          <a class="r soon"><svg class="i"><use href="#i-spark"/></svg></a>
+          <span class="sp"></span>
+          <span class="avatar">JT</span>
+        </nav>
+        <main class="main">
+          <div class="searchpage">
+            <div class="bigsearch"><svg class="i"><use href="#i-search"/></svg>neon<span class="cur" style="color:var(--accent-strong)">▌</span></div>
+          </div>
+          <div class="flow" style="padding-top:6px">
+            <div class="sgroup" style="display:grid;grid-template-columns:auto 1fr;gap:40px;align-items:start">
+              <div><h4>Top result</h4>
+                <div class="topresult"><span class="tc"><span class="ph p-dusk"></span></span>
+                  <div><div class="tk">Song</div><h3>Neon Undertow</h3><div class="tm">Vesper Lake · Synthwave</div></div></div>
+              </div>
+              <div><h4>Songs</h4>
+                <div class="songlist" style="margin-top:0">
+                  <div class="srow" style="grid-template-columns:44px 1fr auto 60px"><span class="sc"><span class="ph p-dusk"></span></span>
+                    <span><div class="st">Neon Undertow</div><div class="sa">Vesper Lake</div></span><span></span><span class="sd">3:52</span></div>
+                  <div class="srow" style="grid-template-columns:44px 1fr auto 60px"><span class="sc"><span class="ph p-rose"></span></span>
+                    <span><div class="st">Neon Rainfall</div><div class="sa">Marisol</div></span><span></span><span class="sd">4:08</span></div>
+                  <div class="srow" style="grid-template-columns:44px 1fr auto 60px"><span class="sc"><span class="ph p-chrome"></span></span>
+                    <span><div class="st">Neon City Lines</div><div class="sa">North Room</div></span><span></span><span class="sd">3:19</span></div>
+                </div>
+              </div>
+            </div>
+
+            <div class="sgroup"><h4>Artists</h4>
+              <div class="artist-row">
+                <div class="artist"><span class="aav"><span class="ph p-dusk"></span></span><span class="an">Vesper Lake</span></div>
+                <div class="artist"><span class="aav"><span class="ph p-tide"></span></span><span class="an">Neon Divide</span></div>
+                <div class="artist"><span class="aav"><span class="ph p-rose"></span></span><span class="an">Marisol</span></div>
+              </div>
+            </div>
+
+            <div class="sgroup"><h4>Genres</h4>
+              <div class="chips-row"><button class="pill">Synthwave</button><button class="pill">Neo-noir</button><button class="pill">Dream Pop</button></div>
+            </div>
+
+            <div class="sgroup"><h4>Playlists</h4>
+              <div class="pgrid" style="grid-template-columns:repeat(4,1fr)">
+                <div class="card"><div class="cv"><span class="ph p-rose"></span></div><div class="pn">Neon Rain</div><div class="pd">City-at-night synthwave.</div></div>
+                <div class="card"><div class="cv"><span class="ph p-chrome"></span></div><div class="pn">Late Night Drive</div><div class="pd">Empty roads, low volume.</div></div>
+              </div>
+            </div>
+          </div>
+        </main>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== QUEUE / CONTEXT MENU / ADD TO PLAYLIST ===== -->
+  <div class="sec-head"><h2>Queue, context menu &amp; add-to-playlist</h2><span class="tag">the “…” everywhere</span></div>
+  <p class="sec-note">The three overlays every row and the player rely on: the up-next queue (drag to
+    reorder), the per-song “…” menu, and the add-to-playlist chooser it opens.</p>
+
+  <div class="frame">
+    <div class="chrome"><i></i><i></i><i></i><span class="url">components</span></div>
+    <div class="hscroll">
+      <div class="showcase">
+
+        <!-- Queue -->
+        <div class="ov-wrap">
+          <div class="qdrawer">
+            <div class="qh"><h4>Queue</h4><span class="x"><svg class="i"><use href="#i-x"/></svg></span></div>
+            <div class="qlabel">Now playing</div>
+            <div class="qnow"><span class="qc"><span class="ph p-dusk"></span></span>
+              <span><div class="qt">Neon Undertow</div><div class="qa">Vesper Lake</div></span></div>
+            <div class="qlabel">Next up</div>
+            <div class="qitem"><span class="qg"><svg class="i"><use href="#i-grip"/></svg></span><span class="qc"><span class="ph p-tide"></span></span><span><div class="qt">Glass Horizon</div><div class="qa2">Halcyon Field</div></span><span class="qd">4:15</span></div>
+            <div class="qitem"><span class="qg"><svg class="i"><use href="#i-grip"/></svg></span><span class="qc"><span class="ph p-gold"></span></span><span><div class="qt">Amber in the Rearview</div><div class="qa2">The Long Way</div></span><span class="qd">5:02</span></div>
+            <div class="qitem"><span class="qg"><svg class="i"><use href="#i-grip"/></svg></span><span class="qc"><span class="ph p-rose"></span></span><span><div class="qt">Afterimage</div><div class="qa2">Marisol</div></span><span class="qd">3:31</span></div>
+          </div>
+          <div class="ov-label">Queue · up next</div>
+        </div>
+
+        <!-- Context menu -->
+        <div class="ov-wrap">
+          <div class="menu">
+            <div class="mi"><svg class="i"><use href="#i-play"/></svg>Play next</div>
+            <div class="mi"><svg class="i"><use href="#i-queue"/></svg>Add to queue</div>
+            <div class="mi add"><svg class="i"><use href="#i-plus"/></svg>Add to playlist<span class="chev">›</span></div>
+            <div class="sep"></div>
+            <div class="mi"><svg class="i"><use href="#i-user"/></svg>Go to artist</div>
+            <div class="mi"><svg class="i"><use href="#i-disc"/></svg>Go to genre</div>
+            <div class="sep"></div>
+            <div class="mi"><svg class="i"><use href="#i-download"/></svg>Download</div>
+            <div class="mi"><svg class="i"><use href="#i-share"/></svg>Share</div>
+            <div class="mi"><svg class="i"><use href="#i-edit"/></svg>Edit tags</div>
+            <div class="sep"></div>
+            <div class="mi danger"><svg class="i"><use href="#i-trash"/></svg>Delete song</div>
+          </div>
+          <div class="ov-label">Song “…” menu (signed in — edit/delete hidden for anonymous)</div>
+        </div>
+
+        <!-- Add to playlist -->
+        <div class="ov-wrap">
+          <div class="menu">
+            <div class="mtitle">Add to playlist</div>
+            <div class="mi add"><svg class="i"><use href="#i-plus"/></svg>New playlist</div>
+            <div class="sep"></div>
+            <div class="mi"><svg class="i"><use href="#i-check"/></svg>Late Night Drive<span class="cnt">18</span></div>
+            <div class="mi"><svg class="i" style="opacity:0"><use href="#i-check"/></svg>Focus / Deep Work<span class="cnt">42</span></div>
+            <div class="mi"><svg class="i" style="opacity:0"><use href="#i-check"/></svg>Neon Rain<span class="cnt">7</span></div>
+            <div class="mi"><svg class="i" style="opacity:0"><use href="#i-check"/></svg>Sunday, Slow<span class="cnt">23</span></div>
+          </div>
+          <div class="ov-label">Add-to-playlist chooser</div>
+        </div>
+
       </div>
     </div>
   </div>

@@ -29,7 +29,10 @@ not see them. **No lock icons, no disabled states, no "sign in to…" prompts** 
 
 **Favorites (the heart) are for everyone.** Hearting a song is client-side only — stored in the
 browser's **localStorage**, available to anonymous and authenticated visitors alike. There is no
-"Save" button and no server-side likes table; the heart icon is the entire feature.
+"Save" button and no server-side likes table; the heart icon is the entire feature. **Caveat:**
+localStorage is per-device/per-browser, so favorites don't sync across devices — accepted for v1;
+if cross-device sync is wanted later, only the authenticated owner's favorites would move
+server-side.
 
 ## 2. Non-goals (explicitly deferred — do NOT build in v1)
 
@@ -232,7 +235,40 @@ favorites are localStorage-only (§1).
 `BACKEND_OIDC_ALLOWED_GROUP` (optional), `BACKEND_DEV_USER_USERNAME` (dev),
 `BACKEND_DB_PATH`, `BACKEND_MEDIA_DIR`, `BACKEND_MAX_UPLOAD_MB`. Image generation (optional, §8a):
 `BACKEND_BFL_BASE_URL`, `BACKEND_BFL_API_KEY`, `BACKEND_BFL_MODEL`, `BACKEND_BFL_POLL_TIMEOUT`.
-Provide `.env.example`.
+
+Ship a committed **`.env.example`** at the repo root that the maintainer copies to `.env` (and a
+`compose.dev.yaml` for local, like loom). It must carry every var with safe placeholders and inline
+comments. Concretely:
+
+```dotenv
+# --- Core (required) ---
+BACKEND_SESSION_SECRET=change-me-to-a-long-random-string
+BACKEND_DB_PATH=/data/music.db
+BACKEND_MEDIA_DIR=/data/media
+BACKEND_MAX_UPLOAD_MB=50
+
+# --- Auth ---
+# Local development: dev = autologin as a fixed full-access user, no Authentik needed.
+BACKEND_AUTH_MODE=dev
+BACKEND_DEV_USER_USERNAME=dev
+# Production: set BACKEND_AUTH_MODE=oidc and fill these (Authentik "music" application).
+BACKEND_OIDC_ISSUER=https://auth.trick77.com/application/o/music/
+BACKEND_OIDC_CLIENT_ID=
+BACKEND_OIDC_CLIENT_SECRET=
+BACKEND_OIDC_REDIRECT_URL=https://music.trick77.com/api/auth/callback
+BACKEND_OIDC_POST_LOGOUT_REDIRECT_URL=https://music.trick77.com/
+# Optional: restrict the authenticated role to one Authentik group (unset = any valid login).
+BACKEND_OIDC_ALLOWED_GROUP=
+
+# --- Image generation (optional; leave API key empty to disable the Generate button) ---
+BACKEND_BFL_BASE_URL=https://api.bfl.ai/v1
+BACKEND_BFL_API_KEY=
+BACKEND_BFL_MODEL=flux-2-klein-4b
+BACKEND_BFL_POLL_TIMEOUT=1m
+```
+
+For a working **local** setup the maintainer only needs `BACKEND_SESSION_SECRET` (any long string) —
+`BACKEND_AUTH_MODE=dev` autologins, and image generation stays off until a BFL key is added.
 
 ## 14. Security invariants (must hold)
 
@@ -250,6 +286,29 @@ genre/artist/playlist **detail** (one template), **mobile** home (tab bar + dock
 and **playlist create/edit**. Rank numbers use Anthropic **Sans** (tabular-nums), not serif. Slim
 **icon-only** rail, no wordmark. The heart (favorite) appears on song rows, the now-playing bar and
 the player — available to everyone, no "Save" button.
+
+Also specified in the mockup: **Library** (segmented All songs / Favorites / Playlists — Favorites
+is the home for hearted songs), **Search** (grouped results: top result, songs, artists, genres,
+playlists), **empty / first-run** state (a single "Upload music" CTA signed in; a quiet "nothing
+here yet" anonymous), and the **queue** (up-next, drag-reorder) + per-song **"…" context menu**
+(play next, add to queue, add to playlist, go to artist/genre, download, share, and — signed-in only
+— edit tags / delete) + **add-to-playlist** chooser.
+
+## 15a. Additional v1 behaviour (spec-only, no separate mockup)
+
+- **Mobile media controls:** implement the **MediaSession API** (metadata + play/pause/next/prev)
+  so lock-screen / notification controls and background audio work on mobile. Register a service
+  worker for basic installability (PWA); real offline caching is out of scope.
+- **Image sizing:** generate sized variants (thumbnail / card / hero) for cover art and fanart —
+  reuse loom's `backend/internal/imagescale` package — so pages don't load full-res everywhere.
+- **Resume playback:** persist the current track + position (client-side) and restore on reload.
+- **Shared-link previews:** emit Open Graph / Twitter meta (title, artist, cover/fanart image) on
+  song/playlist/genre routes so shared links render with art in chat apps.
+- **Destructive actions:** delete song / playlist / genre-image require a confirm step.
+- **Unknown metadata:** songs with no artist tag group under "Unknown artist"; missing album/genre
+  render as "—" (as in the Library mockup).
+- **Deferred (not v1):** bulk tag edit, crossfade/gapless, keyboard shortcuts, download-as-zip,
+  extending the generator to per-song cover art (same BFL flow, square aspect).
 
 ## 16. Verification (implementation phase)
 

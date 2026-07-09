@@ -133,6 +133,8 @@ hr.rule{border:0;border-top:1px solid var(--border);margin:44px 0}
 .iconbtn{display:inline-grid;place-items:center;width:32px;height:32px;border-radius:8px;color:var(--muted);position:relative}
 .iconbtn:hover{background:var(--active);color:var(--ink)}
 .iconbtn svg{width:17px;height:17px}
+.iconbtn.hearted{color:var(--accent-strong)}
+.iconbtn.hearted svg{fill:var(--accent-strong)}
 
 /* album rail (horizontal) */
 .rail-row{display:flex;gap:18px;overflow-x:auto;padding-bottom:8px;scrollbar-width:none}
@@ -362,7 +364,7 @@ hr.rule{border:0;border-top:1px solid var(--border);margin:44px 0}
 .editcover .replace svg{width:15px;height:15px}
 .editcover .hint{font-size:.72rem;color:var(--muted);line-height:1.4;text-align:center}
 .fields{display:grid;grid-template-columns:1fr 1fr;gap:14px;align-content:start}
-.field{display:flex;flex-direction:column;gap:6px}
+.field{display:flex;flex-direction:column;gap:6px;position:relative}
 .field.full{grid-column:1 / -1}
 .field label{font-size:.68rem;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
 .field .inp{background:var(--bg);border:1px solid var(--border);border-radius:9px;padding:10px 12px;font-size:.9rem;color:var(--ink)}
@@ -372,6 +374,38 @@ hr.rule{border:0;border-top:1px solid var(--border);margin:44px 0}
 .gchip{display:inline-flex;align-items:center;gap:7px;background:var(--active);border:1px solid var(--border);border-radius:999px;padding:5px 11px;font-size:.82rem}
 .gchip i{font-style:normal;color:var(--muted);font-size:.95rem;line-height:1}
 .gadd{color:var(--accent-strong);font-size:.82rem;padding:3px 5px}
+.ta-menu{position:absolute;top:calc(100% + 6px);left:0;right:0;background:var(--panel);border:1px solid var(--border);border-radius:10px;box-shadow:0 22px 55px -22px rgba(0,0,0,.85);padding:5px;z-index:20;display:flex;flex-direction:column;gap:2px}
+.ta-opt{display:flex;align-items:center;gap:9px;padding:8px 10px;border-radius:7px;font-size:.86rem;color:var(--ink)}
+.ta-opt svg{width:15px;height:15px;color:var(--muted);flex:0 0 auto}
+.ta-opt small{margin-left:auto;color:var(--muted);font-size:.72rem}
+.ta-opt.on{background:var(--active)}
+.ta-add{display:flex;align-items:center;gap:9px;padding:8px 10px;border-radius:7px;font-size:.84rem;color:var(--accent-strong);border-top:1px solid var(--border);margin-top:3px}
+.ta-add svg{width:15px;height:15px}
+
+/* genre background editor */
+.gpreview{aspect-ratio:16/9;border-radius:12px;overflow:hidden;position:relative;border:1px solid var(--border)}
+.gpreview .scr{position:absolute;inset:0;background:linear-gradient(0deg,rgba(12,10,14,.72),transparent 58%)}
+.gpreview .gt{position:absolute;left:20px;bottom:16px;font-family:var(--serif);font-size:2rem;color:#fff}
+.imgpick{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:14px}
+.imgpick .opt{aspect-ratio:16/10;border-radius:9px;overflow:hidden;position:relative;border:1px solid var(--border)}
+.imgpick .opt.on{outline:2px solid var(--accent-strong);outline-offset:2px}
+.imgpick .up{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;color:var(--muted);border:1.5px dashed #4a473f;background:var(--bg);font-size:.72rem}
+.imgpick .up svg{width:18px;height:18px}
+.hintline{margin-top:12px;font-size:.8rem;color:var(--muted)}
+
+/* playlist editor */
+.plsongs{margin-top:6px;display:flex;flex-direction:column;gap:2px}
+.plsong{display:grid;grid-template-columns:20px 36px 1fr auto auto;gap:12px;align-items:center;padding:8px 6px;border-radius:8px}
+.plsong:hover{background:var(--bg)}
+.plsong .drag{color:var(--muted);display:grid;place-items:center}
+.plsong .drag svg{width:17px;height:17px;stroke-width:2.4}
+.plsong .pc{width:36px;height:36px;border-radius:6px;overflow:hidden;position:relative}
+.plsong .pt{font-size:.88rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.plsong .pa{font-size:.75rem;color:var(--muted)}
+.plsong .pdur{font-size:.78rem;color:var(--muted);font-variant-numeric:tabular-nums}
+.addrow{margin-top:12px;display:flex;align-items:center;gap:10px;border:1px solid var(--border);border-radius:9px;padding:11px 13px;color:var(--muted);font-size:.86rem}
+.addrow svg{width:16px;height:16px}
+.tarea{background:var(--bg);border:1px solid var(--border);border-radius:9px;padding:10px 12px;font-size:.9rem;color:var(--ink);min-height:66px}
 
 .foot{margin-top:80px;border-top:1px solid var(--border);padding-top:34px;color:var(--muted)}
 .foot h3{color:var(--ink);font-size:1.4rem;margin-bottom:16px}
@@ -408,6 +442,7 @@ hr.rule{border:0;border-top:1px solid var(--border);margin:44px 0}
   <symbol id="i-chevdown" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></symbol>
   <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12l4 4L19 7"/></symbol>
   <symbol id="i-share" viewBox="0 0 24 24"><circle cx="6" cy="12" r="2.6"/><circle cx="18" cy="6" r="2.6"/><circle cx="18" cy="18" r="2.6"/><path d="m8.3 10.8 7.4-3.5M8.3 13.2l7.4 3.5"/></symbol>
+  <symbol id="i-grip" viewBox="0 0 24 24"><path d="M9 6h.01M9 12h.01M9 18h.01M15 6h.01M15 12h.01M15 18h.01"/></symbol>
 </svg>
 
 <div class="wrap">
@@ -472,7 +507,6 @@ hr.rule{border:0;border-top:1px solid var(--border);margin:44px 0}
                 <button class="play-lg"><svg><use href="#i-play"/></svg>Play</button>
                 <button class="ghost"><svg class="i"><use href="#i-download"/></svg>Download</button>
                 <button class="ghost"><svg class="i"><use href="#i-share"/></svg>Share</button>
-                <button class="ghost gated"><svg class="i"><use href="#i-heart"/></svg>Save</button>
               </div>
             </div>
             <div class="dots"><span class="on"></span><span></span><span></span><span></span></div>
@@ -487,7 +521,7 @@ hr.rule{border:0;border-top:1px solid var(--border);margin:44px 0}
                   <span><div class="t">Neon Undertow</div><div class="a">Vesper Lake</div></span>
                   <span class="plays">48,210 plays</span><span class="dur">3:52</span>
                   <span class="ctl"><button class="iconbtn"><svg class="i"><use href="#i-download"/></svg></button>
-                    <button class="iconbtn gated"><svg class="i"><use href="#i-heart"/></svg></button>
+                    <button class="iconbtn"><svg class="i"><use href="#i-heart"/></svg></button>
                     <button class="iconbtn"><svg class="i"><use href="#i-dots"/></svg></button></span></div>
                 <div class="trk"><span class="rank top">02</span><span class="thumb"><span class="ph p-chrome"></span></span>
                   <span><div class="t">Glass Horizon</div><div class="a">Halcyon Field</div></span>
@@ -559,7 +593,7 @@ hr.rule{border:0;border-top:1px solid var(--border);margin:44px 0}
           <div class="nowbar">
             <div class="np-left"><span class="cv"><span class="ph p-dusk"></span></span>
               <span><div class="t">Neon Undertow</div><div class="a">Vesper Lake</div></span>
-              <button class="iconbtn gated" style="margin-left:6px"><svg class="i"><use href="#i-heart"/></svg></button></div>
+              <button class="iconbtn hearted" style="margin-left:6px"><svg class="i"><use href="#i-heart"/></svg></button></div>
             <div class="np-center">
               <div class="transport">
                 <button class="s"><svg class="i"><use href="#i-shuffle"/></svg></button>
@@ -611,7 +645,7 @@ hr.rule{border:0;border-top:1px solid var(--border);margin:44px 0}
             <button class="ghost"><svg class="i"><use href="#i-share"/></svg>Share</button>
           </div>
           <div class="dlist">
-            <div class="dtrk"><span class="n">1</span><span class="dsong"><b>Neon Undertow</b><span>Vesper Lake</span></span><span class="dn">3:52</span><span class="dc"><button class="iconbtn" style="color:inherit"><svg class="i"><use href="#i-download"/></svg></button><button class="iconbtn gated" style="color:inherit"><svg class="i"><use href="#i-heart"/></svg></button></span></div>
+            <div class="dtrk"><span class="n">1</span><span class="dsong"><b>Neon Undertow</b><span>Vesper Lake</span></span><span class="dn">3:52</span><span class="dc"><button class="iconbtn" style="color:inherit"><svg class="i"><use href="#i-download"/></svg></button><button class="iconbtn hearted" style="color:inherit"><svg class="i"><use href="#i-heart"/></svg></button></span></div>
             <div class="dtrk"><span class="n">2</span><span class="dsong"><b>Chrome Sunset</b><span>Halcyon Field</span></span><span class="dn">4:15</span><span class="dc"><button class="iconbtn" style="color:inherit"><svg class="i"><use href="#i-download"/></svg></button><button class="iconbtn" style="color:inherit"><svg class="i"><use href="#i-dots"/></svg></button></span></div>
             <div class="dtrk"><span class="n">3</span><span class="dsong"><b>Afterimage</b><span>Marisol</span></span><span class="dn">3:31</span><span class="dc"><button class="iconbtn" style="color:inherit"><svg class="i"><use href="#i-download"/></svg></button><button class="iconbtn" style="color:inherit"><svg class="i"><use href="#i-dots"/></svg></button></span></div>
             <div class="dtrk"><span class="n">4</span><span class="dsong"><b>Cold Arcade</b><span>North Room</span></span><span class="dn">5:02</span><span class="dc"><button class="iconbtn" style="color:inherit"><svg class="i"><use href="#i-download"/></svg></button><button class="iconbtn" style="color:inherit"><svg class="i"><use href="#i-dots"/></svg></button></span></div>
@@ -713,7 +747,7 @@ hr.rule{border:0;border-top:1px solid var(--border);margin:44px 0}
           <div class="psecond">
             <button class="iconbtn" style="color:#cdc8bf"><svg class="i"><use href="#i-download"/></svg></button>
             <button class="iconbtn" style="color:#cdc8bf"><svg class="i"><use href="#i-share"/></svg></button>
-            <button class="iconbtn gated" style="color:#cdc8bf"><svg class="i"><use href="#i-heart"/></svg></button>
+            <button class="iconbtn" style="color:#cdc8bf"><svg class="i"><use href="#i-heart"/></svg></button>
             <button class="iconbtn gated" style="color:#cdc8bf"><svg class="i"><use href="#i-plus"/></svg></button>
             <button class="iconbtn" style="color:#cdc8bf"><svg class="i"><use href="#i-vol"/></svg></button>
           </div>
@@ -782,9 +816,15 @@ hr.rule{border:0;border-top:1px solid var(--border);margin:44px 0}
                 <div class="hint">Applies to every track on this artist + album.</div>
               </div>
               <div class="fields">
-                <div class="field full"><label>Title</label><div class="inp foc">Neon Undertow</div></div>
-                <div class="field"><label>Artist</label><div class="inp">Vesper Lake</div></div>
-                <div class="field"><label>Album</label><div class="inp">Midnight Cartography</div></div>
+                <div class="field full"><label>Title</label><div class="inp">Neon Undertow</div></div>
+                <div class="field"><label>Artist</label><div class="inp foc">Ves</div>
+                  <div class="ta-menu">
+                    <div class="ta-opt on"><svg class="i"><use href="#i-search"/></svg>Vesper Lake<small>12 songs</small></div>
+                    <div class="ta-opt"><svg class="i"><use href="#i-search"/></svg>Vesper Nine<small>4 songs</small></div>
+                    <div class="ta-opt"><svg class="i"><use href="#i-search"/></svg>Vestige<small>1 song</small></div>
+                    <div class="ta-add"><svg class="i"><use href="#i-plus"/></svg>Use “Ves” as a new artist</div>
+                  </div></div>
+                <div class="field"><label>Album <span style="color:var(--muted);text-transform:none;letter-spacing:0">· optional</span></label><div class="inp">Midnight Cartography</div></div>
                 <div class="field"><label>Album artist</label><div class="inp">Vesper Lake</div></div>
                 <div class="field full"><label>Genres</label><div class="inp chips">
                   <span class="gchip">Synthwave <i>×</i></span><span class="gchip">Dream Pop <i>×</i></span><span class="gadd">+ Add genre</span></div></div>
@@ -796,6 +836,85 @@ hr.rule{border:0;border-top:1px solid var(--border);margin:44px 0}
           </div>
           <div class="mfoot"><span class="spacer">Changes save to the file's ID3 tags</span>
             <button class="btn">Cancel</button><button class="btn accent">Save changes</button></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== GENRE BACKGROUND EDITOR (signed in) ===== -->
+  <div class="sec-head"><h2>Set a genre's background</h2><span class="tag">signed in only</span></div>
+  <p class="sec-note">From a genre page, the “Edit” action opens this. Upload one or more images for
+    the genre and pick which one is its background; the same picker feeds the featured Home hero.
+    This is how the fanart gets assigned.</p>
+
+  <div class="frame">
+    <div class="chrome"><i></i><i></i><i></i><span class="url">aurel.trick77.com/genre/synthwave — edit</span></div>
+    <div class="hscroll">
+      <div class="sheet">
+        <div class="sheetbg"><span class="ph p-chrome"></span></div><div class="sheetdim"></div>
+        <div class="modal wide">
+          <div class="mhead"><h3>Edit genre · Synthwave</h3><span class="x"><svg class="i"><use href="#i-x"/></svg></span></div>
+          <div class="mbodyp">
+            <div class="gpreview"><span class="ph p-chrome"></span><div class="scr"></div><span class="gt">Synthwave</span></div>
+            <div class="hintline">Background image — choose one, or drop a new image to add it.</div>
+            <div class="imgpick">
+              <div class="opt on"><span class="ph p-chrome"></span></div>
+              <div class="opt"><span class="ph p-rose"></span></div>
+              <div class="opt"><span class="ph p-dusk"></span></div>
+              <div class="up"><svg class="i"><use href="#i-upload"/></svg>Upload</div>
+            </div>
+            <div class="editgrid" style="margin-top:20px;grid-template-columns:1fr 1fr">
+              <div class="field"><label>Name</label><div class="inp">Synthwave</div></div>
+              <div class="field"><label>Primary color accent <span style="color:var(--muted);text-transform:none;letter-spacing:0">· auto</span></label><div class="inp dim">Sampled from image</div></div>
+            </div>
+          </div>
+          <div class="mfoot"><span class="spacer">Applies to the genre page and, if featured, the Home hero</span>
+            <button class="btn">Cancel</button><button class="btn accent">Save genre</button></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== PLAYLIST EDITOR (signed in) ===== -->
+  <div class="sec-head"><h2>Create / edit a playlist</h2><span class="tag">signed in only</span></div>
+  <p class="sec-note">Opened by the sidebar “+”, the “New playlist” card, or a playlist's Edit action.
+    Name, description, an optional cover, and the songs — reorder by dragging, add via search.</p>
+
+  <div class="frame">
+    <div class="chrome"><i></i><i></i><i></i><span class="url">aurel.trick77.com — new playlist</span></div>
+    <div class="hscroll">
+      <div class="sheet">
+        <div class="sheetbg"><span class="ph p-rose"></span></div><div class="sheetdim"></div>
+        <div class="modal wide">
+          <div class="mhead"><h3>New playlist</h3><span class="x"><svg class="i"><use href="#i-x"/></svg></span></div>
+          <div class="mbodyp">
+            <div class="editgrid">
+              <div class="editcover">
+                <div class="ec"><span class="ph p-rose"></span></div>
+                <button class="replace"><svg class="i"><use href="#i-image"/></svg>Upload cover</button>
+                <div class="hint">Optional — falls back to a tile from the songs.</div>
+              </div>
+              <div class="fields" style="grid-template-columns:1fr">
+                <div class="field"><label>Name</label><div class="inp foc">Late Night Drive</div></div>
+                <div class="field"><label>Description <span style="color:var(--muted);text-transform:none;letter-spacing:0">· optional</span></label><div class="tarea dim">City lights, empty roads, low volume…</div></div>
+              </div>
+            </div>
+            <div style="margin-top:20px" class="field"><label>Songs · 3</label></div>
+            <div class="plsongs">
+              <div class="plsong"><span class="drag"><svg class="i"><use href="#i-grip"/></svg></span><span class="pc"><span class="ph p-dusk"></span></span>
+                <span><div class="pt">Neon Undertow</div><div class="pa">Vesper Lake</div></span><span class="pdur">3:52</span>
+                <button class="iconbtn"><svg class="i"><use href="#i-x"/></svg></button></div>
+              <div class="plsong"><span class="drag"><svg class="i"><use href="#i-grip"/></svg></span><span class="pc"><span class="ph p-tide"></span></span>
+                <span><div class="pt">Glass Horizon</div><div class="pa">Halcyon Field</div></span><span class="pdur">4:15</span>
+                <button class="iconbtn"><svg class="i"><use href="#i-x"/></svg></button></div>
+              <div class="plsong"><span class="drag"><svg class="i"><use href="#i-grip"/></svg></span><span class="pc"><span class="ph p-gold"></span></span>
+                <span><div class="pt">Amber in the Rearview</div><div class="pa">The Long Way</div></span><span class="pdur">5:02</span>
+                <button class="iconbtn"><svg class="i"><use href="#i-x"/></svg></button></div>
+            </div>
+            <div class="addrow"><svg class="i"><use href="#i-search"/></svg>Add songs — search by title or artist…</div>
+          </div>
+          <div class="mfoot"><span class="spacer">Unauthenticated visitors can play this, but not edit it</span>
+            <button class="btn">Cancel</button><button class="btn accent">Create playlist</button></div>
         </div>
       </div>
     </div>

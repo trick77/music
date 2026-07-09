@@ -27,6 +27,10 @@ Two access states, nothing in between:
 Login-only controls are communicated by **presence vs absence** — an anonymous visitor simply does
 not see them. **No lock icons, no disabled states, no "sign in to…" prompts** anywhere.
 
+**Favorites (the heart) are for everyone.** Hearting a song is client-side only — stored in the
+browser's **localStorage**, available to anonymous and authenticated visitors alike. There is no
+"Save" button and no server-side likes table; the heart icon is the entire feature.
+
 ## 2. Non-goals (explicitly deferred — do NOT build in v1)
 
 - **Suno.ai integration** — a later phase.
@@ -127,6 +131,11 @@ Photographic imagery is a **first-class** element, managed by authenticated user
 
 - Upload images and **assign** them: as **genre art** (one or more per genre) or as **featured hero**
   picks. Stored on the volume like cover art (`fanart` table, §5).
+- **Genre background editor** (authenticated): from a genre page, an "Edit" action opens a modal
+  with a large preview, an image picker (thumbnails of images already uploaded for that genre + an
+  Upload tile to add more), and the genre's name; the selected image becomes the genre's background,
+  and the same picker can mark a featured Home hero. A per-genre accent color is auto-sampled from
+  the chosen image.
 - Anonymous visitors see the imagery but cannot change it.
 - Because remote images can't load in the preview, the mockup fakes fanart with atmospheric CSS
   (bloom + vignette + grain); the **treatment** (moody, cinematic, heavy scrim under text) is what
@@ -157,6 +166,18 @@ committed to where imagery ultimately sits; treat the layout as the starting poi
   Saving **writes back to the file's ID3 tags** and updates the DB. Album and track-no. are optional.
 - Use a maintained Go ID3 library for read+write (select at implementation; must handle ID3v2 +
   embedded APIC cover frames).
+- **Typeahead** on the **Artist**, **Album**, and **Genre** fields (in both upload and the tag
+  editor): as the user types, suggest existing values from the library (with a usage count) plus a
+  "use as new …" row. Keeps naming consistent and avoids duplicate artist/album/genre spellings.
+  Backed by `GET /api/suggest?field=artist|album|genre&q=` (§12).
+
+## 10a. Playlist create / edit (authenticated)
+
+Opened from the sidebar "+", the "New playlist" card, or a playlist's Edit action. A modal with an
+**optional cover** (upload; falls back to a tile derived from the songs), **name**, optional
+**description**, and the **song list** — reorder by drag handle, remove per-row, and **add songs**
+via a search/typeahead row. Anonymous visitors can play any playlist but never see the edit
+affordances.
 
 ## 11. Sharing
 
@@ -173,9 +194,11 @@ Public (anonymous OK): `GET /api/songs`, `/api/songs/{id}`, `/api/songs/{id}/str
 `GET /api/search?q=`, `GET /api/cover/{id}`, `GET /api/fanart/{id}`.
 
 Authenticated only: `POST /api/songs` (upload), `PATCH /api/songs/{id}` (tags),
-`PUT /api/songs/{id}/cover` (+ artist+album propagation), `POST/PATCH/DELETE /api/playlists…`,
-`POST /api/fanart` + assign, `POST /api/likes…`. Auth endpoints: `/api/auth/login`,
-`/api/auth/callback`, `/api/auth/logout`, `GET /api/auth/session`.
+`PUT /api/songs/{id}/cover` (+ artist+album propagation), `POST/PATCH/DELETE /api/playlists…`
+(incl. reorder), `PATCH /api/genres/{id}` (name/background), `POST /api/fanart` + assign,
+`GET /api/suggest?field=artist|album|genre&q=` (typeahead). Auth endpoints: `/api/auth/login`,
+`/api/auth/callback`, `/api/auth/logout`, `GET /api/auth/session`. **No likes endpoint** —
+favorites are localStorage-only (§1).
 
 ## 13. Config (env, `BACKEND_*`)
 
@@ -196,8 +219,10 @@ Authenticated only: `POST /api/songs` (upload), `PATCH /api/songs/{id}` (tags),
 
 Home (immersive hero + Top-Ten ranked chart + Recently-added songs + genre chapters + playlists),
 genre/artist/playlist **detail** (one template), **mobile** home (tab bar + docked mini-player),
-**full-screen player**, **upload**, **tag editor**. Rank numbers use Anthropic **Sans**
-(tabular-nums), not serif. Slim **icon-only** rail, no wordmark.
+**full-screen player**, **upload**, **tag editor** (with typeahead), **genre background editor**,
+and **playlist create/edit**. Rank numbers use Anthropic **Sans** (tabular-nums), not serif. Slim
+**icon-only** rail, no wordmark. The heart (favorite) appears on song rows, the now-playing bar and
+the player — available to everyone, no "Save" button.
 
 ## 16. Verification (implementation phase)
 

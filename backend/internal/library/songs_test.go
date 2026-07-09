@@ -112,6 +112,56 @@ func TestFindByContentHash(t *testing.T) {
 	}
 }
 
+func TestUpdate_editsFieldsAndReplacesGenres(t *testing.T) {
+	r := newRepo(t)
+	ctx := context.Background()
+	created, err := r.Create(ctx, NewID(), sampleParams())
+	if err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+	updated, err := r.Update(ctx, created.ID, UpdateSongParams{
+		Title: "New Title", ArtistName: "New Artist", Album: "New Album",
+		Year: 2001, TrackNo: 5, Genres: []string{"Jazz"}, FileSize: 999,
+	})
+	if err != nil {
+		t.Fatalf("Update: %v", err)
+	}
+	if updated.Title != "New Title" || updated.ArtistName != "New Artist" || updated.Album != "New Album" {
+		t.Fatalf("fields not updated: %+v", updated)
+	}
+	if len(updated.Genres) != 1 || updated.Genres[0] != "Jazz" {
+		t.Fatalf("genres not replaced: %#v", updated.Genres)
+	}
+	if updated.ID != created.ID {
+		t.Fatalf("id changed: %s -> %s", created.ID, updated.ID)
+	}
+}
+
+func TestSuggest_artistAndGenreCounts(t *testing.T) {
+	r := newRepo(t)
+	ctx := context.Background()
+	makeSong(t, r, "A", "Album", "h1", "songs/a.mp3") // Test Artist / Synthwave, Dream Pop
+	makeSong(t, r, "B", "Album", "h2", "songs/b.mp3")
+
+	got, err := r.Suggest(ctx, "artist", "test")
+	if err != nil {
+		t.Fatalf("Suggest artist: %v", err)
+	}
+	if len(got) != 1 || got[0].Value != "Test Artist" || got[0].Count != 2 {
+		t.Fatalf("artist suggest = %#v", got)
+	}
+	gg, err := r.Suggest(ctx, "genre", "synth")
+	if err != nil {
+		t.Fatalf("Suggest genre: %v", err)
+	}
+	if len(gg) != 1 || gg[0].Value != "Synthwave" {
+		t.Fatalf("genre suggest = %#v", gg)
+	}
+	if _, err := r.Suggest(ctx, "bogus", "x"); err == nil {
+		t.Fatal("expected error for unknown field")
+	}
+}
+
 func TestList_newestFirst(t *testing.T) {
 	r := newRepo(t)
 	ctx := context.Background()

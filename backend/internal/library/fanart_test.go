@@ -137,6 +137,24 @@ func TestFanart_heroIsGlobalExclusive(t *testing.T) {
 	}
 }
 
+func TestFailOrphanedGenerating_reapsOnBoot(t *testing.T) {
+	r := newRepo(t)
+	ctx := context.Background()
+	mustExec(t, r, `INSERT INTO genres(id,name) VALUES('g1','Jazz')`)
+	stuck, _ := r.CreateGeneratingFanart(ctx, "genre", "g1", "p", "m", nil)
+	ready, _ := r.CreateFanart(ctx, FanartParams{Kind: "genre", GenreID: "g1", ImagePath: "a", Status: "ready"})
+	n, err := r.FailOrphanedGenerating(ctx)
+	if err != nil || n != 1 {
+		t.Fatalf("FailOrphanedGenerating = %d, %v; want 1 reaped", n, err)
+	}
+	if fa, _ := r.GetFanart(ctx, stuck); fa.Status != "failed" {
+		t.Fatalf("orphaned row status = %q, want failed", fa.Status)
+	}
+	if fa, _ := r.GetFanart(ctx, ready); fa.Status != "ready" {
+		t.Fatalf("ready row must be untouched, got %q", fa.Status)
+	}
+}
+
 func TestSetActiveBackground_rejectsForeignFanart(t *testing.T) {
 	r := newRepo(t)
 	ctx := context.Background()

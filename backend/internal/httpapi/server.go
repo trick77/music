@@ -1,6 +1,7 @@
 package httpapi
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 
@@ -59,6 +60,9 @@ func NewWithProvider(cfg config.Config, st *store.Store, spa http.Handler, gen i
 				bflModel:      cfg.BFLModel,
 				onGenComplete: onGenComplete,
 			}
+			// Reap generation rows orphaned by a prior restart (their goroutines
+			// are gone) so they don't show a permanent spinner.
+			_, _ = h.repo.FailOrphanedGenerating(context.Background())
 			shareRepo = h.repo
 			mux.HandleFunc("GET /api/songs", h.list)
 			mux.HandleFunc("POST /api/songs", h.upload)

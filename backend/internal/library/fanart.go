@@ -85,6 +85,19 @@ func (r *Repo) MarkFanartFailed(ctx context.Context, id, reason string) error {
 	return err
 }
 
+// FailOrphanedGenerating flips any rows still marked 'generating' to 'failed'.
+// A generation goroutine cannot survive a process restart, so on boot every
+// 'generating' row is orphaned; without this they would show a permanent
+// spinner. Returns the number of rows reaped.
+func (r *Repo) FailOrphanedGenerating(ctx context.Context) (int64, error) {
+	res, err := r.db.ExecContext(ctx,
+		`UPDATE fanart SET status='failed', error='generation interrupted by a restart' WHERE status='generating'`)
+	if err != nil {
+		return 0, err
+	}
+	return res.RowsAffected()
+}
+
 const fanartSelect = `SELECT id, kind, COALESCE(genre_id,''), status, COALESCE(caption,''),
 	is_active, is_hero, width, height, image_path, COALESCE(prompt,''), COALESCE(model,''),
 	COALESCE(error,''), seed FROM fanart`
@@ -201,20 +214,4 @@ func (r *Repo) ClearHero(ctx context.Context, fanartID string) error {
 func (r *Repo) UpdateGenreName(ctx context.Context, genreID, name string) error {
 	_, err := r.db.ExecContext(ctx, `UPDATE genres SET name=? WHERE id=?`, name, genreID)
 	return err
-}
-
-// DeleteFanart removes a fanart row and returns its image path for file cleanup.
-func (r *Repo) DeleteFanart(ctx context.Context, id string) (string, error) {
-	var path string
-	err := r.db.QueryRowContext(ctx, `SELECT image_path FROM fanart WHERE id=?`, id).Scan(&path)
-	if errors.Is(err, sql.ErrNoRows) {
-		return "", nil
-	}
-	if err != nil {
-		return "", err
-	}
-	if _, err := r.db.ExecContext(ctx, `DELETE FROM fanart WHERE id=?`, id); err != nil {
-		return "", err
-	}
-	return path, nil
 }

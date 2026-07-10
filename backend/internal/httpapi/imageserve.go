@@ -61,9 +61,14 @@ func serveSizedImage(w http.ResponseWriter, r *http.Request, store *media.Store,
 		serveStoreFile(w, r, store, relPath)
 		return
 	}
-	if dst, err := store.Create(cacheRel); err == nil { // best-effort cache write
-		_, _ = dst.Write(scaled)
-		_ = dst.Close()
+	// Best-effort cache write. On any write/close error, remove the partial file
+	// so a later request rebuilds it rather than serving a truncated variant.
+	if dst, err := store.Create(cacheRel); err == nil {
+		_, werr := dst.Write(scaled)
+		cerr := dst.Close()
+		if werr != nil || cerr != nil {
+			_ = store.Remove(cacheRel)
+		}
 	}
 	w.Header().Set("Content-Type", "image/jpeg")
 	http.ServeContent(w, r, filepath.Base(cacheRel), time.Time{}, bytes.NewReader(scaled))

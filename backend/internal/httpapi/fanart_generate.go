@@ -67,14 +67,19 @@ func (h *songHandlers) runGeneration(id, prompt string) {
 	if h.onGenComplete != nil {
 		defer h.onGenComplete(id)
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), h.cfg.BFLPollTimeout+30*time.Second)
+	genCtx, cancel := context.WithTimeout(context.Background(), h.cfg.BFLPollTimeout+30*time.Second)
 	defer cancel()
 
-	res, err := h.imageGen.Generate(ctx, imagegen.GenerateRequest{
+	res, err := h.imageGen.Generate(genCtx, imagegen.GenerateRequest{
 		Prompt: prompt, Width: genWidth, Height: genHeight, OutputFormat: "png",
 	})
+	// Persist the terminal state on a FRESH context: if the generation deadline
+	// expired (or genCtx was canceled), reusing it here would make the state
+	// write fail its context precheck and strand the row in 'generating' forever.
+	persistCtx, pcancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer pcancel()
 	if err != nil {
-		_ = h.repo.MarkFanartFailed(ctx, id, err.Error())
+		_ = h.repo.MarkFanartFailed(persistCtx, id, err.Error())
 		return
 	}
 	ext := res.Extension
@@ -83,14 +88,14 @@ func (h *songHandlers) runGeneration(id, prompt string) {
 	}
 	relPath := "fanart/" + id + "." + ext
 	if err := writeBytes(h.media, relPath, res.Bytes); err != nil {
-		_ = h.repo.MarkFanartFailed(ctx, id, "store generated image")
+		_ = h.repo.MarkFanartFailed(persistCtx, id, "store generated image")
 		return
 	}
 	width, height := res.Width, res.Height
 	if pw, ph, _, perr := imageutil.Probe(bytes.NewReader(res.Bytes)); perr == nil {
 		width, height = pw, ph
 	}
-	if err := h.repo.MarkFanartReady(ctx, id, relPath, width, height); err != nil {
-		_ = h.repo.MarkFanartFailed(ctx, id, "record generated image")
+	if err := h.repo.MarkFanartReady(persistCtx, id, relPath, width, height); err != nil {
+		_ = h.repo.MarkFanartFailed(persistCtx, id, "record generated image")
 	}
 }

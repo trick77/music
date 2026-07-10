@@ -3,7 +3,10 @@
 
 export type Store = Pick<Storage, "getItem" | "setItem" | "removeItem">;
 
-export type ResumeState = { songId: string; positionMs: number };
+// reported carries whether this listen already counted toward Top-Ten, so a
+// resumed play can never re-count it (optional for backward compatibility with
+// older saved state).
+export type ResumeState = { songId: string; positionMs: number; reported?: boolean };
 
 const KEY = "music.resume";
 
@@ -26,7 +29,9 @@ export function loadResume(store: Store): ResumeState | null {
       typeof parsed.positionMs === "number" &&
       Number.isFinite(parsed.positionMs)
     ) {
-      return { songId: parsed.songId, positionMs: parsed.positionMs };
+      const out: ResumeState = { songId: parsed.songId, positionMs: parsed.positionMs };
+      if (typeof parsed.reported === "boolean") out.reported = parsed.reported;
+      return out;
     }
     return null;
   } catch {

@@ -18,6 +18,16 @@ describe("resume", () => {
     expect(loadResume(store)).toEqual(state);
   });
 
+  it("round-trips the reported flag", () => {
+    const store = memStore();
+    saveResume(store, { songId: "abc", positionMs: 42000, reported: true });
+    expect(loadResume(store)).toEqual({ songId: "abc", positionMs: 42000, reported: true });
+  });
+
+  it("omits reported when absent (backward compatible)", () => {
+    expect(loadResume(memStore({ "music.resume": JSON.stringify({ songId: "a", positionMs: 1 }) }))).toEqual({ songId: "a", positionMs: 1 });
+  });
+
   it("returns null when nothing is stored", () => {
     expect(loadResume(memStore())).toBeNull();
   });

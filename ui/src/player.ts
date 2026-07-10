@@ -89,7 +89,15 @@ function persist(songId: string, positionMs: number) {
   const now = Date.now();
   if (now - lastPersist < 4000) return; // throttle disk writes
   lastPersist = now;
-  saveResume(resumeStore(), { songId, positionMs } satisfies ResumeState);
+  saveResume(resumeStore(), { songId, positionMs, reported: session.reported } satisfies ResumeState);
+}
+
+// persistNow writes resume state immediately, bypassing the throttle. Used the
+// instant a play is reported so the saved `reported` flag can't lag behind a
+// tab close and let a resumed listen re-count (spec §9 integrity).
+function persistNow(songId: string, positionMs: number) {
+  lastPersist = Date.now();
+  saveResume(resumeStore(), { songId, positionMs, reported: session.reported } satisfies ResumeState);
 }
 
 function hasMediaSession(): boolean {
@@ -176,8 +184,10 @@ function onTimeUpdate() {
   set({ positionMs });
   if (shouldReport(session, qualifiesForPlay(positionMs, state.durationMs))) {
     void reportPlay(state.current.id);
+    persistNow(state.current.id, positionMs); // save reported=true at once, no throttle lag
+  } else {
+    persist(state.current.id, positionMs);
   }
-  persist(state.current.id, positionMs);
   updatePositionState();
 }
 
@@ -248,10 +258,11 @@ export const player = {
     const song = songs.find((s) => s.id === saved.songId);
     if (!song) return;
     set({ current: song, positionMs: saved.positionMs, durationMs: song.durationMs || 0, playing: false });
-    // A resumed listen must not re-count: if the restored position already
-    // qualifies, treat this session as already reported. Resuming below the
-    // threshold still counts once it is later crossed (a genuine first play).
-    session = { reported: qualifiesForPlay(saved.positionMs, song.durationMs || 0) };
+    // A resumed listen must not re-count. Prefer the persisted `reported` flag
+    // (written the instant the play was counted); fall back to the position
+    // check for older saved state. Resuming an unreported, sub-threshold
+    // position still counts once the threshold is later crossed (a real play).
+    session = { reported: saved.reported ?? qualifiesForPlay(saved.positionMs, song.durationMs || 0) };
     pendingSeekMs = saved.positionMs;
     const el = getAudio();
     el.src = streamUrl(song.id);

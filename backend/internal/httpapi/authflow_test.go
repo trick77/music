@@ -127,6 +127,14 @@ func TestOIDCFlow_memberGetsSession(t *testing.T) {
 	if !strings.Contains(sess, `"authenticated":true`) {
 		t.Fatalf("session not authenticated after login: %s", sess)
 	}
+	// The transient flow cookies must be cleared on the callback response — a
+	// deferred clear after http.Redirect would silently drop these headers.
+	for _, name := range []string{"music_oidc_state", "music_oidc_nonce"} {
+		c := cookieByName(rr.Result().Cookies(), name)
+		if c == nil || c.MaxAge >= 0 {
+			t.Fatalf("flow cookie %q must be cleared on callback, got %+v", name, c)
+		}
+	}
 }
 
 func TestOIDCFlow_nonMemberIsReadOnly(t *testing.T) {

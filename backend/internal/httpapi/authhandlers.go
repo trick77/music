@@ -63,17 +63,18 @@ func (h *authHandlers) login(w http.ResponseWriter, r *http.Request) {
 // callback validates state + nonce, exchanges the code, verifies the ID token,
 // applies group gating, and (only for a granted login) sets the session cookie.
 func (h *authHandlers) callback(w http.ResponseWriter, r *http.Request) {
-	// Always clear the transient flow cookies once we've read them.
-	defer func() {
-		h.setCookie(w, stateCookieName, "", -1)
-		h.setCookie(w, nonceCookieName, "", -1)
-	}()
-
 	stateParam := r.URL.Query().Get("state")
-	stateCookie, err := r.Cookie(stateCookieName)
+	stateCookie, stateErr := r.Cookie(stateCookieName)
+	nonceCookie, nonceErr := r.Cookie(nonceCookieName)
+	// Clear the transient flow cookies immediately, before writing any response
+	// header. Doing this in a defer would be a no-op: http.Redirect/httpError
+	// flush the header block first, so a later Set-Cookie is dropped.
+	h.setCookie(w, stateCookieName, "", -1)
+	h.setCookie(w, nonceCookieName, "", -1)
+
 	// Reject empties explicitly: subtle.ConstantTimeCompare("","") == 1, so an
 	// absent state cookie + absent state param would otherwise "match".
-	if stateParam == "" || err != nil || stateCookie.Value == "" ||
+	if stateParam == "" || stateErr != nil || stateCookie.Value == "" ||
 		subtle.ConstantTimeCompare([]byte(stateParam), []byte(stateCookie.Value)) != 1 {
 		httpError(w, http.StatusBadRequest, "invalid state")
 		return
@@ -83,8 +84,7 @@ func (h *authHandlers) callback(w http.ResponseWriter, r *http.Request) {
 		httpError(w, http.StatusBadRequest, "missing code")
 		return
 	}
-	nonceCookie, err := r.Cookie(nonceCookieName)
-	if err != nil || nonceCookie.Value == "" {
+	if nonceErr != nil || nonceCookie.Value == "" {
 		httpError(w, http.StatusBadRequest, "missing nonce")
 		return
 	}

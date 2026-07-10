@@ -55,6 +55,11 @@ func TestGenerate_generatingThenReady(t *testing.T) {
 	if !strings.Contains(body, `"status":"ready"`) {
 		t.Fatalf("status not ready: %s", body)
 	}
+	// The generation seed is recorded server-side (spec §8a: prompt + model + seed).
+	fa, err := ts.repo.GetFanart(context.Background(), id)
+	if err != nil || fa == nil || fa.Seed == nil {
+		t.Fatalf("generated row must record a seed, got %#v (err %v)", fa, err)
+	}
 }
 
 func TestGenerate_moderatedBecomesFailed(t *testing.T) {

@@ -3,6 +3,8 @@ package httpapi
 import (
 	"bytes"
 	"context"
+	"crypto/rand"
+	"encoding/binary"
 	"encoding/json"
 	"net/http"
 	"time"
@@ -10,6 +12,17 @@ import (
 	"github.com/trick77/music/internal/imagegen"
 	"github.com/trick77/music/internal/imageutil"
 )
+
+// randomSeed returns a non-negative seed for a generation request. Recording it
+// (spec §8a) lets the same image be reproduced later. Bounded to uint32 to stay
+// within BFL's accepted seed range.
+func randomSeed() int64 {
+	var b [4]byte
+	if _, err := rand.Read(b[:]); err != nil {
+		return 0
+	}
+	return int64(binary.BigEndian.Uint32(b[:]))
+}
 
 const (
 	genWidth  = 1344
@@ -51,19 +64,20 @@ func (h *songHandlers) postFanartGenerate(w http.ResponseWriter, r *http.Request
 	if req.Kind == "hero" {
 		req.GenreID = ""
 	}
-	id, err := h.repo.CreateGeneratingFanart(r.Context(), req.Kind, req.GenreID, req.Prompt, h.bflModel, nil)
+	seed := randomSeed()
+	id, err := h.repo.CreateGeneratingFanart(r.Context(), req.Kind, req.GenreID, req.Prompt, h.bflModel, &seed)
 	if err != nil {
 		httpError(w, http.StatusInternalServerError, "create fanart")
 		return
 	}
-	go h.runGeneration(id, req.Prompt)
+	go h.runGeneration(id, req.Prompt, seed)
 	w.WriteHeader(http.StatusAccepted)
 	writeJSON(w, map[string]any{"id": id, "status": "generating"})
 }
 
 // runGeneration drives one BFL generation to completion on a detached context and
 // records the terminal state. The prompt/model live only in the DB (never served).
-func (h *songHandlers) runGeneration(id, prompt string) {
+func (h *songHandlers) runGeneration(id, prompt string, seed int64) {
 	if h.onGenComplete != nil {
 		defer h.onGenComplete(id)
 	}
@@ -71,7 +85,7 @@ func (h *songHandlers) runGeneration(id, prompt string) {
 	defer cancel()
 
 	res, err := h.imageGen.Generate(genCtx, imagegen.GenerateRequest{
-		Prompt: prompt, Width: genWidth, Height: genHeight, OutputFormat: "png",
+		Prompt: prompt, Width: genWidth, Height: genHeight, OutputFormat: "png", Seed: &seed,
 	})
 	// Persist the terminal state on a FRESH context: if the generation deadline
 	// expired (or genCtx was canceled), reusing it here would make the state

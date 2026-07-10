@@ -66,7 +66,7 @@ export function Library({ songs, favoriteIds, authenticated, initialTab, onPlay,
                 <span style={{ display: "block", color: "var(--color-muted)", fontSize: "0.85rem" }}>{song.artistName}</span>
               </span>
               <span style={{ color: "var(--color-muted)", fontVariantNumeric: "tabular-nums", flexShrink: 0 }}>{formatDuration(song.durationMs)}</span>
-              <span style={{ position: "relative", display: "flex", gap: "0.35rem", flexShrink: 0 }} onClick={(e) => e.stopPropagation()}>{renderRowActions(song)}</span>
+              <span style={{ position: "relative", display: "flex", alignItems: "center", gap: "0.9rem", flexShrink: 0 }} onClick={(e) => e.stopPropagation()}>{renderRowActions(song)}</span>
             </li>
           ))}
         </ul>

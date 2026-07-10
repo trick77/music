@@ -248,6 +248,10 @@ export const player = {
     const song = songs.find((s) => s.id === saved.songId);
     if (!song) return;
     set({ current: song, positionMs: saved.positionMs, durationMs: song.durationMs || 0, playing: false });
+    // A resumed listen must not re-count: if the restored position already
+    // qualifies, treat this session as already reported. Resuming below the
+    // threshold still counts once it is later crossed (a genuine first play).
+    session = { reported: qualifiesForPlay(saved.positionMs, song.durationMs || 0) };
     pendingSeekMs = saved.positionMs;
     const el = getAudio();
     el.src = streamUrl(song.id);

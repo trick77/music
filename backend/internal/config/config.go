@@ -53,10 +53,24 @@ type Config struct {
 	BFLAPIKey      string
 	BFLModel       string
 	BFLPollTimeout time.Duration
+
+	// Studio (Phase 9): a MiMo chat model researches a named song on the web
+	// (Tavily search + fetch) and returns a Suno prompt. Env var names mirror
+	// loom's so the same keys can be reused verbatim.
+	ChatBaseURL  string // OpenAI-compatible chat endpoint (MiMo)
+	ChatAPIKey   string
+	TavilyURL    string // Tavily search MCP server
+	TavilyAPIKey string
+	FetchMCPURL  string // web-fetch MCP server (optional; enhances research)
 }
 
 // ImageGenEnabled reports whether AI image generation is configured (a BFL key is set).
 func (c Config) ImageGenEnabled() bool { return c.BFLAPIKey != "" }
+
+// StudioEnabled reports whether the Studio Suno-prompt tool is configured. Both
+// the chat (LLM) and Tavily (web search) keys are required — research is core to
+// output quality, so there is no degraded no-search mode.
+func (c Config) StudioEnabled() bool { return c.ChatAPIKey != "" && c.TavilyAPIKey != "" }
 
 func env(key, def string) string {
 	if v, ok := os.LookupEnv(key); ok && v != "" {
@@ -118,6 +132,15 @@ func Load() (Config, error) {
 	cfg.BFLPollTimeout = pollTimeout
 	if cfg.BFLAPIKey != "" && cfg.BFLBaseURL == "" {
 		return Config{}, fmt.Errorf("BACKEND_BFL_BASE_URL is required when BACKEND_BFL_API_KEY is set")
+	}
+
+	cfg.ChatBaseURL = env("BACKEND_CHAT_BASE_URL", "")
+	cfg.ChatAPIKey = env("BACKEND_CHAT_API_KEY", "")
+	cfg.TavilyURL = env("BACKEND_TAVILY_URL", "https://mcp.tavily.com/mcp/")
+	cfg.TavilyAPIKey = env("BACKEND_TAVILY_API_KEY", "")
+	cfg.FetchMCPURL = env("BACKEND_FETCH_MCP_URL", "")
+	if cfg.ChatAPIKey != "" && cfg.ChatBaseURL == "" {
+		return Config{}, fmt.Errorf("BACKEND_CHAT_BASE_URL is required when BACKEND_CHAT_API_KEY is set")
 	}
 	return cfg, nil
 }

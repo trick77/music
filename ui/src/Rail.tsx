@@ -35,9 +35,11 @@ function AccountSlot({ authMode, authenticated, username }: { authMode?: string;
 }
 
 // Rail is the slim, icon-only left navigation on desktop and a bottom tab bar on
-// mobile. No wordmark (spec §15). The Upload action and the greyed "Studio —
-// soon" slot appear only when authenticated.
-export function Rail({ route, authenticated, authMode, username = "", onUpload }: { route: Route; authenticated: boolean; authMode?: string; username?: string; onUpload: () => void }) {
+// mobile. No wordmark (spec §15). The Upload action appears when authenticated;
+// the Studio slot appears only when authenticated AND Studio is configured
+// (studioEnabled) — a key-less instance shows nothing there (spec §2, presence
+// vs absence). The rail intentionally stays on the SVG <Glyph> set (Phase 8).
+export function Rail({ route, authenticated, studioEnabled = false, authMode, username = "", onUpload }: { route: Route; authenticated: boolean; studioEnabled?: boolean; authMode?: string; username?: string; onUpload: () => void }) {
   const nav = (path: string) => navigate(path);
 
   const desktopItem = (it: Item) => {
@@ -106,11 +108,7 @@ export function Rail({ route, authenticated, authMode, username = "", onUpload }
             <Glyph name="upload" size={22} />
           </button>
         )}
-        {authenticated && (
-          <span aria-label="Studio — soon" title="Studio — soon" style={{ display: "grid", placeItems: "center", width: 44, height: 44, borderRadius: 12, color: "color-mix(in srgb, var(--color-muted) 45%, transparent)" }}>
-            <Glyph name="spark" size={22} />
-          </span>
-        )}
+        {authenticated && studioEnabled && desktopItem({ key: "studio", icon: "spark", label: "Studio", path: "/studio", match: (r) => r.name === "studio" })}
       </nav>
 
       {/* Mobile bottom tab bar */}
@@ -129,6 +127,7 @@ export function Rail({ route, authenticated, authMode, username = "", onUpload }
         }}
       >
         {ITEMS.map(tabItem)}
+        {authenticated && studioEnabled && tabItem({ key: "studio", icon: "spark", label: "Studio", path: "/studio", match: (r) => r.name === "studio" })}
         {authenticated && tabItem({ key: "upload", icon: "upload", label: "Upload", path: "__upload", match: () => false })}
       </nav>
     </>

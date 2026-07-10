@@ -9,6 +9,7 @@ import { AddToPlaylist } from "./AddToPlaylist";
 import { Home } from "./Home";
 import { Detail } from "./Detail";
 import { Search } from "./Search";
+import { StudioPage } from "./StudioPage";
 import { Rail } from "./Rail";
 import { PlayerBar } from "./PlayerBar";
 import { usePlayer } from "./player";
@@ -39,7 +40,7 @@ export function App() {
   useEffect(() => {
     getSession()
       .then(setSession)
-      .catch(() => setSession({ authenticated: false, username: "", imageGenEnabled: false, authMode: "" }));
+      .catch(() => setSession({ authenticated: false, username: "", imageGenEnabled: false, studioEnabled: false, authMode: "" }));
     refresh();
   }, []);
 
@@ -124,7 +125,7 @@ export function App() {
 
   return (
     <div className="app-shell" style={{ minHeight: "100vh" }}>
-      <Rail route={route} authenticated={authed} authMode={session?.authMode} username={session?.username ?? ""} onUpload={triggerUpload} />
+      <Rail route={route} authenticated={authed} studioEnabled={!!session?.studioEnabled} authMode={session?.authMode} username={session?.username ?? ""} onUpload={triggerUpload} />
 
       <div style={{ maxWidth: 1080, margin: "0 auto", padding: "1.5rem 1.25rem 9rem" }}>
         {/* Minimal top chrome: Queue access, no wordmark. */}
@@ -136,6 +137,8 @@ export function App() {
           <Home authenticated={authed} onPlay={onPlay} onShare={shareSong} onUpload={triggerUpload} renderRowActions={rowActions} />
         ) : route.name === "search" ? (
           <Search onPlay={onPlay} />
+        ) : route.name === "studio" ? (
+          authed && session?.studioEnabled ? <StudioPage /> : <Home authenticated={authed} onPlay={onPlay} onShare={shareSong} onUpload={triggerUpload} renderRowActions={rowActions} />
         ) : route.name === "playlist" ? (
           <Detail kind="playlist" id={route.id} authenticated={authed} imageGenEnabled={!!session?.imageGenEnabled} onPlay={onPlay} onShare={shareUrl} onEditPlaylist={(pl) => setEditingPlaylist(pl)} renderRowActions={rowActions} />
         ) : route.name === "genre" ? (

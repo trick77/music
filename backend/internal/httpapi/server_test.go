@@ -69,6 +69,31 @@ func TestSession_imageGenEnabledGatedByAuthAndKey(t *testing.T) {
 	}
 }
 
+func TestSession_studioEnabledGatedByAuthAndKeys(t *testing.T) {
+	spa := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { w.Write([]byte("SPA")) })
+	get := func(cfg config.Config) string {
+		rr := httptest.NewRecorder()
+		New(cfg, nil, spa).ServeHTTP(rr, httptest.NewRequest("GET", "/api/auth/session", nil))
+		return rr.Body.String()
+	}
+	// dev (authenticated) + both chat & tavily keys => true
+	dev := config.Config{AuthMode: config.AuthModeDev, DevUser: config.DevUserConfig{Username: "dev"},
+		ChatAPIKey: "c", TavilyAPIKey: "t"}
+	if !strings.Contains(get(dev), `"studioEnabled":true`) {
+		t.Fatalf("dev+keys should be true: %s", get(dev))
+	}
+	// dev + only chat key => false (search required)
+	half := config.Config{AuthMode: config.AuthModeDev, DevUser: config.DevUserConfig{Username: "dev"}, ChatAPIKey: "c"}
+	if !strings.Contains(get(half), `"studioEnabled":false`) {
+		t.Fatalf("only chat key should be false: %s", get(half))
+	}
+	// oidc (anonymous) + both keys => false
+	anon := config.Config{AuthMode: config.AuthModeOIDC, ChatAPIKey: "c", TavilyAPIKey: "t"}
+	if !strings.Contains(get(anon), `"studioEnabled":false`) {
+		t.Fatalf("anonymous must be false: %s", get(anon))
+	}
+}
+
 func TestSPAFallthrough(t *testing.T) {
 	rr := httptest.NewRecorder()
 	testHandler(t, config.AuthModeDev).ServeHTTP(rr, httptest.NewRequest("GET", "/anything", nil))

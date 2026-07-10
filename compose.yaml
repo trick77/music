@@ -3,9 +3,6 @@ services:
     image: ghcr.io/trick77/music:latest
     user: "1000:1000"
     restart: unless-stopped
-    ports:
-      # Local-only debug publish; Traefik reaches the container over the docker network.
-      - "127.0.0.1:8082:8080"
     environment:
       BACKEND_LISTEN_ADDR: ":8080"
       BACKEND_DB_PATH: "/data/music.db"

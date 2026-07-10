@@ -18,14 +18,25 @@ export function AddToPlaylist({ song, authenticated, onClose, onDone }: Props) {
   const add = async (id: string, name: string) => {
     if (busy) return;
     setBusy(true);
-    try { await addSongToPlaylist(id, song.id); onDone(name); } finally { setBusy(false); }
+    try {
+      await addSongToPlaylist(id, song.id);
+      onDone(name);
+    } catch {
+      onClose(); // e.g. a 403 for an anonymous caller — fail quietly, don't hang
+    } finally {
+      setBusy(false);
+    }
   };
 
   const createAndAdd = async () => {
     const name = window.prompt("New playlist name");
     if (!name) return;
-    const pl = await createPlaylist(name, "");
-    await add(pl.id, pl.name);
+    try {
+      const pl = await createPlaylist(name, "");
+      await add(pl.id, pl.name);
+    } catch {
+      onClose();
+    }
   };
 
   return (

@@ -70,7 +70,7 @@ export function App() {
       <button aria-label="favorite" onClick={() => fav.toggle(song.id)}
         style={{ background: "none", border: "none", cursor: "pointer", fontSize: "1rem",
           color: fav.has(song.id) ? "var(--color-accent-strong)" : "var(--color-muted)" }}>
-        {fav.has(song.id) ? "♥" : "♡"}
+        {fav.has(song.id) ? "★" : "☆"}
       </button>
       <span style={{ position: "relative" }}>
         <button aria-label="more" onClick={() => setMenuFor(menuFor === song.id ? null : song.id)}
@@ -121,7 +121,7 @@ export function App() {
           <div style={{ maxWidth: 820, margin: "0 auto" }}>
             <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "0.4rem", fontSize: "0.9rem" }}>
               <span><strong>{nowPlaying.title}</strong><span style={{ color: "var(--color-muted)" }}> — {nowPlaying.artistName}</span></span>
-              <button aria-label="favorite-now" onClick={() => fav.toggle(nowPlaying.id)} style={{ background: "none", border: "none", cursor: "pointer", color: fav.has(nowPlaying.id) ? "var(--color-accent-strong)" : "var(--color-muted)" }}>{fav.has(nowPlaying.id) ? "♥" : "♡"}</button>
+              <button aria-label="favorite-now" onClick={() => fav.toggle(nowPlaying.id)} style={{ background: "none", border: "none", cursor: "pointer", color: fav.has(nowPlaying.id) ? "var(--color-accent-strong)" : "var(--color-muted)" }}>{fav.has(nowPlaying.id) ? "★" : "☆"}</button>
             </div>
             <audio ref={audioRef} controls onEnded={onEnded} style={{ width: "100%" }} src={streamUrl(nowPlaying.id)}><track kind="captions" /></audio>
           </div>

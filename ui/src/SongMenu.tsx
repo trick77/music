@@ -32,7 +32,8 @@ export function SongMenu(p: Props) {
       >
         <button role="menuitem" style={item} onClick={p.onPlayNext}>Play next</button>
         <button role="menuitem" style={item} onClick={p.onAddToQueue}>Add to queue</button>
-        <button role="menuitem" style={item} onClick={p.onAddToPlaylist}>Add to playlist</button>
+        {/* Playlist-building is signed-in only (spec §1); omit for anonymous. */}
+        {p.authenticated && <button role="menuitem" style={item} onClick={p.onAddToPlaylist}>Add to playlist</button>}
         <a role="menuitem" style={{ ...item, textDecoration: "none" }} href={`/api/songs/${p.song.id}/download`}>Download</a>
         <button role="menuitem" style={item} onClick={p.onShare}>Share</button>
         {p.authenticated && (

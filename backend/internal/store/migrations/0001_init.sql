@@ -33,8 +33,9 @@ CREATE INDEX idx_songs_artist ON songs(artist_id);
 CREATE INDEX idx_songs_album ON songs(artist_id, album);
 
 CREATE TABLE genres (
-    id   TEXT PRIMARY KEY,
-    name TEXT NOT NULL UNIQUE
+    id           TEXT PRIMARY KEY,
+    name         TEXT NOT NULL UNIQUE,
+    accent_color TEXT                         -- auto-sampled from the active background (#rrggbb)
 );
 
 CREATE TABLE song_genres (
@@ -66,8 +67,13 @@ CREATE TABLE fanart (
     kind       TEXT NOT NULL CHECK (kind IN ('hero', 'genre')),
     genre_id   TEXT REFERENCES genres(id) ON DELETE CASCADE,
     caption    TEXT,
-    prompt     TEXT,                        -- when generated
-    model      TEXT,
+    prompt     TEXT,                        -- when generated (server-only, never served to clients)
+    model      TEXT,                        -- when generated (server-only, never served to clients)
+    seed       INTEGER,                     -- when generated
+    width      INTEGER NOT NULL DEFAULT 0,
+    height     INTEGER NOT NULL DEFAULT 0,
+    status     TEXT NOT NULL DEFAULT 'ready' CHECK (status IN ('generating', 'ready', 'failed')),
+    error      TEXT,                        -- generation failure reason (server-only, auth-gated)
     is_active  INTEGER NOT NULL DEFAULT 0,  -- active background for its genre
     is_hero    INTEGER NOT NULL DEFAULT 0,  -- starred as featured Home hero
     sort       INTEGER NOT NULL DEFAULT 0,

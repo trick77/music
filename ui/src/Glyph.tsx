@@ -2,9 +2,8 @@ import type { CSSProperties } from "react";
 
 /**
  * Glyph — inline SVG icons for the immersive Phase 6 surfaces (rail, home,
- * players, detail, search). The Anthropic Icons font lacks home/download/share/
- * heart/skip/disc glyphs, and the design mockup itself uses stroke SVGs, so
- * these match its look. The font-based <Icon> stays in the existing menus.
+ * players, detail, search). Used where the design mockup calls for stroke SVGs;
+ * the font-based <Icon> covers the icon-library glyphs (menus, favorite star).
  *
  * All icons are self-hosted (inline paths — no external assets). 24×24 grid,
  * currentColor stroke.
@@ -18,8 +17,6 @@ export type GlyphName =
   | "spark"
   | "download"
   | "share"
-  | "heart"
-  | "heartFilled"
   | "play"
   | "pause"
   | "next"
@@ -39,8 +36,6 @@ const PATHS: Record<GlyphName, { fill?: boolean; body: React.ReactNode }> = {
   spark: { body: <path d="M12 3v6m0 6v6M3 12h6m6 0h6M6 6l3 3m6 6 3 3M18 6l-3 3m-6 6-3 3" /> },
   download: { body: <path d="M12 4v12m0 0-5-5m5 5 5-5M4 20h16" /> },
   share: { body: <><circle cx="6" cy="12" r="2.5" /><circle cx="18" cy="6" r="2.5" /><circle cx="18" cy="18" r="2.5" /><path d="m8.2 10.8 7.6-3.6m0 9.6L8.2 13.2" /></> },
-  heart: { body: <path d="M12 20s-7-4.6-9.2-9C1.4 8 3 4.8 6.2 4.8c2 0 3.2 1.2 3.8 2.2h4c.6-1 1.8-2.2 3.8-2.2 3.2 0 4.8 3.2 3.4 6.2C19 15.4 12 20 12 20Z" /> },
-  heartFilled: { fill: true, body: <path d="M12 20s-7-4.6-9.2-9C1.4 8 3 4.8 6.2 4.8c2 0 3.2 1.2 3.8 2.2h4c.6-1 1.8-2.2 3.8-2.2 3.2 0 4.8 3.2 3.4 6.2C19 15.4 12 20 12 20Z" /> },
   play: { fill: true, body: <path d="M7 4.5v15l13-7.5z" /> },
   pause: { body: <path d="M8 4.5v15M16 4.5v15" /> },
   next: { fill: true, body: <path d="M6 4.5v15l10-7.5zM17 4.5v15h2.5v-15z" /> },

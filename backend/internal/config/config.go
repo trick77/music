@@ -6,7 +6,10 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
 )
+
+const defaultBFLPollTimeout = 1 * time.Minute
 
 type AuthMode string
 
@@ -27,7 +30,15 @@ type Config struct {
 	MaxUploadMB   int
 	SessionSecret string
 	ListenAddr    string
+
+	BFLBaseURL     string
+	BFLAPIKey      string
+	BFLModel       string
+	BFLPollTimeout time.Duration
 }
+
+// ImageGenEnabled reports whether AI image generation is configured (a BFL key is set).
+func (c Config) ImageGenEnabled() bool { return c.BFLAPIKey != "" }
 
 func env(key, def string) string {
 	if v, ok := os.LookupEnv(key); ok && v != "" {
@@ -55,6 +66,17 @@ func Load() (Config, error) {
 	}
 	if cfg.AuthMode != AuthModeDev && cfg.AuthMode != AuthModeOIDC {
 		return Config{}, fmt.Errorf("BACKEND_AUTH_MODE must be 'dev' or 'oidc', got %q", cfg.AuthMode)
+	}
+	cfg.BFLBaseURL = env("BACKEND_BFL_BASE_URL", "https://api.bfl.ai/v1")
+	cfg.BFLAPIKey = env("BACKEND_BFL_API_KEY", "")
+	cfg.BFLModel = env("BACKEND_BFL_MODEL", "flux-2-klein-4b")
+	pollTimeout, err := time.ParseDuration(env("BACKEND_BFL_POLL_TIMEOUT", defaultBFLPollTimeout.String()))
+	if err != nil || pollTimeout <= 0 {
+		return Config{}, fmt.Errorf("BACKEND_BFL_POLL_TIMEOUT must be a duration greater than 0")
+	}
+	cfg.BFLPollTimeout = pollTimeout
+	if cfg.BFLAPIKey != "" && cfg.BFLBaseURL == "" {
+		return Config{}, fmt.Errorf("BACKEND_BFL_BASE_URL is required when BACKEND_BFL_API_KEY is set")
 	}
 	return cfg, nil
 }

@@ -9,32 +9,41 @@ import (
 	"github.com/trick77/music/internal/config"
 	"github.com/trick77/music/internal/imagegen"
 	"github.com/trick77/music/internal/library"
+	"github.com/trick77/music/internal/llm"
+	"github.com/trick77/music/internal/mcp"
 	"github.com/trick77/music/internal/media"
 	"github.com/trick77/music/internal/store"
+	"github.com/trick77/music/internal/studio"
 	"github.com/trick77/music/web"
 )
 
 // New builds the app handler with generation wired from cfg (a real BFL client
 // when a key is set) and no OIDC authenticator (dev mode / tests).
 func New(cfg config.Config, st *store.Store, spa http.Handler) http.Handler {
-	return build(cfg, st, spa, nil, nil, nil)
+	return build(cfg, st, spa, nil, nil, nil, nil)
 }
 
 // NewWithProvider builds the app handler, allowing an image-generation Provider
 // and a completion hook to be injected (used by tests). When gen is nil and
 // generation is configured, a real BFL client is built.
 func NewWithProvider(cfg config.Config, st *store.Store, spa http.Handler, gen imagegen.Provider, onGenComplete func(string)) http.Handler {
-	return build(cfg, st, spa, gen, onGenComplete, nil)
+	return build(cfg, st, spa, gen, onGenComplete, nil, nil)
+}
+
+// NewWithStudioProvider builds the app handler with a Studio Provider injected
+// (used by tests so no live LLM/MCP calls are made).
+func NewWithStudioProvider(cfg config.Config, st *store.Store, spa http.Handler, sp studio.Provider) http.Handler {
+	return build(cfg, st, spa, nil, nil, nil, sp)
 }
 
 // NewWithAuth builds the app handler with an OIDC Authenticator wired in
 // (production oidc mode and the auth-flow tests). A nil authr registers no
 // login/callback/logout routes.
 func NewWithAuth(cfg config.Config, st *store.Store, spa http.Handler, authr *auth.Authenticator) http.Handler {
-	return build(cfg, st, spa, nil, nil, authr)
+	return build(cfg, st, spa, nil, nil, authr, nil)
 }
 
-func build(cfg config.Config, st *store.Store, spa http.Handler, gen imagegen.Provider, onGenComplete func(string), authr *auth.Authenticator) http.Handler {
+func build(cfg config.Config, st *store.Store, spa http.Handler, gen imagegen.Provider, onGenComplete func(string), authr *auth.Authenticator, studioProvider studio.Provider) http.Handler {
 	mux := http.NewServeMux()
 	var shareRepo *library.Repo
 
@@ -48,9 +57,30 @@ func build(cfg config.Config, st *store.Store, spa http.Handler, gen imagegen.Pr
 			"authenticated":   id.Authenticated,
 			"username":        id.Username,
 			"imageGenEnabled": cfg.ImageGenEnabled() && id.Authenticated,
+			"studioEnabled":   cfg.StudioEnabled() && id.Authenticated,
 			"authMode":        string(cfg.AuthMode),
 		})
 	})
+
+	// Studio (Phase 9) — independent of the library store. A real MiMo provider
+	// (LLM + Tavily/fetch MCP research loop) is built when studio is configured
+	// and none was injected (tests inject their own). A nil provider makes the
+	// routes answer 404, which is what a disabled instance looks like.
+	if studioProvider == nil && cfg.StudioEnabled() {
+		servers := map[string]mcp.ServerConfig{
+			"tavily": mcp.TavilyServerConfig(cfg.TavilyURL, cfg.TavilyAPIKey),
+		}
+		if cfg.FetchMCPURL != "" {
+			servers["fetch"] = mcp.FetchServerConfig(cfg.FetchMCPURL)
+		}
+		studioProvider = studio.New(
+			&llm.Client{BaseURL: cfg.ChatBaseURL, APIKey: cfg.ChatAPIKey},
+			mcp.NewService(servers, nil),
+		)
+	}
+	sh := &studioHandlers{cfg: cfg, provider: studioProvider}
+	mux.HandleFunc("POST /api/studio/generate", sh.generate)
+	mux.HandleFunc("POST /api/studio/refine", sh.refine)
 
 	// OIDC login/callback/logout — only in oidc mode with a configured provider.
 	if authr != nil {

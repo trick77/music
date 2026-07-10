@@ -1,0 +1,50 @@
+// Package studio implements the Phase 9 Studio feature: it drives MiMo 2.5 Pro
+// through a bounded web-research loop (Tavily search + fetch) to turn a named
+// song into a Suno prompt — a style prompt, original theme-matched lyrics, and
+// an epoch-correct cover-art prompt. Results are ephemeral; nothing is stored.
+package studio
+
+import "context"
+
+// GenerateRequest names the song to reimagine, e.g. "Metallica, Enter Sandman".
+type GenerateRequest struct {
+	Reference string
+}
+
+// GenerateResult is the three-part ephemeral output.
+type GenerateResult struct {
+	StylePrompt    string `json:"stylePrompt"`
+	Lyrics         string `json:"lyrics"`
+	CoverArtPrompt string `json:"coverArtPrompt"`
+}
+
+// RefineRequest asks for a lyrics rewrite guided by Instruction (e.g. "do not
+// say lullaby"), keeping the style and cover-art prompts fixed.
+type RefineRequest struct {
+	Reference   string
+	Lyrics      string
+	Instruction string
+}
+
+// Progress is a live status update emitted while the research loop runs, so the
+// UI can show what is happening instead of a blank spinner.
+type Progress struct {
+	Phase  string `json:"phase"`  // researching | reading | thinking | composing
+	Detail string `json:"detail"` // human-friendly one-liner
+}
+
+// ProgressFunc receives progress updates. It may be nil.
+type ProgressFunc func(Progress)
+
+func (f ProgressFunc) emit(p Progress) {
+	if f != nil {
+		f(p)
+	}
+}
+
+// Provider generates and refines Suno prompts. The real implementation drives an
+// LLM research loop; tests inject a fake. onProgress may be nil.
+type Provider interface {
+	Generate(ctx context.Context, req GenerateRequest, onProgress ProgressFunc) (GenerateResult, error)
+	Refine(ctx context.Context, req RefineRequest, onProgress ProgressFunc) (string, error)
+}

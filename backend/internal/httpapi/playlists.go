@@ -7,11 +7,14 @@ import (
 
 	"github.com/trick77/music/internal/config"
 	"github.com/trick77/music/internal/library"
+	"github.com/trick77/music/internal/media"
 )
 
 type playlistHandlers struct {
-	cfg  config.Config
-	repo *library.Repo
+	cfg      config.Config
+	repo     *library.Repo
+	media    *media.Store
+	maxBytes int64
 }
 
 func (h *playlistHandlers) requireAuth(w http.ResponseWriter, r *http.Request) bool {
@@ -151,6 +154,31 @@ func (h *playlistHandlers) reorder(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		httpError(w, http.StatusInternalServerError, "reorder playlist")
+		return
+	}
+	h.respondDetail(w, r, id, http.StatusOK)
+}
+
+func (h *playlistHandlers) putCover(w http.ResponseWriter, r *http.Request) {
+	if !h.requireAuth(w, r) {
+		return
+	}
+	id := r.PathValue("id")
+	pl, err := h.repo.GetPlaylist(r.Context(), id)
+	if err != nil {
+		httpError(w, http.StatusInternalServerError, "get playlist")
+		return
+	}
+	if pl == nil {
+		httpError(w, http.StatusNotFound, "not found")
+		return
+	}
+	coverID, ok := storeUploadedCover(w, r, h.media, h.repo, h.maxBytes)
+	if !ok {
+		return
+	}
+	if err := h.repo.SetPlaylistCover(r.Context(), id, coverID); err != nil {
+		httpError(w, http.StatusInternalServerError, "assign cover")
 		return
 	}
 	h.respondDetail(w, r, id, http.StatusOK)

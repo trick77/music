@@ -3,12 +3,29 @@ package httpapi
 import (
 	"bytes"
 	"encoding/json"
+	"image"
+	"image/png"
+	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
 	"github.com/trick77/music/internal/config"
 )
+
+func pngMultipart(t *testing.T) (*bytes.Buffer, string) {
+	t.Helper()
+	var img bytes.Buffer
+	if err := png.Encode(&img, image.NewRGBA(image.Rect(0, 0, 8, 8))); err != nil {
+		t.Fatalf("encode png: %v", err)
+	}
+	var body bytes.Buffer
+	mw := multipart.NewWriter(&body)
+	fw, _ := mw.CreateFormFile("file", "cover.png")
+	fw.Write(img.Bytes())
+	mw.Close()
+	return &body, mw.FormDataContentType()
+}
 
 func doJSON(t *testing.T, h http.Handler, method, path, body string) *httptest.ResponseRecorder {
 	t.Helper()
@@ -143,6 +160,44 @@ func TestPlaylistWrites_anonymousForbidden(t *testing.T) {
 		if rr.Code != http.StatusForbidden {
 			t.Fatalf("%s %s = %d, want 403", tc.method, tc.path, rr.Code)
 		}
+	}
+}
+
+func TestPlaylistCoverUpload(t *testing.T) {
+	h := testServer(t, config.AuthModeDev)
+	pid := createPlaylist(t, h, "P", "")
+
+	body, contentType := pngMultipart(t)
+	req := httptest.NewRequest("PUT", "/api/playlists/"+pid+"/cover", body)
+	req.Header.Set("Content-Type", contentType)
+	rr := httptest.NewRecorder()
+	h.ServeHTTP(rr, req)
+	if rr.Code != http.StatusOK {
+		t.Fatalf("cover upload = %d, body=%s", rr.Code, rr.Body.String())
+	}
+	var detail struct {
+		CoverArtID string `json:"coverArtId"`
+	}
+	json.Unmarshal(rr.Body.Bytes(), &detail)
+	if detail.CoverArtID == "" {
+		t.Fatalf("playlist cover not set: %s", rr.Body.String())
+	}
+
+	cr := doJSON(t, h, "GET", "/api/cover/"+detail.CoverArtID, "")
+	if cr.Code != http.StatusOK {
+		t.Fatalf("get cover = %d", cr.Code)
+	}
+}
+
+func TestPlaylistCoverUpload_anonymousForbidden(t *testing.T) {
+	anon := testServer(t, config.AuthModeOIDC)
+	body, contentType := pngMultipart(t)
+	req := httptest.NewRequest("PUT", "/api/playlists/any/cover", body)
+	req.Header.Set("Content-Type", contentType)
+	rr := httptest.NewRecorder()
+	anon.ServeHTTP(rr, req)
+	if rr.Code != http.StatusForbidden {
+		t.Fatalf("anonymous cover upload = %d, want 403", rr.Code)
 	}
 }
 

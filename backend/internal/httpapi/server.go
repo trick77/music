@@ -46,7 +46,7 @@ func New(cfg config.Config, st *store.Store, spa http.Handler) http.Handler {
 			mux.HandleFunc("GET /api/genres", h.listGenres)
 			mux.HandleFunc("GET /api/genres/{id}", h.getGenre)
 
-			pl := &playlistHandlers{cfg: cfg, repo: h.repo}
+			pl := &playlistHandlers{cfg: cfg, repo: h.repo, media: mstore, maxBytes: int64(cfg.MaxUploadMB) * 1024 * 1024}
 			mux.HandleFunc("GET /api/playlists", pl.list)
 			mux.HandleFunc("GET /api/playlists/{id}", pl.get)
 			mux.HandleFunc("POST /api/playlists", pl.create)
@@ -55,6 +55,7 @@ func New(cfg config.Config, st *store.Store, spa http.Handler) http.Handler {
 			mux.HandleFunc("POST /api/playlists/{id}/songs", pl.addSong)
 			mux.HandleFunc("DELETE /api/playlists/{id}/songs/{songId}", pl.removeSong)
 			mux.HandleFunc("PUT /api/playlists/{id}/reorder", pl.reorder)
+			mux.HandleFunc("PUT /api/playlists/{id}/cover", pl.putCover)
 		}
 	}
 

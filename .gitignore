@@ -8,3 +8,5 @@ backend/web/dist/*
 .env
 # Playwright MCP scratch output
 .playwright-mcp/
+# Claude Code local state and worktrees
+.claude/

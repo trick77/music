@@ -45,6 +45,16 @@ func New(cfg config.Config, st *store.Store, spa http.Handler) http.Handler {
 			mux.HandleFunc("GET /api/artists/{id}", h.getArtist)
 			mux.HandleFunc("GET /api/genres", h.listGenres)
 			mux.HandleFunc("GET /api/genres/{id}", h.getGenre)
+
+			pl := &playlistHandlers{cfg: cfg, repo: h.repo}
+			mux.HandleFunc("GET /api/playlists", pl.list)
+			mux.HandleFunc("GET /api/playlists/{id}", pl.get)
+			mux.HandleFunc("POST /api/playlists", pl.create)
+			mux.HandleFunc("PATCH /api/playlists/{id}", pl.patch)
+			mux.HandleFunc("DELETE /api/playlists/{id}", pl.delete)
+			mux.HandleFunc("POST /api/playlists/{id}/songs", pl.addSong)
+			mux.HandleFunc("DELETE /api/playlists/{id}/songs/{songId}", pl.removeSong)
+			mux.HandleFunc("PUT /api/playlists/{id}/reorder", pl.reorder)
 		}
 	}
 

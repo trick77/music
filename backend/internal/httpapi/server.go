@@ -72,6 +72,7 @@ func NewWithProvider(cfg config.Config, st *store.Store, spa http.Handler, gen i
 			mux.HandleFunc("GET /api/songs/{id}/download", h.download)
 			mux.HandleFunc("POST /api/songs/{id}/play", h.postPlay) // PUBLIC — the one documented anonymous write (spec §12)
 			mux.HandleFunc("GET /api/top-ten", h.getTopTen)
+			mux.HandleFunc("GET /api/home", h.getHome)
 			mux.HandleFunc("PATCH /api/songs/{id}", h.patch)
 			mux.HandleFunc("GET /api/suggest", h.suggest)
 			mux.HandleFunc("PUT /api/songs/{id}/cover", h.putCover)

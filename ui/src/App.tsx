@@ -16,7 +16,6 @@ import { useRoute, navigate } from "./router";
 import { useFavorites } from "./favorites";
 import { addToQueue, playNext } from "./queue";
 import { songShareUrl, copyText } from "./share";
-import { Glyph } from "./Glyph";
 import { Icon } from "./Icon";
 
 export function App() {
@@ -102,7 +101,7 @@ export function App() {
           onClick={() => setMenuFor(menuFor === song.id ? null : song.id)}
           style={{ display: "grid", placeItems: "center", background: "none", border: "none", cursor: "pointer", color: "var(--color-muted)" }}
         >
-          <Glyph name="dots" size={18} />
+          <Icon name="moreVertical" size="18px" />
         </button>
         {menuFor === song.id && (
           <SongMenu

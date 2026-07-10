@@ -12,6 +12,7 @@ import { coverUrl, coverInitial } from "./cover";
 import { navigate } from "./router";
 import { playlistShareUrl } from "./share";
 import { Glyph } from "./Glyph";
+import { Icon } from "./Icon";
 import { GenreEditor } from "./GenreEditor";
 
 export type DetailKind = "genre" | "artist" | "playlist";
@@ -123,7 +124,7 @@ export function Detail({ kind, id, authenticated, imageGenEnabled, onPlay, onSha
       >
         <div className="scrim" />
         <button onClick={() => history.back()} aria-label="Back" style={{ ...linkBtn, position: "absolute", top: 14, left: 14, color: "#fff", display: "grid", placeItems: "center" }}>
-          <Glyph name="chevronLeft" size={24} />
+          <Icon name="chevronLeft" size="24px" />
         </button>
         <div style={{ position: "relative", padding: "clamp(1.1rem, 2.6vw, 2rem)", width: "100%" }}>
           <div style={{ fontSize: "0.75rem", letterSpacing: "0.14em", textTransform: "uppercase", color: "rgba(255,255,255,0.8)" }}>{kind}</div>
@@ -136,7 +137,7 @@ export function Detail({ kind, id, authenticated, imageGenEnabled, onPlay, onSha
               </button>
             )}
             <button onClick={() => onShare(view!.shareUrl)} style={pillGhost}>
-              <Glyph name="share" size={18} /> Share
+              <Icon name="share" size="18px" /> Share
             </button>
             {view.onEdit && (
               <button onClick={view.onEdit} style={pillGhost}>Edit</button>

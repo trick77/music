@@ -2,6 +2,7 @@ package httpapi
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 	"os"
 
@@ -56,7 +57,9 @@ func (h *songHandlers) patch(w http.ResponseWriter, r *http.Request) {
 		httpError(w, http.StatusInternalServerError, "write tags")
 		return
 	}
-	var size int64
+	// Refresh the recorded size from the rewritten file; if Stat fails, keep the
+	// prior value rather than zeroing it.
+	size := song.FileSize
 	if info, err := os.Stat(abs); err == nil {
 		size = info.Size()
 	}
@@ -80,8 +83,12 @@ func (h *songHandlers) suggest(w http.ResponseWriter, r *http.Request) {
 	field := r.URL.Query().Get("field")
 	q := r.URL.Query().Get("q")
 	out, err := h.repo.Suggest(r.Context(), field, q)
-	if err != nil {
+	if errors.Is(err, library.ErrUnknownSuggestField) {
 		httpError(w, http.StatusBadRequest, "invalid suggest field")
+		return
+	}
+	if err != nil {
+		httpError(w, http.StatusInternalServerError, "suggest")
 		return
 	}
 	writeJSON(w, map[string]any{"suggestions": out})

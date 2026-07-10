@@ -2,6 +2,7 @@ package httpapi
 
 import (
 	"crypto/sha256"
+	"database/sql"
 	"encoding/hex"
 	"errors"
 	"io"
@@ -122,8 +123,12 @@ func (h *songHandlers) putCover(w http.ResponseWriter, r *http.Request) {
 
 func (h *songHandlers) getCover(w http.ResponseWriter, r *http.Request) {
 	path, err := h.repo.GetCoverPath(r.Context(), r.PathValue("id"))
-	if err != nil {
+	if errors.Is(err, sql.ErrNoRows) {
 		httpError(w, http.StatusNotFound, "not found")
+		return
+	}
+	if err != nil {
+		httpError(w, http.StatusInternalServerError, "get cover")
 		return
 	}
 	f, err := h.media.Open(path)

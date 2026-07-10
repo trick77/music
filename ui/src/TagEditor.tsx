@@ -35,10 +35,16 @@ export function TagEditor({ song, onClose, onSaved }: Props) {
   const onSave = async () => {
     setSaving(true);
     setErr(null);
+    // Commit a genre typed but not yet added via Enter, so it isn't lost on save.
+    const pending = genreInput.trim();
+    const finalGenres =
+      pending && !genres.some((x) => x.toLowerCase() === pending.toLowerCase())
+        ? [...genres, pending]
+        : genres;
     try {
       const saved = await updateSong(song.id, {
         title, artistName, album,
-        year: Number(year) || 0, trackNo: Number(trackNo) || 0, genres,
+        year: Number(year) || 0, trackNo: Number(trackNo) || 0, genres: finalGenres,
       });
       onSaved(saved);
       onClose();

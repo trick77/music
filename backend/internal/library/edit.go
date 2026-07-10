@@ -79,6 +79,10 @@ func (r *Repo) Update(ctx context.Context, id string, p UpdateSongParams) (*Song
 	return r.Get(ctx, id)
 }
 
+// ErrUnknownSuggestField is returned by Suggest for an unsupported field, so the
+// handler can distinguish a bad request from a database failure.
+var ErrUnknownSuggestField = errors.New("library: unknown suggest field")
+
 // Suggestion is one typeahead candidate with its usage count.
 type Suggestion struct {
 	Value string `json:"value"`
@@ -102,7 +106,7 @@ func (r *Repo) Suggest(ctx context.Context, field, q string) ([]Suggestion, erro
 		query = `SELECT g.name, COUNT(sg.song_id) c FROM genres g JOIN song_genres sg ON sg.genre_id = g.id
 			WHERE lower(g.name) LIKE ? GROUP BY g.id ORDER BY c DESC, g.name LIMIT 10`
 	default:
-		return nil, errors.New("library: unknown suggest field")
+		return nil, ErrUnknownSuggestField
 	}
 	rows, err := r.db.QueryContext(ctx, query, like)
 	if err != nil {

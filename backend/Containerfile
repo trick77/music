@@ -17,6 +17,8 @@ RUN cd backend && CGO_ENABLED=0 go build -o /music ./cmd/music
 
 # Stage 3: runtime
 FROM alpine:3.20
+# CA certs for outbound HTTPS (OIDC discovery, BFL image API); tzdata for local time.
+RUN apk add --no-cache ca-certificates tzdata
 RUN adduser -D -u 10001 app
 USER app
 COPY --from=build /music /music

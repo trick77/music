@@ -60,6 +60,70 @@ func TestLoad_BFLEnabledByAPIKey(t *testing.T) {
 	}
 }
 
+func TestLoad_StudioDefaults(t *testing.T) {
+	t.Setenv("BACKEND_SESSION_SECRET", "s")
+	cfg, err := Load()
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if cfg.TavilyURL != "https://mcp.tavily.com/mcp/" {
+		t.Fatalf("TavilyURL default = %q", cfg.TavilyURL)
+	}
+	if cfg.StudioEnabled() {
+		t.Fatal("StudioEnabled must be false with no keys")
+	}
+}
+
+func TestLoad_StudioEnabledRequiresBothChatAndTavilyKeys(t *testing.T) {
+	t.Setenv("BACKEND_SESSION_SECRET", "s")
+
+	// Only the chat key: not enough.
+	t.Setenv("BACKEND_CHAT_API_KEY", "chat-test")
+	t.Setenv("BACKEND_CHAT_BASE_URL", "http://mimo.local/v1")
+	cfg, err := Load()
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if cfg.StudioEnabled() {
+		t.Fatal("StudioEnabled must be false with only the chat key")
+	}
+
+	// Only the tavily key: not enough.
+	t.Setenv("BACKEND_CHAT_API_KEY", "")
+	t.Setenv("BACKEND_CHAT_BASE_URL", "")
+	t.Setenv("BACKEND_TAVILY_API_KEY", "tvly-test")
+	cfg, err = Load()
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if cfg.StudioEnabled() {
+		t.Fatal("StudioEnabled must be false with only the tavily key")
+	}
+
+	// Both keys: enabled.
+	t.Setenv("BACKEND_CHAT_API_KEY", "chat-test")
+	t.Setenv("BACKEND_CHAT_BASE_URL", "http://mimo.local/v1")
+	cfg, err = Load()
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if !cfg.StudioEnabled() {
+		t.Fatal("StudioEnabled must be true with both chat and tavily keys")
+	}
+	if cfg.ChatAPIKey != "chat-test" || cfg.TavilyAPIKey != "tvly-test" {
+		t.Fatalf("keys not loaded: %q / %q", cfg.ChatAPIKey, cfg.TavilyAPIKey)
+	}
+}
+
+func TestLoad_StudioChatKeyRequiresBaseURL(t *testing.T) {
+	t.Setenv("BACKEND_SESSION_SECRET", "s")
+	t.Setenv("BACKEND_CHAT_API_KEY", "chat-test")
+	t.Setenv("BACKEND_CHAT_BASE_URL", "")
+	if _, err := Load(); err == nil || !strings.Contains(err.Error(), "BACKEND_CHAT_BASE_URL") {
+		t.Fatalf("expected missing chat base URL error, got %v", err)
+	}
+}
+
 func TestLoad_OIDCRequiresCoreFieldsInOIDCMode(t *testing.T) {
 	t.Setenv("BACKEND_SESSION_SECRET", "s")
 	t.Setenv("BACKEND_AUTH_MODE", "oidc")

@@ -21,6 +21,7 @@ type Song struct {
 	FilePath    string   `json:"-"`
 	FileSize    int64    `json:"fileSize"`
 	ContentHash string   `json:"-"`
+	CoverArtID  string   `json:"coverArtId"`
 	Genres      []string `json:"genres"`
 	CreatedAt   string   `json:"createdAt"`
 }
@@ -56,11 +57,15 @@ func (r *Repo) Create(ctx context.Context, id string, p CreateSongParams) (*Song
 	if err != nil {
 		return nil, err
 	}
+	coverID, err := albumCoverIDTx(ctx, tx, artistID, p.Album)
+	if err != nil {
+		return nil, err
+	}
 	if _, err := tx.ExecContext(ctx,
-		`INSERT INTO songs(id, title, artist_id, album, year, track_no, duration_ms, file_path, file_size, content_hash)
-		 VALUES(?,?,?,?,?,?,?,?,?,?)`,
+		`INSERT INTO songs(id, title, artist_id, album, year, track_no, duration_ms, file_path, file_size, content_hash, cover_art_id)
+		 VALUES(?,?,?,?,?,?,?,?,?,?,?)`,
 		id, p.Title, artistID, nullStr(p.Album), nullInt(p.Year), nullInt(p.TrackNo),
-		p.DurationMS, p.FilePath, p.FileSize, p.ContentHash,
+		p.DurationMS, p.FilePath, p.FileSize, p.ContentHash, nullStr(coverID),
 	); err != nil {
 		return nil, err
 	}
@@ -144,7 +149,7 @@ func (r *Repo) List(ctx context.Context) ([]Song, error) {
 }
 
 const songSelect = `SELECT s.id, s.title, s.artist_id, a.name, s.album, s.year, s.track_no,
-	s.duration_ms, s.file_path, s.file_size, s.content_hash, s.created_at
+	s.duration_ms, s.file_path, s.file_size, s.content_hash, s.cover_art_id, s.created_at
 	FROM songs s JOIN artists a ON a.id = s.artist_id`
 
 type scanner interface {
@@ -153,15 +158,16 @@ type scanner interface {
 
 func scanSong(row scanner) (*Song, error) {
 	var s Song
-	var album sql.NullString
+	var album, cover sql.NullString
 	var year, track sql.NullInt64
 	if err := row.Scan(&s.ID, &s.Title, &s.ArtistID, &s.ArtistName, &album, &year, &track,
-		&s.DurationMS, &s.FilePath, &s.FileSize, &s.ContentHash, &s.CreatedAt); err != nil {
+		&s.DurationMS, &s.FilePath, &s.FileSize, &s.ContentHash, &cover, &s.CreatedAt); err != nil {
 		return nil, err
 	}
 	s.Album = album.String
 	s.Year = int(year.Int64)
 	s.TrackNo = int(track.Int64)
+	s.CoverArtID = cover.String
 	s.Genres = []string{}
 	return &s, nil
 }

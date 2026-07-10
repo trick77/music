@@ -1,0 +1,117 @@
+package library
+
+import (
+	"context"
+	"database/sql"
+	"errors"
+	"strings"
+)
+
+// CoverParams describes a stored cover image.
+type CoverParams struct {
+	ImagePath   string
+	Width       int
+	Height      int
+	ContentHash string
+}
+
+// CreateCover inserts a cover_art row, deduping by content hash: if an image
+// with the same bytes already exists, its id is returned and no row is added.
+func (r *Repo) CreateCover(ctx context.Context, p CoverParams) (string, error) {
+	if existingID, _, err := r.FindCoverByHash(ctx, p.ContentHash); err != nil {
+		return "", err
+	} else if existingID != "" {
+		return existingID, nil
+	}
+	id := NewID()
+	_, err := r.db.ExecContext(ctx,
+		`INSERT INTO cover_art(id, image_path, width, height, content_hash) VALUES(?,?,?,?,?)`,
+		id, p.ImagePath, p.Width, p.Height, p.ContentHash)
+	if err != nil {
+		return "", err
+	}
+	return id, nil
+}
+
+// FindCoverByHash returns the id and image_path of a cover with the given hash,
+// or ("","",nil) if none exists.
+func (r *Repo) FindCoverByHash(ctx context.Context, hash string) (string, string, error) {
+	if hash == "" {
+		return "", "", nil
+	}
+	var id, path string
+	err := r.db.QueryRowContext(ctx,
+		`SELECT id, image_path FROM cover_art WHERE content_hash = ?`, hash).Scan(&id, &path)
+	if errors.Is(err, sql.ErrNoRows) {
+		return "", "", nil
+	}
+	if err != nil {
+		return "", "", err
+	}
+	return id, path, nil
+}
+
+// GetCoverPath returns the stored image path for a cover id.
+func (r *Repo) GetCoverPath(ctx context.Context, coverID string) (string, error) {
+	var path string
+	err := r.db.QueryRowContext(ctx, `SELECT image_path FROM cover_art WHERE id = ?`, coverID).Scan(&path)
+	return path, err
+}
+
+// SetSongCover assigns a cover to a song. If the song has an album, the cover is
+// recorded in album_covers and applied to every song of that artist+album (and,
+// via Create, future ones). A song with no album gets a per-song cover only.
+func (r *Repo) SetSongCover(ctx context.Context, songID, coverID string) error {
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	var artistID string
+	var album sql.NullString
+	err = tx.QueryRowContext(ctx, `SELECT artist_id, album FROM songs WHERE id = ?`, songID).Scan(&artistID, &album)
+	if err != nil {
+		return err
+	}
+
+	if key := albumKey(album.String); key != "" {
+		if _, err := tx.ExecContext(ctx,
+			`INSERT INTO album_covers(artist_id, album_key, cover_art_id) VALUES(?,?,?)
+			 ON CONFLICT(artist_id, album_key) DO UPDATE SET cover_art_id = excluded.cover_art_id`,
+			artistID, key, coverID); err != nil {
+			return err
+		}
+		if _, err := tx.ExecContext(ctx,
+			`UPDATE songs SET cover_art_id = ? WHERE artist_id = ? AND lower(album) = ?`,
+			coverID, artistID, key); err != nil {
+			return err
+		}
+	} else {
+		if _, err := tx.ExecContext(ctx,
+			`UPDATE songs SET cover_art_id = ? WHERE id = ?`, coverID, songID); err != nil {
+			return err
+		}
+	}
+	return tx.Commit()
+}
+
+// albumCoverIDTx returns the mapped cover id for an (artist, album), or "".
+func albumCoverIDTx(ctx context.Context, tx *sql.Tx, artistID, album string) (string, error) {
+	key := albumKey(album)
+	if key == "" {
+		return "", nil
+	}
+	var coverID string
+	err := tx.QueryRowContext(ctx,
+		`SELECT cover_art_id FROM album_covers WHERE artist_id = ? AND album_key = ?`,
+		artistID, key).Scan(&coverID)
+	if errors.Is(err, sql.ErrNoRows) {
+		return "", nil
+	}
+	return coverID, err
+}
+
+func albumKey(album string) string {
+	return strings.ToLower(strings.TrimSpace(album))
+}

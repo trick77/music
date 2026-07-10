@@ -1,0 +1,53 @@
+services:
+  music:
+    image: ghcr.io/trick77/music:latest
+    user: "1000:1000"
+    restart: unless-stopped
+    ports:
+      # Local-only debug publish; Traefik reaches the container over the docker network.
+      - "127.0.0.1:8082:8080"
+    environment:
+      BACKEND_LISTEN_ADDR: ":8080"
+      BACKEND_DB_PATH: "/data/music.db"
+      BACKEND_MEDIA_DIR: "/data/media"
+      BACKEND_MAX_UPLOAD_MB: "${BACKEND_MAX_UPLOAD_MB:-50}"
+      BACKEND_SESSION_SECRET: "${BACKEND_SESSION_SECRET}"
+      BACKEND_AUTH_MODE: "${BACKEND_AUTH_MODE:-oidc}"
+      # Redirect URL must be https:// so session cookies get the Secure flag.
+      BACKEND_OIDC_ISSUER: "${BACKEND_OIDC_ISSUER}"
+      BACKEND_OIDC_CLIENT_ID: "${BACKEND_OIDC_CLIENT_ID}"
+      BACKEND_OIDC_CLIENT_SECRET: "${BACKEND_OIDC_CLIENT_SECRET}"
+      BACKEND_OIDC_REDIRECT_URL: "${BACKEND_OIDC_REDIRECT_URL}"
+      BACKEND_OIDC_POST_LOGOUT_REDIRECT_URL: "${BACKEND_OIDC_POST_LOGOUT_REDIRECT_URL}"
+      # Optional: restrict the full-access role to one Authentik group (unset = any valid login).
+      BACKEND_OIDC_ALLOWED_GROUP: "${BACKEND_OIDC_ALLOWED_GROUP:-}"
+      # Image generation (optional; leave the API key empty to disable the Generate button).
+      BACKEND_BFL_BASE_URL: "${BACKEND_BFL_BASE_URL:-https://api.bfl.ai/v1}"
+      BACKEND_BFL_API_KEY: "${BACKEND_BFL_API_KEY:-}"
+      BACKEND_BFL_MODEL: "${BACKEND_BFL_MODEL:-flux-2-klein-4b}"
+      BACKEND_BFL_POLL_TIMEOUT: "${BACKEND_BFL_POLL_TIMEOUT:-1m}"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8080/api/health"]
+      interval: 60s
+      timeout: 5s
+      start_period: 30s
+      start_interval: 5s
+      retries: 3
+    volumes:
+      # Single on-disk bind mount: holds music.db* (WAL) and the media root
+      # (media/songs, media/covers, media/fanart + on-disk image cache).
+      # Host prep before first run: mkdir -p data && sudo chown -R 1000:1000 data
+      - ./data:/data
+    networks:
+      - traefik
+    labels:
+      traefik.enable: "true"
+      traefik.docker.network: traefik
+      traefik.http.routers.music.rule: Host(`music.trick77.com`)
+      traefik.http.routers.music.entrypoints: websecure
+      traefik.http.routers.music.tls: "true"
+      traefik.http.services.music.loadbalancer.server.port: "8080"
+
+networks:
+  traefik:
+    external: true

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 
+	"github.com/trick77/music/internal/auth"
 	"github.com/trick77/music/internal/config"
 	"github.com/trick77/music/internal/imagegen"
 	"github.com/trick77/music/internal/library"
@@ -14,15 +15,26 @@ import (
 )
 
 // New builds the app handler with generation wired from cfg (a real BFL client
-// when a key is set).
+// when a key is set) and no OIDC authenticator (dev mode / tests).
 func New(cfg config.Config, st *store.Store, spa http.Handler) http.Handler {
-	return NewWithProvider(cfg, st, spa, nil, nil)
+	return build(cfg, st, spa, nil, nil, nil)
 }
 
 // NewWithProvider builds the app handler, allowing an image-generation Provider
 // and a completion hook to be injected (used by tests). When gen is nil and
 // generation is configured, a real BFL client is built.
 func NewWithProvider(cfg config.Config, st *store.Store, spa http.Handler, gen imagegen.Provider, onGenComplete func(string)) http.Handler {
+	return build(cfg, st, spa, gen, onGenComplete, nil)
+}
+
+// NewWithAuth builds the app handler with an OIDC Authenticator wired in
+// (production oidc mode and the auth-flow tests). A nil authr registers no
+// login/callback/logout routes.
+func NewWithAuth(cfg config.Config, st *store.Store, spa http.Handler, authr *auth.Authenticator) http.Handler {
+	return build(cfg, st, spa, nil, nil, authr)
+}
+
+func build(cfg config.Config, st *store.Store, spa http.Handler, gen imagegen.Provider, onGenComplete func(string), authr *auth.Authenticator) http.Handler {
 	mux := http.NewServeMux()
 	var shareRepo *library.Repo
 
@@ -36,8 +48,17 @@ func NewWithProvider(cfg config.Config, st *store.Store, spa http.Handler, gen i
 			"authenticated":   id.Authenticated,
 			"username":        id.Username,
 			"imageGenEnabled": cfg.ImageGenEnabled() && id.Authenticated,
+			"authMode":        string(cfg.AuthMode),
 		})
 	})
+
+	// OIDC login/callback/logout — only in oidc mode with a configured provider.
+	if authr != nil {
+		ah := &authHandlers{cfg: cfg, authr: authr, secure: cfg.OIDC.CookieSecure}
+		mux.HandleFunc("GET /api/auth/login", ah.login)
+		mux.HandleFunc("GET /api/auth/callback", ah.callback)
+		mux.HandleFunc("GET /api/auth/logout", ah.logout)
+	}
 
 	// Song routes require a store and a media root; both are present in normal
 	// runs. (Phase 1 unit tests pass st=nil and no media dir and never hit these.)

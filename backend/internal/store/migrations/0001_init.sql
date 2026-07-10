@@ -82,3 +82,26 @@ CREATE TABLE plays (
 );
 CREATE INDEX idx_plays_song ON plays(song_id);
 CREATE INDEX idx_plays_at ON plays(played_at);
+
+-- ── Folded from former 0002 (content-hash dedupe) ──────────────────────────
+-- Enforce content-hash dedupe for songs that carry a hash (empty hash allowed
+-- for legacy/edge rows).
+CREATE UNIQUE INDEX idx_songs_content_hash
+    ON songs(content_hash) WHERE content_hash != '';
+
+-- ── Folded from former 0003 (artist+album -> cover mapping, spec §7) ────────
+-- Durable artist+album -> cover mapping so cover art auto-applies to every
+-- existing AND future song sharing that artist+album. Singles (no album) use
+-- per-song songs.cover_art_id instead.
+CREATE TABLE album_covers (
+    artist_id    TEXT NOT NULL REFERENCES artists(id) ON DELETE CASCADE,
+    album_key    TEXT NOT NULL,                 -- lower(album)
+    cover_art_id TEXT NOT NULL REFERENCES cover_art(id) ON DELETE CASCADE,
+    PRIMARY KEY (artist_id, album_key)
+);
+
+-- ── Phase 4: fast ordered reads of a playlist's tracks ─────────────────────
+-- playlist_songs' PRIMARY KEY is (playlist_id, song_id); this index serves
+-- ORDER BY position for a playlist. position is NOT unique (ties are allowed
+-- and resolved by the reorder rewrite).
+CREATE INDEX idx_playlist_songs_order ON playlist_songs(playlist_id, position);

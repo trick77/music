@@ -1,0 +1,21 @@
+import { describe, expect, it } from "vitest";
+import { parsePath } from "./router";
+
+describe("parsePath", () => {
+  it("maps root to home", () => {
+    expect(parsePath("/")).toEqual({ name: "home" });
+  });
+  it("maps /favorites and /playlists", () => {
+    expect(parsePath("/favorites")).toEqual({ name: "favorites" });
+    expect(parsePath("/playlists")).toEqual({ name: "playlists" });
+  });
+  it("extracts song id", () => {
+    expect(parsePath("/song/abc123")).toEqual({ name: "song", id: "abc123" });
+  });
+  it("extracts playlist id", () => {
+    expect(parsePath("/playlist/xyz")).toEqual({ name: "playlist", id: "xyz" });
+  });
+  it("falls back to home for unknown paths", () => {
+    expect(parsePath("/nope/deep/path")).toEqual({ name: "home" });
+  });
+});

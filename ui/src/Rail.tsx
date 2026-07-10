@@ -10,10 +10,34 @@ const ITEMS: Item[] = [
   { key: "library", icon: "library", label: "Library", path: "/favorites", match: (r) => r.name === "favorites" || r.name === "playlists" },
 ];
 
+// AccountSlot is the unobtrusive owner affordance in the rail's top avatar
+// position. In dev mode it stays a decorative accent mark (autologin, nothing to
+// do). In oidc mode it is a plain accent avatar that links to login when
+// anonymous and to logout when signed in — no lock icon, no visible "sign in"
+// copy, so an anonymous visitor sees nothing more than an avatar dot.
+function AccountSlot({ authMode, authenticated, username }: { authMode?: string; authenticated: boolean; username: string }) {
+  const base = { width: 28, height: 28, borderRadius: 999, background: "var(--color-accent)", marginBottom: "0.75rem" } as const;
+  if (authMode !== "oidc") {
+    return <span aria-hidden style={{ ...base, borderRadius: 8 }} />;
+  }
+  const href = authenticated ? "/api/auth/logout" : "/api/auth/login";
+  const label = authenticated ? "Log out" : "Log in";
+  return (
+    <a
+      href={href}
+      aria-label={label}
+      title={label}
+      style={{ ...base, display: "grid", placeItems: "center", color: "var(--color-ink)", textDecoration: "none", fontFamily: "var(--font-serif)", fontSize: "0.8rem", fontWeight: 600 }}
+    >
+      {authenticated && username ? username.charAt(0).toUpperCase() : null}
+    </a>
+  );
+}
+
 // Rail is the slim, icon-only left navigation on desktop and a bottom tab bar on
 // mobile. No wordmark (spec §15). The Upload action and the greyed "Studio —
 // soon" slot appear only when authenticated.
-export function Rail({ route, authenticated, onUpload }: { route: Route; authenticated: boolean; onUpload: () => void }) {
+export function Rail({ route, authenticated, authMode, username = "", onUpload }: { route: Route; authenticated: boolean; authMode?: string; username?: string; onUpload: () => void }) {
   const nav = (path: string) => navigate(path);
 
   const desktopItem = (it: Item) => {
@@ -75,7 +99,7 @@ export function Rail({ route, authenticated, onUpload }: { route: Route; authent
           zIndex: 50,
         }}
       >
-        <span aria-hidden style={{ width: 28, height: 28, borderRadius: 8, background: "var(--color-accent)", marginBottom: "0.75rem" }} />
+        <AccountSlot authMode={authMode} authenticated={authenticated} username={username} />
         {ITEMS.map(desktopItem)}
         {authenticated && (
           <button aria-label="Upload" onClick={onUpload} style={{ display: "grid", placeItems: "center", width: 44, height: 44, borderRadius: 12, background: "none", border: "none", color: "var(--color-muted)", cursor: "pointer" }}>

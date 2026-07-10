@@ -1,4 +1,4 @@
-export type Session = { authenticated: boolean; username: string; imageGenEnabled: boolean };
+export type Session = { authenticated: boolean; username: string; imageGenEnabled: boolean; authMode: string };
 
 export type Song = {
   id: string;

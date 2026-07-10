@@ -22,9 +22,27 @@ type DevUserConfig struct {
 	Username string
 }
 
+// OIDCConfig holds the OpenID Connect settings used in oidc auth mode. In dev
+// mode these are ignored (autologin), so they are only validated when
+// AuthMode == oidc.
+type OIDCConfig struct {
+	Issuer                string
+	ClientID              string
+	ClientSecret          string
+	RedirectURL           string
+	PostLogoutRedirectURL string
+	// AllowedGroup gates the authenticated/full-access role: a valid login must
+	// be a member of this group. Empty = any valid login is full-access.
+	AllowedGroup string
+	// CookieSecure marks session/state/nonce cookies Secure. Derived from the
+	// redirect URL scheme (https => true) so local http flows still work.
+	CookieSecure bool
+}
+
 type Config struct {
 	AuthMode      AuthMode
 	DevUser       DevUserConfig
+	OIDC          OIDCConfig
 	DBPath        string
 	MediaDir      string
 	MaxUploadMB   int
@@ -66,6 +84,29 @@ func Load() (Config, error) {
 	}
 	if cfg.AuthMode != AuthModeDev && cfg.AuthMode != AuthModeOIDC {
 		return Config{}, fmt.Errorf("BACKEND_AUTH_MODE must be 'dev' or 'oidc', got %q", cfg.AuthMode)
+	}
+	cfg.OIDC = OIDCConfig{
+		Issuer:                env("BACKEND_OIDC_ISSUER", ""),
+		ClientID:              env("BACKEND_OIDC_CLIENT_ID", ""),
+		ClientSecret:          env("BACKEND_OIDC_CLIENT_SECRET", ""),
+		RedirectURL:           env("BACKEND_OIDC_REDIRECT_URL", ""),
+		PostLogoutRedirectURL: env("BACKEND_OIDC_POST_LOGOUT_REDIRECT_URL", ""),
+		AllowedGroup:          env("BACKEND_OIDC_ALLOWED_GROUP", ""),
+	}
+	cfg.OIDC.CookieSecure = strings.HasPrefix(strings.ToLower(cfg.OIDC.RedirectURL), "https://")
+	if cfg.AuthMode == AuthModeOIDC {
+		for _, req := range []struct {
+			name, val string
+		}{
+			{"BACKEND_OIDC_ISSUER", cfg.OIDC.Issuer},
+			{"BACKEND_OIDC_CLIENT_ID", cfg.OIDC.ClientID},
+			{"BACKEND_OIDC_CLIENT_SECRET", cfg.OIDC.ClientSecret},
+			{"BACKEND_OIDC_REDIRECT_URL", cfg.OIDC.RedirectURL},
+		} {
+			if strings.TrimSpace(req.val) == "" {
+				return Config{}, fmt.Errorf("%s is required when BACKEND_AUTH_MODE=oidc", req.name)
+			}
+		}
 	}
 	cfg.BFLBaseURL = env("BACKEND_BFL_BASE_URL", "https://api.bfl.ai/v1")
 	cfg.BFLAPIKey = env("BACKEND_BFL_API_KEY", "")

@@ -3,6 +3,7 @@ package httpapi
 import (
 	"net/http"
 
+	"github.com/trick77/music/internal/auth"
 	"github.com/trick77/music/internal/config"
 )
 
@@ -12,11 +13,22 @@ type Identity struct {
 	Username      string
 }
 
-// identify resolves the caller. Phase 1: dev mode is always the full-access
-// dev user; oidc mode is anonymous until real OIDC sessions land in Phase 7.
-func identify(cfg config.Config, _ *http.Request) Identity {
+// identify resolves the caller. In dev mode the fixed dev user is always
+// full-access (autologin). In oidc mode the caller is authenticated iff they
+// carry a valid, unexpired signed session cookie — which is only ever issued to
+// a login that was granted the full-access role. A missing, tampered, expired,
+// or non-member session therefore reads as anonymous (read-only).
+func identify(cfg config.Config, r *http.Request) Identity {
 	if cfg.AuthMode == config.AuthModeDev {
 		return Identity{Authenticated: true, Username: cfg.DevUser.Username}
 	}
-	return Identity{Authenticated: false}
+	c, err := r.Cookie(auth.SessionCookieName)
+	if err != nil {
+		return Identity{Authenticated: false}
+	}
+	s, err := auth.ParseSession(cfg.SessionSecret, c.Value)
+	if err != nil {
+		return Identity{Authenticated: false}
+	}
+	return Identity{Authenticated: true, Username: s.Username}
 }

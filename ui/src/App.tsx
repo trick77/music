@@ -39,7 +39,7 @@ export function App() {
   useEffect(() => {
     getSession()
       .then(setSession)
-      .catch(() => setSession({ authenticated: false, username: "", imageGenEnabled: false }));
+      .catch(() => setSession({ authenticated: false, username: "", imageGenEnabled: false, authMode: "" }));
     refresh();
   }, []);
 
@@ -124,7 +124,7 @@ export function App() {
 
   return (
     <div className="app-shell" style={{ minHeight: "100vh" }}>
-      <Rail route={route} authenticated={authed} onUpload={triggerUpload} />
+      <Rail route={route} authenticated={authed} authMode={session?.authMode} username={session?.username ?? ""} onUpload={triggerUpload} />
 
       <div style={{ maxWidth: 1080, margin: "0 auto", padding: "1.5rem 1.25rem 9rem" }}>
         {/* Minimal top chrome: Queue access, no wordmark. */}

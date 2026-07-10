@@ -19,7 +19,11 @@ RUN cd backend && CGO_ENABLED=0 go build -o /music ./cmd/music
 FROM alpine:3.20
 # CA certs for outbound HTTPS (OIDC discovery, BFL image API); tzdata for local time.
 RUN apk add --no-cache ca-certificates tzdata
-RUN adduser -D -u 10001 app
+# Create the data dir owned by the app user so a fresh named volume (dev compose)
+# inherits uid 10001 and the non-root process can write music.db + the media root.
+# Prod bind-mounts ./data over this and runs with its own user, so ownership here
+# is dev-only and harmless there.
+RUN adduser -D -u 10001 app && mkdir -p /data && chown app:app /data
 USER app
 COPY --from=build /music /music
 EXPOSE 8080

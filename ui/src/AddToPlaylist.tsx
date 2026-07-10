@@ -1,13 +1,8 @@
 import { useEffect, useState } from "react";
 import { addSongToPlaylist, createPlaylist, listPlaylists, type Playlist, type Song } from "./api";
+import { MenuItem, menuSurface } from "./Menu";
 
 type Props = { song: Song; authenticated: boolean; onClose: () => void; onDone: (name: string) => void };
-
-const item: React.CSSProperties = {
-  display: "flex", alignItems: "center", justifyContent: "space-between",
-  padding: "0.5rem 0.85rem", cursor: "pointer", color: "var(--color-ink)",
-  fontSize: "0.9rem", background: "none", border: "none", width: "100%", textAlign: "left",
-};
 
 export function AddToPlaylist({ song, authenticated, onClose, onDone }: Props) {
   const [playlists, setPlaylists] = useState<Playlist[]>([]);
@@ -41,14 +36,13 @@ export function AddToPlaylist({ song, authenticated, onClose, onDone }: Props) {
 
   return (
     <div onClick={onClose} style={{ position: "fixed", inset: 0, zIndex: 50, background: "rgba(0,0,0,.5)", display: "grid", placeItems: "center" }}>
-      <div onClick={(e) => e.stopPropagation()} style={{ minWidth: 300, background: "var(--color-panel)", border: "1px solid var(--color-border)", borderRadius: "var(--radius-ui, 10px)", padding: "0.6rem 0" }}>
+      <div onClick={(e) => e.stopPropagation()} role="menu" style={menuSurface}>
         <div style={{ padding: "0.4rem 0.85rem", color: "var(--color-muted)", fontSize: "0.8rem", textTransform: "uppercase", letterSpacing: "0.04em" }}>Add to playlist</div>
-        {authenticated && <button style={{ ...item, color: "var(--color-accent-strong)" }} onClick={createAndAdd}>+ New playlist</button>}
+        {authenticated && <MenuItem icon="plus" onClick={createAndAdd}>New playlist</MenuItem>}
         {playlists.map((pl) => (
-          <button key={pl.id} style={item} onClick={() => add(pl.id, pl.name)}>
-            <span>{pl.name}</span>
-            <span style={{ color: "var(--color-muted)", fontVariantNumeric: "tabular-nums" }}>{pl.songCount}</span>
-          </button>
+          <MenuItem key={pl.id} onClick={() => add(pl.id, pl.name)} trailing={<span style={{ fontVariantNumeric: "tabular-nums" }}>{pl.songCount}</span>}>
+            {pl.name}
+          </MenuItem>
         ))}
         {playlists.length === 0 && !authenticated && (
           <div style={{ padding: "0.5rem 0.85rem", color: "var(--color-muted)", fontSize: "0.85rem" }}>No playlists yet.</div>

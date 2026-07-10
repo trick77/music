@@ -11,6 +11,7 @@ import { useRoute, navigate } from "./router";
 import { useFavorites } from "./favorites";
 import { addToQueue, playNext } from "./queue";
 import { songShareUrl, copyText } from "./share";
+import { Icon } from "./Icon";
 
 export function App() {
   const route = useRoute();
@@ -68,13 +69,15 @@ export function App() {
   const rowActions = (song: Song) => (
     <>
       <button aria-label="favorite" onClick={() => fav.toggle(song.id)}
-        style={{ background: "none", border: "none", cursor: "pointer", fontSize: "1rem",
+        style={{ display: "grid", placeItems: "center", background: "none", border: "none", cursor: "pointer",
           color: fav.has(song.id) ? "var(--color-accent-strong)" : "var(--color-muted)" }}>
-        {fav.has(song.id) ? "★" : "☆"}
+        <Icon name={fav.has(song.id) ? "starFilled" : "star"} size="18px" />
       </button>
       <span style={{ position: "relative" }}>
         <button aria-label="more" onClick={() => setMenuFor(menuFor === song.id ? null : song.id)}
-          style={{ background: "none", border: "none", cursor: "pointer", color: "var(--color-muted)", fontSize: "1.1rem" }}>⋯</button>
+          style={{ display: "grid", placeItems: "center", background: "none", border: "none", cursor: "pointer", color: "var(--color-muted)" }}>
+          <Icon name="moreVertical" size="18px" />
+        </button>
         {menuFor === song.id && (
           <SongMenu song={song} authenticated={authed}
             onPlayNext={() => { setQueue((q) => playNext(q, song)); setMenuFor(null); flash("Playing next"); }}
@@ -121,7 +124,7 @@ export function App() {
           <div style={{ maxWidth: 820, margin: "0 auto" }}>
             <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "0.4rem", fontSize: "0.9rem" }}>
               <span><strong>{nowPlaying.title}</strong><span style={{ color: "var(--color-muted)" }}> — {nowPlaying.artistName}</span></span>
-              <button aria-label="favorite-now" onClick={() => fav.toggle(nowPlaying.id)} style={{ background: "none", border: "none", cursor: "pointer", color: fav.has(nowPlaying.id) ? "var(--color-accent-strong)" : "var(--color-muted)" }}>{fav.has(nowPlaying.id) ? "★" : "☆"}</button>
+              <button aria-label="favorite-now" onClick={() => fav.toggle(nowPlaying.id)} style={{ display: "grid", placeItems: "center", background: "none", border: "none", cursor: "pointer", color: fav.has(nowPlaying.id) ? "var(--color-accent-strong)" : "var(--color-muted)" }}><Icon name={fav.has(nowPlaying.id) ? "starFilled" : "star"} size="18px" /></button>
             </div>
             <audio ref={audioRef} controls onEnded={onEnded} style={{ width: "100%" }} src={streamUrl(nowPlaying.id)}><track kind="captions" /></audio>
           </div>

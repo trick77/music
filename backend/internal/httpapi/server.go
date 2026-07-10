@@ -74,7 +74,7 @@ func build(cfg config.Config, st *store.Store, spa http.Handler, gen imagegen.Pr
 			servers["fetch"] = mcp.FetchServerConfig(cfg.FetchMCPURL)
 		}
 		studioProvider = studio.New(
-			&llm.Client{BaseURL: cfg.ChatBaseURL, APIKey: cfg.ChatAPIKey},
+			&llm.Client{BaseURL: cfg.ChatBaseURL, APIKey: cfg.ChatAPIKey, Model: "mimo-v2.5-pro", ReasoningEffort: "high"},
 			mcp.NewService(servers, nil),
 		)
 	}

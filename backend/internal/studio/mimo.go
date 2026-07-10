@@ -37,6 +37,7 @@ func (p *mimoProvider) Generate(ctx context.Context, req GenerateRequest, onProg
 	if res.StylePrompt == "" || res.Lyrics == "" || res.CoverArtPrompt == "" {
 		return GenerateResult{}, fmt.Errorf("studio: generate result missing a field")
 	}
+	res.Lyrics = formatLyrics(res.Lyrics)
 	return res, nil
 }
 
@@ -59,7 +60,7 @@ func (p *mimoProvider) Refine(ctx context.Context, req RefineRequest, onProgress
 	if parsed.Lyrics == "" {
 		return "", fmt.Errorf("studio: refine result missing lyrics")
 	}
-	return parsed.Lyrics, nil
+	return formatLyrics(parsed.Lyrics), nil
 }
 
 // extractJSONObject returns the outermost {...} object from a model reply,

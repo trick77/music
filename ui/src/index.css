@@ -50,6 +50,78 @@
 html {
   color-scheme: dark;
 }
+
+/* ── Phase 6 immersive utilities ─────────────────────────────────────────── */
+
+/* Rank numbers use Anthropic Sans with tabular figures (spec §15). */
+.rank-num {
+  font-family: var(--font-sans);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
+}
+
+/* Horizontal rails scroll without a visible scrollbar. */
+.hscroll {
+  overflow-x: auto;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+.hscroll::-webkit-scrollbar {
+  display: none;
+}
+
+/* Frosted glass panel used by immersive detail/hero copy. */
+.glass {
+  background: color-mix(in srgb, var(--color-panel) 72%, transparent);
+  backdrop-filter: blur(18px) saturate(1.1);
+  -webkit-backdrop-filter: blur(18px) saturate(1.1);
+  border: 1px solid color-mix(in srgb, var(--color-border) 80%, transparent);
+}
+
+/* Cinematic scrim under text over photographic art. */
+.scrim {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(15, 15, 14, 0.15) 0%, rgba(15, 15, 14, 0.35) 45%, rgba(20, 20, 18, 0.92) 100%);
+  pointer-events: none;
+}
+
+/* Play affordance that fades in on hover of a cover tile. */
+.playfab {
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+.tile:hover .playfab,
+.rail-cv:hover .playfab {
+  opacity: 1;
+}
+
+/* App shell leaves room for the fixed desktop rail; the mobile tab bar sits at
+   the bottom so content just needs bottom padding (handled inline). */
+.app-shell {
+  padding-left: 64px;
+}
+@media (max-width: 720px) {
+  .app-shell {
+    padding-left: 0;
+  }
+}
+
+/* Desktop icon rail vs. mobile bottom tab bar. */
+.rail-desktop {
+  display: flex;
+}
+.tabbar-mobile {
+  display: none;
+}
+@media (max-width: 720px) {
+  .rail-desktop {
+    display: none;
+  }
+  .tabbar-mobile {
+    display: flex;
+  }
+}
 body {
   margin: 0;
   background: var(--color-bg);

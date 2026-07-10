@@ -106,7 +106,7 @@ export function PlayerBar({ fav, onShare }: { fav: Fav; onShare: (s: Song) => vo
           </button>
           <StarButton song={song} fav={fav} />
           <Transport playing={p.playing} onPrev={p.prev} onToggle={p.toggle} onNext={p.next} size={20} />
-          <button aria-label="Expand" onClick={() => setFull(true)} style={iconBtn}><Glyph name="chevronUp" size={20} /></button>
+          <button aria-label="Expand" onClick={() => setFull(true)} style={iconBtn}><Icon name="chevronUp" size="20px" /></button>
         </div>
       </div>
 
@@ -127,7 +127,7 @@ export function PlayerBar({ fav, onShare }: { fav: Fav; onShare: (s: Song) => vo
           }}
         >
           <button aria-label="Close player" onClick={() => setFull(false)} style={{ ...iconBtn, position: "absolute", top: 16, right: 16, color: "#fff" }}>
-            <Glyph name="close" size={24} />
+            <Icon name="close" size="24px" />
           </button>
           <div style={{ width: "min(360px, 72vw)", aspectRatio: "1", borderRadius: 18, overflow: "hidden", background: "var(--color-active)", display: "grid", placeItems: "center", boxShadow: "0 24px 80px rgba(0,0,0,0.5)" }}>
             {song.coverArtId ? <img src={coverUrl(song.coverArtId, "card")} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <span style={{ fontFamily: "var(--font-serif)", fontSize: "4rem", color: "var(--color-muted)" }}>{coverInitial(song.title)}</span>}
@@ -140,7 +140,7 @@ export function PlayerBar({ fav, onShare }: { fav: Fav; onShare: (s: Song) => vo
           <div style={{ display: "flex", alignItems: "center", gap: "1.5rem", marginTop: "1.25rem" }}>
             <StarButton song={song} fav={fav} size={24} />
             <Transport playing={p.playing} onPrev={p.prev} onToggle={p.toggle} onNext={p.next} size={26} />
-            <button aria-label="Share" onClick={() => onShare(song)} style={{ ...iconBtn, color: "#fff" }}><Glyph name="share" size={22} /></button>
+            <button aria-label="Share" onClick={() => onShare(song)} style={{ ...iconBtn, color: "#fff" }}><Icon name="share" size="22px" /></button>
           </div>
         </div>
       )}

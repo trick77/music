@@ -1,5 +1,6 @@
 import { fanartUrl } from "./fanart";
 import { Glyph } from "./Glyph";
+import { Icon } from "./Icon";
 import type { HomeHero, Song } from "./api";
 
 // Hero is the full-bleed featured panel at the top of Home. The background is
@@ -98,7 +99,7 @@ export function Hero({
                 textDecoration: "none",
               }}
             >
-              <Glyph name="download" size={18} /> Download
+              <Icon name="download" size="18px" /> Download
             </a>
             <button
               onClick={() => onShare(featured)}
@@ -114,7 +115,7 @@ export function Hero({
                 cursor: "pointer",
               }}
             >
-              <Glyph name="share" size={18} /> Share
+              <Icon name="share" size="18px" /> Share
             </button>
           </div>
         )}

@@ -388,3 +388,26 @@ export async function studioRefine(
   const result = await streamStudio("/api/studio/refine", { reference, lyrics, instruction }, onProgress);
   return String(result.lyrics ?? "");
 }
+
+export const COVER_ART_MODELS: { id: string; label: string }[] = [
+  { id: "flux-2-klein-4b", label: "Fast · flux-2-klein-4b" },
+  { id: "flux-2-flex", label: "Balanced (typography) · flux-2-flex" },
+  { id: "flux-2-pro", label: "Best quality · flux-2-pro" },
+];
+
+export async function generateStudioCoverArt(
+  prompt: string,
+  model: string,
+): Promise<{ id: string; status: string; width: number; height: number }> {
+  const r = await fetch("/api/studio/coverart", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ prompt, model }),
+  });
+  if (!r.ok) throw new Error(`cover art failed (${r.status})`);
+  return r.json();
+}
+
+export function studioCoverArtUrl(id: string): string {
+  return `/api/studio/coverart/${id}`;
+}

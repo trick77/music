@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
 import { Rail } from "./Rail";
-import { StudioPage, ResultCard } from "./StudioPage";
+import { StudioPage, ResultCard, CoverArtCard } from "./StudioPage";
 
 // The Studio rail slot follows the presence-vs-absence model: it appears only
 // when the viewer is authenticated AND Studio is configured (studioEnabled).
@@ -55,5 +55,27 @@ describe("ResultCard", () => {
     expect(html).toContain("<textarea");
     expect(html).toContain('aria-label="Lyrics (editable)"');
     expect(html).toContain("[Verse]");
+  });
+});
+
+// CoverArtCard is the (image-gen-gated) generator: a model picker plus a generate
+// action. Rendered idle (no fetch on mount), so SSR markup is deterministic.
+describe("CoverArtCard", () => {
+  it("renders the model picker and a generate action", () => {
+    const html = renderToStaticMarkup(<CoverArtCard prompt="a moody album cover" />);
+    expect(html).toContain("Generate cover art");
+    expect(html).toContain("flux-2-pro");
+    expect(html).toContain("flux-2-klein-4b");
+    expect(html).toContain('aria-label="Cover art model"');
+  });
+});
+
+// StudioPage in the idle state shows no cover-art card regardless of the flag —
+// the card only appears once a song has produced a result.
+describe("StudioPage cover-art gating", () => {
+  it("renders the idle page without a cover-art card even when image gen is enabled", () => {
+    const html = renderToStaticMarkup(<StudioPage imageGenEnabled />);
+    expect(html).toContain("Turn a song into a Suno prompt");
+    expect(html).not.toContain("Generate cover art");
   });
 });

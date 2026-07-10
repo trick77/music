@@ -1,6 +1,7 @@
 import { useState } from "react";
-import { studioGenerate, studioRefine, type StudioProgress, type StudioResult } from "./api";
+import { studioGenerate, studioRefine, generateStudioCoverArt, studioCoverArtUrl, COVER_ART_MODELS, type StudioProgress, type StudioResult } from "./api";
 import { copyText } from "./share";
+import { Icon } from "./Icon";
 
 const STYLE_LIMIT = 500;
 
@@ -78,10 +79,107 @@ export function ResultCard({ name, note, count, text, monospace = false, onChang
   );
 }
 
+// CoverArtCard generates a real album cover from the (editable) cover-art prompt
+// using the configured image generator. It picks a model, shows the image inline,
+// and offers a download. Ephemeral in the UI: state resets when a new song is
+// generated (the parent remounts it via key).
+export function CoverArtCard({ prompt }: { prompt: string }) {
+  const [model, setModel] = useState(COVER_ART_MODELS[0].id);
+  const [busy, setBusy] = useState(false);
+  const [image, setImage] = useState<{ id: string } | null>(null);
+  const [error, setError] = useState("");
+
+  const generate = async () => {
+    const p = prompt.trim();
+    if (!p || busy) return;
+    setBusy(true);
+    setError("");
+    try {
+      const res = await generateStudioCoverArt(p, model);
+      setImage({ id: res.id });
+    } catch (e) {
+      setError((e as Error).message || "Cover art generation failed");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const disabled = busy || prompt.trim() === "";
+  return (
+    <div style={{ marginBottom: "1.4rem" }}>
+      <div style={{ display: "flex", gap: "0.5rem", alignItems: "center", marginBottom: "0.6rem" }}>
+        <select
+          value={model}
+          onChange={(e) => setModel(e.target.value)}
+          aria-label="Cover art model"
+          disabled={busy}
+          style={{
+            background: "var(--color-panel)",
+            border: "1px solid var(--color-border)",
+            borderRadius: "var(--radius-ui)",
+            padding: "0.5rem 0.6rem",
+            color: "var(--color-ink)",
+            fontFamily: "var(--font-sans)",
+            fontSize: "0.85rem",
+            outline: "none",
+          }}
+        >
+          {COVER_ART_MODELS.map((m) => (
+            <option key={m.id} value={m.id}>{m.label}</option>
+          ))}
+        </select>
+        <button
+          onClick={generate}
+          disabled={disabled}
+          style={{
+            background: "var(--color-accent-strong)",
+            color: "#1a0f0a",
+            fontWeight: 600,
+            fontSize: "0.85rem",
+            border: "none",
+            borderRadius: "var(--radius-ui)",
+            padding: "0.5rem 0.9rem",
+            cursor: disabled ? "default" : "pointer",
+            opacity: disabled ? 0.6 : 1,
+            whiteSpace: "nowrap",
+          }}
+        >
+          {busy ? "Generating…" : image ? "Regenerate" : "Generate cover art"}
+        </button>
+      </div>
+      {busy && (
+        <div style={{ display: "flex", alignItems: "center", gap: "0.6rem", color: "var(--color-ink)", fontSize: "0.9rem" }}>
+          <Spinner />
+          <span>Generating cover art…</span>
+        </div>
+      )}
+      {error && !busy && (
+        <p role="alert" style={{ color: "var(--color-accent-strong)", fontSize: "0.85rem", margin: "0.4rem 0 0" }}>{error}</p>
+      )}
+      {image && !busy && (
+        <div style={{ marginTop: "0.4rem" }}>
+          <img
+            src={studioCoverArtUrl(image.id)}
+            alt="Generated cover art"
+            style={{ width: "100%", maxWidth: 360, aspectRatio: "1 / 1", objectFit: "cover", borderRadius: "var(--radius-ui)", border: "1px solid var(--color-border)", display: "block" }}
+          />
+          <a
+            href={studioCoverArtUrl(image.id)}
+            download="cover.png"
+            style={{ display: "inline-flex", alignItems: "center", gap: "0.4rem", marginTop: "0.6rem", fontSize: "0.82rem", color: "var(--color-ink)", background: "var(--color-active)", border: "1px solid var(--color-border)", borderRadius: 8, padding: "0.35rem 0.7rem", textDecoration: "none" }}
+          >
+            <Icon name="download" size="14px" /> Download
+          </a>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // StudioPage turns a named reference song into a Suno prompt. It streams live
 // research progress, shows three ephemeral outputs, refines the lyrics on
 // request, and resets fully when a new song is submitted.
-export function StudioPage() {
+export function StudioPage({ imageGenEnabled = false }: { imageGenEnabled?: boolean }) {
   const [reference, setReference] = useState("");
   const [generatedRef, setGeneratedRef] = useState("");
   const [status, setStatus] = useState<"idle" | "loading" | "done" | "error">("idle");
@@ -276,7 +374,13 @@ export function StudioPage() {
             </button>
           </form>
 
-          <ResultCard name="Cover-art prompt" note="→ image generator (coming later)" text={result.coverArtPrompt} />
+          <ResultCard
+            name="Cover-art prompt"
+            note="→ image generator · editable"
+            text={result.coverArtPrompt}
+            onChange={(value) => setResult({ ...result, coverArtPrompt: value })}
+          />
+          {imageGenEnabled && <CoverArtCard key={generatedRef} prompt={result.coverArtPrompt} />}
         </div>
       )}
     </div>

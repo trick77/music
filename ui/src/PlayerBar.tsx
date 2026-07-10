@@ -3,11 +3,12 @@ import { usePlayer } from "./player";
 import { coverUrl, coverInitial } from "./cover";
 import { formatDuration } from "./format";
 import { Glyph } from "./Glyph";
+import { Icon } from "./Icon";
 import type { Song } from "./api";
 
 type Fav = { has: (id: string) => boolean; toggle: (id: string) => void };
 
-function HeartButton({ song, fav, size = 20 }: { song: Song; fav: Fav; size?: number }) {
+function StarButton({ song, fav, size = 20 }: { song: Song; fav: Fav; size?: number }) {
   const on = fav.has(song.id);
   return (
     <button
@@ -15,7 +16,7 @@ function HeartButton({ song, fav, size = 20 }: { song: Song; fav: Fav; size?: nu
       onClick={() => fav.toggle(song.id)}
       style={{ display: "grid", placeItems: "center", background: "none", border: "none", cursor: "pointer", color: on ? "var(--color-accent-strong)" : "var(--color-muted)" }}
     >
-      <Glyph name={on ? "heartFilled" : "heart"} size={size} />
+      <Icon name={on ? "starFilled" : "star"} size={`${size}px`} />
     </button>
   );
 }
@@ -103,7 +104,7 @@ export function PlayerBar({ fav, onShare }: { fav: Fav; onShare: (s: Song) => vo
               <span style={{ display: "block", color: "var(--color-muted)", fontSize: "0.85rem", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{song.artistName}</span>
             </span>
           </button>
-          <HeartButton song={song} fav={fav} />
+          <StarButton song={song} fav={fav} />
           <Transport playing={p.playing} onPrev={p.prev} onToggle={p.toggle} onNext={p.next} size={20} />
           <button aria-label="Expand" onClick={() => setFull(true)} style={iconBtn}><Glyph name="chevronUp" size={20} /></button>
         </div>
@@ -137,7 +138,7 @@ export function PlayerBar({ fav, onShare }: { fav: Fav; onShare: (s: Song) => vo
             <Scrubber positionMs={p.positionMs} durationMs={p.durationMs} onSeek={p.seek} />
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: "1.5rem", marginTop: "1.25rem" }}>
-            <HeartButton song={song} fav={fav} size={24} />
+            <StarButton song={song} fav={fav} size={24} />
             <Transport playing={p.playing} onPrev={p.prev} onToggle={p.toggle} onNext={p.next} size={26} />
             <button aria-label="Share" onClick={() => onShare(song)} style={{ ...iconBtn, color: "#fff" }}><Glyph name="share" size={22} /></button>
           </div>

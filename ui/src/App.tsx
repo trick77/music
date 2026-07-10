@@ -17,6 +17,7 @@ import { useFavorites } from "./favorites";
 import { addToQueue, playNext } from "./queue";
 import { songShareUrl, copyText } from "./share";
 import { Glyph } from "./Glyph";
+import { Icon } from "./Icon";
 
 export function App() {
   const route = useRoute();
@@ -84,7 +85,7 @@ export function App() {
     else flash("Link copied");
   };
 
-  // rowActions renders the shared favorite heart + context menu used by Home,
+  // rowActions renders the shared favorite star + context menu used by Home,
   // Detail, and Library rows.
   const rowActions = (song: Song): ReactNode => (
     <>
@@ -93,7 +94,7 @@ export function App() {
         onClick={() => fav.toggle(song.id)}
         style={{ display: "grid", placeItems: "center", background: "none", border: "none", cursor: "pointer", color: fav.has(song.id) ? "var(--color-accent-strong)" : "var(--color-muted)" }}
       >
-        <Glyph name={fav.has(song.id) ? "heartFilled" : "heart"} size={18} />
+        <Icon name={fav.has(song.id) ? "starFilled" : "star"} size="18px" />
       </button>
       <span style={{ position: "relative" }}>
         <button

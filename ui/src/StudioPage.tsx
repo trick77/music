@@ -148,7 +148,7 @@ export function CoverArtCard({ prompt }: { prompt: string }) {
         </button>
       </div>
       {busy && (
-        <div style={{ display: "flex", alignItems: "center", gap: "0.6rem", color: "var(--color-ink)", fontSize: "0.9rem" }}>
+        <div aria-live="polite" aria-busy="true" style={{ display: "flex", alignItems: "center", gap: "0.6rem", color: "var(--color-ink)", fontSize: "0.9rem" }}>
           <Spinner />
           <span>Generating cover art…</span>
         </div>
@@ -165,7 +165,7 @@ export function CoverArtCard({ prompt }: { prompt: string }) {
           />
           <a
             href={studioCoverArtUrl(image.id)}
-            download="cover.png"
+            download={`cover-${image.id}.png`}
             style={{ display: "inline-flex", alignItems: "center", gap: "0.4rem", marginTop: "0.6rem", fontSize: "0.82rem", color: "var(--color-ink)", background: "var(--color-active)", border: "1px solid var(--color-border)", borderRadius: 8, padding: "0.35rem 0.7rem", textDecoration: "none" }}
           >
             <Icon name="download" size="14px" /> Download

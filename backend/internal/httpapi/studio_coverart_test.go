@@ -71,9 +71,22 @@ func okProvider(t *testing.T) fakeProvider {
 	return fakeProvider{result: imagegen.GenerateResult{Bytes: pngBytes(t, 1024, 1024), MIMEType: "image/png", Extension: "png"}}
 }
 
+// capturingProvider records the request passed to Generate so tests can assert
+// what the handler actually sent to the image API (not merely what it stored).
+type capturingProvider struct {
+	last   imagegen.GenerateRequest
+	result imagegen.GenerateResult
+}
+
+func (c *capturingProvider) Generate(_ context.Context, req imagegen.GenerateRequest) (imagegen.GenerateResult, error) {
+	c.last = req
+	return c.result, nil
+}
+
 func TestStudioCoverArt_generatesAndPersists(t *testing.T) {
-	ts := newStudioCoverServer(t, okProvider(t), true)
-	rec := ts.postCover(t, ts.dev, map[string]any{"prompt": "a neon skyline album cover", "model": "flux-2-pro"})
+	prov := &capturingProvider{result: imagegen.GenerateResult{Bytes: pngBytes(t, 1024, 1024), MIMEType: "image/png", Extension: "png"}}
+	ts := newStudioCoverServer(t, prov, true)
+	rec := ts.postCover(t, ts.dev, map[string]any{"prompt": "  a neon skyline album cover  ", "model": "flux-2-pro"})
 	if rec.Code != http.StatusOK {
 		t.Fatalf("code = %d body %s", rec.Code, rec.Body)
 	}
@@ -87,12 +100,41 @@ func TestStudioCoverArt_generatesAndPersists(t *testing.T) {
 	if err := json.Unmarshal(rec.Body.Bytes(), &out); err != nil || out.Status != "ready" || out.ID == "" {
 		t.Fatalf("bad response %s (err %v)", rec.Body, err)
 	}
+	// The handler must generate with the requested model, square dimensions, a
+	// seed, and the trimmed prompt.
+	if prov.last.Model != "flux-2-pro" || prov.last.Width != 1024 || prov.last.Height != 1024 || prov.last.Seed == nil {
+		t.Fatalf("wrong request to provider: %#v", prov.last)
+	}
+	if prov.last.Prompt != "a neon skyline album cover" {
+		t.Fatalf("prompt not trimmed before generation: %q", prov.last.Prompt)
+	}
 	row, err := ts.repo.GetStudioCoverArt(context.Background(), out.ID)
 	if err != nil || row == nil {
 		t.Fatalf("row not persisted: %v", err)
 	}
 	if row.Prompt != "a neon skyline album cover" || row.Model != "flux-2-pro" || row.Seed == nil {
 		t.Fatalf("server-only fields not recorded: %#v", row)
+	}
+}
+
+func TestStudioCoverArt_defaultsToConfiguredModelWhenOmitted(t *testing.T) {
+	prov := &capturingProvider{result: imagegen.GenerateResult{Bytes: pngBytes(t, 1024, 1024), MIMEType: "image/png", Extension: "png"}}
+	ts := newStudioCoverServer(t, prov, true)
+	rec := ts.postCover(t, ts.dev, map[string]any{"prompt": "x"}) // no model
+	if rec.Code != http.StatusOK {
+		t.Fatalf("code = %d body %s", rec.Code, rec.Body)
+	}
+	if prov.last.Model != "flux-2-klein-4b" { // cfg.BFLModel in the harness
+		t.Fatalf("omitted model should fall back to cfg.BFLModel, got %q", prov.last.Model)
+	}
+}
+
+func TestStudioCoverArt_getMissingReturns404(t *testing.T) {
+	ts := newStudioCoverServer(t, okProvider(t), true)
+	rr := httptest.NewRecorder()
+	ts.dev.ServeHTTP(rr, httptest.NewRequest("GET", "/api/studio/coverart/does-not-exist", nil))
+	if rr.Code != http.StatusNotFound {
+		t.Fatalf("code = %d, want 404 for missing id", rr.Code)
 	}
 }
 

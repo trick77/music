@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/trick77/music/internal/imagegen"
@@ -45,11 +46,12 @@ func (h *songHandlers) postStudioCoverArt(w http.ResponseWriter, r *http.Request
 		httpError(w, http.StatusBadRequest, "invalid JSON")
 		return
 	}
-	if req.Prompt == "" {
+	prompt := strings.TrimSpace(req.Prompt)
+	if prompt == "" {
 		httpError(w, http.StatusBadRequest, "prompt is required")
 		return
 	}
-	if len([]rune(req.Prompt)) > imagegen.MaxPromptRunes {
+	if len([]rune(prompt)) > imagegen.MaxPromptRunes {
 		httpError(w, http.StatusBadRequest, "prompt is too long")
 		return
 	}
@@ -67,7 +69,7 @@ func (h *songHandlers) postStudioCoverArt(w http.ResponseWriter, r *http.Request
 	genCtx, cancel := context.WithTimeout(r.Context(), h.cfg.BFLPollTimeout+30*time.Second)
 	defer cancel()
 	res, err := h.imageGen.Generate(genCtx, imagegen.GenerateRequest{
-		Prompt: req.Prompt, Width: coverArtSize, Height: coverArtSize,
+		Prompt: prompt, Width: coverArtSize, Height: coverArtSize,
 		OutputFormat: "png", Seed: &seed, Model: model,
 	})
 	if err != nil {
@@ -84,7 +86,10 @@ func (h *songHandlers) postStudioCoverArt(w http.ResponseWriter, r *http.Request
 	if pw, ph, _, perr := imageutil.Probe(bytes.NewReader(res.Bytes)); perr == nil {
 		width, height = pw, ph
 	}
-	if err := h.repo.CreateStudioCoverArt(r.Context(), id, relPath, req.Prompt, model, &seed, width, height); err != nil {
+	if err := h.repo.CreateStudioCoverArt(r.Context(), id, relPath, prompt, model, &seed, width, height); err != nil {
+		// Remove the just-written PNG so a failed insert doesn't strand an
+		// orphan file (there is no row referencing it, and nothing GCs the dir).
+		_ = h.media.Remove(relPath)
 		httpError(w, http.StatusInternalServerError, "record generated image")
 		return
 	}

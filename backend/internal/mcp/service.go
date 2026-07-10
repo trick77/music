@@ -58,12 +58,15 @@ func (s *Service) Tools(ctx context.Context) ([]llm.Tool, error) {
 		names = append(names, name)
 	}
 	sort.Strings(names) // deterministic tool order
+	failures := 0
 	for _, name := range names {
 		client := s.clients[name]
 		discovered, err := client.listTools(ctx)
 		if err != nil {
-			// Degrade: a server that fails discovery is skipped, not fatal.
+			// A server that fails discovery is skipped (a down fetch server must
+			// not sink search). But if EVERY server fails, that is surfaced below.
 			slog.Warn("studio mcp: tool discovery failed", "server", name, "error", err)
+			failures++
 			continue
 		}
 		for _, t := range discovered {
@@ -77,6 +80,13 @@ func (s *Service) Tools(ctx context.Context) ([]llm.Tool, error) {
 				},
 			})
 		}
+	}
+	// Do not cache a total discovery failure: a transient outage would otherwise
+	// permanently disable research for the process (the config gate promises no
+	// degraded no-search mode). Surface the error so the request fails and the
+	// next one retries fresh.
+	if len(tools) == 0 && len(s.clients) > 0 {
+		return nil, fmt.Errorf("studio: no research tools available (all %d MCP server(s) failed discovery)", failures)
 	}
 	s.routes = routes
 	s.tools = tools

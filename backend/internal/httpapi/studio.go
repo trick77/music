@@ -14,6 +14,14 @@ import (
 // studioRequestTimeout bounds a whole generate/refine research loop.
 const studioRequestTimeout = 4 * time.Minute
 
+// Input caps keep prompts sane and bound token spend. A song reference and a
+// refine instruction are short by nature; lyrics can run longer.
+const (
+	maxReferenceLen   = 300
+	maxInstructionLen = 500
+	maxLyricsLen      = 20000
+)
+
 type studioHandlers struct {
 	cfg      config.Config
 	provider studio.Provider
@@ -34,6 +42,10 @@ func (h *studioHandlers) generate(w http.ResponseWriter, r *http.Request) {
 	}
 	if req.Reference == "" {
 		httpError(w, http.StatusBadRequest, "reference is required")
+		return
+	}
+	if len(req.Reference) > maxReferenceLen {
+		httpError(w, http.StatusBadRequest, "reference is too long")
 		return
 	}
 	stream, flush, ok := startSSE(w)
@@ -70,6 +82,10 @@ func (h *studioHandlers) refine(w http.ResponseWriter, r *http.Request) {
 	}
 	if req.Reference == "" || req.Lyrics == "" || req.Instruction == "" {
 		httpError(w, http.StatusBadRequest, "reference, lyrics and instruction are required")
+		return
+	}
+	if len(req.Reference) > maxReferenceLen || len(req.Instruction) > maxInstructionLen || len(req.Lyrics) > maxLyricsLen {
+		httpError(w, http.StatusBadRequest, "input is too long")
 		return
 	}
 	stream, flush, ok := startSSE(w)

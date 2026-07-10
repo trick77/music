@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"testing"
 )
 
@@ -87,6 +88,49 @@ func assertServiceWorks(t *testing.T, url string) {
 
 	if _, err := svc.Call(context.Background(), "nope__missing", nil); err == nil {
 		t.Fatal("expected error for unknown tool")
+	}
+}
+
+func TestService_allDiscoveryFailingReturnsErrorAndRetries(t *testing.T) {
+	// The server is down at first, then recovers. A failed discovery must NOT be
+	// cached — otherwise a transient outage silently disables research for the
+	// whole process (violating the "no degraded no-search mode" guarantee).
+	var healthy atomic.Bool
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if !healthy.Load() {
+			http.Error(w, "down", http.StatusInternalServerError)
+			return
+		}
+		var req struct {
+			ID     int64  `json:"id"`
+			Method string `json:"method"`
+		}
+		raw, _ := io.ReadAll(r.Body)
+		json.Unmarshal(raw, &req)
+		result := `{}`
+		if req.Method == "tools/list" {
+			result = `{"tools":[{"name":"tavily_search","description":"x","inputSchema":{}}]}`
+		}
+		w.Header().Set("Content-Type", "application/json")
+		io.WriteString(w, `{"jsonrpc":"2.0","id":`+strconv.FormatInt(req.ID, 10)+`,"result":`+result+`}`)
+	}))
+	defer srv.Close()
+
+	svc := NewService(map[string]ServerConfig{"tavily": {URL: srv.URL, Tools: []string{"tavily_search"}}}, nil)
+
+	// First call: every server failed → error, and nothing cached.
+	if _, err := svc.Tools(context.Background()); err == nil {
+		t.Fatal("expected error when all discovery fails")
+	}
+
+	// Server recovers; a retry must now succeed (proving the failure was not cached).
+	healthy.Store(true)
+	tools, err := svc.Tools(context.Background())
+	if err != nil {
+		t.Fatalf("retry after recovery: %v", err)
+	}
+	if len(tools) != 1 || tools[0].Function.Name != "tavily__tavily_search" {
+		t.Fatalf("tools after recovery = %+v", tools)
 	}
 }
 

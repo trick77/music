@@ -184,8 +184,39 @@ func (c *remoteClient) initialize(ctx context.Context) error {
 	}, nil); err != nil {
 		return err
 	}
+	// The spec requires an `initialized` notification before further calls;
+	// strict servers reject tools/list otherwise. Best-effort (no response).
+	c.notify(ctx, "notifications/initialized")
 	c.inited = true
 	return nil
+}
+
+// notify sends a JSON-RPC notification (no id, no response expected).
+func (c *remoteClient) notify(ctx context.Context, method string) {
+	body, err := json.Marshal(map[string]any{"jsonrpc": "2.0", "method": method})
+	if err != nil {
+		return
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.cfg.URL, bytes.NewReader(body))
+	if err != nil {
+		return
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Accept", "application/json, text/event-stream")
+	c.mu.Lock()
+	sessionID := c.sessionID
+	c.mu.Unlock()
+	if sessionID != "" {
+		req.Header.Set("Mcp-Session-Id", sessionID)
+	}
+	for key, value := range c.cfg.Headers {
+		req.Header.Set(key, value)
+	}
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return
+	}
+	resp.Body.Close()
 }
 
 func (c *remoteClient) resetSession() {
@@ -205,7 +236,8 @@ func (c *remoteClient) call(ctx context.Context, method string, params any, out 
 	}
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.cfg.URL, bytes.NewReader(body))
 	if err != nil {
-		return err
+		// Scrub in case a malformed URL error echoes the ?tavilyApiKey= query.
+		return scrubURLError(err)
 	}
 	req.Header.Set("Content-Type", "application/json")
 	// The streamable-HTTP transport mandates clients accept both content types;
@@ -278,7 +310,7 @@ func decodeSSEResponse(r io.Reader, id int64) (rpcResponse, error) {
 		return rpcResp, rpcResp.ID == id
 	}
 	for scanner.Scan() {
-		line := scanner.Text()
+		line := strings.TrimRight(scanner.Text(), "\r") // tolerate CRLF line endings
 		if line == "" {
 			if rpcResp, ok := flush(); ok {
 				return rpcResp, nil

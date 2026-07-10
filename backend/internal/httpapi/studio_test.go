@@ -98,6 +98,17 @@ func TestStudioGenerate_400WhenReferenceMissing(t *testing.T) {
 	}
 }
 
+func TestStudioGenerate_400WhenReferenceTooLong(t *testing.T) {
+	cfg := config.Config{AuthMode: config.AuthModeDev, DevUser: config.DevUserConfig{Username: "dev"}}
+	h := NewWithStudioProvider(cfg, nil, studioSPA(), fakeStudio{})
+	long := strings.Repeat("a", 400)
+	rr := httptest.NewRecorder()
+	h.ServeHTTP(rr, httptest.NewRequest("POST", "/api/studio/generate", strings.NewReader(`{"reference":"`+long+`"}`)))
+	if rr.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, want 400", rr.Code)
+	}
+}
+
 func TestStudioRefine_streamsUpdatedLyrics(t *testing.T) {
 	fake := fakeStudio{lyrics: "[Verse]\nno forbidden word"}
 	cfg := config.Config{AuthMode: config.AuthModeDev, DevUser: config.DevUserConfig{Username: "dev"}}

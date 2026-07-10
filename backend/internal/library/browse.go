@@ -13,11 +13,12 @@ type ArtistSummary struct {
 	SongCount int    `json:"songCount"`
 }
 
-// GenreSummary is a genre with its song count.
+// GenreSummary is a genre with its song count and auto-sampled accent colour.
 type GenreSummary struct {
-	ID        string `json:"id"`
-	Name      string `json:"name"`
-	SongCount int    `json:"songCount"`
+	ID          string `json:"id"`
+	Name        string `json:"name"`
+	SongCount   int    `json:"songCount"`
+	AccentColor string `json:"accentColor"`
 }
 
 func (r *Repo) ListArtists(ctx context.Context) ([]ArtistSummary, error) {
@@ -56,7 +57,7 @@ func (r *Repo) GetArtist(ctx context.Context, id string) (*ArtistSummary, []Song
 
 func (r *Repo) ListGenres(ctx context.Context) ([]GenreSummary, error) {
 	rows, err := r.db.QueryContext(ctx,
-		`SELECT g.id, g.name, COUNT(sg.song_id) c FROM genres g JOIN song_genres sg ON sg.genre_id = g.id
+		`SELECT g.id, g.name, COALESCE(g.accent_color,''), COUNT(sg.song_id) c FROM genres g JOIN song_genres sg ON sg.genre_id = g.id
 		 GROUP BY g.id ORDER BY g.name`)
 	if err != nil {
 		return nil, err
@@ -65,7 +66,7 @@ func (r *Repo) ListGenres(ctx context.Context) ([]GenreSummary, error) {
 	out := []GenreSummary{}
 	for rows.Next() {
 		var g GenreSummary
-		if err := rows.Scan(&g.ID, &g.Name, &g.SongCount); err != nil {
+		if err := rows.Scan(&g.ID, &g.Name, &g.AccentColor, &g.SongCount); err != nil {
 			return nil, err
 		}
 		out = append(out, g)
@@ -76,8 +77,8 @@ func (r *Repo) ListGenres(ctx context.Context) ([]GenreSummary, error) {
 func (r *Repo) GetGenre(ctx context.Context, id string) (*GenreSummary, []Song, error) {
 	var g GenreSummary
 	err := r.db.QueryRowContext(ctx,
-		`SELECT g.id, g.name, COUNT(sg.song_id) c FROM genres g LEFT JOIN song_genres sg ON sg.genre_id = g.id
-		 WHERE g.id = ? GROUP BY g.id`, id).Scan(&g.ID, &g.Name, &g.SongCount)
+		`SELECT g.id, g.name, COALESCE(g.accent_color,''), COUNT(sg.song_id) c FROM genres g LEFT JOIN song_genres sg ON sg.genre_id = g.id
+		 WHERE g.id = ? GROUP BY g.id`, id).Scan(&g.ID, &g.Name, &g.AccentColor, &g.SongCount)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, nil, nil
 	}

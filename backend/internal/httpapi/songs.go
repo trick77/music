@@ -13,6 +13,7 @@ import (
 	"strings"
 
 	"github.com/trick77/music/internal/config"
+	"github.com/trick77/music/internal/imagegen"
 	"github.com/trick77/music/internal/library"
 	"github.com/trick77/music/internal/media"
 	"github.com/trick77/music/internal/metadata"
@@ -23,6 +24,10 @@ type songHandlers struct {
 	repo     *library.Repo
 	media    *media.Store
 	maxBytes int64
+
+	imageGen      imagegen.Provider
+	bflModel      string
+	onGenComplete func(id string)
 }
 
 func (h *songHandlers) list(w http.ResponseWriter, r *http.Request) {

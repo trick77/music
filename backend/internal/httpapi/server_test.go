@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/trick77/music/internal/config"
@@ -46,6 +47,25 @@ func TestSession_oidcAnonymousByDefault(t *testing.T) {
 	json.NewDecoder(rr.Body).Decode(&body)
 	if body.Authenticated {
 		t.Fatal("oidc with no session should be anonymous in Phase 1")
+	}
+}
+
+func TestSession_imageGenEnabledGatedByAuthAndKey(t *testing.T) {
+	spa := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { w.Write([]byte("SPA")) })
+	get := func(cfg config.Config) string {
+		rr := httptest.NewRecorder()
+		New(cfg, nil, spa).ServeHTTP(rr, httptest.NewRequest("GET", "/api/auth/session", nil))
+		return rr.Body.String()
+	}
+	// dev (authenticated) + BFL key => true
+	dev := config.Config{AuthMode: config.AuthModeDev, DevUser: config.DevUserConfig{Username: "dev"}, BFLAPIKey: "k"}
+	if !strings.Contains(get(dev), `"imageGenEnabled":true`) {
+		t.Fatalf("dev+key should be true: %s", get(dev))
+	}
+	// oidc (anonymous) + BFL key => false
+	anon := config.Config{AuthMode: config.AuthModeOIDC, BFLAPIKey: "k"}
+	if !strings.Contains(get(anon), `"imageGenEnabled":false`) {
+		t.Fatalf("anonymous must be false: %s", get(anon))
 	}
 }
 

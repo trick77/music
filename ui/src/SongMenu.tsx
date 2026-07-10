@@ -35,10 +35,10 @@ export function SongMenu(p: Props) {
         {p.authenticated && <MenuItem icon="plus" onClick={p.onAddToPlaylist}>Add to playlist</MenuItem>}
         <MenuItem icon="sortDown" href={`/api/songs/${p.song.id}/download`}>Download</MenuItem>
         <MenuItem icon="externalLink" onClick={p.onShare}>Share</MenuItem>
+        {p.authenticated && <MenuItem icon="edit" onClick={p.onEdit}>Edit tags</MenuItem>}
         {p.authenticated && (
           <>
             <MenuSeparator />
-            <MenuItem icon="edit" onClick={p.onEdit}>Edit tags</MenuItem>
             <MenuItem icon="trash" danger onClick={p.onDelete}>Delete song</MenuItem>
           </>
         )}

@@ -29,10 +29,12 @@ Using what you learn, produce THREE things:
    and performance cues like [Whispered], [Spoken Word], [Belted], [Big Finish].
    Use tags you confirmed are current; the list above is a floor, not a ceiling.
 
-3. coverArtPrompt — a vivid prose description of album cover art for a downstream
-   image generator. It MUST bake in the researched genre and era/epoch so the
-   aesthetic is period-correct (e.g. a 1991 thrash-metal cover, not a modern
-   one). No text in the image; square album composition.
+3. coverArtPrompt — a CONCISE prompt for a downstream image generator: one or two
+   vivid sentences, at most ~60 words. Image models degrade on long rambling
+   descriptions, so favor a single strong central subject, palette, and mood over
+   exhaustive detail. It MUST bake in the researched genre and era/epoch so the
+   aesthetic is period-correct (e.g. a 1991 thrash-metal cover, not a modern one).
+   No text in the image; square album composition.
 
 When you have finished researching, respond with ONLY a single JSON object and
 nothing else (no prose, no code fences):

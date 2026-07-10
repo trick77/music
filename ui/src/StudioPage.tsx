@@ -35,8 +35,22 @@ function CopyButton({ text, label = "Copy" }: { text: string; label?: string }) 
   );
 }
 
-// ResultCard is one output block with a header, optional right-side count, and a copy button.
-function ResultCard({ name, note, count, text, monospace = false }: { name: string; note?: string; count?: string; text: string; monospace?: boolean }) {
+// ResultCard is one output block with a header, optional right-side count, and a
+// copy button. When onChange is provided the body is an editable text area (the
+// lyrics), so the user can hand-tweak before copying or refining.
+export function ResultCard({ name, note, count, text, monospace = false, onChange }: { name: string; note?: string; count?: string; text: string; monospace?: boolean; onChange?: (value: string) => void }) {
+  const boxStyle = {
+    background: "color-mix(in srgb, var(--color-bg) 70%, #000)",
+    border: "1px solid var(--color-border)",
+    borderRadius: "var(--radius-ui)",
+    padding: "0.8rem 0.9rem",
+    fontFamily: monospace ? "ui-monospace, SFMono-Regular, Menlo, monospace" : "var(--font-sans)",
+    fontSize: monospace ? "0.82rem" : "0.88rem",
+    lineHeight: monospace ? 1.55 : 1.7,
+    color: "color-mix(in srgb, var(--color-ink) 88%, transparent)",
+    whiteSpace: "pre-wrap" as const,
+    wordBreak: "break-word" as const,
+  };
   return (
     <div style={{ marginBottom: "1.4rem" }}>
       <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: "0.4rem", gap: "0.75rem" }}>
@@ -49,22 +63,17 @@ function ResultCard({ name, note, count, text, monospace = false }: { name: stri
           <CopyButton text={text} />
         </span>
       </div>
-      <div
-        style={{
-          background: "color-mix(in srgb, var(--color-bg) 70%, #000)",
-          border: "1px solid var(--color-border)",
-          borderRadius: "var(--radius-ui)",
-          padding: "0.8rem 0.9rem",
-          fontFamily: monospace ? "ui-monospace, SFMono-Regular, Menlo, monospace" : "var(--font-sans)",
-          fontSize: monospace ? "0.82rem" : "0.88rem",
-          lineHeight: monospace ? 1.55 : 1.7,
-          color: "color-mix(in srgb, var(--color-ink) 88%, transparent)",
-          whiteSpace: "pre-wrap",
-          wordBreak: "break-word",
-        }}
-      >
-        {text}
-      </div>
+      {onChange ? (
+        <textarea
+          value={text}
+          onChange={(e) => onChange(e.target.value)}
+          aria-label={`${name} (editable)`}
+          spellCheck={false}
+          style={{ ...boxStyle, width: "100%", boxSizing: "border-box", minHeight: 260, resize: "vertical", outline: "none" }}
+        />
+      ) : (
+        <div style={boxStyle}>{text}</div>
+      )}
     </div>
   );
 }
@@ -215,7 +224,12 @@ export function StudioPage() {
             monospace
           />
 
-          <ResultCard name="Lyrics" note="→ Suno “Lyrics” · original, theme-matched" text={result.lyrics} />
+          <ResultCard
+            name="Lyrics"
+            note="→ Suno “Lyrics” · original, editable"
+            text={result.lyrics}
+            onChange={(value) => setResult({ ...result, lyrics: value })}
+          />
           <form
             onSubmit={(e) => {
               e.preventDefault();

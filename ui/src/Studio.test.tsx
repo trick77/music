@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
 import { Rail } from "./Rail";
-import { StudioPage } from "./StudioPage";
+import { StudioPage, ResultCard } from "./StudioPage";
 
 // The Studio rail slot follows the presence-vs-absence model: it appears only
 // when the viewer is authenticated AND Studio is configured (studioEnabled).
@@ -38,5 +38,22 @@ describe("StudioPage", () => {
     // No result cards before generating.
     expect(html).not.toContain("Style prompt");
     expect(html).not.toContain("Cover-art prompt");
+  });
+});
+
+// ResultCard renders a read-only body by default, and an editable text area when
+// an onChange handler is supplied (the lyrics card).
+describe("ResultCard", () => {
+  it("renders a static, non-editable body by default", () => {
+    const html = renderToStaticMarkup(<ResultCard name="Style prompt" text="1990s,grunge" />);
+    expect(html).toContain("1990s,grunge");
+    expect(html).not.toContain("<textarea");
+  });
+
+  it("renders an editable text area holding the text when onChange is given", () => {
+    const html = renderToStaticMarkup(<ResultCard name="Lyrics" text="[Verse]\nhello" onChange={() => {}} />);
+    expect(html).toContain("<textarea");
+    expect(html).toContain('aria-label="Lyrics (editable)"');
+    expect(html).toContain("[Verse]");
   });
 });

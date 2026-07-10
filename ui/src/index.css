@@ -26,7 +26,7 @@
    ported from loom so the context menus, star, and rail use the same iconography. */
 @font-face {
   font-family: "Anthropic Icons";
-  src: url("./fonts/Icons-Variable.woff2") format("woff2-variations");
+  src: url("./fonts/Icons-Variable.woff2") format("woff2");
   font-weight: 400 700;
   font-style: normal;
   font-display: block;

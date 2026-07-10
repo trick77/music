@@ -33,15 +33,3 @@ func (h *songHandlers) listGenres(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, map[string]any{"genres": genres})
 }
 
-func (h *songHandlers) getGenre(w http.ResponseWriter, r *http.Request) {
-	genre, songs, err := h.repo.GetGenre(r.Context(), r.PathValue("id"))
-	if err != nil {
-		httpError(w, http.StatusInternalServerError, "get genre")
-		return
-	}
-	if genre == nil {
-		httpError(w, http.StatusNotFound, "not found")
-		return
-	}
-	writeJSON(w, map[string]any{"genre": genre, "songs": songs})
-}

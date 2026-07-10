@@ -8,10 +8,12 @@ import (
 	"github.com/trick77/music/internal/library"
 	"github.com/trick77/music/internal/media"
 	"github.com/trick77/music/internal/store"
+	"github.com/trick77/music/web"
 )
 
 func New(cfg config.Config, st *store.Store, spa http.Handler) http.Handler {
 	mux := http.NewServeMux()
+	var shareRepo *library.Repo
 
 	mux.HandleFunc("GET /api/health", func(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, map[string]string{"status": "ok"})
@@ -32,6 +34,7 @@ func New(cfg config.Config, st *store.Store, spa http.Handler) http.Handler {
 				media:    mstore,
 				maxBytes: int64(cfg.MaxUploadMB) * 1024 * 1024,
 			}
+			shareRepo = h.repo
 			mux.HandleFunc("GET /api/songs", h.list)
 			mux.HandleFunc("POST /api/songs", h.upload)
 			mux.HandleFunc("GET /api/songs/{id}", h.get)
@@ -59,10 +62,17 @@ func New(cfg config.Config, st *store.Store, spa http.Handler) http.Handler {
 		}
 	}
 
-	// Anything not under /api/ is the SPA.
+	// Anything not under /api/ is the SPA. Share routes (/song/{id},
+	// /playlist/{id}) get server-injected Open Graph meta for link previews.
 	root := http.NewServeMux()
 	root.Handle("/api/", mux)
-	root.Handle("/", spa)
+	var spaHandler http.Handler = spa
+	if shareRepo != nil {
+		if shell, err := web.IndexHTML(); err == nil {
+			spaHandler = withShareMeta(shareRepo, shell, spa)
+		}
+	}
+	root.Handle("/", spaHandler)
 	return root
 }
 

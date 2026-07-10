@@ -3,9 +3,7 @@ package httpapi
 import (
 	"database/sql"
 	"errors"
-	"mime"
 	"net/http"
-	"path/filepath"
 )
 
 func (h *songHandlers) putCover(w http.ResponseWriter, r *http.Request) {
@@ -48,19 +46,5 @@ func (h *songHandlers) getCover(w http.ResponseWriter, r *http.Request) {
 		httpError(w, http.StatusInternalServerError, "get cover")
 		return
 	}
-	f, err := h.media.Open(path)
-	if err != nil {
-		httpError(w, http.StatusNotFound, "cover file missing")
-		return
-	}
-	defer f.Close()
-	info, err := f.Stat()
-	if err != nil {
-		httpError(w, http.StatusInternalServerError, "stat cover")
-		return
-	}
-	if ct := mime.TypeByExtension(filepath.Ext(path)); ct != "" {
-		w.Header().Set("Content-Type", ct)
-	}
-	http.ServeContent(w, r, filepath.Base(path), info.ModTime(), f)
+	serveSizedImage(w, r, h.media, path)
 }

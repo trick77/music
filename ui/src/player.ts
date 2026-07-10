@@ -205,6 +205,9 @@ export const player = {
     set({ current: song, queue: upNext, history, positionMs: 0, durationMs: song.durationMs || 0 });
     loadCurrent(true);
   },
+  setQueue(queue: Song[]) {
+    set({ queue });
+  },
   toggle() {
     if (!state.current) return;
     const el = getAudio();
@@ -267,6 +270,7 @@ export function usePlayer() {
     next: player.next,
     prev: player.prev,
     seek: player.seek,
+    setQueue: player.setQueue,
     restore: player.restore,
   };
 }

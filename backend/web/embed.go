@@ -27,6 +27,13 @@ func SPAHandler() http.Handler {
 	})
 }
 
+// IndexHTML returns the embedded index.html shell bytes. Used by the server to
+// inject per-route Open Graph tags for shared-link previews (crawlers do not
+// run JS), while humans still receive the same shell and boot the SPA.
+func IndexHTML() ([]byte, error) {
+	return distFS.ReadFile("dist/index.html")
+}
+
 func trimLeadingSlash(p string) string {
 	if len(p) > 0 && p[0] == '/' {
 		return p[1:]

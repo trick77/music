@@ -1,0 +1,76 @@
+import { useEffect, useState } from "react";
+import { listPlaylists, type Playlist, type Song } from "./api";
+import { coverUrl, coverInitial } from "./cover";
+import { formatDuration } from "./format";
+import { navigate } from "./router";
+
+type Tab = "all" | "favorites" | "playlists";
+
+type Props = {
+  songs: Song[];
+  favoriteIds: string[];
+  authenticated: boolean;
+  initialTab: Tab;
+  onPlay: (song: Song) => void;
+  renderRowActions: (song: Song) => React.ReactNode;
+  onNewPlaylist: () => void;
+};
+
+export function Library({ songs, favoriteIds, authenticated, initialTab, onPlay, renderRowActions, onNewPlaylist }: Props) {
+  const [tab, setTab] = useState<Tab>(initialTab);
+  const [playlists, setPlaylists] = useState<Playlist[]>([]);
+  useEffect(() => { if (tab === "playlists") listPlaylists().then(setPlaylists).catch(() => setPlaylists([])); }, [tab]);
+
+  const shown = tab === "favorites" ? songs.filter((s) => favoriteIds.includes(s.id)) : songs;
+
+  return (
+    <div>
+      <div style={{ display: "flex", gap: "0.4rem", marginBottom: "1.25rem" }}>
+        {(["all", "favorites", "playlists"] as Tab[]).map((t) => (
+          <button key={t} onClick={() => setTab(t)}
+            style={{ padding: "0.35rem 0.85rem", borderRadius: 999, cursor: "pointer", fontSize: "0.85rem",
+              border: "1px solid var(--color-border)",
+              background: tab === t ? "var(--color-active)" : "transparent",
+              color: tab === t ? "var(--color-ink)" : "var(--color-muted)" }}>
+            {t === "all" ? "All songs" : t === "favorites" ? "Favorites" : "Playlists"}
+          </button>
+        ))}
+      </div>
+
+      {tab === "playlists" ? (
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))", gap: "1rem" }}>
+          {authenticated && (
+            <button onClick={onNewPlaylist} style={{ aspectRatio: "1", borderRadius: 10, border: "1px dashed var(--color-border)", background: "transparent", color: "var(--color-muted)", cursor: "pointer" }}>+ New playlist</button>
+          )}
+          {playlists.map((pl) => (
+            <button key={pl.id} onClick={() => navigate(`/playlist/${pl.id}`)} style={{ textAlign: "left", background: "none", border: "none", cursor: "pointer", padding: 0 }}>
+              <div style={{ aspectRatio: "1", borderRadius: 10, overflow: "hidden", background: "var(--color-active)", border: "1px solid var(--color-border)", display: "grid", placeItems: "center" }}>
+                {pl.coverArtId ? <img src={coverUrl(pl.coverArtId)} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <span style={{ color: "var(--color-muted)", fontSize: "1.5rem" }}>♪</span>}
+              </div>
+              <div style={{ marginTop: 6, color: "var(--color-ink)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{pl.name}</div>
+              <div style={{ color: "var(--color-muted)", fontSize: "0.8rem" }}>{pl.songCount} songs</div>
+            </button>
+          ))}
+          {playlists.length === 0 && !authenticated && <p style={{ color: "var(--color-muted)" }}>No playlists yet.</p>}
+        </div>
+      ) : (
+        <ul style={{ listStyle: "none", margin: 0, padding: 0 }}>
+          {shown.length === 0 && <p style={{ color: "var(--color-muted)" }}>{tab === "favorites" ? "No favorites yet — tap the heart on a song." : "Nothing here yet."}</p>}
+          {shown.map((song) => (
+            <li key={song.id} onClick={() => onPlay(song)} style={{ display: "flex", alignItems: "center", gap: "0.85rem", padding: "0.6rem 0.85rem", borderRadius: "var(--radius-ui, 10px)", cursor: "pointer" }}>
+              <span style={{ width: 44, height: 44, flexShrink: 0, borderRadius: 8, overflow: "hidden", background: "var(--color-active)", display: "grid", placeItems: "center", border: "1px solid var(--color-border)" }}>
+                {song.coverArtId ? <img src={coverUrl(song.coverArtId)} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <span style={{ fontFamily: "var(--font-serif)", color: "var(--color-muted)" }}>{coverInitial(song.artistName)}</span>}
+              </span>
+              <span style={{ minWidth: 0, flex: 1 }}>
+                <span style={{ display: "block", color: "var(--color-ink)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{song.title}</span>
+                <span style={{ display: "block", color: "var(--color-muted)", fontSize: "0.85rem" }}>{song.artistName}</span>
+              </span>
+              <span style={{ color: "var(--color-muted)", fontVariantNumeric: "tabular-nums", flexShrink: 0 }}>{formatDuration(song.durationMs)}</span>
+              <span style={{ position: "relative", display: "flex", gap: "0.35rem", flexShrink: 0 }} onClick={(e) => e.stopPropagation()}>{renderRowActions(song)}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}

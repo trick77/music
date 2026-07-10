@@ -1,0 +1,102 @@
+package httpapi
+
+import (
+	"crypto/sha256"
+	"encoding/hex"
+	"errors"
+	"io"
+	"net/http"
+	"os"
+
+	"github.com/trick77/music/internal/imageutil"
+	"github.com/trick77/music/internal/library"
+	"github.com/trick77/music/internal/media"
+)
+
+// storeUploadedCover buffers the multipart "file", validates it as an image,
+// dedupes by content hash, and stores new bytes under covers/. It returns the
+// cover_art id. On any failure it writes the HTTP error itself and returns
+// ok=false, so callers can simply `return` when ok is false.
+func storeUploadedCover(w http.ResponseWriter, r *http.Request, store *media.Store, repo *library.Repo, maxBytes int64) (string, bool) {
+	r.Body = http.MaxBytesReader(w, r.Body, maxBytes)
+	file, _, err := r.FormFile("file")
+	if err != nil {
+		var tooLarge *http.MaxBytesError
+		if errors.As(err, &tooLarge) {
+			httpError(w, http.StatusRequestEntityTooLarge, "image exceeds size limit")
+			return "", false
+		}
+		httpError(w, http.StatusBadRequest, "missing file field")
+		return "", false
+	}
+	defer file.Close()
+	defer func() {
+		if r.MultipartForm != nil {
+			_ = r.MultipartForm.RemoveAll()
+		}
+	}()
+
+	tmp, err := os.CreateTemp("", "music-cover-*")
+	if err != nil {
+		httpError(w, http.StatusInternalServerError, "temp file")
+		return "", false
+	}
+	defer os.Remove(tmp.Name())
+	defer tmp.Close()
+
+	hasher := sha256.New()
+	if _, err := io.Copy(io.MultiWriter(tmp, hasher), file); err != nil {
+		httpError(w, http.StatusBadRequest, "read upload")
+		return "", false
+	}
+	hash := hex.EncodeToString(hasher.Sum(nil))
+
+	if _, err := tmp.Seek(0, io.SeekStart); err != nil {
+		httpError(w, http.StatusInternalServerError, "seek")
+		return "", false
+	}
+	width, height, ext, err := imageutil.Probe(tmp)
+	if err != nil {
+		httpError(w, http.StatusUnsupportedMediaType, "unsupported image format")
+		return "", false
+	}
+
+	coverID, _, err := repo.FindCoverByHash(r.Context(), hash)
+	if err != nil {
+		httpError(w, http.StatusInternalServerError, "cover lookup")
+		return "", false
+	}
+	if coverID != "" {
+		return coverID, true
+	}
+
+	relPath := "covers/" + hash + "." + ext
+	dst, err := store.Create(relPath)
+	if err != nil {
+		httpError(w, http.StatusInternalServerError, "store cover")
+		return "", false
+	}
+	if _, err := tmp.Seek(0, io.SeekStart); err != nil {
+		dst.Close()
+		httpError(w, http.StatusInternalServerError, "seek")
+		return "", false
+	}
+	if _, err := io.Copy(dst, tmp); err != nil {
+		dst.Close()
+		httpError(w, http.StatusInternalServerError, "write cover")
+		return "", false
+	}
+	if err := dst.Close(); err != nil {
+		httpError(w, http.StatusInternalServerError, "close cover")
+		return "", false
+	}
+	coverID, err = repo.CreateCover(r.Context(), library.CoverParams{
+		ImagePath: relPath, Width: width, Height: height, ContentHash: hash,
+	})
+	if err != nil {
+		_ = store.Remove(relPath)
+		httpError(w, http.StatusInternalServerError, "save cover")
+		return "", false
+	}
+	return coverID, true
+}

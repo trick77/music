@@ -28,6 +28,8 @@ type songHandlers struct {
 	imageGen      imagegen.Provider
 	bflModel      string
 	onGenComplete func(id string)
+
+	throttle *playThrottle
 }
 
 func (h *songHandlers) list(w http.ResponseWriter, r *http.Request) {

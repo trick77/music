@@ -228,3 +228,72 @@ export async function patchGenre(
   if (!r.ok) throw new Error(`save failed (${r.status})`);
   return r.json();
 }
+
+export type ArtistSummary = { id: string; name: string; songCount: number };
+
+export type ArtistDetail = { artist: ArtistSummary; songs: Song[] };
+
+export async function getArtist(id: string): Promise<ArtistDetail> {
+  const r = await fetch(`/api/artists/${id}`);
+  if (!r.ok) throw new Error(`failed to load artist (${r.status})`);
+  return r.json();
+}
+
+// ── Phase 6: play counting, home feed, search ──────────────────────────────
+
+export type TopTenEntry = Song & { plays: number };
+
+export type HomeHero = {
+  fanartId: string;
+  kind: string;
+  genreId: string;
+  title: string;
+  subtitle: string;
+  accentColor: string;
+};
+
+export type GenreChapter = GenreSummary & { backgroundFanartId: string; songs: Song[] };
+
+export type HomeFeed = {
+  hero: HomeHero | null;
+  topTen: TopTenEntry[];
+  recentlyAdded: Song[];
+  genres: GenreChapter[];
+  playlists: Playlist[];
+};
+
+export type SearchHit = { type: "song" | "artist" | "genre" | "playlist"; id: string };
+
+export type SearchResults = {
+  top: SearchHit | null;
+  songs: Song[];
+  artists: ArtistSummary[];
+  genres: GenreSummary[];
+  playlists: Playlist[];
+};
+
+export async function getHome(): Promise<HomeFeed> {
+  const r = await fetch("/api/home");
+  if (!r.ok) throw new Error(`failed to load home (${r.status})`);
+  return r.json();
+}
+
+export async function getTopTen(): Promise<TopTenEntry[]> {
+  const r = await fetch("/api/top-ten");
+  if (!r.ok) throw new Error(`failed to load top-ten (${r.status})`);
+  const data = await r.json();
+  return data.songs ?? [];
+}
+
+export async function search(q: string): Promise<SearchResults> {
+  const r = await fetch(`/api/search?q=${encodeURIComponent(q)}`);
+  if (!r.ok) throw new Error(`search failed (${r.status})`);
+  return r.json();
+}
+
+// reportPlay records a qualified play. It is the single public write; fire it
+// once per listen (the caller dedups). Failures are non-fatal — playback
+// continues regardless of whether the play was counted.
+export function reportPlay(id: string): Promise<void> {
+  return fetch(`/api/songs/${id}/play`, { method: "POST" }).then(() => {}, () => {});
+}

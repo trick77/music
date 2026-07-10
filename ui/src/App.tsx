@@ -7,6 +7,7 @@ import { PlaylistEditor } from "./PlaylistEditor";
 import { QueueDrawer } from "./QueueDrawer";
 import { SongMenu } from "./SongMenu";
 import { AddToPlaylist } from "./AddToPlaylist";
+import { GenreDetail } from "./GenreDetail";
 import { useRoute, navigate } from "./router";
 import { useFavorites } from "./favorites";
 import { addToQueue, playNext } from "./queue";
@@ -32,7 +33,7 @@ export function App() {
 
   const refresh = () => listSongs().then(setSongs).catch(() => {});
   useEffect(() => {
-    getSession().then(setSession).catch(() => setSession({ authenticated: false, username: "" }));
+    getSession().then(setSession).catch(() => setSession({ authenticated: false, username: "", imageGenEnabled: false }));
     refresh();
   }, []);
 
@@ -110,11 +111,13 @@ export function App() {
       {route.name === "playlist" ? (
         <PlaylistView id={route.id} authenticated={authed}
           onPlay={(s, q) => play(s, q)} onEdit={(pl) => setEditingPlaylist(pl)} />
+      ) : route.name === "genre" ? (
+        <GenreDetail id={route.id} authenticated={authed} imageGenEnabled={!!session?.imageGenEnabled} onPlay={(s) => play(s)} />
       ) : route.name === "song" ? (
         <SongPage id={route.id} songs={songs} onPlay={(s) => play(s)} />
       ) : (
         <Library songs={songs} favoriteIds={fav.ids} authenticated={authed}
-          initialTab={route.name === "favorites" ? "favorites" : route.name === "playlists" ? "playlists" : "all"}
+          initialTab={route.name === "favorites" ? "favorites" : route.name === "playlists" ? "playlists" : route.name === "genres" ? "genres" : "all"}
           onPlay={(s) => play(s)} renderRowActions={rowActions}
           onNewPlaylist={() => setEditingPlaylist("new")} />
       )}

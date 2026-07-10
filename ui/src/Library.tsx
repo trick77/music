@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react";
-import { listPlaylists, type Playlist, type Song } from "./api";
+import { listPlaylists, listGenres, type Playlist, type GenreSummary, type Song } from "./api";
 import { coverUrl, coverInitial } from "./cover";
 import { formatDuration } from "./format";
 import { navigate } from "./router";
 
-type Tab = "all" | "favorites" | "playlists";
+type Tab = "all" | "favorites" | "playlists" | "genres";
 
 type Props = {
   songs: Song[];
@@ -19,25 +19,40 @@ type Props = {
 export function Library({ songs, favoriteIds, authenticated, initialTab, onPlay, renderRowActions, onNewPlaylist }: Props) {
   const [tab, setTab] = useState<Tab>(initialTab);
   const [playlists, setPlaylists] = useState<Playlist[]>([]);
+  const [genres, setGenres] = useState<GenreSummary[]>([]);
   useEffect(() => { if (tab === "playlists") listPlaylists().then(setPlaylists).catch(() => setPlaylists([])); }, [tab]);
+  useEffect(() => { if (tab === "genres") listGenres().then(setGenres).catch(() => setGenres([])); }, [tab]);
 
   const shown = tab === "favorites" ? songs.filter((s) => favoriteIds.includes(s.id)) : songs;
 
   return (
     <div>
       <div style={{ display: "flex", gap: "0.4rem", marginBottom: "1.25rem" }}>
-        {(["all", "favorites", "playlists"] as Tab[]).map((t) => (
+        {(["all", "favorites", "playlists", "genres"] as Tab[]).map((t) => (
           <button key={t} onClick={() => setTab(t)}
             style={{ padding: "0.35rem 0.85rem", borderRadius: 999, cursor: "pointer", fontSize: "0.85rem",
               border: "1px solid var(--color-border)",
               background: tab === t ? "var(--color-active)" : "transparent",
               color: tab === t ? "var(--color-ink)" : "var(--color-muted)" }}>
-            {t === "all" ? "All songs" : t === "favorites" ? "Favorites" : "Playlists"}
+            {t === "all" ? "All songs" : t === "favorites" ? "Favorites" : t === "playlists" ? "Playlists" : "Genres"}
           </button>
         ))}
       </div>
 
-      {tab === "playlists" ? (
+      {tab === "genres" ? (
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(140px,1fr))", gap: 12 }}>
+          {genres.map((g) => (
+            <button key={g.id} onClick={() => navigate(`/genre/${g.id}`)}
+              style={{ textAlign: "left", padding: "0.9rem", borderRadius: 12, cursor: "pointer",
+                background: g.accentColor ? `linear-gradient(135deg, ${g.accentColor}, var(--color-panel))` : "var(--color-active)",
+                border: "1px solid var(--color-border)", color: "var(--color-ink)" }}>
+              <div style={{ fontFamily: "var(--font-serif)", fontSize: "1.05rem" }}>{g.name}</div>
+              <div style={{ color: "var(--color-muted)", fontSize: "0.8rem" }}>{g.songCount} songs</div>
+            </button>
+          ))}
+          {genres.length === 0 && <p style={{ color: "var(--color-muted)" }}>No genres yet.</p>}
+        </div>
+      ) : tab === "playlists" ? (
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))", gap: "1rem" }}>
           {authenticated && (
             <button onClick={onNewPlaylist} style={{ aspectRatio: "1", borderRadius: 10, border: "1px dashed var(--color-border)", background: "transparent", color: "var(--color-muted)", cursor: "pointer" }}>+ New playlist</button>

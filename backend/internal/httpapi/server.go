@@ -59,6 +59,7 @@ func NewWithProvider(cfg config.Config, st *store.Store, spa http.Handler, gen i
 				imageGen:      gen,
 				bflModel:      cfg.BFLModel,
 				onGenComplete: onGenComplete,
+				throttle:      newPlayThrottle(),
 			}
 			// Reap generation rows orphaned by a prior restart (their goroutines
 			// are gone) so they don't show a permanent spinner.
@@ -69,6 +70,8 @@ func NewWithProvider(cfg config.Config, st *store.Store, spa http.Handler, gen i
 			mux.HandleFunc("GET /api/songs/{id}", h.get)
 			mux.HandleFunc("GET /api/songs/{id}/stream", h.stream)
 			mux.HandleFunc("GET /api/songs/{id}/download", h.download)
+			mux.HandleFunc("POST /api/songs/{id}/play", h.postPlay) // PUBLIC — the one documented anonymous write (spec §12)
+			mux.HandleFunc("GET /api/top-ten", h.getTopTen)
 			mux.HandleFunc("PATCH /api/songs/{id}", h.patch)
 			mux.HandleFunc("GET /api/suggest", h.suggest)
 			mux.HandleFunc("PUT /api/songs/{id}/cover", h.putCover)

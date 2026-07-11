@@ -92,7 +92,13 @@ export function App() {
     window.setTimeout(() => setToast(null), 2000);
   };
 
-  const onPlay = (song: Song, tail: Song[] = []) => player.play(song, tail);
+  const onPlay = (song: Song, tail: Song[] = []) => {
+    if (player.current?.id === song.id) {
+      player.toggle();
+    } else {
+      player.play(song, tail);
+    }
+  };
 
   const confirmDelete = async () => {
     if (!deleteFor || deleteBusy) return;
@@ -102,6 +108,7 @@ export function App() {
       const id = deleteFor.id;
       await deleteSong(id);
       setSongs((prev) => prev.filter((s) => s.id !== id));
+      setFeedVersion((v) => v + 1);
       player.remove(id);
       setDeleteFor(null);
       flash("Song deleted");

@@ -34,6 +34,7 @@ type generateRequest struct {
 	Prompt  string `json:"prompt"`
 	Kind    string `json:"kind"`
 	GenreID string `json:"genreId"`
+	Model   string `json:"model"`
 }
 
 func (h *songHandlers) postFanartGenerate(w http.ResponseWriter, r *http.Request) {
@@ -65,20 +66,25 @@ func (h *songHandlers) postFanartGenerate(w http.ResponseWriter, r *http.Request
 	if req.Kind == "hero" {
 		req.GenreID = ""
 	}
+	model, ok := imagegen.ResolveModel(req.Model, h.bflModel)
+	if !ok {
+		httpError(w, http.StatusBadRequest, "unknown model")
+		return
+	}
 	seed := randomSeed()
-	id, err := h.repo.CreateGeneratingFanart(r.Context(), req.Kind, req.GenreID, req.Prompt, h.bflModel, &seed)
+	id, err := h.repo.CreateGeneratingFanart(r.Context(), req.Kind, req.GenreID, req.Prompt, model, &seed)
 	if err != nil {
 		serverError(w, "create fanart", err)
 		return
 	}
-	go h.runGeneration(id, req.Prompt, seed)
+	go h.runGeneration(id, req.Prompt, model, seed)
 	w.WriteHeader(http.StatusAccepted)
 	writeJSON(w, map[string]any{"id": id, "status": "generating"})
 }
 
 // runGeneration drives one BFL generation to completion on a detached context and
 // records the terminal state. The prompt/model live only in the DB (never served).
-func (h *songHandlers) runGeneration(id, prompt string, seed int64) {
+func (h *songHandlers) runGeneration(id, prompt, model string, seed int64) {
 	if h.onGenComplete != nil {
 		defer h.onGenComplete(id)
 	}
@@ -87,7 +93,7 @@ func (h *songHandlers) runGeneration(id, prompt string, seed int64) {
 	defer cancel()
 
 	res, err := h.imageGen.Generate(genCtx, imagegen.GenerateRequest{
-		Prompt: prompt, Width: genWidth, Height: genHeight, OutputFormat: "png", Seed: &seed,
+		Prompt: prompt, Width: genWidth, Height: genHeight, OutputFormat: "png", Seed: &seed, Model: model,
 	})
 	// Persist the terminal state on a FRESH context: if the generation deadline
 	// expired (or genCtx was canceled), reusing it here would make the state

@@ -1,6 +1,7 @@
 package httpapi
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -268,7 +269,7 @@ func (h *songHandlers) serveFile(w http.ResponseWriter, r *http.Request, attach 
 	// tags into a throwaway copy and serve that. The stored file is never mutated.
 	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=%q", downloadName(song)))
 	if srcAbs, err := h.media.Resolve(song.FilePath); err == nil {
-		if tmpName, err := stampToTemp(srcAbs, songTags(song)); err == nil {
+		if tmpName, err := stampToTemp(srcAbs, h.songTags(r.Context(), song)); err == nil {
 			defer os.Remove(tmpName)
 			if f, err := os.Open(tmpName); err == nil {
 				defer f.Close()
@@ -317,9 +318,11 @@ func stampToTemp(srcAbs string, t metadata.WriteableTags) (string, error) {
 }
 
 // songTags maps a stored song's authoritative DB metadata to the writeable tag set
-// baked into a download.
-func songTags(s *library.Song) metadata.WriteableTags {
-	return metadata.WriteableTags{
+// baked into a download, including the mapped cover art embedded as the front-cover
+// picture. Resolving the cover is best-effort: any failure leaves the cover fields
+// empty so the download still succeeds (WriteTags then preserves existing art).
+func (h *songHandlers) songTags(ctx context.Context, s *library.Song) metadata.WriteableTags {
+	t := metadata.WriteableTags{
 		Title:   s.Title,
 		Artist:  s.ArtistName,
 		Album:   s.Album,
@@ -327,6 +330,20 @@ func songTags(s *library.Song) metadata.WriteableTags {
 		TrackNo: s.TrackNo,
 		Genres:  s.Genres,
 	}
+	if s.CoverArtID == "" {
+		return t
+	}
+	relPath, err := h.repo.GetCoverPath(ctx, s.CoverArtID)
+	if err != nil || relPath == "" {
+		return t
+	}
+	data, err := readMediaBytes(h.media, relPath)
+	if err != nil || len(data) == 0 {
+		return t
+	}
+	t.CoverBytes = data
+	t.CoverMIME = imagegen.MIMEType(filepath.Ext(relPath))
+	return t
 }
 
 func isMP3(filename, contentType string) bool {

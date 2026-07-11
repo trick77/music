@@ -64,9 +64,13 @@ in the image.
 
 Decide the approach from the genre:
 - If the genre is one typically PERFORMED LIVE by musicians on a stage (e.g. thrash
-  metal, rock, punk, jazz, blues, funk, reggae, hip-hop, folk), prefer a
-  PHOTOREALISTIC LIVE-GIG / CONCERT PHOTOGRAPH: a band mid-performance, stage
-  lighting, haze, a crowd or pit, gritty concert-photography realism.
+  metal, rock, punk, jazz, blues, funk, reggae, hip-hop, folk), render it as a
+  PHOTOREALISTIC STILL FRAME GRABBED FROM A LIVE CONCERT VIDEO: a band
+  mid-performance under hard stage lighting. It must
+  read like a sharp video still — tack-sharp crisp focus, high contrast, and DEEP
+  TRUE BLACK blacks with crushed inky shadows (never washed-out or grey), where
+  colored stage lights and spotlight beams cut through the darkness. Gritty,
+  energetic, high-dynamic-range concert-video realism.
 - If the genre is NOT typically a live-band genre (e.g. synthwave, vaporwave,
   ambient, lo-fi, IDM, downtempo, chillwave), instead render its CHARACTERISTIC
   VISUAL AESTHETIC / SCENE (e.g. synthwave -> a neon-drenched 1980s cityscape with

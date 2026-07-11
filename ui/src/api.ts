@@ -10,6 +10,7 @@ export type Song = {
   durationMs: number;
   genres: string[];
   coverArtId: string;
+  lyrics?: string;
   published: boolean;
 };
 
@@ -20,6 +21,7 @@ export type SongEdit = {
   year: number;
   trackNo: number;
   genres: string[];
+  lyrics: string;
 };
 
 export type Suggestion = { value: string; count: number };

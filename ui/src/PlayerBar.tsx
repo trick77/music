@@ -1,10 +1,12 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { usePlayer } from "./player";
 import { coverUrl, coverInitial } from "./cover";
 import { formatDuration } from "./format";
 import { Glyph } from "./Glyph";
 import { Icon } from "./Icon";
-import type { Song } from "./api";
+import { KaraokeView } from "./KaraokeView";
+import { KaraokeCard } from "./KaraokeCard";
+import { getAlign, postAlign, type AlignmentData, type Song } from "./api";
 
 type Fav = { has: (id: string) => boolean; toggle: (id: string) => void };
 
@@ -73,11 +75,46 @@ const iconBtn: React.CSSProperties = {
 // PlayerBar renders the docked mini-player (whenever a track is loaded) and,
 // when expanded, the full-screen player. Both are driven entirely by the
 // player store via usePlayer().
-export function PlayerBar({ fav, onShare }: { fav: Fav; onShare: (s: Song) => void }) {
+export function PlayerBar({ fav, onShare, alignmentEnabled }: { fav: Fav; onShare: (s: Song) => void; alignmentEnabled: boolean }) {
   const p = usePlayer();
   const [full, setFull] = useState(false);
-  if (!p.current) return null;
+  const [lyricsMode, setLyricsMode] = useState(false);
+  const [align, setAlign] = useState<AlignmentData | null>(null);
   const song = p.current;
+  const hasLyrics = !!song?.lyrics && song.lyrics.trim() !== "";
+  const canKaraoke = alignmentEnabled && hasLyrics;
+
+  // Each new track starts on the artwork view with fresh alignment state.
+  useEffect(() => {
+    setLyricsMode(false);
+    setAlign(null);
+  }, [song?.id]);
+
+  // In lyrics mode, fetch the alignment and poll while it is still generating.
+  useEffect(() => {
+    if (!full || !lyricsMode || !canKaraoke || !song) return;
+    let alive = true;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const tick = async () => {
+      const a = await getAlign(song.id).catch(() => null);
+      if (!alive) return;
+      setAlign(a);
+      if (a?.status === "generating") timer = setTimeout(tick, 2000);
+    };
+    void tick();
+    return () => {
+      alive = false;
+      if (timer) clearTimeout(timer);
+    };
+  }, [full, lyricsMode, canKaraoke, song?.id]);
+
+  if (!p.current || !song) return null;
+
+  const onGenerate = () => {
+    void postAlign(song.id);
+    setAlign({ status: "generating" });
+  };
+  const syncing = align?.status === "generating";
 
   return (
     <>
@@ -126,22 +163,61 @@ export function PlayerBar({ fav, onShare }: { fav: Fav; onShare: (s: Song) => vo
             padding: "2rem",
           }}
         >
-          <button aria-label="Close player" onClick={() => setFull(false)} style={{ ...iconBtn, position: "absolute", top: 16, right: 16, color: "#fff" }}>
+          <button aria-label="Close player" onClick={() => setFull(false)} style={{ ...iconBtn, position: "absolute", top: 16, right: 16, color: "#fff", zIndex: 5 }}>
             <Icon name="close" size="24px" />
           </button>
-          <div style={{ width: "min(360px, 72vw)", aspectRatio: "1", borderRadius: 18, overflow: "hidden", background: "var(--color-active)", display: "grid", placeItems: "center", boxShadow: "0 24px 80px rgba(0,0,0,0.5)" }}>
-            {song.coverArtId ? <img src={coverUrl(song.coverArtId, "card")} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <span style={{ fontFamily: "var(--font-serif)", fontSize: "4rem", color: "var(--color-muted)" }}>{coverInitial(song.title)}</span>}
-          </div>
-          <h2 style={{ margin: "1.5rem 0 0.25rem", fontFamily: "var(--font-serif)", color: "#fff", textAlign: "center" }}>{song.title}</h2>
-          <p style={{ margin: 0, color: "rgba(255,255,255,0.8)" }}>{song.artistName}</p>
-          <div style={{ width: "min(440px, 86vw)", marginTop: "1.5rem" }}>
-            <Scrubber positionMs={p.positionMs} durationMs={p.durationMs} onSeek={p.seek} />
-          </div>
-          <div style={{ display: "flex", alignItems: "center", gap: "1.5rem", marginTop: "1.25rem" }}>
-            <StarButton song={song} fav={fav} size={24} />
-            <Transport playing={p.playing} onPrev={p.prev} onToggle={p.toggle} onNext={p.next} size={26} />
-            <button aria-label="Share" onClick={() => onShare(song)} style={{ ...iconBtn, color: "#fff" }}><Icon name="share" size="22px" /></button>
-          </div>
+
+          {lyricsMode && canKaraoke ? (
+            <>
+              {/* Now-playing chip: artwork shrinks up-top in lyrics mode (Apple-style). */}
+              <div style={{ position: "absolute", top: 16, left: 20, right: 64, display: "flex", alignItems: "center", gap: 12, minWidth: 0 }}>
+                <span style={{ width: 46, height: 46, borderRadius: 8, overflow: "hidden", flexShrink: 0, background: "var(--color-active)", display: "grid", placeItems: "center", boxShadow: "0 6px 20px rgba(0,0,0,.4)" }}>
+                  {song.coverArtId ? <img src={coverUrl(song.coverArtId, "thumb")} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <span style={{ fontFamily: "var(--font-serif)", color: "var(--color-muted)" }}>{coverInitial(song.title)}</span>}
+                </span>
+                <span style={{ minWidth: 0 }}>
+                  <span style={{ display: "block", fontFamily: "var(--font-serif)", fontWeight: 600, color: "#fff", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{song.title}</span>
+                  <span style={{ display: "block", fontSize: "var(--text-label)", color: syncing ? "var(--color-accent-strong)" : "rgba(255,255,255,0.7)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    {syncing ? "● Syncing karaoke…" : song.artistName}
+                  </span>
+                </span>
+              </div>
+              {/* Karaoke body: the sweep when ready, otherwise a state card over plain lyrics. */}
+              <div style={{ flex: 1, minHeight: 0, width: "100%", marginTop: 72, marginBottom: 8 }}>
+                {align?.status === "ready" && align.lines?.length
+                  ? <KaraokeView lines={align.lines} />
+                  : <KaraokeCard state={align?.status === "failed" ? "failed" : align?.status === "generating" ? "generating" : "needs"} lyrics={song.lyrics ?? ""} onGenerate={onGenerate} />}
+              </div>
+              {/* Docked scrubber + transport stay driving playback. */}
+              <div style={{ width: "min(760px, 96vw)" }}>
+                <Scrubber positionMs={p.positionMs} durationMs={p.durationMs} onSeek={p.seek} />
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "1.5rem", marginTop: "0.75rem" }}>
+                  <StarButton song={song} fav={fav} size={24} />
+                  <Transport playing={p.playing} onPrev={p.prev} onToggle={p.toggle} onNext={p.next} size={26} />
+                  <button aria-label="Show artwork" aria-pressed onClick={() => setLyricsMode(false)} style={{ ...iconBtn, color: "var(--color-accent-strong)" }}><Icon name="music" size="22px" /></button>
+                  <button aria-label="Share" onClick={() => onShare(song)} style={{ ...iconBtn, color: "#fff" }}><Icon name="share" size="22px" /></button>
+                </div>
+              </div>
+            </>
+          ) : (
+            <>
+              <div style={{ width: "min(360px, 72vw)", aspectRatio: "1", borderRadius: 18, overflow: "hidden", background: "var(--color-active)", display: "grid", placeItems: "center", boxShadow: "0 24px 80px rgba(0,0,0,0.5)" }}>
+                {song.coverArtId ? <img src={coverUrl(song.coverArtId, "card")} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <span style={{ fontFamily: "var(--font-serif)", fontSize: "4rem", color: "var(--color-muted)" }}>{coverInitial(song.title)}</span>}
+              </div>
+              <h2 style={{ margin: "1.5rem 0 0.25rem", fontFamily: "var(--font-serif)", color: "#fff", textAlign: "center" }}>{song.title}</h2>
+              <p style={{ margin: 0, color: "rgba(255,255,255,0.8)" }}>{song.artistName}</p>
+              <div style={{ width: "min(440px, 86vw)", marginTop: "1.5rem" }}>
+                <Scrubber positionMs={p.positionMs} durationMs={p.durationMs} onSeek={p.seek} />
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: "1.5rem", marginTop: "1.25rem" }}>
+                <StarButton song={song} fav={fav} size={24} />
+                <Transport playing={p.playing} onPrev={p.prev} onToggle={p.toggle} onNext={p.next} size={26} />
+                {canKaraoke && (
+                  <button aria-label="Show lyrics" aria-pressed={false} onClick={() => setLyricsMode(true)} style={{ ...iconBtn, color: "#fff" }}><Icon name="music" size="22px" /></button>
+                )}
+                <button aria-label="Share" onClick={() => onShare(song)} style={{ ...iconBtn, color: "#fff" }}><Icon name="share" size="22px" /></button>
+              </div>
+            </>
+          )}
         </div>
       )}
     </>

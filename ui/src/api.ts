@@ -1,4 +1,4 @@
-export type Session = { authenticated: boolean; username: string; imageGenEnabled: boolean; studioEnabled: boolean; chatEnabled: boolean; imageModels: string[]; defaultImageModel: string; authMode: string };
+export type Session = { authenticated: boolean; username: string; imageGenEnabled: boolean; studioEnabled: boolean; chatEnabled: boolean; alignmentEnabled: boolean; imageModels: string[]; defaultImageModel: string; authMode: string };
 
 export type Song = {
   id: string;

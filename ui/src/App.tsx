@@ -74,7 +74,7 @@ export function App() {
   useEffect(() => {
     getSession()
       .then(setSession)
-      .catch(() => setSession({ authenticated: false, username: "", imageGenEnabled: false, studioEnabled: false, chatEnabled: false, imageModels: [], defaultImageModel: "", authMode: "" }));
+      .catch(() => setSession({ authenticated: false, username: "", imageGenEnabled: false, studioEnabled: false, chatEnabled: false, alignmentEnabled: false, imageModels: [], defaultImageModel: "", authMode: "" }));
     refresh();
   }, []);
 
@@ -276,7 +276,7 @@ export function App() {
 
       <input ref={uploadRef} type="file" accept=".mp3,audio/mpeg" onChange={onUpload} style={{ display: "none" }} disabled={uploading} />
 
-      <PlayerBar fav={fav} onShare={shareSong} />
+      <PlayerBar fav={fav} onShare={shareSong} alignmentEnabled={!!session?.alignmentEnabled} />
 
       {showQueue && (
         <QueueDrawer

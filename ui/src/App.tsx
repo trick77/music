@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { getSession, listSongs, uploadSong, type Session, type Song, type PlaylistDetail } from "./api";
+import { getSession, listSongs, uploadSong, setPublished, type Session, type Song, type PlaylistDetail } from "./api";
 import { TagEditor } from "./TagEditor";
 import { Library } from "./Library";
 import { PlaylistEditor } from "./PlaylistEditor";
@@ -31,6 +31,9 @@ export function App() {
   const [showQueue, setShowQueue] = useState(false);
   const [editingPlaylist, setEditingPlaylist] = useState<PlaylistDetail | null | "new">(null);
   const [toast, setToast] = useState<string | null>(null);
+  // Bumped after uploads / publish toggles to re-fetch views that load their own
+  // data (Home), which otherwise wouldn't reflect the change until navigation.
+  const [feedVersion, setFeedVersion] = useState(0);
   const uploadRef = useRef<HTMLInputElement>(null);
   const restored = useRef(false);
   const fav = useFavorites();
@@ -64,12 +67,34 @@ export function App() {
     const file = e.target.files?.[0];
     if (!file) return;
     setUploading(true);
+    // Persistent "Uploading…" toast (no auto-dismiss) until the request settles,
+    // so selecting a file gives immediate feedback for the hash/store round-trip.
+    setToast(`Uploading “${file.name}”…`);
     try {
-      await uploadSong(file);
+      const song = await uploadSong(file);
       await refresh();
+      setFeedVersion((v) => v + 1);
+      // New uploads land unpublished — say so, so the user knows where it went.
+      flash(song.published ? `Added “${song.title}”` : `Uploaded “${song.title}” — unpublished`);
+    } catch {
+      flash("Upload failed");
     } finally {
       setUploading(false);
       e.target.value = "";
+    }
+  };
+
+  // togglePublish flips a song's publish state and reflects it in the loaded
+  // list so the Library "Unpublished" pill + row badge update immediately.
+  const togglePublish = async (song: Song) => {
+    setMenuFor(null);
+    try {
+      const updated = await setPublished(song.id, !song.published);
+      setSongs((prev) => prev.map((s) => (s.id === updated.id ? updated : s)));
+      setFeedVersion((v) => v + 1);
+      flash(updated.published ? "Published" : "Unpublished");
+    } catch {
+      flash("Couldn't update");
     }
   };
 
@@ -89,6 +114,24 @@ export function App() {
   // Detail, and Library rows.
   const rowActions = (song: Song): ReactNode => (
     <>
+      {/* Unpublished songs are visible only to logged-in users; badge them so
+          a signed-in viewer can tell them apart from published ones. */}
+      {authed && !song.published && (
+        <span
+          style={{
+            fontSize: "0.65rem",
+            textTransform: "uppercase",
+            letterSpacing: "0.04em",
+            color: "var(--color-muted)",
+            border: "1px solid var(--color-border)",
+            borderRadius: 999,
+            padding: "0.1rem 0.45rem",
+            whiteSpace: "nowrap",
+          }}
+        >
+          Unpublished
+        </span>
+      )}
       <button
         aria-label="favorite"
         onClick={() => fav.toggle(song.id)}
@@ -113,6 +156,7 @@ export function App() {
             onAddToPlaylist={() => { setAddFor(song); setMenuFor(null); }}
             onShare={() => shareSong(song)}
             onEdit={() => { setEditing(song); setMenuFor(null); }}
+            onPublish={() => togglePublish(song)}
             onDelete={() => { setMenuFor(null); flash("Delete is coming in a later phase"); }}
             onClose={() => setMenuFor(null)}
           />
@@ -134,11 +178,11 @@ export function App() {
         </div>
 
         {route.name === "home" ? (
-          <Home authenticated={authed} onPlay={onPlay} onShare={shareSong} onUpload={triggerUpload} renderRowActions={rowActions} />
+          <Home authenticated={authed} onPlay={onPlay} onShare={shareSong} onUpload={triggerUpload} renderRowActions={rowActions} reloadKey={feedVersion} />
         ) : route.name === "search" ? (
           <Search onPlay={onPlay} />
         ) : route.name === "studio" ? (
-          authed && session?.studioEnabled ? <StudioPage /> : <Home authenticated={authed} onPlay={onPlay} onShare={shareSong} onUpload={triggerUpload} renderRowActions={rowActions} />
+          authed && session?.studioEnabled ? <StudioPage /> : <Home authenticated={authed} onPlay={onPlay} onShare={shareSong} onUpload={triggerUpload} renderRowActions={rowActions} reloadKey={feedVersion} />
         ) : route.name === "playlist" ? (
           <Detail kind="playlist" id={route.id} authenticated={authed} imageGenEnabled={!!session?.imageGenEnabled} chatEnabled={!!session?.chatEnabled} onPlay={onPlay} onShare={shareUrl} onEditPlaylist={(pl) => setEditingPlaylist(pl)} renderRowActions={rowActions} />
         ) : route.name === "genre" ? (
@@ -176,7 +220,13 @@ export function App() {
       {editing && <TagEditor song={editing} onClose={() => setEditing(null)} onSaved={(saved) => { setSongs((prev) => prev.map((s) => (s.id === saved.id ? saved : s))); setEditing(saved); }} />}
       {addFor && <AddToPlaylist song={addFor} authenticated={authed} onClose={() => setAddFor(null)} onDone={(name) => { setAddFor(null); flash(`Added to ${name}`); }} />}
       {editingPlaylist !== null && <PlaylistEditor existing={editingPlaylist === "new" ? null : editingPlaylist} onClose={() => setEditingPlaylist(null)} onSaved={(pl) => { setEditingPlaylist(null); navigate(`/playlist/${pl.id}`); }} />}
-      {toast && <div style={{ position: "fixed", bottom: player.current ? 120 : 80, left: "50%", transform: "translateX(-50%)", background: "var(--color-active)", border: "1px solid var(--color-border)", borderRadius: 999, padding: "0.4rem 1rem", fontSize: "0.85rem", zIndex: 95 }}>{toast}</div>}
+      {toast && (
+        <div style={{ position: "fixed", bottom: player.current ? 120 : 80, left: "50%", transform: "translateX(-50%)", display: "flex", alignItems: "center", gap: "0.5rem", background: "var(--color-active)", border: "1px solid var(--color-border)", borderRadius: 999, padding: "0.4rem 1rem", fontSize: "0.85rem", zIndex: 95 }}>
+          {uploading && <Icon name="spinner" size="15px" style={{ animation: "app-spin 0.8s linear infinite" }} />}
+          {toast}
+        </div>
+      )}
+      <style>{`@keyframes app-spin { to { transform: rotate(360deg); } }`}</style>
     </div>
   );
 }

@@ -4,7 +4,7 @@ import { coverUrl, coverInitial } from "./cover";
 import { formatDuration } from "./format";
 import { navigate } from "./router";
 
-type Tab = "all" | "favorites" | "playlists" | "genres";
+type Tab = "all" | "favorites" | "unpublished" | "playlists" | "genres";
 
 type Props = {
   songs: Song[];
@@ -24,18 +24,25 @@ export function Library({ songs, favoriteIds, authenticated, initialTab, onPlay,
   useEffect(() => { if (tab === "playlists") listPlaylists().then(setPlaylists).catch(() => setPlaylists([])); }, [tab]);
   useEffect(() => { if (tab === "genres") listGenres().then(setGenres).catch(() => setGenres([])); }, [tab]);
 
-  const shown = tab === "favorites" ? songs.filter((s) => favoriteIds.includes(s.id)) : songs;
+  const shown =
+    tab === "favorites" ? songs.filter((s) => favoriteIds.includes(s.id))
+    : tab === "unpublished" ? songs.filter((s) => !s.published)
+    : songs;
+
+  // The Unpublished pill only makes sense for logged-in users — anonymous
+  // viewers never receive unpublished songs.
+  const tabs: Tab[] = ["all", "favorites", ...(authenticated ? (["unpublished"] as Tab[]) : []), "playlists", "genres"];
 
   return (
     <div>
       <div style={{ display: "flex", gap: "0.4rem", marginBottom: "1.25rem" }}>
-        {(["all", "favorites", "playlists", "genres"] as Tab[]).map((t) => (
+        {tabs.map((t) => (
           <button key={t} onClick={() => setTab(t)}
             style={{ padding: "0.35rem 0.85rem", borderRadius: 999, cursor: "pointer", fontSize: "0.85rem",
               border: "1px solid var(--color-border)",
               background: tab === t ? "var(--color-active)" : "transparent",
               color: tab === t ? "var(--color-ink)" : "var(--color-muted)" }}>
-            {t === "all" ? "All songs" : t === "favorites" ? "Favorites" : t === "playlists" ? "Playlists" : "Genres"}
+            {t === "all" ? "All songs" : t === "favorites" ? "Favorites" : t === "unpublished" ? "Unpublished" : t === "playlists" ? "Playlists" : "Genres"}
           </button>
         ))}
       </div>
@@ -107,7 +114,7 @@ export function Library({ songs, favoriteIds, authenticated, initialTab, onPlay,
         </div>
       ) : (
         <ul style={{ listStyle: "none", margin: 0, padding: 0 }}>
-          {shown.length === 0 && <p style={{ color: "var(--color-muted)" }}>{tab === "favorites" ? "No favorites yet — tap the star on a song." : "Nothing here yet."}</p>}
+          {shown.length === 0 && <p style={{ color: "var(--color-muted)" }}>{tab === "favorites" ? "No favorites yet — tap the star on a song." : tab === "unpublished" ? "Nothing unpublished — every song is live." : "Nothing here yet."}</p>}
           {shown.map((song) => (
             <li key={song.id} onClick={() => onPlay(song)} style={{ display: "flex", alignItems: "center", gap: "0.85rem", padding: "0.6rem 0.85rem", borderRadius: "var(--radius-ui, 10px)", cursor: "pointer" }}>
               <span style={{ width: 44, height: 44, flexShrink: 0, borderRadius: 8, overflow: "hidden", background: "var(--color-active)", display: "grid", placeItems: "center", border: "1px solid var(--color-border)" }}>

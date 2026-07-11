@@ -4,6 +4,7 @@ import {
   reorderPlaylist, uploadPlaylistCover, listSongs, type PlaylistDetail, type Song,
 } from "./api";
 import { coverUrl } from "./cover";
+import { Icon } from "./Icon";
 import { formatDuration } from "./format";
 import { Button, controlClass, fieldLabel, t } from "./ui";
 
@@ -87,13 +88,13 @@ export function PlaylistEditor({ existing, onClose, onSaved }: Props) {
       <div onClick={(e) => e.stopPropagation()} style={{ width: 560, maxWidth: "100%", maxHeight: "88vh", overflowY: "auto", background: "var(--color-panel)", border: "1px solid var(--color-border)", borderRadius: 14, padding: "1.25rem" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem" }}>
           <h3 style={{ margin: 0, ...t.title }}>{existing ? "Edit playlist" : "New playlist"}</h3>
-          <button onClick={onClose} style={{ background: "none", border: "none", color: "var(--color-muted)", cursor: "pointer", fontSize: "1.1rem" }}>✕</button>
+          <button onClick={onClose} aria-label="Close" style={{ display: "inline-flex", background: "none", border: "none", color: "var(--color-muted)", cursor: "pointer", padding: 2 }}><Icon name="close" size="18px" /></button>
         </div>
 
         <div style={{ display: "flex", gap: "1rem", marginBottom: "1rem" }}>
           <div style={{ textAlign: "center" }}>
             <div style={{ width: 96, height: 96, borderRadius: 8, overflow: "hidden", background: "var(--color-active)", border: "1px solid var(--color-border)", display: "grid", placeItems: "center" }}>
-              {detail?.coverArtId ? <img src={coverUrl(detail.coverArtId)} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <span style={{ color: "var(--color-muted)" }}>♪</span>}
+              {detail?.coverArtId ? <img src={coverUrl(detail.coverArtId)} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <Icon name="music" size="28px" style={{ color: "var(--color-muted)" }} />}
             </div>
             <label style={{ ...t.label, cursor: "pointer", color: "var(--color-accent-strong)", display: "block", marginTop: 6 }}>
               Upload cover…
@@ -118,7 +119,7 @@ export function PlaylistEditor({ existing, onClose, onSaved }: Props) {
               <span style={{ display: "block", ...t.label }}>{song.artistName}</span>
             </span>
             <span style={{ ...t.label, fontVariantNumeric: "tabular-nums" }}>{formatDuration(song.durationMs)}</span>
-            <button onClick={() => remove(song)} style={{ background: "none", border: "none", color: "var(--color-muted)", cursor: "pointer" }}>✕</button>
+            <button onClick={() => remove(song)} aria-label="Remove from playlist" style={{ display: "inline-flex", background: "none", border: "none", color: "var(--color-muted)", cursor: "pointer", padding: 2 }}><Icon name="close" size="14px" /></button>
           </div>
         ))}
 

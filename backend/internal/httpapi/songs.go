@@ -56,6 +56,28 @@ func (h *songHandlers) get(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, song)
 }
 
+// delete removes a song (authed-only): its row (cascading to plays, playlist
+// entries, and genre links) and its audio file. Shared cover art is left intact.
+func (h *songHandlers) delete(w http.ResponseWriter, r *http.Request) {
+	if !identify(h.cfg, r).Authenticated {
+		httpError(w, http.StatusForbidden, "authentication required")
+		return
+	}
+	filePath, existed, err := h.repo.DeleteSong(r.Context(), r.PathValue("id"))
+	if err != nil {
+		httpError(w, http.StatusInternalServerError, "delete song")
+		return
+	}
+	if !existed {
+		httpError(w, http.StatusNotFound, "not found")
+		return
+	}
+	if filePath != "" {
+		_ = h.media.Remove(filePath) // best-effort; missing file is not an error
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
 func (h *songHandlers) upload(w http.ResponseWriter, r *http.Request) {
 	if !identify(h.cfg, r).Authenticated {
 		httpError(w, http.StatusForbidden, "authentication required")

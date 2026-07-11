@@ -3,6 +3,7 @@ package httpapi
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
@@ -41,15 +42,15 @@ func (h *songHandlers) postAlign(w http.ResponseWriter, r *http.Request) {
 		httpError(w, http.StatusBadRequest, "song has no lyrics to align")
 		return
 	}
-	if existing, err := h.repo.GetAlignment(r.Context(), song.ID); err != nil {
-		serverError(w, "get alignment", err)
-		return
-	} else if existing != nil && existing.Status == "generating" {
-		httpError(w, http.StatusConflict, "alignment already in progress")
+	// Atomically claim the slot: started is false if one is already generating, so
+	// concurrent POSTs can't both spawn a (minutes-long) job for the same song.
+	started, err := h.repo.StartAlignment(r.Context(), song.ID)
+	if err != nil {
+		serverError(w, "start alignment", err)
 		return
 	}
-	if err := h.repo.UpsertGeneratingAlignment(r.Context(), song.ID); err != nil {
-		serverError(w, "start alignment", err)
+	if !started {
+		httpError(w, http.StatusConflict, "alignment already in progress")
 		return
 	}
 	go h.runAlignment(song.ID, song.FilePath, song.Lyrics)
@@ -63,6 +64,13 @@ func (h *songHandlers) runAlignment(songID, relPath, lyrics string) {
 	if h.onAlignComplete != nil {
 		defer h.onAlignComplete(songID)
 	}
+	// A panic in this detached goroutine would otherwise crash the whole process;
+	// mark the row failed instead so the song just shows a failed alignment.
+	defer func() {
+		if p := recover(); p != nil {
+			h.failAlignment(songID, fmt.Sprintf("alignment panicked: %v", p))
+		}
+	}()
 	slog.Info("alignment started", "song", songID)
 	f, err := h.media.Open(relPath)
 	if err != nil {

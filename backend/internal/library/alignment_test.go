@@ -18,9 +18,9 @@ func TestAlignment_lifecycle(t *testing.T) {
 		t.Fatalf("GetAlignment absent = %v, %v; want nil,nil", a, err)
 	}
 
-	// Upsert generating.
-	if err := r.UpsertGeneratingAlignment(ctx, song.ID); err != nil {
-		t.Fatalf("UpsertGeneratingAlignment: %v", err)
+	// Start (claim) generating.
+	if started, err := r.StartAlignment(ctx, song.ID); err != nil || !started {
+		t.Fatalf("StartAlignment (fresh) = %v, %v; want true, nil", started, err)
 	}
 	a, err := r.GetAlignment(ctx, song.ID)
 	if err != nil || a == nil || a.Status != "generating" {
@@ -36,13 +36,18 @@ func TestAlignment_lifecycle(t *testing.T) {
 		t.Fatalf("after ready = %+v", a)
 	}
 
-	// Re-upsert resets to generating and clears data.
-	if err := r.UpsertGeneratingAlignment(ctx, song.ID); err != nil {
-		t.Fatalf("re-upsert: %v", err)
+	// Re-start after ready resets to generating and clears data.
+	if started, err := r.StartAlignment(ctx, song.ID); err != nil || !started {
+		t.Fatalf("re-start after ready = %v, %v; want true, nil", started, err)
 	}
 	a, _ = r.GetAlignment(ctx, song.ID)
 	if a.Status != "generating" || a.Data != "" {
-		t.Fatalf("re-upsert did not reset: %+v", a)
+		t.Fatalf("re-start did not reset: %+v", a)
+	}
+
+	// Starting again while already generating is refused atomically (no reset).
+	if started, err := r.StartAlignment(ctx, song.ID); err != nil || started {
+		t.Fatalf("StartAlignment while generating = %v, %v; want false, nil", started, err)
 	}
 
 	// Failed.
@@ -59,8 +64,8 @@ func TestFailOrphanedAlignments(t *testing.T) {
 	r := newRepo(t)
 	ctx := context.Background()
 	song, _ := r.Create(ctx, NewID(), sampleParams())
-	if err := r.UpsertGeneratingAlignment(ctx, song.ID); err != nil {
-		t.Fatalf("upsert: %v", err)
+	if _, err := r.StartAlignment(ctx, song.ID); err != nil {
+		t.Fatalf("start: %v", err)
 	}
 	n, err := r.FailOrphanedAlignments(ctx)
 	if err != nil || n != 1 {

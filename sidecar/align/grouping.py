@@ -1,10 +1,17 @@
 """Regroup a flat, time-ordered word list back into the original lyric lines.
 
 The aligner is fed the whole lyric as one text and returns a flat word list. We
-know each line's word count from the input lyrics, so we slice the flat list back
-into lines deterministically. If the aligner produced fewer words than expected
-(dropped an unalignable word), later lines get whatever remains (possibly empty)
-rather than raising.
+slice the flat list back into lines by each line's whitespace word count.
+
+KNOWN LIMITATION (tracked for the Phase 2 sidecar-quality follow-up): the slice
+count uses naive `str.split()`, but the flat list comes from WhisperX's own
+tokenization, which can disagree on apostrophes, hyphens, punctuation, and
+number/symbol expansion — or drop unalignable words. Any per-line count mismatch
+does not just empty one line: it *shifts* every subsequent line's words by the
+delta, so later timings drift silently while the row is still marked ready. The
+guard below only prevents a crash (trailing lines get whatever remains, possibly
+empty); it does not correct the drift. A robust fix aligns WhisperX tokens back to
+source words rather than counting — deferred until we can evaluate real output.
 """
 
 

@@ -110,7 +110,7 @@ func TestPostAlign_sidecarErrorMarksFailed(t *testing.T) {
 func TestPostAlign_conflictWhileGenerating(t *testing.T) {
 	h, id := alignTestHandler(t, fakeAligner{res: &align.Result{Engine: "fake"}})
 	// Pre-seed a generating row.
-	_ = h.repo.UpsertGeneratingAlignment(context.Background(), id)
+	_, _ = h.repo.StartAlignment(context.Background(), id)
 	rr := httptest.NewRecorder()
 	h.postAlign(rr, alignReq(t, "POST", id))
 	if rr.Code != http.StatusConflict {
@@ -128,7 +128,7 @@ func TestGetAlign_reflectsStatus(t *testing.T) {
 	}
 	// Ready -> 200 with lines, no error field. Seed the row first (the real flow
 	// always upserts 'generating' before the goroutine marks it ready).
-	_ = h.repo.UpsertGeneratingAlignment(context.Background(), id)
+	_, _ = h.repo.StartAlignment(context.Background(), id)
 	_ = h.repo.MarkAlignmentReady(context.Background(), id, "fake", `[{"text":"hi","start":1,"end":2,"words":[]}]`)
 	rr = httptest.NewRecorder()
 	h.getAlign(rr, alignReq(t, "GET", id))

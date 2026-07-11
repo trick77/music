@@ -16,14 +16,26 @@ type Alignment struct {
 	CreatedAt string
 }
 
-// UpsertGeneratingAlignment creates or resets the song's alignment row to the
-// 'generating' state, clearing any prior data/error/engine so a re-run starts clean.
-func (r *Repo) UpsertGeneratingAlignment(ctx context.Context, songID string) error {
-	_, err := r.db.ExecContext(ctx,
+// StartAlignment atomically claims the song's alignment slot: it inserts (or resets)
+// the row to 'generating', clearing any prior data/error/engine, but ONLY when no
+// alignment is already generating. started is false when a job is already in flight
+// (the row stays untouched), so the caller can reject a concurrent request without a
+// separate read — closing the check-then-act race two POSTs could otherwise slip
+// through. The WHERE guard on the upsert makes the claim a single atomic statement.
+func (r *Repo) StartAlignment(ctx context.Context, songID string) (started bool, err error) {
+	res, err := r.db.ExecContext(ctx,
 		`INSERT INTO song_alignment(song_id, status) VALUES(?, 'generating')
-		 ON CONFLICT(song_id) DO UPDATE SET status='generating', data=NULL, error=NULL, engine=NULL`,
+		 ON CONFLICT(song_id) DO UPDATE SET status='generating', data=NULL, error=NULL, engine=NULL
+		   WHERE song_alignment.status <> 'generating'`,
 		songID)
-	return err
+	if err != nil {
+		return false, err
+	}
+	n, err := res.RowsAffected()
+	if err != nil {
+		return false, err
+	}
+	return n > 0, nil
 }
 
 // MarkAlignmentReady records the timings JSON + engine and clears any prior error.

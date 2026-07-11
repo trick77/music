@@ -23,7 +23,7 @@ func (h *songHandlers) postGenreSuggestPrompt(w http.ResponseWriter, r *http.Req
 		httpError(w, http.StatusNotFound, "prompt suggestions are not configured")
 		return
 	}
-	g, _, err := h.repo.GetGenre(r.Context(), r.PathValue("id"))
+	g, _, err := h.repo.GetGenre(r.Context(), r.PathValue("id"), true) // authed-only handler
 	if err != nil {
 		serverError(w, "get genre", err)
 		return

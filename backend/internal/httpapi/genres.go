@@ -26,7 +26,7 @@ func (h *songHandlers) patchGenre(w http.ResponseWriter, r *http.Request) {
 	genreID := r.PathValue("id")
 	g, _, err := h.repo.GetGenre(r.Context(), genreID)
 	if err != nil {
-		httpError(w, http.StatusInternalServerError, "get genre")
+		serverError(w, "get genre", err)
 		return
 	}
 	if g == nil {
@@ -44,7 +44,7 @@ func (h *songHandlers) patchGenre(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		if err := h.repo.UpdateGenreName(r.Context(), genreID, *req.Name); err != nil {
-			httpError(w, http.StatusInternalServerError, "rename genre")
+			serverError(w, "rename genre", err)
 			return
 		}
 	}
@@ -54,7 +54,7 @@ func (h *songHandlers) patchGenre(w http.ResponseWriter, r *http.Request) {
 				httpError(w, http.StatusBadRequest, "image is not a ready background for this genre")
 				return
 			}
-			httpError(w, http.StatusInternalServerError, "set background")
+			serverError(w, "set background", err)
 			return
 		}
 		h.resampleAccent(r, genreID, *req.BackgroundFanartID)
@@ -65,13 +65,13 @@ func (h *songHandlers) patchGenre(w http.ResponseWriter, r *http.Request) {
 				httpError(w, http.StatusBadRequest, "image is not ready")
 				return
 			}
-			httpError(w, http.StatusInternalServerError, "set hero")
+			serverError(w, "set hero", err)
 			return
 		}
 	}
 	if req.ClearHero != nil {
 		if err := h.repo.ClearHero(r.Context(), *req.ClearHero); err != nil {
-			httpError(w, http.StatusInternalServerError, "clear hero")
+			serverError(w, "clear hero", err)
 			return
 		}
 	}

@@ -6,6 +6,7 @@ import (
 	"crypto/rand"
 	"encoding/binary"
 	"encoding/json"
+	"log/slog"
 	"net/http"
 	"time"
 
@@ -67,7 +68,7 @@ func (h *songHandlers) postFanartGenerate(w http.ResponseWriter, r *http.Request
 	seed := randomSeed()
 	id, err := h.repo.CreateGeneratingFanart(r.Context(), req.Kind, req.GenreID, req.Prompt, h.bflModel, &seed)
 	if err != nil {
-		httpError(w, http.StatusInternalServerError, "create fanart")
+		serverError(w, "create fanart", err)
 		return
 	}
 	go h.runGeneration(id, req.Prompt, seed)
@@ -81,6 +82,7 @@ func (h *songHandlers) runGeneration(id, prompt string, seed int64) {
 	if h.onGenComplete != nil {
 		defer h.onGenComplete(id)
 	}
+	slog.Info("fanart generation started", "id", id)
 	genCtx, cancel := context.WithTimeout(context.Background(), h.cfg.BFLPollTimeout+30*time.Second)
 	defer cancel()
 
@@ -93,6 +95,7 @@ func (h *songHandlers) runGeneration(id, prompt string, seed int64) {
 	persistCtx, pcancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer pcancel()
 	if err != nil {
+		slog.Error("fanart generation failed", "id", id, "err", err)
 		_ = h.repo.MarkFanartFailed(persistCtx, id, err.Error())
 		return
 	}
@@ -102,6 +105,7 @@ func (h *songHandlers) runGeneration(id, prompt string, seed int64) {
 	}
 	relPath := "fanart/" + id + "." + ext
 	if err := writeBytes(h.media, relPath, res.Bytes); err != nil {
+		slog.Error("fanart generation: store image failed", "id", id, "err", err)
 		_ = h.repo.MarkFanartFailed(persistCtx, id, "store generated image")
 		return
 	}
@@ -110,6 +114,9 @@ func (h *songHandlers) runGeneration(id, prompt string, seed int64) {
 		width, height = pw, ph
 	}
 	if err := h.repo.MarkFanartReady(persistCtx, id, relPath, width, height); err != nil {
+		slog.Error("fanart generation: record image failed", "id", id, "err", err)
 		_ = h.repo.MarkFanartFailed(persistCtx, id, "record generated image")
+		return
 	}
+	slog.Info("fanart generation completed", "id", id, "width", width, "height", height)
 }

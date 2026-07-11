@@ -3,6 +3,7 @@ package studio
 import (
 	"context"
 	"encoding/json"
+	"log/slog"
 	"net/url"
 	"strings"
 
@@ -48,6 +49,7 @@ func runResearch(ctx context.Context, chat llm.Chat, tools toolProvider, system,
 			onProgress.emit(toolProgress(tc.Function.Name, args))
 			out, callErr := tools.Call(ctx, tc.Function.Name, args)
 			if callErr != nil {
+				slog.Warn("studio: tool call failed", "tool", tc.Function.Name, "err", callErr)
 				out = "tool error: " + callErr.Error()
 			}
 			messages = append(messages, llm.Message{Role: "tool", ToolCallID: tc.ID, Content: out})

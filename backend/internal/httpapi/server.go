@@ -162,7 +162,7 @@ func build(cfg config.Config, st *store.Store, spa http.Handler, gen imagegen.Pr
 		}
 	}
 	root.Handle("/", spaHandler)
-	return root
+	return logging(recovery(root))
 }
 
 func writeJSON(w http.ResponseWriter, v any) {

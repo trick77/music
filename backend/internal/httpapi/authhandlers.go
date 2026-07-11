@@ -101,7 +101,7 @@ func (h *authHandlers) callback(w http.ResponseWriter, r *http.Request) {
 			ExpiresAt: time.Now().Add(sessionTTL),
 		})
 		if err != nil {
-			httpError(w, http.StatusInternalServerError, "session error")
+			serverError(w, "session error", err)
 			return
 		}
 		h.setCookie(w, auth.SessionCookieName, token, int(sessionTTL.Seconds()))

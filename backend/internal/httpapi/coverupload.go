@@ -39,7 +39,7 @@ func bufferProbeImage(w http.ResponseWriter, r *http.Request, maxBytes int64) (*
 
 	tmp, err := os.CreateTemp("", "music-image-*")
 	if err != nil {
-		httpError(w, http.StatusInternalServerError, "temp file")
+		serverError(w, "temp file", err)
 		return nil, "", 0, 0, "", false
 	}
 	cleanup := func() { _ = os.Remove(tmp.Name()); _ = tmp.Close() }
@@ -53,7 +53,7 @@ func bufferProbeImage(w http.ResponseWriter, r *http.Request, maxBytes int64) (*
 	hash := hex.EncodeToString(hasher.Sum(nil))
 	if _, err := tmp.Seek(0, io.SeekStart); err != nil {
 		cleanup()
-		httpError(w, http.StatusInternalServerError, "seek")
+		serverError(w, "seek", err)
 		return nil, "", 0, 0, "", false
 	}
 	width, height, ext, err := imageutil.Probe(tmp)
@@ -64,7 +64,7 @@ func bufferProbeImage(w http.ResponseWriter, r *http.Request, maxBytes int64) (*
 	}
 	if _, err := tmp.Seek(0, io.SeekStart); err != nil {
 		cleanup()
-		httpError(w, http.StatusInternalServerError, "seek")
+		serverError(w, "seek", err)
 		return nil, "", 0, 0, "", false
 	}
 	return tmp, hash, width, height, ext, true
@@ -83,7 +83,7 @@ func storeUploadedCover(w http.ResponseWriter, r *http.Request, store *media.Sto
 
 	coverID, _, err := repo.FindCoverByHash(r.Context(), hash)
 	if err != nil {
-		httpError(w, http.StatusInternalServerError, "cover lookup")
+		serverError(w, "cover lookup", err)
 		return "", false
 	}
 	if coverID != "" {
@@ -93,16 +93,16 @@ func storeUploadedCover(w http.ResponseWriter, r *http.Request, store *media.Sto
 	relPath := "covers/" + hash + "." + ext
 	dst, err := store.Create(relPath)
 	if err != nil {
-		httpError(w, http.StatusInternalServerError, "store cover")
+		serverError(w, "store cover", err)
 		return "", false
 	}
 	if _, err := io.Copy(dst, tmp); err != nil {
 		dst.Close()
-		httpError(w, http.StatusInternalServerError, "write cover")
+		serverError(w, "write cover", err)
 		return "", false
 	}
 	if err := dst.Close(); err != nil {
-		httpError(w, http.StatusInternalServerError, "close cover")
+		serverError(w, "close cover", err)
 		return "", false
 	}
 	coverID, err = repo.CreateCover(r.Context(), library.CoverParams{
@@ -110,7 +110,7 @@ func storeUploadedCover(w http.ResponseWriter, r *http.Request, store *media.Sto
 	})
 	if err != nil {
 		_ = store.Remove(relPath)
-		httpError(w, http.StatusInternalServerError, "save cover")
+		serverError(w, "save cover", err)
 		return "", false
 	}
 	return coverID, true

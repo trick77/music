@@ -47,7 +47,10 @@ func shareID(path, prefix string) (string, bool) {
 
 func songMeta(ctx context.Context, repo *library.Repo, r *http.Request, id string) (string, bool) {
 	song, err := repo.Get(ctx, id)
-	if err != nil || song == nil {
+	// The share preview is public and not auth-aware, so an unpublished song must
+	// not leak its title/artist/cover here — fall through to the plain SPA shell,
+	// mirroring the 404 the get/stream handlers give anonymous callers.
+	if err != nil || song == nil || !song.Published {
 		return "", false
 	}
 	img := ""

@@ -23,6 +23,13 @@ app = FastAPI()
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 ENGINE = "whisperx+demucs"
 
+# CPU inference (Demucs + the wav2vec2 alignment stage) is torch-parallel, but torch
+# under-detects cores inside a container and can pin to a single thread. Use all cores
+# but one (leave one in reserve for the host) so alignment isn't stuck on a single CPU
+# yet doesn't starve everything else (no-op on GPU).
+if DEVICE == "cpu":
+    torch.set_num_threads(max(1, (os.cpu_count() or 1) - 1))
+
 # Align model is language-specific; load lazily and cache per language.
 _align_cache = {}
 

@@ -10,4 +10,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY grouping.py app.py ./
 
 EXPOSE 8000
-CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8000"]
+# Export OMP_NUM_THREADS = (cores - 1) before torch loads, so OpenMP-parallel CPU
+# kernels (Demucs, wav2vec2 alignment) use every core but one (leaving one in reserve
+# for the host) instead of defaulting to a single thread.
+CMD ["sh", "-c", "N=$(nproc); T=$((N-1)); [ \"$T\" -lt 1 ] && T=1; export OMP_NUM_THREADS=$T; exec uvicorn app:app --host 0.0.0.0 --port 8000"]

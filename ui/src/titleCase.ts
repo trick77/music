@@ -61,11 +61,12 @@ export function detectLang(input: string): Lang {
   return score[best] === 0 ? "en" : best;
 }
 
-// titleCase applies the detected language's casing convention. Whitespace is
-// preserved exactly (split keeps the separators).
-export function titleCase(input: string): string {
+// titleCase applies a language's casing convention. Language is auto-detected
+// unless `langOverride` is given (e.g. genres, which want fixed English rules
+// regardless of how the words happen to look). Whitespace is preserved exactly.
+export function titleCase(input: string, langOverride?: Lang): string {
   if (!input.trim()) return input;
-  const lang = detectLang(input);
+  const lang = langOverride ?? detectLang(input);
   const tokens = input.split(/(\s+)/); // odd indices are whitespace runs
 
   const wordIdx = tokens.map((t, i) => (t.trim() !== "" ? i : -1)).filter((i) => i >= 0);
@@ -93,3 +94,8 @@ export function titleCase(input: string): string {
     })
     .join("");
 }
+
+// genreLabel title-cases a genre name for display. Genres are stored lowercase;
+// this is the single place that turns "dream pop" into "Dream Pop". Fixed English
+// rules (no language auto-detection) so a genre never sentence-cases by accident.
+export const genreLabel = (name: string): string => titleCase(name, "en");

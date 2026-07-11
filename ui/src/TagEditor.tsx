@@ -3,7 +3,7 @@ import { updateSong, uploadCover, suggest, type Song, type Suggestion } from "./
 import { coverUrl, coverInitial } from "./cover";
 import { Icon } from "./Icon";
 import { Button, controlClass, fieldLabel, t } from "./ui";
-import { titleCase } from "./titleCase";
+import { titleCase, genreLabel } from "./titleCase";
 
 type Props = { song: Song; onClose: () => void; onSaved: (s: Song) => void };
 type Tab = "details" | "cover" | "lyrics";
@@ -162,8 +162,8 @@ export function TagEditor({ song, onClose, onSaved }: Props) {
               <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 6 }}>
                 {genres.map((g) => (
                   <span key={g} style={{ display: "inline-flex", alignItems: "center", gap: 5, background: "var(--color-active)", borderRadius: 999, padding: "3px 10px", fontSize: "var(--text-label)" }}>
-                    {g}
-                    <button onClick={() => setGenres(genres.filter((x) => x !== g))} aria-label={`Remove ${g}`} style={{ display: "inline-flex", background: "none", border: "none", color: "var(--color-muted)", cursor: "pointer", padding: 0 }}>
+                    {genreLabel(g)}
+                    <button onClick={() => setGenres(genres.filter((x) => x !== g))} aria-label={`Remove ${genreLabel(g)}`} style={{ display: "inline-flex", background: "none", border: "none", color: "var(--color-muted)", cursor: "pointer", padding: 0 }}>
                       <Icon name="close" size="12px" />
                     </button>
                   </span>

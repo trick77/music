@@ -32,6 +32,39 @@ func sampleParams() CreateSongParams {
 	}
 }
 
+func TestCreate_storesGenresLowercaseAndMergesCaseVariants(t *testing.T) {
+	r := newRepo(t)
+	ctx := context.Background()
+
+	p1 := sampleParams()
+	p1.Genres = []string{"Jazz"}
+	s1, err := r.Create(ctx, NewID(), p1)
+	if err != nil {
+		t.Fatalf("Create 1: %v", err)
+	}
+	// Names are canonicalized to lowercase on write.
+	if len(s1.Genres) != 1 || s1.Genres[0] != "jazz" {
+		t.Fatalf("genres = %#v, want [jazz]", s1.Genres)
+	}
+
+	// A different-cased spelling must resolve to the same single genre, not a dupe.
+	p2 := sampleParams()
+	p2.ContentHash = "hash-b"
+	p2.FilePath = "songs/b.mp3"
+	p2.Genres = []string{"JAZZ"}
+	if _, err := r.Create(ctx, NewID(), p2); err != nil {
+		t.Fatalf("Create 2: %v", err)
+	}
+
+	genres, err := r.ListGenres(ctx, true)
+	if err != nil {
+		t.Fatalf("ListGenres: %v", err)
+	}
+	if len(genres) != 1 || genres[0].Name != "jazz" || genres[0].SongCount != 2 {
+		t.Fatalf("genres = %#v, want single jazz(2)", genres)
+	}
+}
+
 func TestCreate_persistsSongWithArtistAndGenres(t *testing.T) {
 	r := newRepo(t)
 	ctx := context.Background()
@@ -167,7 +200,7 @@ func TestUpdate_editsFieldsAndReplacesGenres(t *testing.T) {
 	if updated.Title != "New Title" || updated.ArtistName != "New Artist" || updated.Album != "New Album" {
 		t.Fatalf("fields not updated: %+v", updated)
 	}
-	if len(updated.Genres) != 1 || updated.Genres[0] != "Jazz" {
+	if len(updated.Genres) != 1 || updated.Genres[0] != "jazz" {
 		t.Fatalf("genres not replaced: %#v", updated.Genres)
 	}
 	if updated.ID != created.ID {
@@ -228,7 +261,7 @@ func TestSuggest_artistAndGenreCounts(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Suggest genre: %v", err)
 	}
-	if len(gg) != 1 || gg[0].Value != "Synthwave" {
+	if len(gg) != 1 || gg[0].Value != "synthwave" {
 		t.Fatalf("genre suggest = %#v", gg)
 	}
 	if _, err := r.Suggest(ctx, "bogus", "x"); err == nil {

@@ -5,6 +5,7 @@ import { Icon } from "./Icon";
 import { navigate } from "./router";
 import { ModelPicker, RefineRow } from "./StudioShared";
 import { Button, Spinner, controlClass, fieldLabel, t } from "./ui";
+import { genreLabel } from "./titleCase";
 
 type Props = { chatEnabled: boolean; imageModels: string[]; defaultImageModel: string; initialGenreId?: string };
 
@@ -99,7 +100,7 @@ export function GenreFanartMode({ chatEnabled, imageModels, defaultImageModel, i
       >
         {genres.length === 0 && <option value="">Loading…</option>}
         {genres.map((g) => (
-          <option key={g.id} value={g.id}>{g.name}{g.hasBackground ? "" : " — needs artwork"}</option>
+          <option key={g.id} value={g.id}>{genreLabel(g.name)}{g.hasBackground ? "" : " — needs artwork"}</option>
         ))}
       </select>
 

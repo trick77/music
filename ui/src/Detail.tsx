@@ -11,6 +11,7 @@ import {
 import { fanartUrl } from "./fanart";
 import { coverUrl, coverInitial } from "./cover";
 import { navigate } from "./router";
+import { genreLabel } from "./titleCase";
 import { playlistShareUrl } from "./share";
 import { Glyph } from "./Glyph";
 import { Icon } from "./Icon";
@@ -97,7 +98,7 @@ export function Detail({ kind, id, authenticated, studioEnabled, imageGenEnabled
   let view: View | null = null;
   if (kind === "genre" && genre) {
     view = {
-      title: genre.genre.name,
+      title: genreLabel(genre.genre.name),
       subtitle: `${genre.genre.songCount} ${genre.genre.songCount === 1 ? "track" : "tracks"}`,
       bg: fanartUrl(genre.backgroundId, "hero"),
       accent: genre.genre.accentColor || "var(--color-accent)",

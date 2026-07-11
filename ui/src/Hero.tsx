@@ -4,6 +4,7 @@ import { coverUrl } from "./cover";
 import { Glyph } from "./Glyph";
 import { Icon } from "./Icon";
 import { navigate } from "./router";
+import { genreLabel } from "./titleCase";
 import type { HomeHero, Song } from "./api";
 
 /** A featured-song genre, with its id resolved for linking when known. */
@@ -88,10 +89,10 @@ export function Hero({
                   href={`/genre/${g.id}`}
                   onClick={(e) => { e.preventDefault(); navigate(`/genre/${g.id}`); }}
                 >
-                  {g.name}
+                  {genreLabel(g.name)}
                 </a>
               ) : (
-                <span>{g.name}</span>
+                <span>{genreLabel(g.name)}</span>
               )}
             </Fragment>
           ))}

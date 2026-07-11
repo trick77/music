@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"strings"
 )
 
 // ErrFanartNotInGenre is returned when assigning a background/hero that does not
@@ -210,8 +211,11 @@ func (r *Repo) ClearHero(ctx context.Context, fanartID string) error {
 	return err
 }
 
-// UpdateGenreName renames a genre.
+// UpdateGenreName renames a genre. Names are stored canonically lowercase (the UI
+// title-cases them), matching upsertGenre so a rename can't reintroduce a
+// case-variant duplicate.
 func (r *Repo) UpdateGenreName(ctx context.Context, genreID, name string) error {
+	name = strings.ToLower(strings.TrimSpace(name))
 	_, err := r.db.ExecContext(ctx, `UPDATE genres SET name=? WHERE id=?`, name, genreID)
 	return err
 }

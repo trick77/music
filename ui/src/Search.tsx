@@ -4,6 +4,7 @@ import { coverUrl, coverInitial } from "./cover";
 import { navigate } from "./router";
 import { Glyph } from "./Glyph";
 import { t } from "./ui";
+import { genreLabel } from "./titleCase";
 
 // Search is the grouped results screen: a debounced query with a Top result and
 // Songs / Artists / Genres / Playlists sections.
@@ -103,7 +104,7 @@ export function Search({ onPlay }: { onPlay: (s: Song, tail: Song[]) => void }) 
               {res.genres.map((g) => (
                 <button key={g.id} onClick={() => navigate(`/genre/${g.id}`)} style={rowBtn}>
                   <span style={{ width: 40, height: 40, borderRadius: 6, background: g.accentColor || "var(--color-active)" }} />
-                  <span>{g.name}</span>
+                  <span>{genreLabel(g.name)}</span>
                 </button>
               ))}
             </section>
@@ -137,7 +138,7 @@ function topLabel(res: SearchResults): string {
   const { type, id } = res.top;
   if (type === "song") return res.songs.find((x) => x.id === id)?.title ?? "";
   if (type === "artist") return res.artists.find((x) => x.id === id)?.name ?? "";
-  if (type === "genre") return res.genres.find((x) => x.id === id)?.name ?? "";
+  if (type === "genre") { const n = res.genres.find((x) => x.id === id)?.name; return n ? genreLabel(n) : ""; }
   return res.playlists.find((x) => x.id === id)?.name ?? "";
 }
 

@@ -2,6 +2,7 @@ import { fanartUrl, genreInitial } from "./fanart";
 import { coverUrl, coverInitial } from "./cover";
 import { Glyph } from "./Glyph";
 import { navigate } from "./router";
+import { genreLabel } from "./titleCase";
 import type { GenreChapter, Song } from "./api";
 
 // Chapter is one immersive genre "chapter" on Home: a full-bleed active
@@ -32,7 +33,7 @@ export function Chapter({ chapter, onPlay }: { chapter: GenreChapter; onPlay: (s
             Genre
           </div>
           <h3 style={{ margin: "0.15rem 0 0", fontFamily: "var(--font-serif)", fontSize: "clamp(1.5rem, 3vw, 2.1rem)", color: "#fff", textShadow: "0 2px 16px rgba(0,0,0,0.55)" }}>
-            {chapter.name}
+            {genreLabel(chapter.name)}
           </h3>
         </button>
         <div style={{ color: "rgba(255,255,255,0.82)", fontSize: "var(--text-label)", marginBottom: "0.9rem" }}>

@@ -2,7 +2,7 @@
 
 **Date:** 2026-07-11
 **Status:** Approved design, pending implementation plan
-**Roadmap:** `docs/karaoke-roadmap.md` (Phase 2 of 4)
+**Roadmap:** `KARAOKE.md` (Phase 2 of 4)
 
 ## Context
 

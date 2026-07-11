@@ -28,7 +28,7 @@ func (h *playlistHandlers) requireAuth(w http.ResponseWriter, r *http.Request) b
 func (h *playlistHandlers) list(w http.ResponseWriter, r *http.Request) {
 	pls, err := h.repo.ListPlaylists(r.Context())
 	if err != nil {
-		httpError(w, http.StatusInternalServerError, "list playlists")
+		serverError(w, "list playlists", err)
 		return
 	}
 	writeJSON(w, map[string]any{"playlists": pls})
@@ -37,7 +37,7 @@ func (h *playlistHandlers) list(w http.ResponseWriter, r *http.Request) {
 func (h *playlistHandlers) get(w http.ResponseWriter, r *http.Request) {
 	pl, err := h.repo.GetPlaylist(r.Context(), r.PathValue("id"))
 	if err != nil {
-		httpError(w, http.StatusInternalServerError, "get playlist")
+		serverError(w, "get playlist", err)
 		return
 	}
 	if pl == nil {
@@ -67,7 +67,7 @@ func (h *playlistHandlers) create(w http.ResponseWriter, r *http.Request) {
 	}
 	id, err := h.repo.CreatePlaylist(r.Context(), body.Name, body.Description)
 	if err != nil {
-		httpError(w, http.StatusInternalServerError, "create playlist")
+		serverError(w, "create playlist", err)
 		return
 	}
 	h.respondDetail(w, r, id, http.StatusCreated)
@@ -88,7 +88,7 @@ func (h *playlistHandlers) patch(w http.ResponseWriter, r *http.Request) {
 	}
 	id := r.PathValue("id")
 	if err := h.repo.UpdatePlaylist(r.Context(), id, body.Name, body.Description); err != nil {
-		httpError(w, http.StatusInternalServerError, "update playlist")
+		serverError(w, "update playlist", err)
 		return
 	}
 	h.respondDetail(w, r, id, http.StatusOK)
@@ -99,7 +99,7 @@ func (h *playlistHandlers) delete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := h.repo.DeletePlaylist(r.Context(), r.PathValue("id")); err != nil {
-		httpError(w, http.StatusInternalServerError, "delete playlist")
+		serverError(w, "delete playlist", err)
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
@@ -118,7 +118,7 @@ func (h *playlistHandlers) addSong(w http.ResponseWriter, r *http.Request) {
 	}
 	id := r.PathValue("id")
 	if err := h.repo.AddSong(r.Context(), id, body.SongID); err != nil {
-		httpError(w, http.StatusInternalServerError, "add song")
+		serverError(w, "add song", err)
 		return
 	}
 	h.respondDetail(w, r, id, http.StatusOK)
@@ -130,7 +130,7 @@ func (h *playlistHandlers) removeSong(w http.ResponseWriter, r *http.Request) {
 	}
 	id := r.PathValue("id")
 	if err := h.repo.RemoveSong(r.Context(), id, r.PathValue("songId")); err != nil {
-		httpError(w, http.StatusInternalServerError, "remove song")
+		serverError(w, "remove song", err)
 		return
 	}
 	h.respondDetail(w, r, id, http.StatusOK)
@@ -153,7 +153,7 @@ func (h *playlistHandlers) reorder(w http.ResponseWriter, r *http.Request) {
 			httpError(w, http.StatusBadRequest, "reorder set does not match playlist")
 			return
 		}
-		httpError(w, http.StatusInternalServerError, "reorder playlist")
+		serverError(w, "reorder playlist", err)
 		return
 	}
 	h.respondDetail(w, r, id, http.StatusOK)
@@ -166,7 +166,7 @@ func (h *playlistHandlers) putCover(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 	pl, err := h.repo.GetPlaylist(r.Context(), id)
 	if err != nil {
-		httpError(w, http.StatusInternalServerError, "get playlist")
+		serverError(w, "get playlist", err)
 		return
 	}
 	if pl == nil {
@@ -178,7 +178,7 @@ func (h *playlistHandlers) putCover(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := h.repo.SetPlaylistCover(r.Context(), id, coverID); err != nil {
-		httpError(w, http.StatusInternalServerError, "assign cover")
+		serverError(w, "assign cover", err)
 		return
 	}
 	h.respondDetail(w, r, id, http.StatusOK)
@@ -188,7 +188,7 @@ func (h *playlistHandlers) putCover(w http.ResponseWriter, r *http.Request) {
 func (h *playlistHandlers) respondDetail(w http.ResponseWriter, r *http.Request, id string, status int) {
 	pl, err := h.repo.GetPlaylist(r.Context(), id)
 	if err != nil {
-		httpError(w, http.StatusInternalServerError, "reload playlist")
+		serverError(w, "reload playlist", err)
 		return
 	}
 	if pl == nil {

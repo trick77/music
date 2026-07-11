@@ -65,7 +65,7 @@ func (s *Service) Tools(ctx context.Context) ([]llm.Tool, error) {
 		if err != nil {
 			// A server that fails discovery is skipped (a down fetch server must
 			// not sink search). But if EVERY server fails, that is surfaced below.
-			slog.Warn("studio mcp: tool discovery failed", "server", name, "error", err)
+			slog.Warn("studio mcp: tool discovery failed", "server", name, "err", err)
 			failures++
 			continue
 		}
@@ -104,5 +104,12 @@ func (s *Service) Call(ctx context.Context, name string, args map[string]any) (s
 	}
 	callCtx, cancel := context.WithTimeout(ctx, perCallTimeout)
 	defer cancel()
-	return r.client.callTool(callCtx, r.originalName, args)
+	start := time.Now()
+	out, err := r.client.callTool(callCtx, r.originalName, args)
+	if err != nil {
+		slog.Warn("studio mcp: tool call failed", "server", r.client.serverName, "tool", name, "duration_ms", time.Since(start).Milliseconds(), "err", err)
+		return "", err
+	}
+	slog.Debug("studio mcp: tool call completed", "server", r.client.serverName, "tool", name, "duration_ms", time.Since(start).Milliseconds())
+	return out, nil
 }

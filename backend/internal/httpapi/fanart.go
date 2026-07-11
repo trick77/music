@@ -1,6 +1,7 @@
 package httpapi
 
 import (
+	"fmt"
 	"net/http"
 	"os"
 
@@ -35,7 +36,7 @@ func (h *songHandlers) postFanart(w http.ResponseWriter, r *http.Request) {
 	}
 	relPath := "fanart/" + hash + "." + ext
 	if err := writeStoreFile(h.media, relPath, tmp); err != nil {
-		httpError(w, http.StatusInternalServerError, "store fanart")
+		serverError(w, "store fanart", err)
 		return
 	}
 	id, err := h.repo.CreateFanart(r.Context(), library.FanartParams{
@@ -43,12 +44,15 @@ func (h *songHandlers) postFanart(w http.ResponseWriter, r *http.Request) {
 	})
 	if err != nil {
 		_ = h.media.Remove(relPath)
-		httpError(w, http.StatusInternalServerError, "save fanart")
+		serverError(w, "save fanart", err)
 		return
 	}
 	fa, err := h.repo.GetFanart(r.Context(), id)
-	if err != nil || fa == nil {
-		httpError(w, http.StatusInternalServerError, "reload fanart")
+	if err == nil && fa == nil {
+		err = fmt.Errorf("fanart %s missing after create", id)
+	}
+	if err != nil {
+		serverError(w, "reload fanart", err)
 		return
 	}
 	w.WriteHeader(http.StatusCreated)
@@ -58,7 +62,7 @@ func (h *songHandlers) postFanart(w http.ResponseWriter, r *http.Request) {
 func (h *songHandlers) getFanart(w http.ResponseWriter, r *http.Request) {
 	fa, err := h.repo.GetFanart(r.Context(), r.PathValue("id"))
 	if err != nil {
-		httpError(w, http.StatusInternalServerError, "get fanart")
+		serverError(w, "get fanart", err)
 		return
 	}
 	if fa == nil {
@@ -102,7 +106,7 @@ func (h *songHandlers) genreExists(r *http.Request, id string) bool {
 func (h *songHandlers) getGenreExtended(w http.ResponseWriter, r *http.Request) {
 	genre, songs, err := h.repo.GetGenre(r.Context(), r.PathValue("id"))
 	if err != nil {
-		httpError(w, http.StatusInternalServerError, "get genre")
+		serverError(w, "get genre", err)
 		return
 	}
 	if genre == nil {
@@ -111,7 +115,7 @@ func (h *songHandlers) getGenreExtended(w http.ResponseWriter, r *http.Request) 
 	}
 	all, err := h.repo.ListGenreFanart(r.Context(), genre.ID)
 	if err != nil {
-		httpError(w, http.StatusInternalServerError, "list fanart")
+		serverError(w, "list fanart", err)
 		return
 	}
 	authed := identify(h.cfg, r).Authenticated

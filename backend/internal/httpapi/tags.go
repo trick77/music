@@ -35,7 +35,7 @@ func (h *songHandlers) patch(w http.ResponseWriter, r *http.Request) {
 	}
 	song, err := h.repo.Get(r.Context(), r.PathValue("id"))
 	if err != nil {
-		httpError(w, http.StatusInternalServerError, "get song")
+		serverError(w, "get song", err)
 		return
 	}
 	if song == nil {
@@ -47,14 +47,14 @@ func (h *songHandlers) patch(w http.ResponseWriter, r *http.Request) {
 	// the DB is untouched.
 	abs, err := h.media.Resolve(song.FilePath)
 	if err != nil {
-		httpError(w, http.StatusInternalServerError, "resolve file")
+		serverError(w, "resolve file", err)
 		return
 	}
 	if err := metadata.WriteTags(abs, metadata.WriteableTags{
 		Title: req.Title, Artist: req.ArtistName, Album: req.Album,
 		Year: req.Year, TrackNo: req.TrackNo, Genres: req.Genres,
 	}); err != nil {
-		httpError(w, http.StatusInternalServerError, "write tags")
+		serverError(w, "write tags", err)
 		return
 	}
 	// Refresh the recorded size from the rewritten file; if Stat fails, keep the
@@ -69,7 +69,7 @@ func (h *songHandlers) patch(w http.ResponseWriter, r *http.Request) {
 		Year: req.Year, TrackNo: req.TrackNo, Genres: req.Genres, FileSize: size,
 	})
 	if err != nil {
-		httpError(w, http.StatusInternalServerError, "update song")
+		serverError(w, "update song", err)
 		return
 	}
 	writeJSON(w, updated)
@@ -88,7 +88,7 @@ func (h *songHandlers) suggest(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err != nil {
-		httpError(w, http.StatusInternalServerError, "suggest")
+		serverError(w, "suggest", err)
 		return
 	}
 	writeJSON(w, map[string]any{"suggestions": out})

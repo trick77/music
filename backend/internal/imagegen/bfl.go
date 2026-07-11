@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"net/url"
 	"strings"
@@ -63,6 +64,7 @@ func NewBFLClient(cfg BFLConfig) *BFLClient {
 }
 
 func (c *BFLClient) Generate(ctx context.Context, input GenerateRequest) (GenerateResult, error) {
+	start := time.Now()
 	req, err := input.Normalized()
 	if err != nil {
 		return GenerateResult{}, err
@@ -70,24 +72,40 @@ func (c *BFLClient) Generate(ctx context.Context, input GenerateRequest) (Genera
 	model := c.effectiveModel(req.Model)
 	submitted, err := c.submit(ctx, req, model)
 	if err != nil {
+		slog.Error("bfl generation failed", "model", model, "duration_ms", time.Since(start).Milliseconds(), "err", err)
 		return GenerateResult{}, err
 	}
 	status, err := c.poll(ctx, submitted.PollingURL)
 	if err != nil {
+		slog.Error("bfl generation failed", "model", model, "request_id", submitted.ID, "duration_ms", time.Since(start).Milliseconds(), "err", err)
 		return GenerateResult{}, err
 	}
 	imageURL := strings.TrimSpace(status.Result.Sample)
 	if imageURL == "" {
-		return GenerateResult{}, fmt.Errorf("BFL result did not include an image URL")
+		err := fmt.Errorf("BFL result did not include an image URL")
+		slog.Error("bfl generation failed", "model", model, "request_id", submitted.ID, "duration_ms", time.Since(start).Milliseconds(), "err", err)
+		return GenerateResult{}, err
 	}
 	body, contentType, err := c.download(ctx, imageURL)
 	if err != nil {
+		slog.Error("bfl generation failed", "model", model, "request_id", submitted.ID, "duration_ms", time.Since(start).Milliseconds(), "err", err)
 		return GenerateResult{}, err
 	}
 	mimeType := MIMEType(req.OutputFormat)
 	if strings.HasPrefix(contentType, "image/") {
 		mimeType = strings.Split(contentType, ";")[0]
 	}
+	attrs := []any{
+		"model", model,
+		"request_id", submitted.ID,
+		"duration_ms", time.Since(start).Milliseconds(),
+		"width", req.Width,
+		"height", req.Height,
+	}
+	if submitted.Cost != nil {
+		attrs = append(attrs, "cost_credits", *submitted.Cost)
+	}
+	slog.Info("bfl generation completed", attrs...)
 	return GenerateResult{
 		Filename:    req.Filename,
 		Extension:   extensionForMIME(mimeType, req.OutputFormat),

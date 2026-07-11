@@ -55,13 +55,19 @@ func TestOpen_squashedSchemaHasPhase4Objects(t *testing.T) {
 		}
 	}
 
-	// Three migrations recorded: the squash (0001), the song publish gate (0002),
-	// and the playlist publish gate (0003).
+	// The favorites table (0004) must exist.
+	if err := st.DB().QueryRow(
+		`SELECT name FROM sqlite_master WHERE type='table' AND name='favorites'`).Scan(&name); err != nil {
+		t.Fatalf("favorites table missing: %v", err)
+	}
+
+	// Four migrations recorded: the squash (0001), the song publish gate (0002),
+	// the playlist publish gate (0003), and favorites (0004).
 	var count int
 	if err := st.DB().QueryRow(`SELECT COUNT(*) FROM schema_migrations`).Scan(&count); err != nil {
 		t.Fatalf("count migrations: %v", err)
 	}
-	if count != 3 {
-		t.Fatalf("expected 3 recorded migrations, got %d", count)
+	if count != 4 {
+		t.Fatalf("expected 4 recorded migrations, got %d", count)
 	}
 }

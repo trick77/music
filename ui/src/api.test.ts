@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
 import { coverUrl } from "./cover";
-import { getHome, getTopTen, search, reportPlay } from "./api";
+import { getHome, getTopTen, search, reportPlay, getFavorites, addFavorite, removeFavorite } from "./api";
 
 function mockFetch(body: unknown, ok = true) {
   const spy = vi.fn().mockResolvedValue({
@@ -56,5 +56,29 @@ describe("api clients", () => {
   it("reportPlay swallows network errors", async () => {
     globalThis.fetch = vi.fn().mockRejectedValue(new Error("offline")) as unknown as typeof fetch;
     await expect(reportPlay("s1")).resolves.toBeUndefined();
+  });
+
+  it("getFavorites unwraps data.ids", async () => {
+    const f = mockFetch({ ids: ["a", "b"] });
+    const ids = await getFavorites();
+    expect(f).toHaveBeenCalledWith("/api/favorites");
+    expect(ids).toEqual(["a", "b"]);
+  });
+
+  it("addFavorite PUTs the song id", async () => {
+    const f = mockFetch({}, true);
+    await addFavorite("s1");
+    expect(f).toHaveBeenCalledWith("/api/favorites/s1", { method: "PUT" });
+  });
+
+  it("removeFavorite DELETEs the song id", async () => {
+    const f = mockFetch({}, true);
+    await removeFavorite("s1");
+    expect(f).toHaveBeenCalledWith("/api/favorites/s1", { method: "DELETE" });
+  });
+
+  it("addFavorite throws on a non-ok response", async () => {
+    mockFetch({}, false);
+    await expect(addFavorite("s1")).rejects.toThrow();
   });
 });

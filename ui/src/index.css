@@ -22,15 +22,7 @@
   font-style: italic;
   font-display: swap;
 }
-/* Anthropic Icons — variable icon font (glyphs in the U+E000–U+E11E PUA),
-   ported from loom so the context menus, star, and rail use the same iconography. */
-@font-face {
-  font-family: "Anthropic Icons";
-  src: url("./fonts/Icons-Variable.woff2") format("woff2");
-  font-weight: 400 700;
-  font-style: normal;
-  font-display: block;
-}
+/* Icons are provided by lucide-react (self-contained SVG) — no icon font. */
 
 /* loom design tokens — Warm Editorial, dark. */
 @theme {

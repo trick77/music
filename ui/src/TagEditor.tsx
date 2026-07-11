@@ -1,17 +1,11 @@
 import { useState } from "react";
 import { updateSong, uploadCover, suggest, type Song, type Suggestion } from "./api";
 import { coverUrl, coverInitial } from "./cover";
+import { Icon } from "./Icon";
+import { Button, controlClass, fieldLabel, t } from "./ui";
 
 type Props = { song: Song; onClose: () => void; onSaved: (s: Song) => void };
-
-const inputStyle: React.CSSProperties = {
-  width: "100%", background: "var(--color-bg)", color: "var(--color-ink)",
-  border: "1px solid var(--color-border)", borderRadius: 8, padding: "0.5rem 0.6rem", font: "inherit",
-};
-const labelStyle: React.CSSProperties = {
-  display: "block", fontSize: "0.7rem", letterSpacing: "0.08em", textTransform: "uppercase",
-  color: "var(--color-muted)", marginBottom: 4,
-};
+type Tab = "details" | "cover" | "lyrics";
 
 // cleanLyrics strips Suno's bracketed directives ([Verse], [Chorus], [Guitar solo], …)
 // and tidies leftover whitespace, leaving only sung words. Parentheses are left intact —
@@ -23,7 +17,12 @@ const cleanLyrics = (t: string) =>
     .replace(/\n{3,}/g, "\n\n")  // collapse blank-line runs
     .trim();
 
+// TagEditor is a tabbed editor (Details / Cover / Lyrics) — a centered modal on
+// desktop, full-screen on mobile. Tabs keep each screen short as the form grows
+// (docs/design-system.md). All three tabs stay mounted so unsaved edits survive
+// tab switches; only their visibility toggles.
 export function TagEditor({ song, onClose, onSaved }: Props) {
+  const [tab, setTab] = useState<Tab>("details");
   const [title, setTitle] = useState(song.title);
   const [artistName, setArtist] = useState(song.artistName);
   const [album, setAlbum] = useState(song.album);
@@ -78,56 +77,58 @@ export function TagEditor({ song, onClose, onSaved }: Props) {
     e.target.value = "";
   };
 
-  return (
-    <div
-      onClick={onClose}
-      style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", display: "grid", placeItems: "center", padding: "1rem", zIndex: 50 }}
+  const tabButton = (id: Tab, label: string) => (
+    <button
+      role="tab"
+      aria-selected={tab === id}
+      onClick={() => setTab(id)}
+      style={{
+        border: "none", cursor: "pointer", borderRadius: 999, padding: "6px 14px",
+        fontFamily: "var(--font-sans)", fontSize: "var(--text-ui)",
+        background: tab === id ? "var(--color-accent-fill)" : "transparent",
+        color: tab === id ? "var(--color-ink)" : "var(--color-muted)",
+      }}
     >
-      <div
-        onClick={(e) => e.stopPropagation()}
-        style={{ width: "min(560px, 100%)", background: "var(--color-panel)", border: "1px solid var(--color-border)", borderRadius: 14, padding: "1.25rem", maxHeight: "90vh", overflow: "auto" }}
-      >
-        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "1rem" }}>
-          <h3 style={{ margin: 0, fontFamily: "var(--font-serif)" }}>Edit tags</h3>
-          <button onClick={onClose} aria-label="Close" style={{ background: "none", border: "none", color: "var(--color-muted)", cursor: "pointer", fontSize: "1.2rem" }}>×</button>
+      {label}
+    </button>
+  );
+
+  return (
+    <div className="ui-overlay" onClick={onClose}>
+      <div className="ui-modal" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-label="Edit tags">
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "var(--space-4)", padding: "var(--space-4) var(--space-5)", borderBottom: "1px solid var(--color-border)" }}>
+          <h3 style={{ margin: 0, ...t.title }}>Edit tags</h3>
+          <button onClick={onClose} aria-label="Close" style={{ display: "inline-flex", background: "none", border: "none", color: "var(--color-muted)", cursor: "pointer", padding: 2 }}>
+            <Icon name="close" size="18px" />
+          </button>
         </div>
 
-        <div style={{ display: "flex", gap: "1rem", marginBottom: "1rem" }}>
-          <div style={{ width: 120, flexShrink: 0 }}>
-            <div style={{ width: 120, height: 120, borderRadius: 10, overflow: "hidden", border: "1px solid var(--color-border)", background: "var(--color-active)", display: "grid", placeItems: "center" }}>
-              {cover ? (
-                <img src={coverUrl(cover)} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-              ) : (
-                <span style={{ fontFamily: "var(--font-serif)", color: "var(--color-muted)" }}>{coverInitial(artistName)}</span>
-              )}
-            </div>
-            <label style={{ display: "block", marginTop: 8, textAlign: "center", fontSize: "0.8rem", color: "var(--color-accent-strong)", cursor: "pointer" }}>
-              Replace cover
-              <input type="file" accept="image/jpeg,image/png" onChange={onCover} style={{ display: "none" }} />
-            </label>
-            <p style={{ fontSize: "0.68rem", color: "var(--color-muted)", textAlign: "center", marginTop: 6 }}>
-              Applies to every track on this artist + album.
-            </p>
-          </div>
+        <div role="tablist" aria-label="Tag editor sections" style={{ display: "flex", gap: 2, padding: "var(--space-3) var(--space-5) 0" }}>
+          {tabButton("details", "Details")}
+          {tabButton("cover", "Cover")}
+          {tabButton("lyrics", "Lyrics")}
+        </div>
 
-          <div style={{ flex: 1, display: "grid", gap: "0.7rem" }}>
+        <div className="ui-modal-body" style={{ padding: "var(--space-5)" }}>
+          {/* Details */}
+          <div style={{ display: tab === "details" ? "grid" : "none", gap: "var(--space-4)" }}>
             <div>
-              <label style={labelStyle}>Title</label>
-              <input style={inputStyle} value={title} onChange={(e) => setTitle(e.target.value)} />
+              <label style={fieldLabel}>Title</label>
+              <input className={controlClass} value={title} onChange={(e) => setTitle(e.target.value)} />
             </div>
             <div style={{ position: "relative" }}>
-              <label style={labelStyle}>Artist</label>
+              <label style={fieldLabel}>Artist</label>
               <input
-                style={inputStyle}
+                className={controlClass}
                 value={artistName}
                 onChange={async (e) => { setArtist(e.target.value); setArtistOpts(await suggest("artist", e.target.value)); }}
                 onBlur={() => setTimeout(() => setArtistOpts([]), 150)}
               />
               {artistOpts.length > 0 && (
-                <div style={{ position: "absolute", top: "100%", left: 0, right: 0, background: "var(--color-panel)", border: "1px solid var(--color-border)", borderRadius: 8, zIndex: 5 }}>
+                <div style={{ position: "absolute", top: "100%", left: 0, right: 0, background: "var(--color-panel)", border: "1px solid var(--color-border)", borderRadius: "var(--radius-ui)", zIndex: 5 }}>
                   {artistOpts.map((o) => (
                     <div key={o.value} onMouseDown={() => { setArtist(o.value); setArtistOpts([]); }}
-                      style={{ padding: "0.4rem 0.6rem", cursor: "pointer", display: "flex", justifyContent: "space-between" }}>
+                      style={{ padding: "8px 12px", cursor: "pointer", display: "flex", justifyContent: "space-between", fontSize: "var(--text-ui)" }}>
                       <span>{o.value}</span><span style={{ color: "var(--color-muted)" }}>{o.count}</span>
                     </div>
                   ))}
@@ -135,69 +136,87 @@ export function TagEditor({ song, onClose, onSaved }: Props) {
               )}
             </div>
             <div>
-              <label style={labelStyle}>Album</label>
-              <input style={inputStyle} value={album} onChange={(e) => setAlbum(e.target.value)} />
+              <label style={fieldLabel}>Album</label>
+              <input className={controlClass} value={album} onChange={(e) => setAlbum(e.target.value)} />
             </div>
             <div>
-              <label style={labelStyle}>Genres</label>
+              <label style={fieldLabel}>Genres</label>
               <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 6 }}>
                 {genres.map((g) => (
-                  <span key={g} style={{ display: "inline-flex", alignItems: "center", gap: 4, background: "var(--color-active)", borderRadius: 999, padding: "0.15rem 0.55rem", fontSize: "0.8rem" }}>
+                  <span key={g} style={{ display: "inline-flex", alignItems: "center", gap: 5, background: "var(--color-active)", borderRadius: 999, padding: "3px 10px", fontSize: "var(--text-label)" }}>
                     {g}
-                    <button onClick={() => setGenres(genres.filter((x) => x !== g))} aria-label={`Remove ${g}`} style={{ background: "none", border: "none", color: "var(--color-muted)", cursor: "pointer" }}>×</button>
+                    <button onClick={() => setGenres(genres.filter((x) => x !== g))} aria-label={`Remove ${g}`} style={{ display: "inline-flex", background: "none", border: "none", color: "var(--color-muted)", cursor: "pointer", padding: 0 }}>
+                      <Icon name="close" size="12px" />
+                    </button>
                   </span>
                 ))}
               </div>
               <input
-                style={inputStyle}
+                className={controlClass}
                 placeholder="Add genre and press Enter"
                 value={genreInput}
                 onChange={(e) => setGenreInput(e.target.value)}
                 onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addGenre(genreInput); } }}
               />
             </div>
-            <div style={{ display: "flex", gap: "0.7rem" }}>
+            <div style={{ display: "flex", gap: "var(--space-3)" }}>
               <div style={{ flex: 1 }}>
-                <label style={labelStyle}>Year</label>
-                <input style={inputStyle} value={year} onChange={(e) => setYear(e.target.value)} inputMode="numeric" />
+                <label style={fieldLabel}>Year</label>
+                <input className={controlClass} value={year} onChange={(e) => setYear(e.target.value)} inputMode="numeric" />
               </div>
               <div style={{ flex: 1 }}>
-                <label style={labelStyle}>Track no.</label>
-                <input style={inputStyle} value={trackNo} onChange={(e) => setTrack(e.target.value)} inputMode="numeric" />
+                <label style={fieldLabel}>Track no.</label>
+                <input className={controlClass} value={trackNo} onChange={(e) => setTrack(e.target.value)} inputMode="numeric" />
               </div>
             </div>
           </div>
-        </div>
 
-        <div style={{ marginBottom: "1rem" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
-            <label style={{ ...labelStyle, marginBottom: 0 }}>Lyrics</label>
-            <button
-              type="button"
-              onClick={() => setLyrics(cleanLyrics(lyrics))}
-              title="Remove [Verse]/[Chorus]-style Suno tags"
-              style={{ background: "none", border: "1px solid var(--color-border)", color: "var(--color-accent-strong)", borderRadius: 6, padding: "0.15rem 0.55rem", fontSize: "0.72rem", cursor: "pointer" }}
-            >
-              Clean
-            </button>
+          {/* Cover */}
+          <div style={{ display: tab === "cover" ? "block" : "none" }}>
+            <div style={{ width: 160, maxWidth: "100%", margin: "0 auto" }}>
+              <div style={{ width: 160, height: 160, borderRadius: "var(--radius-ui)", overflow: "hidden", border: "1px solid var(--color-border)", background: "var(--color-active)", display: "grid", placeItems: "center" }}>
+                {cover ? (
+                  <img src={coverUrl(cover)} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                ) : (
+                  <span style={{ fontFamily: "var(--font-serif)", fontSize: "2rem", color: "var(--color-muted)" }}>{coverInitial(artistName)}</span>
+                )}
+              </div>
+              <label style={{ display: "block", marginTop: 8, textAlign: "center", fontSize: "var(--text-label)", color: "var(--color-accent-strong)", cursor: "pointer" }}>
+                Replace cover…
+                <input type="file" accept="image/jpeg,image/png" onChange={onCover} style={{ display: "none" }} />
+              </label>
+              <p style={{ fontSize: "var(--text-label)", color: "var(--color-muted)", textAlign: "center", marginTop: 6 }}>
+                Applies to every track on this artist + album.
+              </p>
+            </div>
           </div>
-          <textarea
-            value={lyrics}
-            onChange={(e) => setLyrics(e.target.value)}
-            rows={8}
-            placeholder="Paste lyrics here. Clean removes [Verse]/[Chorus] tags."
-            style={{ ...inputStyle, resize: "vertical", minHeight: 160, lineHeight: 1.4 }}
-          />
+
+          {/* Lyrics */}
+          <div style={{ display: tab === "lyrics" ? "block" : "none" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+              <label style={{ ...fieldLabel, marginBottom: 0 }}>Lyrics</label>
+              <Button variant="ghost" small onClick={() => setLyrics(cleanLyrics(lyrics))} title="Remove [Verse]/[Chorus]-style Suno tags">
+                Clean
+              </Button>
+            </div>
+            <textarea
+              className={controlClass}
+              value={lyrics}
+              onChange={(e) => setLyrics(e.target.value)}
+              rows={10}
+              placeholder="Paste lyrics here. Clean removes [Verse]/[Chorus] tags."
+              style={{ minHeight: 220, lineHeight: 1.5 }}
+            />
+          </div>
+
+          {err && <p role="alert" style={{ color: "var(--color-accent-strong)", fontSize: "var(--text-label)", margin: "var(--space-3) 0 0" }}>{err}</p>}
         </div>
 
-        {err && <p style={{ color: "var(--color-accent-strong)" }}>{err}</p>}
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "0.5rem" }}>
-          <span style={{ fontSize: "0.72rem", color: "var(--color-muted)" }}>Changes save to the file's ID3 tags</span>
-          <div style={{ display: "flex", gap: 8 }}>
-            <button onClick={onClose} style={{ background: "none", border: "1px solid var(--color-border)", color: "var(--color-ink)", borderRadius: 8, padding: "0.45rem 0.9rem", cursor: "pointer" }}>Cancel</button>
-            <button onClick={onSave} disabled={saving} style={{ background: "var(--color-accent)", border: "none", color: "var(--color-ink)", borderRadius: 8, padding: "0.45rem 0.9rem", cursor: "pointer" }}>
-              {saving ? "Saving…" : "Save changes"}
-            </button>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "var(--space-4)", padding: "var(--space-3) var(--space-5)", borderTop: "1px solid var(--color-border)" }}>
+          <span style={t.label}>Changes save to the file's ID3 tags.</span>
+          <div style={{ display: "flex", gap: "var(--space-2)", flexShrink: 0 }}>
+            <Button variant="secondary" onClick={onClose}>Cancel</Button>
+            <Button busy={saving} onClick={onSave}>Save changes</Button>
           </div>
         </div>
       </div>

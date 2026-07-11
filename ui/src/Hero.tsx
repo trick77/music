@@ -58,7 +58,7 @@ export function Hero({
       <div style={{ position: "relative", padding: "clamp(1.25rem, 3vw, 2.5rem)", maxWidth: 640 }}>
         <div
           style={{
-            fontSize: "0.8rem",
+            fontSize: "var(--text-micro)",
             letterSpacing: "0.14em",
             textTransform: "uppercase",
             color: "rgba(255,255,255,0.8)",
@@ -79,7 +79,7 @@ export function Hero({
         >
           {title}
         </h1>
-        <p style={{ color: "rgba(255,255,255,0.86)", margin: "0.5rem 0 1.1rem", fontSize: "1.05rem" }}>{subtitle}</p>
+        <p style={{ color: "rgba(255,255,255,0.86)", margin: "0.5rem 0 1.1rem", fontSize: "var(--text-body)" }}>{subtitle}</p>
         {featured && (
           <div style={{ display: "flex", gap: "0.7rem", flexWrap: "wrap" }}>
             <button
@@ -88,12 +88,12 @@ export function Hero({
                 display: "inline-flex",
                 alignItems: "center",
                 gap: "0.5rem",
-                background: "var(--color-accent-strong)",
+                background: "var(--color-accent-fill)",
                 color: "var(--color-ink)",
                 border: "none",
                 borderRadius: 999,
                 padding: "0.65rem 1.4rem",
-                fontSize: "1rem",
+                fontSize: "var(--text-ui)",
                 cursor: "pointer",
                 fontWeight: 600,
               }}
@@ -111,6 +111,7 @@ export function Hero({
                 border: "1px solid rgba(255,255,255,0.35)",
                 borderRadius: 999,
                 padding: "0.65rem 1.2rem",
+                fontSize: "var(--text-ui)",
                 textDecoration: "none",
               }}
             >
@@ -127,6 +128,7 @@ export function Hero({
                 border: "1px solid rgba(255,255,255,0.35)",
                 borderRadius: 999,
                 padding: "0.65rem 1.2rem",
+                fontSize: "var(--text-ui)",
                 cursor: "pointer",
               }}
             >

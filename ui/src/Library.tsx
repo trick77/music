@@ -4,6 +4,7 @@ import { coverUrl, coverInitial } from "./cover";
 import { formatDuration } from "./format";
 import { navigate } from "./router";
 import { Glyph } from "./Glyph";
+import { t } from "./ui";
 
 type Tab = "all" | "favorites" | "unpublished" | "playlists" | "genres";
 
@@ -41,9 +42,9 @@ export function Library({ songs, favoriteIds, authenticated, studioEnabled = fal
       <div style={{ display: "flex", gap: "0.4rem", marginBottom: "1.25rem" }}>
         {tabs.map((t) => (
           <button key={t} onClick={() => setTab(t)}
-            style={{ padding: "0.35rem 0.85rem", borderRadius: 999, cursor: "pointer", fontSize: "0.85rem",
-              border: "1px solid var(--color-border)",
-              background: tab === t ? "var(--color-active)" : "transparent",
+            style={{ padding: "7px 14px", borderRadius: 999, cursor: "pointer", fontSize: "var(--text-ui)",
+              border: "1px solid transparent",
+              background: tab === t ? "var(--color-accent-fill)" : "transparent",
               color: tab === t ? "var(--color-ink)" : "var(--color-muted)" }}>
             {t === "all" ? "All songs" : t === "favorites" ? "Favorites" : t === "unpublished" ? "Unpublished" : t === "playlists" ? "Playlists" : "Genres"}
           </button>
@@ -57,15 +58,15 @@ export function Library({ songs, favoriteIds, authenticated, studioEnabled = fal
         <div>
           {genres.length > 0 && (
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap", marginBottom: "1rem" }}>
-              <span style={{ color: "var(--color-muted)", fontSize: "0.85rem" }}>
+              <span style={t.label}>
                 {missing > 0
                   ? <><b style={{ color: "var(--color-accent-strong)" }}>{missing} of {genres.length}</b> genres still need artwork</>
                   : <>All {genres.length} genres have artwork</>}
               </span>
               {(missing > 0 || needsArtworkOnly) && (
                 <button onClick={() => setNeedsArtworkOnly((v) => !v)}
-                  style={{ display: "inline-flex", alignItems: "center", gap: 7, padding: "0.35rem 0.8rem", borderRadius: 999,
-                    cursor: "pointer", fontSize: "0.8rem", font: "inherit",
+                  style={{ display: "inline-flex", alignItems: "center", gap: 7, padding: "7px 14px", borderRadius: 999,
+                    cursor: "pointer", fontSize: "var(--text-ui)",
                     border: `1px solid ${needsArtworkOnly ? "var(--color-accent-strong)" : "var(--color-border)"}`,
                     background: needsArtworkOnly ? "var(--color-active)" : "transparent",
                     color: needsArtworkOnly ? "var(--color-accent-strong)" : "var(--color-muted)" }}>
@@ -90,19 +91,19 @@ export function Library({ songs, favoriteIds, authenticated, studioEnabled = fal
                   style={{ position: "absolute", inset: 0, border: "none", background: "transparent", cursor: "pointer", padding: 0 }} />
                 {!g.hasBackground && (
                   <span style={{ position: "absolute", top: 8, right: 8, display: "inline-flex", alignItems: "center", gap: 4, pointerEvents: "none",
-                    background: "rgba(0,0,0,0.45)", color: "#fff", borderRadius: 999, padding: "2px 8px", fontSize: "0.62rem", letterSpacing: "0.02em" }}>
+                    background: "rgba(0,0,0,0.45)", borderRadius: 999, padding: "2px 8px", ...t.micro, color: "#fff" }}>
                     <span style={{ width: 5, height: 5, borderRadius: "50%", background: "var(--color-accent-strong)" }} />
                     Needs artwork
                   </span>
                 )}
                 <div style={{ position: "relative", pointerEvents: "none" }}>
-                  <div style={{ fontFamily: "var(--font-serif)", fontSize: "1.05rem" }}>{g.name}</div>
-                  <div style={{ color: "var(--color-muted)", fontSize: "0.8rem" }}>{g.songCount} songs</div>
+                  <div style={t.title}>{g.name}</div>
+                  <div style={t.label}>{g.songCount} songs</div>
                 </div>
                 {canMake && (
                   <button onClick={() => navigate(`/studio/genre/${g.id}`)}
                     style={{ position: "relative", marginTop: 10, width: "100%", display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 6,
-                      fontSize: "0.72rem", fontWeight: 600, color: "var(--color-accent-strong)", cursor: "pointer",
+                      fontSize: "var(--text-label)", fontWeight: 600, color: "var(--color-accent-strong)", cursor: "pointer",
                       border: "1px solid var(--color-accent-strong)", borderRadius: 8, padding: "5px 8px",
                       background: "color-mix(in srgb, var(--color-accent-strong) 12%, transparent)" }}>
                     <Glyph name="spark" size={13} /> Create in Studio
@@ -121,18 +122,18 @@ export function Library({ songs, favoriteIds, authenticated, studioEnabled = fal
       })() : tab === "playlists" ? (
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))", gap: "1rem" }}>
           {authenticated && (
-            <button onClick={onNewPlaylist} style={{ aspectRatio: "1", borderRadius: 10, border: "1px dashed var(--color-border)", background: "transparent", color: "var(--color-muted)", cursor: "pointer" }}>+ New playlist</button>
+            <button onClick={onNewPlaylist} style={{ aspectRatio: "1", borderRadius: 10, border: "1px dashed var(--color-border)", background: "transparent", color: "var(--color-muted)", cursor: "pointer" }}>+ New playlist…</button>
           )}
           {playlists.map((pl) => (
             <button key={pl.id} onClick={() => navigate(`/playlist/${pl.id}`)} style={{ textAlign: "left", background: "none", border: "none", cursor: "pointer", padding: 0 }}>
               <div style={{ position: "relative", aspectRatio: "1", borderRadius: 10, overflow: "hidden", background: "var(--color-active)", border: "1px solid var(--color-border)", display: "grid", placeItems: "center" }}>
                 {pl.coverArtId ? <img src={coverUrl(pl.coverArtId)} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <span style={{ color: "var(--color-muted)", fontSize: "1.5rem" }}>♪</span>}
                 {authenticated && !pl.published && (
-                  <span style={{ position: "absolute", top: 6, left: 6, background: "rgba(0,0,0,0.55)", color: "#fff", borderRadius: 999, padding: "2px 8px", fontSize: "0.6rem", letterSpacing: "0.02em" }}>Unpublished</span>
+                  <span style={{ position: "absolute", top: 6, left: 6, background: "rgba(0,0,0,0.55)", borderRadius: 999, padding: "2px 8px", ...t.micro, color: "#fff" }}>Unpublished</span>
                 )}
               </div>
               <div style={{ marginTop: 6, color: "var(--color-ink)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{pl.name}</div>
-              <div style={{ color: "var(--color-muted)", fontSize: "0.8rem" }}>{pl.songCount} songs</div>
+              <div style={t.label}>{pl.songCount} songs</div>
             </button>
           ))}
           {playlists.length === 0 && !authenticated && <p style={{ color: "var(--color-muted)" }}>No playlists yet.</p>}
@@ -147,7 +148,7 @@ export function Library({ songs, favoriteIds, authenticated, studioEnabled = fal
               </span>
               <span style={{ minWidth: 0, flex: 1 }}>
                 <span style={{ display: "block", color: "var(--color-ink)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{song.title}</span>
-                <span style={{ display: "block", color: "var(--color-muted)", fontSize: "0.85rem" }}>{song.artistName}</span>
+                <span style={{ display: "block", ...t.label }}>{song.artistName}</span>
               </span>
               <span style={{ color: "var(--color-muted)", fontVariantNumeric: "tabular-nums", flexShrink: 0 }}>{formatDuration(song.durationMs)}</span>
               <span style={{ position: "relative", display: "flex", alignItems: "center", gap: "0.9rem", flexShrink: 0 }} onClick={(e) => e.stopPropagation()}>{renderRowActions(song)}</span>

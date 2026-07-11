@@ -178,3 +178,38 @@ textarea.ui-control {
 @keyframes ui-spin { to { transform: rotate(360deg); } }
 .ui-spin { animation: ui-spin 0.7s linear infinite; display: inline-flex; }
 @media (prefers-reduced-motion: reduce) { .ui-spin { animation-duration: 2.4s; } }
+
+/* Modal overlay: loom-style dim + 2px backdrop blur behind an open dialog. */
+.ui-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
+}
+/* Dialog surface: centered modal on desktop, full-screen on mobile (≤720px). */
+.ui-modal {
+  display: flex;
+  flex-direction: column;
+  width: min(560px, 100%);
+  max-height: 90vh;
+  background: var(--color-panel);
+  border: 1px solid var(--color-border);
+  border-radius: 14px;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.5);
+}
+.ui-modal-body { flex: 1; overflow: auto; min-height: 0; }
+@media (max-width: 720px) {
+  .ui-overlay { padding: 0; }
+  .ui-modal {
+    width: 100%;
+    max-height: none;
+    height: 100dvh;
+    border: none;
+    border-radius: 0;
+  }
+}

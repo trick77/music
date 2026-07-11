@@ -19,7 +19,7 @@ func patch(t *testing.T, h http.Handler, id string, body string) *httptest.Respo
 	return rr
 }
 
-func TestPatchSong_editsTagsAndWritesFile(t *testing.T) {
+func TestPatchSong_editReflectedInDownload(t *testing.T) {
 	h := testServer(t, config.AuthModeDev)
 	up := uploadFixture(t, h)
 	var song struct {
@@ -40,7 +40,9 @@ func TestPatchSong_editsTagsAndWritesFile(t *testing.T) {
 		t.Fatalf("edit not reflected: %+v", updated)
 	}
 
-	// Proof it hit the FILE: download the managed bytes and confirm the ID3 title.
+	// The DB is authoritative and the stored file is not rewritten on edit; the
+	// current tags are stamped into the bytes at download time. Download and
+	// confirm the edited ID3 title is present in the served copy.
 	dl := httptest.NewRecorder()
 	h.ServeHTTP(dl, httptest.NewRequest("GET", "/api/songs/"+song.ID+"/download", nil))
 	if !bytes.Contains(dl.Body.Bytes(), []byte("Renamed")) {

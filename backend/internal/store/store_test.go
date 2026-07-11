@@ -45,8 +45,9 @@ func TestOpen_squashedSchemaHasPhase4Objects(t *testing.T) {
 		t.Fatalf("album_covers table missing: %v", err)
 	}
 
-	// The content-hash unique index (was 0002) and the new playlist-order index.
-	for _, idx := range []string{"idx_songs_content_hash", "idx_playlist_songs_order"} {
+	// The content-hash unique index, the playlist-order index, and the publish-gate
+	// indexes (all folded into the single init migration).
+	for _, idx := range []string{"idx_songs_content_hash", "idx_playlist_songs_order", "idx_songs_published", "idx_playlists_published"} {
 		var got string
 		err := st.DB().QueryRow(
 			`SELECT name FROM sqlite_master WHERE type='index' AND name=?`, idx).Scan(&got)
@@ -55,19 +56,28 @@ func TestOpen_squashedSchemaHasPhase4Objects(t *testing.T) {
 		}
 	}
 
-	// The favorites table (0004) must exist.
+	// The favorites table (folded from former 0004) must exist.
 	if err := st.DB().QueryRow(
 		`SELECT name FROM sqlite_master WHERE type='table' AND name='favorites'`).Scan(&name); err != nil {
 		t.Fatalf("favorites table missing: %v", err)
 	}
 
-	// Four migrations recorded: the squash (0001), the song publish gate (0002),
-	// the playlist publish gate (0003), and favorites (0004).
+	// The is_published publish-gate columns (folded from former 0002/0003) exist.
+	for _, tbl := range []string{"songs", "playlists"} {
+		var got string
+		err := st.DB().QueryRow(
+			`SELECT name FROM pragma_table_info(?) WHERE name='is_published'`, tbl).Scan(&got)
+		if err != nil {
+			t.Fatalf("%s.is_published column missing: %v", tbl, err)
+		}
+	}
+
+	// A single squashed migration is recorded now that 0002/0003/0004 are folded in.
 	var count int
 	if err := st.DB().QueryRow(`SELECT COUNT(*) FROM schema_migrations`).Scan(&count); err != nil {
 		t.Fatalf("count migrations: %v", err)
 	}
-	if count != 4 {
-		t.Fatalf("expected 4 recorded migrations, got %d", count)
+	if count != 1 {
+		t.Fatalf("expected 1 recorded migration, got %d", count)
 	}
 }

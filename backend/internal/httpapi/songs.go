@@ -177,6 +177,8 @@ func (h *songHandlers) upload(w http.ResponseWriter, r *http.Request) {
 	if title == "" {
 		title = strings.TrimSuffix(header.Filename, filepath.Ext(header.Filename))
 	}
+	// The stored title is left exactly as tagged; the DB is the source of truth and
+	// duplicate artist+title rows are allowed to coexist as-is.
 	song, err := h.repo.Create(r.Context(), newID, library.CreateSongParams{
 		Title:       title,
 		ArtistName:  tags.Artist,
@@ -242,6 +244,47 @@ func (h *songHandlers) serveFile(w http.ResponseWriter, r *http.Request, attach 
 		httpError(w, http.StatusNotFound, "not found")
 		return
 	}
+	w.Header().Set("Content-Type", "audio/mpeg")
+
+	if !attach {
+		// Player/stream: serve the stored bytes as-is so HTTP range/seek stays cheap.
+		// The player never reads embedded tags, so there's nothing to stamp.
+		f, err := h.media.Open(song.FilePath)
+		if err != nil {
+			httpError(w, http.StatusNotFound, "audio file missing")
+			return
+		}
+		defer f.Close()
+		info, err := f.Stat()
+		if err != nil {
+			serverError(w, "stat file", err)
+			return
+		}
+		http.ServeContent(w, r, song.ID+".mp3", info.ModTime(), f)
+		return
+	}
+
+	// Download/export: the DB is the source of truth for tags, so bake the current
+	// tags into a throwaway copy and serve that. The stored file is never mutated.
+	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=%q", downloadName(song)))
+	if srcAbs, err := h.media.Resolve(song.FilePath); err == nil {
+		if tmpName, err := stampToTemp(srcAbs, songTags(song)); err == nil {
+			defer os.Remove(tmpName)
+			if f, err := os.Open(tmpName); err == nil {
+				defer f.Close()
+				if info, err := f.Stat(); err == nil {
+					http.ServeContent(w, r, song.ID+".mp3", info.ModTime(), f)
+					return
+				}
+			}
+		} else {
+			// Stamping can fail on a file id3v2 can't parse (upload validation is
+			// loose). Never fail the download for that — fall back to the raw bytes.
+			slog.Warn("download tag stamp failed; serving stored file as-is", "song", song.ID, "err", err)
+		}
+	}
+	// Fallback: serve the stored file unmodified (also covers a missing/unsafe path,
+	// which surfaces as 404 here just as it did before stamping existed).
 	f, err := h.media.Open(song.FilePath)
 	if err != nil {
 		httpError(w, http.StatusNotFound, "audio file missing")
@@ -253,11 +296,37 @@ func (h *songHandlers) serveFile(w http.ResponseWriter, r *http.Request, attach 
 		serverError(w, "stat file", err)
 		return
 	}
-	w.Header().Set("Content-Type", "audio/mpeg")
-	if attach {
-		w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=%q", downloadName(song)))
-	}
 	http.ServeContent(w, r, song.ID+".mp3", info.ModTime(), f)
+}
+
+// stampToTemp copies the stored file at srcAbs into a fresh temp file with the given
+// tags baked in and returns the temp path; the caller owns its removal. On error the
+// temp file is cleaned up so no orphan is left behind.
+func stampToTemp(srcAbs string, t metadata.WriteableTags) (string, error) {
+	tmp, err := os.CreateTemp("", "music-download-*.mp3")
+	if err != nil {
+		return "", err
+	}
+	name := tmp.Name()
+	tmp.Close()
+	if err := metadata.StampTags(srcAbs, name, t); err != nil {
+		os.Remove(name)
+		return "", err
+	}
+	return name, nil
+}
+
+// songTags maps a stored song's authoritative DB metadata to the writeable tag set
+// baked into a download.
+func songTags(s *library.Song) metadata.WriteableTags {
+	return metadata.WriteableTags{
+		Title:   s.Title,
+		Artist:  s.ArtistName,
+		Album:   s.Album,
+		Year:    s.Year,
+		TrackNo: s.TrackNo,
+		Genres:  s.Genres,
+	}
 }
 
 func isMP3(filename, contentType string) bool {

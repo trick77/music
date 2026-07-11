@@ -126,6 +126,31 @@ func (r *Repo) Get(ctx context.Context, id string) (*Song, error) {
 	return song, nil
 }
 
+// DeleteSong removes a song and returns its stored audio file path so the caller
+// can delete the file. existed is false when no such song was present. Child rows
+// (plays, playlist_songs, song_genres) cascade via FK. Cover art is not touched.
+func (r *Repo) DeleteSong(ctx context.Context, id string) (filePath string, existed bool, err error) {
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return "", false, err
+	}
+	defer tx.Rollback()
+	err = tx.QueryRowContext(ctx, `SELECT file_path FROM songs WHERE id=?`, id).Scan(&filePath)
+	if errors.Is(err, sql.ErrNoRows) {
+		return "", false, nil
+	}
+	if err != nil {
+		return "", false, err
+	}
+	if _, err = tx.ExecContext(ctx, `DELETE FROM songs WHERE id=?`, id); err != nil {
+		return "", false, err
+	}
+	if err = tx.Commit(); err != nil {
+		return "", false, err
+	}
+	return filePath, true, nil
+}
+
 // List returns all songs, newest first. includeUnpublished includes unpublished
 // songs (an authenticated viewer); anonymous callers pass false.
 func (r *Repo) List(ctx context.Context, includeUnpublished bool) ([]Song, error) {

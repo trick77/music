@@ -14,6 +14,7 @@ import { navigate } from "./router";
 import { playlistShareUrl } from "./share";
 import { Glyph } from "./Glyph";
 import { Icon } from "./Icon";
+import { SyncingBadge } from "./SyncingBadge";
 import { GenreEditor } from "./GenreEditor";
 
 export type DetailKind = "genre" | "artist" | "playlist";
@@ -189,7 +190,10 @@ export function Detail({ kind, id, authenticated, studioEnabled, imageGenEnabled
               </button>
               <button onClick={() => onPlay(s, songs.slice(i + 1))} style={{ ...linkBtn, textAlign: "left", minWidth: 0 }}>
                 <div style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.title}</div>
-                <div style={{ color: "var(--color-muted)", fontSize: "var(--text-label)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.artistName}</div>
+                <div style={{ display: "flex", alignItems: "center", gap: "0.6rem", color: "var(--color-muted)", fontSize: "var(--text-label)" }}>
+                  <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.artistName}</span>
+                  <SyncingBadge status={s.alignmentStatus} />
+                </div>
               </button>
               <span style={{ display: "flex", alignItems: "center", gap: "0.35rem" }}>{renderRowActions(s)}</span>
             </div>

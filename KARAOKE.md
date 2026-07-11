@@ -70,7 +70,7 @@ karaoke "wipe" highlighting. Line-level falls out of the word timings for free.
 | **1 — Lyrics field** | ✅ Done (PR #48) | Lyrics box + Clean button in the tag editor; read/write ID3 `USLT`. |
 | **2 — Alignment engine** | ✅ Done (PR #52) | Generate + store word-level timings via the sidecar. Engine only, no UI. |
 | **2.5 — Quality evaluation** | ✅ Validated (spike) | Real container built + run; a real Suno song aligned **cleanly** (see results below). Two build bugs found + fixed. |
-| **3 — Highlighting player** | 🔜 Next | Front-end karaoke view that highlights the active word/line; `.lrc` export. |
+| **3 — Highlighting player** | 🔜 Next | Front-end karaoke view that highlights the active word/line as the song plays. In-app only. |
 | **4 — Correction editor** | 📋 Planned | UI to hand-correct mis-timed words. |
 
 ---
@@ -189,10 +189,11 @@ skip it.
 
 ---
 
-## Phase 3 — Highlighting player + LRC export (📋 next after 2.5)
+## Phase 3 — Highlighting player (🔜 next after 2.5)
 
 **Goal:** while a song with `ready` timings plays, highlight the active word/line in
-time with the audio; and export the timings as an enhanced `.lrc` file.
+time with the audio. **In-app only — no export** (decided: the timings are consumed
+solely by this app's player; no `.lrc` file, no SYLT-in-download).
 
 Scope:
 1. **Karaoke view** in the web UI. On each audio `timeupdate` tick, find the active
@@ -201,8 +202,6 @@ Scope:
    `(currentTime − start) / (end − start)`. Fall back gracefully to the plain stored
    lyrics when a song has no alignment. Gate on the `alignmentEnabled` session flag +
    the per-song alignment `status`.
-2. **`.lrc` export** — an endpoint that renders a song's stored timings as enhanced
-   LRC (word-level A2 `<mm:ss.xx>` markers), downloadable.
 
 Integration points:
 - Timings come from `GET /api/songs/:id/align` → `{status, engine, lines:[{text,

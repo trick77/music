@@ -7,7 +7,11 @@
     "build": "tsc --noEmit && vite build",
     "test": "vitest"
   },
-  "dependencies": { "react": "^19.2.7", "react-dom": "^19.2.7" },
+  "dependencies": {
+    "lucide-react": "^1.24.0",
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7"
+  },
   "devDependencies": {
     "@tailwindcss/vite": "^4.3.1",
     "@types/react": "^19.2.17",

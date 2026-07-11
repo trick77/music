@@ -1,75 +1,84 @@
 import type { CSSProperties } from "react";
+import {
+  Send, Copy, SquarePen, Feather, Trash2, Search, Settings, SlidersHorizontal,
+  Paperclip, Square, Play, Pause, RotateCw, Undo2, Check, CircleCheck, TriangleAlert,
+  LoaderCircle, Star, StarOff, User, Users, Folder, FolderPlus, PanelLeft, Ellipsis,
+  ChevronDown, ChevronLeft, ChevronRight, ChevronUp, X, CircleX, MessageSquare,
+  CirclePlus, Eye, Globe, Clock, EllipsisVertical, Plus, Upload, Download, Share2,
+  ExternalLink, Volume2, ArrowUpNarrowWide, ArrowDownWideNarrow, List, ListEnd,
+  type LucideIcon,
+} from "lucide-react";
 
 /**
- * Anthropicons — icon-font component, ported from loom.
+ * Icon — thin wrapper over lucide-react (ISC-licensed, self-contained SVG).
  *
- * Renders a glyph from the "Anthropic Icons" variable font (see the @font-face
- * in index.css). Codepoints live in the Private-Use area U+E000–U+E11E and have
- * no speaking names in the font — the mapping below was verified visually in loom.
+ * Replaces the former proprietary "Anthropic Icons" variable font: the public
+ * surface (name/size/label/style) is unchanged, so every call site — including
+ * Menu.tsx's `icon?: IconName` prop — keeps working. Lucide is the same visual
+ * language the SVG <Glyph> set was already drawn in (24×24 grid, rounded caps),
+ * so nothing needs restyling.
  *
  * Usage:
  *   <Icon name="star" />
  *   <Icon name="trash" size="19px" label="Delete" />
  */
-const CODEPOINTS = {
-  send: 0xe09e,
-  copy: 0xe056,
-  edit: 0xe064,
-  feather: 0xe0ed,
-  trash: 0xe101,
-  search: 0xe0d3,
-  settings: 0xe0d6,
-  sliders: 0xe070,
-  attach: 0xe019,
-  stop: 0xe0ec,
-  play: 0xe0c4,
-  pause: 0xe0bb,
-  retry: 0xe11d,
-  undo: 0xe11e,
-  check: 0xe03b,
-  checkCircle: 0xe03c,
-  warning: 0xe109,
-  spinner: 0xe0c1,
-  star: 0xe0e7,
-  starFilled: 0xe0e8,
-  starOff: 0xe0e9,
-  user: 0xe104,
-  users: 0xe106,
-  folder: 0xe072,
-  folderPlus: 0xe074,
-  sidebar: 0xe0dd,
-  more: 0xe05f,
-  chevronDown: 0xe027,
-  chevronLeft: 0xe029,
-  chevronRight: 0xe02a,
-  chevronUp: 0xe02b,
-  close: 0xe10f,
-  closeCircle: 0xe110,
-  message: 0xe037,
-  addCircle: 0xe032,
-  eye: 0xe069,
-  globe: 0xe082,
-  clock: 0xe068,
-  moreVertical: 0xe062,
-  moreHorizontal: 0xe061,
-  plus: 0xe001,
-  upload: 0xe103,
-  download: 0xe063,
-  share: 0xe0d9,
-  externalLink: 0xe00e,
-  volume: 0xe0e4,
-  sortUp: 0xe013,
-  sortDown: 0xe009,
-  allThreads: 0xe060,
-  openItems: 0xe0f1,
-} as const;
+const COMPONENTS = {
+  send: Send,
+  copy: Copy,
+  edit: SquarePen,
+  feather: Feather,
+  trash: Trash2,
+  search: Search,
+  settings: Settings,
+  sliders: SlidersHorizontal,
+  attach: Paperclip,
+  stop: Square,
+  play: Play,
+  pause: Pause,
+  retry: RotateCw,
+  undo: Undo2,
+  check: Check,
+  checkCircle: CircleCheck,
+  warning: TriangleAlert,
+  spinner: LoaderCircle,
+  star: Star,
+  starFilled: Star, // rendered solid via the FILLED set below
+  starOff: StarOff,
+  user: User,
+  users: Users,
+  folder: Folder,
+  folderPlus: FolderPlus,
+  sidebar: PanelLeft,
+  more: Ellipsis,
+  chevronDown: ChevronDown,
+  chevronLeft: ChevronLeft,
+  chevronRight: ChevronRight,
+  chevronUp: ChevronUp,
+  close: X,
+  closeCircle: CircleX,
+  message: MessageSquare,
+  addCircle: CirclePlus,
+  eye: Eye,
+  globe: Globe,
+  clock: Clock,
+  moreVertical: EllipsisVertical,
+  moreHorizontal: Ellipsis,
+  plus: Plus,
+  upload: Upload,
+  download: Download,
+  share: Share2,
+  externalLink: ExternalLink,
+  volume: Volume2,
+  sortUp: ArrowUpNarrowWide,
+  sortDown: ArrowDownWideNarrow,
+  allThreads: List,
+  openItems: ListEnd,
+} satisfies Record<string, LucideIcon>;
 
-export type IconName = keyof typeof CODEPOINTS;
+export type IconName = keyof typeof COMPONENTS;
 
-/** Name → glyph string (for direct use in content/CSS when a component is overkill). */
-export const ICONS = Object.fromEntries(
-  Object.entries(CODEPOINTS).map(([name, cp]) => [name, String.fromCodePoint(cp)]),
-) as Record<IconName, string>;
+/** Names rendered as a solid (filled) glyph rather than an outline. */
+const FILLED = new Set<IconName>(["starFilled"]);
 
 export function Icon({
   name,
@@ -78,29 +87,22 @@ export function Icon({
   style,
 }: {
   name: IconName;
-  /** font-size of the glyph (controls the icon size). loom defaults to 1.33rem. */
+  /** font-size-equivalent of the glyph (px/rem string). Kept for call-site compat. */
   size?: string;
   /** When set, the icon is meaningful (role=img); otherwise it is decorative. */
   label?: string;
   style?: CSSProperties;
 }) {
+  const C = COMPONENTS[name];
   return (
-    <span
-      style={{
-        fontFamily: '"Anthropic Icons"',
-        fontSize: size,
-        lineHeight: 1,
-        fontStyle: "normal",
-        fontWeight: 400,
-        display: "inline-block",
-        flexShrink: 0,
-        ...style,
-      }}
+    <C
+      size={size}
+      strokeWidth={1.9}
+      fill={FILLED.has(name) ? "currentColor" : "none"}
       role={label ? "img" : undefined}
       aria-label={label}
       aria-hidden={label ? undefined : true}
-    >
-      {String.fromCodePoint(CODEPOINTS[name])}
-    </span>
+      style={{ display: "inline-block", flexShrink: 0, verticalAlign: "middle", ...style }}
+    />
   );
 }

@@ -49,7 +49,7 @@ export function Home({ authenticated, onPlay, onShare, onUpload, renderRowAction
             {onUpload && (
               <button
                 onClick={onUpload}
-                style={{ marginTop: "0.5rem", display: "inline-flex", alignItems: "center", gap: "0.5rem", background: "var(--color-accent-strong)", color: "#fff", border: "none", borderRadius: 999, padding: "0.6rem 1.3rem", cursor: "pointer", fontWeight: 600 }}
+                style={{ marginTop: "0.5rem", display: "inline-flex", alignItems: "center", gap: "0.5rem", background: "var(--color-accent-strong)", color: "var(--color-ink)", border: "none", borderRadius: 999, padding: "0.6rem 1.3rem", cursor: "pointer", fontWeight: 600 }}
               >
                 <Glyph name="upload" size={18} /> Upload music
               </button>
@@ -138,7 +138,7 @@ export function Home({ authenticated, onPlay, onShare, onUpload, renderRowAction
                   ) : (
                     <span style={{ fontFamily: "var(--font-serif)", fontSize: "2.2rem", color: "var(--color-muted)" }}>{coverInitial(s.title)}</span>
                   )}
-                  <span className="playfab" style={{ position: "absolute", right: 10, bottom: 10, width: 38, height: 38, borderRadius: 999, background: "var(--color-accent-strong)", color: "#fff", display: "grid", placeItems: "center" }}>
+                  <span className="playfab" style={{ position: "absolute", right: 10, bottom: 10, width: 38, height: 38, borderRadius: 999, background: "var(--color-accent-strong)", color: "var(--color-ink)", display: "grid", placeItems: "center" }}>
                     <Glyph name="play" size={18} />
                   </span>
                 </div>

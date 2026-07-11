@@ -124,7 +124,7 @@ export function PlaylistEditor({ existing, onClose, onSaved }: Props) {
 
         <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.6rem", marginTop: "1.25rem" }}>
           <button onClick={onClose} style={btnStyle}>Cancel</button>
-          <button onClick={save} disabled={busy || !name} style={{ ...btnStyle, background: "var(--color-accent-strong)", color: "#fff", border: "none" }}>
+          <button onClick={save} disabled={busy || !name} style={{ ...btnStyle, background: "var(--color-accent-strong)", color: "var(--color-ink)", border: "none" }}>
             {existing ? "Save" : "Create playlist"}
           </button>
         </div>

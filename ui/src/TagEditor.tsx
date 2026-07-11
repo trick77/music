@@ -163,7 +163,7 @@ export function TagEditor({ song, onClose, onSaved }: Props) {
           <span style={{ fontSize: "0.72rem", color: "var(--color-muted)" }}>Changes save to the file's ID3 tags</span>
           <div style={{ display: "flex", gap: 8 }}>
             <button onClick={onClose} style={{ background: "none", border: "1px solid var(--color-border)", color: "var(--color-ink)", borderRadius: 8, padding: "0.45rem 0.9rem", cursor: "pointer" }}>Cancel</button>
-            <button onClick={onSave} disabled={saving} style={{ background: "var(--color-accent)", border: "none", color: "#fff", borderRadius: 8, padding: "0.45rem 0.9rem", cursor: "pointer" }}>
+            <button onClick={onSave} disabled={saving} style={{ background: "var(--color-accent)", border: "none", color: "var(--color-ink)", borderRadius: 8, padding: "0.45rem 0.9rem", cursor: "pointer" }}>
               {saving ? "Saving…" : "Save changes"}
             </button>
           </div>

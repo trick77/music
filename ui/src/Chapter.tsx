@@ -52,7 +52,7 @@ export function Chapter({ chapter, onPlay }: { chapter: GenreChapter; onPlay: (s
                 ) : (
                   <span style={{ fontFamily: "var(--font-serif)", fontSize: "2rem", color: "rgba(255,255,255,0.7)" }}>{coverInitial(s.title)}</span>
                 )}
-                <span className="playfab" style={{ position: "absolute", right: 8, bottom: 8, width: 34, height: 34, borderRadius: 999, background: "var(--color-accent-strong)", color: "#fff", display: "grid", placeItems: "center" }}>
+                <span className="playfab" style={{ position: "absolute", right: 8, bottom: 8, width: 34, height: 34, borderRadius: 999, background: "var(--color-accent-strong)", color: "var(--color-ink)", display: "grid", placeItems: "center" }}>
                   <Glyph name="play" size={16} />
                 </span>
               </div>

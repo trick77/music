@@ -1,29 +1,24 @@
 import { useState } from "react";
-import { uploadFanart, generateFanart, getFanartMeta, patchGenre, suggestGenrePrompt, type GenreDetail, type Fanart } from "./api";
+import { uploadFanart, patchGenre, type GenreDetail, type Fanart } from "./api";
 import { fanartUrl } from "./fanart";
 import { Icon } from "./Icon";
+import { navigate } from "./router";
 
-type Props = { detail: GenreDetail; imageGenEnabled: boolean; chatEnabled: boolean; onClose: () => void; onChanged: () => void };
+type Props = { detail: GenreDetail; studioEnabled: boolean; imageGenEnabled: boolean; onClose: () => void; onChanged: () => void };
 
 const labelStyle: React.CSSProperties = {
   display: "block", fontSize: "0.7rem", letterSpacing: "0.08em", textTransform: "uppercase",
   color: "var(--color-muted)", marginBottom: 4,
 };
 
-export function GenreEditor({ detail, imageGenEnabled, chatEnabled, onClose, onChanged }: Props) {
+export function GenreEditor({ detail, studioEnabled, imageGenEnabled, onClose, onChanged }: Props) {
+  // Generation lives in Studio, and Studio can only generate when both the
+  // Studio LLM keys and the image generator are configured — mirror the exact
+  // gate the Genres grid uses so both entry points agree.
+  const canGenerate = studioEnabled && imageGenEnabled;
   const [name, setName] = useState(detail.genre.name);
-  const [busy, setBusy] = useState(false);
-  const [suggesting, setSuggesting] = useState(false);
-  const [prompt, setPrompt] = useState("");
   const [err, setErr] = useState<string | null>(null);
   const genreId = detail.genre.id;
-
-  const onSuggest = async () => {
-    setSuggesting(true); setErr(null);
-    try { setPrompt(await suggestGenrePrompt(genreId)); }
-    catch { setErr("Could not suggest a prompt"); }
-    finally { setSuggesting(false); }
-  };
 
   const refresh = () => onChanged();
 
@@ -52,27 +47,6 @@ export function GenreEditor({ detail, imageGenEnabled, chatEnabled, onClose, onC
     if (!name.trim()) return;
     try { await patchGenre(genreId, { name: name.trim() }); refresh(); }
     catch { setErr("Rename failed"); }
-  };
-
-  const pollUntilDone = async (id: string) => {
-    for (let i = 0; i < 120; i++) {
-      const fa = await getFanartMeta(id);
-      if (fa.status !== "generating") { refresh(); if (fa.status === "failed") setErr(fa.error || "Generation failed"); return; }
-      await new Promise((r) => setTimeout(r, 1500));
-      refresh();
-    }
-  };
-
-  const onGenerate = async () => {
-    if (!prompt.trim()) return;
-    setBusy(true); setErr(null);
-    try {
-      const { id } = await generateFanart(prompt.trim(), "genre", genreId);
-      setPrompt("");
-      refresh();
-      void pollUntilDone(id);
-    } catch { setErr("Could not start generation"); }
-    finally { setBusy(false); }
   };
 
   const active = detail.fanart.find((f) => f.id === detail.backgroundId);
@@ -118,24 +92,15 @@ export function GenreEditor({ detail, imageGenEnabled, chatEnabled, onClose, onC
           </label>
         </div>
 
-        {imageGenEnabled && (
-          <div style={{ borderTop: "1px solid var(--color-border)", paddingTop: "1rem" }}>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
-              <label style={{ ...labelStyle, marginBottom: 0 }}>Generate image</label>
-              {chatEnabled && (
-                <button onClick={onSuggest} disabled={suggesting}
-                  style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "none",
-                    border: "1px solid var(--color-border)", color: "var(--color-accent-strong)", borderRadius: 8,
-                    padding: "0.3rem 0.65rem", font: "inherit", fontSize: "0.8rem", cursor: suggesting ? "default" : "pointer" }}>
-                  <Icon name="feather" size="14px" />{suggesting ? "Thinking…" : "Suggest prompt"}
-                </button>
-              )}
-            </div>
-            <textarea value={prompt} onChange={(e) => setPrompt(e.target.value)} placeholder="Describe the image you want…" rows={3}
-              style={{ width: "100%", background: "var(--color-bg)", color: "var(--color-ink)", border: "1px solid var(--color-border)", borderRadius: 8, padding: "0.5rem 0.6rem", font: "inherit", resize: "vertical" }} />
-            <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 8 }}>
-              <button onClick={onGenerate} disabled={busy || !prompt.trim()} style={{ background: "var(--color-accent)", border: "none", color: "#fff", borderRadius: 8, padding: "0.45rem 0.9rem", cursor: "pointer" }}>{busy ? "Starting…" : "Generate"}</button>
-            </div>
+        {canGenerate && (
+          <div style={{ borderTop: "1px solid var(--color-border)", paddingTop: "1rem", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+            <span style={{ color: "var(--color-muted)", fontSize: "0.8rem" }}>Create a new background image with AI.</span>
+            <button onClick={() => navigate(`/studio/genre/${genreId}`)}
+              style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "none",
+                border: "1px solid var(--color-accent-strong)", color: "var(--color-accent-strong)", borderRadius: 8,
+                padding: "0.4rem 0.8rem", font: "inherit", fontSize: "0.82rem", fontWeight: 600, cursor: "pointer", whiteSpace: "nowrap" }}>
+              Generate in Studio →
+            </button>
           </div>
         )}
 

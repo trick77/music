@@ -32,8 +32,8 @@ type Props = {
   kind: DetailKind;
   id: string;
   authenticated: boolean;
+  studioEnabled: boolean;
   imageGenEnabled: boolean;
-  chatEnabled: boolean;
   onPlay: (s: Song, tail: Song[]) => void;
   onShare: (url: string) => void;
   onEditPlaylist: (pl: PD) => void;
@@ -45,7 +45,7 @@ type Props = {
 // edge. Per-kind data loads behind one shared layout so arrangements can change
 // without a rewrite. Existing edit flows (genre background editor, playlist
 // editor) are preserved behind the authenticated flag.
-export function Detail({ kind, id, authenticated, imageGenEnabled, chatEnabled, onPlay, onShare, onEditPlaylist, renderRowActions }: Props) {
+export function Detail({ kind, id, authenticated, studioEnabled, imageGenEnabled, onPlay, onShare, onEditPlaylist, renderRowActions }: Props) {
   const [genre, setGenre] = useState<GD | null>(null);
   const [playlist, setPlaylist] = useState<PD | null>(null);
   const [artist, setArtist] = useState<{ artist: { id: string; name: string; songCount: number }; songs: Song[] } | null>(null);
@@ -189,7 +189,7 @@ export function Detail({ kind, id, authenticated, imageGenEnabled, chatEnabled, 
       </div>
 
       {editingGenre && genre && (
-        <GenreEditor detail={genre} imageGenEnabled={imageGenEnabled} chatEnabled={chatEnabled} onClose={() => setEditingGenre(false)} onChanged={() => loadGenre()} />
+        <GenreEditor detail={genre} studioEnabled={studioEnabled} imageGenEnabled={imageGenEnabled} onClose={() => setEditingGenre(false)} onChanged={() => loadGenre()} />
       )}
     </div>
   );

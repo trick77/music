@@ -40,8 +40,8 @@ export function App() {
   const [feedVersion, setFeedVersion] = useState(0);
   const uploadRef = useRef<HTMLInputElement>(null);
   const restored = useRef(false);
-  const fav = useFavorites();
   const authed = !!session?.authenticated;
+  const fav = useFavorites(session === null ? null : session.authenticated);
 
   const refresh = () => listSongs().then(setSongs).catch(() => {});
   useEffect(() => {

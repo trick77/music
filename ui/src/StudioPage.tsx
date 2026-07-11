@@ -134,7 +134,7 @@ export function CoverArtCard({ prompt }: { prompt: string }) {
           disabled={disabled}
           style={{
             background: "var(--color-accent-strong)",
-            color: "#1a0f0a",
+            color: "var(--color-ink)",
             fontWeight: 600,
             fontSize: "0.85rem",
             border: "none",
@@ -296,7 +296,7 @@ export function StudioPage({ imageGenEnabled = false, chatEnabled = false, initi
           disabled={busy || reference.trim() === ""}
           style={{
             background: "var(--color-accent-strong)",
-            color: "#fff",
+            color: "var(--color-ink)",
             fontWeight: 600,
             fontSize: "0.95rem",
             border: "none",

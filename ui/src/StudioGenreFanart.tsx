@@ -128,7 +128,7 @@ export function GenreFanartMode({ chatEnabled, initialGenreId }: Props) {
         <button
           onClick={onGenerate}
           disabled={genDisabled}
-          style={{ background: "var(--color-accent-strong)", color: "#1a0f0a", fontWeight: 600, fontSize: "0.9rem", border: "none",
+          style={{ background: "var(--color-accent-strong)", color: "var(--color-ink)", fontWeight: 600, fontSize: "0.9rem", border: "none",
             borderRadius: "var(--radius-ui)", padding: "0.6rem 1.1rem", cursor: genDisabled ? "default" : "pointer", opacity: genDisabled ? 0.6 : 1 }}
         >
           {busy ? "Generating…" : result?.status === "ready" ? "Regenerate" : "Generate fanart"}
@@ -154,7 +154,7 @@ export function GenreFanartMode({ chatEnabled, initialGenreId }: Props) {
             <button
               onClick={setBackground}
               disabled={saved}
-              style={{ background: saved ? "var(--color-active)" : "var(--color-accent-strong)", color: saved ? "var(--color-muted)" : "#1a0f0a",
+              style={{ background: saved ? "var(--color-active)" : "var(--color-accent-strong)", color: saved ? "var(--color-muted)" : "var(--color-ink)",
                 fontWeight: 600, fontSize: "0.85rem", border: "none", borderRadius: "var(--radius-ui)", padding: "0.5rem 0.9rem", cursor: saved ? "default" : "pointer" }}
             >
               {saved ? "Set as background ✓" : "Set as background"}

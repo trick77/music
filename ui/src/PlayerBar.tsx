@@ -49,7 +49,7 @@ function Transport({ playing, onPrev, onToggle, onNext, size = 22 }: { playing: 
       <button
         aria-label={playing ? "Pause" : "Play"}
         onClick={onToggle}
-        style={{ ...iconBtn, width: size + 22, height: size + 22, borderRadius: 999, background: "var(--color-accent-strong)", color: "#fff" }}
+        style={{ ...iconBtn, width: size + 22, height: size + 22, borderRadius: 999, background: "var(--color-accent-strong)", color: "var(--color-ink)" }}
       >
         <Glyph name={playing ? "pause" : "play"} size={size} />
       </button>

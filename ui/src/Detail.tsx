@@ -202,7 +202,7 @@ const pillPrimary: React.CSSProperties = {
   alignItems: "center",
   gap: "0.5rem",
   background: "var(--color-accent-strong)",
-  color: "#fff",
+  color: "var(--color-ink)",
   border: "none",
   borderRadius: 999,
   padding: "0.55rem 1.25rem",

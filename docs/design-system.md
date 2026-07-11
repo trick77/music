@@ -56,7 +56,8 @@ one intentional literal.
 
 - **Form controls** (select / input / textarea): `min-height 40px`, `padding 0 12px` (textarea
   `10px 12px`), `font 15px`, `radius 10px`, `bg --color-panel`, `1px --color-border`. Focus =
-  2px **accent fill** ring. Textareas resize vertically.
+  2px **accent fill** ring. Textareas resize vertically. Selects drop the native appearance for
+  a custom lucide `chevron-down` (`--color-muted`, right 12px).
 - **Field label**: 13px, `--color-muted`, wt 500, `margin-bottom 6px`. One label style everywhere
   (retire the old 1rem sentence-case and 0.7rem uppercase variants).
 - **Buttons** (all: height 40px, radius 10px, 15px): `primary` accent-fill/ink/600 · `secondary`

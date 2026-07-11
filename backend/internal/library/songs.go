@@ -154,7 +154,7 @@ func (r *Repo) DeleteSong(ctx context.Context, id string) (filePath string, exis
 // List returns all songs, newest first. includeUnpublished includes unpublished
 // songs (an authenticated viewer); anonymous callers pass false.
 func (r *Repo) List(ctx context.Context, includeUnpublished bool) ([]Song, error) {
-	rows, err := r.db.QueryContext(ctx, songSelect+publishedFilter(includeUnpublished, false)+` ORDER BY s.created_at DESC, s.id DESC`)
+	rows, err := r.db.QueryContext(ctx, songSelect+publishedFilter(includeUnpublished, false)+` ORDER BY s.created_at DESC, s.rowid DESC`)
 	if err != nil {
 		return nil, err
 	}

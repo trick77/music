@@ -104,7 +104,7 @@ func (r *Repo) GetGenre(ctx context.Context, id string, includeUnpublished bool)
 // songsWhere runs songSelect with an extra WHERE clause and hydrates genres.
 // Anonymous viewers (includeUnpublished=false) additionally exclude unpublished songs.
 func (r *Repo) songsWhere(ctx context.Context, includeUnpublished bool, where string, args ...any) ([]Song, error) {
-	rows, err := r.db.QueryContext(ctx, songSelect+" WHERE "+where+publishedFilter(includeUnpublished, true)+" ORDER BY s.created_at DESC, s.id DESC", args...)
+	rows, err := r.db.QueryContext(ctx, songSelect+" WHERE "+where+publishedFilter(includeUnpublished, true)+" ORDER BY s.created_at DESC, s.rowid DESC", args...)
 	if err != nil {
 		return nil, err
 	}

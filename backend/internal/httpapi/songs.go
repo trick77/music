@@ -222,6 +222,14 @@ func (h *songHandlers) upload(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	stored = true
+	// Karaoke: a freshly imported file that already carries lyrics gets aligned in
+	// the background (best-effort; never fail the upload). Files without embedded
+	// lyrics are not aligned — alignment is meaningless without words.
+	if strings.TrimSpace(tags.Lyrics) != "" {
+		if _, err := h.enqueueAlignment(r.Context(), song.ID, song.FilePath, tags.Lyrics); err != nil {
+			slog.Warn("karaoke: import alignment enqueue failed", "song", song.ID, "err", err)
+		}
+	}
 	writeJSONStatus(w, http.StatusCreated, song)
 }
 

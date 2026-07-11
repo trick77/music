@@ -1,11 +1,14 @@
 package httpapi
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"io"
+	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"sync"
 	"testing"
 	"time"
@@ -14,6 +17,7 @@ import (
 	"github.com/trick77/music/internal/config"
 	"github.com/trick77/music/internal/library"
 	"github.com/trick77/music/internal/media"
+	"github.com/trick77/music/internal/metadata"
 	"github.com/trick77/music/internal/store"
 )
 
@@ -110,6 +114,143 @@ func (s *serialSpyAligner) Align(_ context.Context, audio io.Reader, _, _ string
 	s.inFlight--
 	s.mu.Unlock()
 	return &align.Result{Engine: "stub", Lines: []align.Line{}}, nil
+}
+
+// newTriggerHandler builds a handler wired for upload/patch trigger tests: a stub
+// aligner, the serial queue, media + repo, and the dev auth mode. maxBytes is set
+// so h.upload accepts multipart bodies.
+func newTriggerHandler(t *testing.T, a aligner) *songHandlers {
+	t.Helper()
+	st, err := store.Open(t.TempDir() + "/t.db")
+	if err != nil {
+		t.Fatalf("store.Open: %v", err)
+	}
+	t.Cleanup(func() { st.Close() })
+	ms, err := media.New(t.TempDir())
+	if err != nil {
+		t.Fatalf("media.New: %v", err)
+	}
+	h := &songHandlers{
+		cfg:      config.Config{AuthMode: config.AuthModeDev},
+		repo:     library.NewRepo(st.DB()),
+		media:    ms,
+		maxBytes: 50 << 20,
+		aligner:  a,
+	}
+	h.initAlignQueue()
+	return h
+}
+
+// mp3WithLyrics copies the sample fixture into a temp file and bakes USLT lyrics,
+// returning the bytes — a deterministic "file already carries lyrics" upload.
+func mp3WithLyrics(t *testing.T, lyrics string) []byte {
+	t.Helper()
+	dst := t.TempDir() + "/withlyrics.mp3"
+	if err := metadata.StampTags("../metadata/testdata/sample.mp3", dst, metadata.WriteableTags{
+		Title: "Test Song", Artist: "Test Artist", Lyrics: lyrics,
+	}); err != nil {
+		t.Fatalf("stamp lyrics: %v", err)
+	}
+	b, err := os.ReadFile(dst)
+	if err != nil {
+		t.Fatalf("read stamped: %v", err)
+	}
+	return b
+}
+
+func uploadTo(t *testing.T, h *songHandlers, filename string, data []byte) string {
+	t.Helper()
+	var body bytes.Buffer
+	mw := multipart.NewWriter(&body)
+	fw, _ := mw.CreateFormFile("file", filename)
+	fw.Write(data)
+	mw.Close()
+	req := httptest.NewRequest("POST", "/api/songs", &body)
+	req.Header.Set("Content-Type", mw.FormDataContentType())
+	rr := httptest.NewRecorder()
+	h.upload(rr, req)
+	if rr.Code != http.StatusCreated {
+		t.Fatalf("upload = %d, body=%s", rr.Code, rr.Body.String())
+	}
+	var song struct {
+		ID string `json:"id"`
+	}
+	json.Unmarshal(rr.Body.Bytes(), &song)
+	return song.ID
+}
+
+func patchLyrics(t *testing.T, h *songHandlers, id, lyrics string) {
+	t.Helper()
+	body, _ := json.Marshal(map[string]any{"title": "Test Song", "lyrics": lyrics})
+	req := httptest.NewRequest("PATCH", "/api/songs/"+id, bytes.NewReader(body))
+	req.SetPathValue("id", id)
+	rr := httptest.NewRecorder()
+	h.patch(rr, req)
+	if rr.Code != http.StatusOK {
+		t.Fatalf("patch = %d, body=%s", rr.Code, rr.Body.String())
+	}
+}
+
+func TestImport_TriggersAlignmentWhenEmbeddedLyrics(t *testing.T) {
+	spy := &serialSpyAligner{release: make(chan struct{})}
+	h := newTriggerHandler(t, spy)
+	id := uploadTo(t, h, "withlyrics.mp3", mp3WithLyrics(t, "la la la\nsecond line"))
+	waitFor(t, func() bool {
+		a, _ := h.repo.GetAlignment(context.Background(), id)
+		return a != nil && a.Status == "generating"
+	})
+}
+
+func TestImport_NoTriggerWhenNoLyrics(t *testing.T) {
+	spy := &serialSpyAligner{release: make(chan struct{})}
+	h := newTriggerHandler(t, spy)
+	data, _ := os.ReadFile("../metadata/testdata/sample.mp3") // no USLT
+	id := uploadTo(t, h, "sample.mp3", data)
+	time.Sleep(120 * time.Millisecond)
+	if a, _ := h.repo.GetAlignment(context.Background(), id); a != nil {
+		t.Fatalf("expected no alignment row, got status=%q", a.Status)
+	}
+}
+
+func TestSave_TriggersOnChangedNonEmptyLyrics(t *testing.T) {
+	spy := &serialSpyAligner{release: make(chan struct{})}
+	h := newTriggerHandler(t, spy)
+	data, _ := os.ReadFile("../metadata/testdata/sample.mp3")
+	id := uploadTo(t, h, "sample.mp3", data) // no lyrics -> no trigger yet
+	patchLyrics(t, h, id, "la la la\nsecond line")
+	waitFor(t, func() bool {
+		a, _ := h.repo.GetAlignment(context.Background(), id)
+		return a != nil && a.Status == "generating"
+	})
+}
+
+func TestSave_NoTriggerWhenUnchangedOrCleared(t *testing.T) {
+	spy := &serialSpyAligner{release: make(chan struct{})}
+	h := newTriggerHandler(t, spy)
+	id := uploadTo(t, h, "withlyrics.mp3", mp3WithLyrics(t, "la la la\nsecond line"))
+	waitFor(t, func() bool {
+		a, _ := h.repo.GetAlignment(context.Background(), id)
+		return a != nil && a.Status == "generating"
+	})
+	close(spy.release) // let the import job finish -> ready
+	waitFor(t, func() bool {
+		a, _ := h.repo.GetAlignment(context.Background(), id)
+		return a != nil && a.Status == "ready"
+	})
+
+	// Same lyrics -> no re-trigger (stays ready).
+	patchLyrics(t, h, id, "la la la\nsecond line")
+	time.Sleep(120 * time.Millisecond)
+	if a, _ := h.repo.GetAlignment(context.Background(), id); a.Status != "ready" {
+		t.Fatalf("unchanged lyrics should not re-trigger, status=%q", a.Status)
+	}
+
+	// Cleared lyrics -> no trigger.
+	patchLyrics(t, h, id, "")
+	time.Sleep(120 * time.Millisecond)
+	if a, _ := h.repo.GetAlignment(context.Background(), id); a.Status == "generating" {
+		t.Fatalf("clearing lyrics must not trigger alignment")
+	}
 }
 
 func TestAlignQueue_RunsOneAtATime(t *testing.T) {

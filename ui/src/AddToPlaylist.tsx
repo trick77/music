@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { addSongToPlaylist, createPlaylist, listPlaylists, type Playlist, type Song } from "./api";
 import { MenuItem, menuSurface } from "./Menu";
+import { t } from "./ui";
 
 type Props = { song: Song; authenticated: boolean; onClose: () => void; onDone: (name: string) => void };
 
@@ -35,17 +36,17 @@ export function AddToPlaylist({ song, authenticated, onClose, onDone }: Props) {
   };
 
   return (
-    <div onClick={onClose} style={{ position: "fixed", inset: 0, zIndex: 50, background: "rgba(0,0,0,.5)", display: "grid", placeItems: "center" }}>
+    <div onClick={onClose} style={{ position: "fixed", inset: 0, zIndex: 50, background: "rgba(0,0,0,0.5)", backdropFilter: "blur(2px)", WebkitBackdropFilter: "blur(2px)", display: "grid", placeItems: "center" }}>
       <div onClick={(e) => e.stopPropagation()} role="menu" style={menuSurface}>
-        <div style={{ padding: "0.4rem 0.85rem", color: "var(--color-muted)", fontSize: "0.8rem", textTransform: "uppercase", letterSpacing: "0.04em" }}>Add to playlist</div>
-        {authenticated && <MenuItem icon="plus" onClick={createAndAdd}>New playlist</MenuItem>}
+        <div style={{ padding: "0.4rem 0.85rem", ...t.label }}>Add to playlist</div>
+        {authenticated && <MenuItem icon="plus" onClick={createAndAdd}>New playlist…</MenuItem>}
         {playlists.map((pl) => (
           <MenuItem key={pl.id} onClick={() => add(pl.id, pl.name)} trailing={<span style={{ fontVariantNumeric: "tabular-nums" }}>{pl.songCount}</span>}>
             {pl.name}
           </MenuItem>
         ))}
         {playlists.length === 0 && !authenticated && (
-          <div style={{ padding: "0.5rem 0.85rem", color: "var(--color-muted)", fontSize: "0.85rem" }}>No playlists yet.</div>
+          <div style={{ padding: "0.5rem 0.85rem", ...t.label }}>No playlists yet.</div>
         )}
       </div>
     </div>

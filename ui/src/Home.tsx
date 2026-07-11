@@ -5,6 +5,7 @@ import { navigate } from "./router";
 import { Glyph } from "./Glyph";
 import { Hero } from "./Hero";
 import { Chapter } from "./Chapter";
+import { Button, t } from "./ui";
 import { usePlayer } from "./player";
 import { NowPlayingBars } from "./NowPlayingBars";
 
@@ -32,7 +33,7 @@ export function Home({ authenticated, onPlay, onShare, onUpload, renderRowAction
     getHome().then(setFeed).catch(() => setFeed(null));
   }, [reloadKey]);
 
-  if (!feed) return <p style={{ color: "var(--color-muted)" }}>Loading…</p>;
+  if (!feed) return <p style={{ color: "var(--color-muted)" }}>Loading</p>;
 
   const featured = feed.topTen[0] ?? feed.recentlyAdded[0] ?? null;
   const isEmpty =
@@ -47,20 +48,17 @@ export function Home({ authenticated, onPlay, onShare, onUpload, renderRowAction
       <div style={{ textAlign: "center", padding: "6rem 1rem", color: "var(--color-muted)" }}>
         {authenticated ? (
           <>
-            <h2 style={{ fontFamily: "var(--font-serif)", color: "var(--color-ink)" }}>Your library is empty</h2>
+            <h2 style={{ ...t.title, color: "var(--color-ink)" }}>Your library is empty</h2>
             <p>Upload your first songs to get started.</p>
             {onUpload && (
-              <button
-                onClick={onUpload}
-                style={{ marginTop: "0.5rem", display: "inline-flex", alignItems: "center", gap: "0.5rem", background: "var(--color-accent-strong)", color: "var(--color-ink)", border: "none", borderRadius: 999, padding: "0.6rem 1.3rem", cursor: "pointer", fontWeight: 600 }}
-              >
+              <Button onClick={onUpload} style={{ marginTop: "0.5rem" }}>
                 <Glyph name="upload" size={18} /> Upload music
-              </button>
+              </Button>
             )}
           </>
         ) : (
           <>
-            <h2 style={{ fontFamily: "var(--font-serif)", color: "var(--color-ink)" }}>Nothing here yet</h2>
+            <h2 style={{ ...t.title, color: "var(--color-ink)" }}>Nothing here yet</h2>
             <p>Check back soon.</p>
           </>
         )}
@@ -77,7 +75,7 @@ export function Home({ authenticated, onPlay, onShare, onUpload, renderRowAction
       {feed.topTen.length > 0 && (
         <section>
           <div style={sectionHead}>
-            <h3 style={{ margin: 0, fontFamily: "var(--font-serif)", fontSize: "1.4rem" }}>Top ten played</h3>
+            <h3 style={{ margin: 0, ...t.title }}>Top ten played</h3>
           </div>
           <div>
             {feed.topTen.map((s, i) => (
@@ -94,9 +92,9 @@ export function Home({ authenticated, onPlay, onShare, onUpload, renderRowAction
               >
                 <span
                   className="rank-num"
-                  style={{ fontSize: "1.15rem", color: i < 3 ? "var(--color-accent-strong)" : "var(--color-muted)", textAlign: "right", display: "flex", alignItems: "center", justifyContent: "flex-end" }}
+                  style={{ fontSize: "var(--text-body)", color: i < 3 ? "var(--color-accent-strong)" : "var(--color-muted)", textAlign: "right", display: "flex", alignItems: "center", justifyContent: "flex-end" }}
                 >
-                  {current?.id === s.id ? <NowPlayingBars playing={playing} /> : String(i + 1).padStart(2, "0")}
+                  {current?.id === s.id ? <NowPlayingBars playing={playing} /> : String(i + 1)}
                 </span>
                 <button onClick={() => onPlay(s, topTail(i))} aria-label={`Play ${s.title}`} style={{ padding: 0, border: "none", background: "none", cursor: "pointer" }}>
                   <span style={{ display: "grid", placeItems: "center", width: 48, height: 48, borderRadius: 8, overflow: "hidden", background: "var(--color-active)" }}>
@@ -109,9 +107,9 @@ export function Home({ authenticated, onPlay, onShare, onUpload, renderRowAction
                 </button>
                 <button onClick={() => onPlay(s, topTail(i))} style={{ padding: 0, border: "none", background: "none", cursor: "pointer", textAlign: "left", minWidth: 0 }}>
                   <div style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: current?.id === s.id ? "var(--color-accent-strong)" : undefined }}>{s.title}</div>
-                  <div style={{ color: "var(--color-muted)", fontSize: "0.85rem", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.artistName}</div>
+                  <div style={{ ...t.label, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.artistName}</div>
                 </button>
-                <span className="rank-num" style={{ color: "var(--color-muted)", fontSize: "0.85rem", whiteSpace: "nowrap" }}>
+                <span className="rank-num" style={{ ...t.label, whiteSpace: "nowrap" }}>
                   {s.plays.toLocaleString()} {s.plays === 1 ? "play" : "plays"}
                 </span>
                 <span style={{ display: "flex", alignItems: "center", gap: "0.35rem" }}>{renderRowActions(s)}</span>
@@ -124,8 +122,8 @@ export function Home({ authenticated, onPlay, onShare, onUpload, renderRowAction
       {feed.recentlyAdded.length > 0 && (
         <section>
           <div style={sectionHead}>
-            <h3 style={{ margin: 0, fontFamily: "var(--font-serif)", fontSize: "1.4rem" }}>Recently added</h3>
-            <a onClick={() => navigate("/")} style={{ color: "var(--color-muted)", fontSize: "0.9rem", cursor: "pointer" }}>Your library →</a>
+            <h3 style={{ margin: 0, ...t.title }}>Recently added</h3>
+            <a onClick={() => navigate("/")} style={{ color: "var(--color-muted)", fontSize: "var(--text-ui)", cursor: "pointer" }}>Your library →</a>
           </div>
           <div className="hscroll" style={{ display: "flex", gap: "1rem" }}>
             {feed.recentlyAdded.map((s, i) => (
@@ -146,7 +144,7 @@ export function Home({ authenticated, onPlay, onShare, onUpload, renderRowAction
                   </span>
                 </div>
                 <div style={{ marginTop: "0.5rem", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.title}</div>
-                <div style={{ color: "var(--color-muted)", fontSize: "0.85rem", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.artistName}</div>
+                <div style={{ ...t.label, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.artistName}</div>
               </button>
             ))}
           </div>
@@ -160,8 +158,8 @@ export function Home({ authenticated, onPlay, onShare, onUpload, renderRowAction
       {feed.playlists.length > 0 && (
         <section>
           <div style={sectionHead}>
-            <h3 style={{ margin: 0, fontFamily: "var(--font-serif)", fontSize: "1.4rem" }}>Playlists</h3>
-            <a onClick={() => navigate("/playlists")} style={{ color: "var(--color-muted)", fontSize: "0.9rem", cursor: "pointer" }}>Your library →</a>
+            <h3 style={{ margin: 0, ...t.title }}>Playlists</h3>
+            <a onClick={() => navigate("/playlists")} style={{ color: "var(--color-muted)", fontSize: "var(--text-ui)", cursor: "pointer" }}>Your library →</a>
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: "1rem" }}>
             {feed.playlists.map((pl) => (
@@ -178,7 +176,7 @@ export function Home({ authenticated, onPlay, onShare, onUpload, renderRowAction
                   )}
                 </div>
                 <div style={{ color: "var(--color-ink)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{pl.name}</div>
-                <div style={{ color: "var(--color-muted)", fontSize: "0.85rem" }}>
+                <div style={t.label}>
                   {pl.songCount} {pl.songCount === 1 ? "song" : "songs"}
                 </div>
               </button>

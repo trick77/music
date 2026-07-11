@@ -1,0 +1,1364 @@
+<title>Music — UI Pattern</title>
+<style>
+  :root {
+    /* loom design tokens — Warm Editorial, dark (verbatim from ui/src/index.css) */
+    --bg: #1f1f1e;
+    --panel: #1b1b1a;
+    --active: #2c2c2a;
+    --border: #323230;
+    --ink: #faf9f5;
+    --muted: #9c9a92;
+    --accent: #c6613f;
+    --accent-strong: #d97757;
+    --btn-primary-bg: #c25f34;   /* PROPOSED: darker, more orange primary fill */
+    --danger: #c14638;           /* PROPOSED: destructive-action fill (confirm dialogs) */
+    --radius: 10px;
+
+    /* PROPOSED: promote the menu sub-palette (today hardcoded in Menu.tsx) to tokens */
+    --elevated: #363632;
+    --elevated-border: #454540;
+    --elevated-ink: #f3f0e8;
+    --elevated-hover: #3f3f3a;
+
+    /* PROPOSED type scale */
+    --text-display: 1.75rem;   /* 28px */
+    --text-title: 1.25rem;     /* 20px */
+    --text-body: 1rem;         /* 16px */
+    --text-ui: 0.9375rem;      /* 15px */
+    --text-label: 0.8125rem;   /* 13px */
+    --text-micro: 0.6875rem;   /* 11px */
+
+    /* PROPOSED spacing scale */
+    --space-1: 4px;
+    --space-2: 8px;
+    --space-3: 12px;
+    --space-4: 16px;
+    --space-5: 24px;
+    --space-6: 32px;
+
+    /* Georgia stands in for Anthropic Serif; system sans for Anthropic Sans (webfonts blocked in artifacts) */
+    --font-sans: system-ui, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    --font-serif: Georgia, "Times New Roman", Times, serif;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--font-sans);
+    font-size: 16px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .wrap {
+    max-width: 1080px;
+    margin: 0 auto;
+    padding: clamp(24px, 5vw, 56px) clamp(20px, 4vw, 40px) 96px;
+  }
+
+  /* ── page header ─────────────────────────────────────────── */
+  .masthead { margin-bottom: var(--space-6); }
+  .masthead h1 {
+    font-family: var(--font-serif);
+    font-weight: 500;
+    font-size: clamp(2rem, 5vw, 2.6rem);
+    margin: 0 0 var(--space-3);
+    letter-spacing: -0.01em;
+  }
+  .masthead p {
+    color: var(--muted);
+    font-size: var(--text-body);
+    max-width: 62ch;
+    margin: 0;
+  }
+  .note {
+    margin-top: var(--space-4);
+    padding: var(--space-3) var(--space-4);
+    border: 1px solid var(--border);
+    border-left: 2px solid var(--accent);
+    border-radius: var(--radius);
+    background: var(--panel);
+    color: var(--muted);
+    font-size: var(--text-label);
+    max-width: 62ch;
+  }
+
+  /* ── section scaffolding ─────────────────────────────────── */
+  section { padding-top: var(--space-6); margin-top: var(--space-6); border-top: 1px solid var(--border); }
+  .eyebrow {
+    font-size: var(--text-micro);
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--muted);
+    margin: 0 0 var(--space-2);
+  }
+  section > h2 {
+    font-family: var(--font-serif);
+    font-weight: 500;
+    font-size: var(--text-title);
+    margin: 0 0 var(--space-2);
+  }
+  section > .lead {
+    color: var(--muted);
+    font-size: var(--text-label);
+    margin: 0 0 var(--space-5);
+    max-width: 68ch;
+  }
+
+  /* ── type scale ──────────────────────────────────────────── */
+  .scale { display: flex; flex-direction: column; gap: var(--space-4); }
+  .scale-row {
+    display: grid;
+    grid-template-columns: 148px 1fr;
+    gap: var(--space-4);
+    align-items: baseline;
+    padding-bottom: var(--space-4);
+    border-bottom: 1px dashed var(--border);
+  }
+  .scale-row:last-child { border-bottom: none; padding-bottom: 0; }
+  .scale-meta .tok { font-family: var(--font-sans); font-size: var(--text-label); color: var(--ink); }
+  .scale-meta .px { font-family: var(--font-sans); font-size: var(--text-micro); color: var(--muted); font-variant-numeric: tabular-nums; }
+  .scale-meta .use { display: block; font-size: var(--text-micro); color: var(--muted); margin-top: 2px; text-transform: uppercase; letter-spacing: 0.06em; }
+  .s-serif { font-family: var(--font-serif); }
+  .s-sans  { font-family: var(--font-sans); }
+  .sz-display { font-size: var(--text-display); font-weight: 500; }
+  .sz-title   { font-size: var(--text-title);   font-weight: 500; }
+  .sz-body    { font-size: var(--text-body); }
+  .sz-ui      { font-size: var(--text-ui); }
+  .sz-label   { font-size: var(--text-label); color: var(--muted); font-weight: 500; }
+  .sz-micro   { font-size: var(--text-micro); text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); }
+
+  /* ── comparison grid (before / after) ───────────────────── */
+  .compare { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-5); }
+  @media (max-width: 760px) { .compare { grid-template-columns: 1fr; } }
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: var(--space-5);
+  }
+  .card.after { border-color: color-mix(in srgb, var(--accent) 40%, var(--border)); }
+  .tag {
+    display: inline-block;
+    font-size: var(--text-micro);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin-bottom: var(--space-4);
+  }
+  .tag.before { color: var(--muted); }
+  .tag.after  { color: var(--accent-strong); }
+
+  /* ── field + control specimens ──────────────────────────── */
+  .field { margin-bottom: var(--space-5); }
+  .field:last-child { margin-bottom: 0; }
+
+  /* NEW label */
+  .lbl-new {
+    display: block;
+    font-size: var(--text-label);
+    font-weight: 500;
+    color: var(--muted);
+    margin-bottom: 6px;
+  }
+  /* OLD label (1rem, matched body — too heavy) */
+  .lbl-old {
+    display: block;
+    font-size: var(--text-body);
+    color: var(--muted);
+    margin-bottom: 7px;
+  }
+
+  /* NEW control — 40px, comfortable */
+  .ctl-new {
+    display: block;
+    width: 100%;
+    min-height: 40px;
+    padding: 0 var(--space-3);
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    color: var(--ink);
+    font-family: var(--font-sans);
+    font-size: var(--text-ui);
+    line-height: 40px;
+  }
+  select.ctl-new, select.ctl-old { line-height: normal; }
+  textarea.ctl-new { line-height: 1.5; padding: 10px 12px; min-height: 96px; resize: vertical; }
+
+  /* OLD control — cramped: 16px font, 0.5rem/0.6rem padding, no min-height */
+  .ctl-old {
+    display: block;
+    width: 100%;
+    padding: 0.5rem 0.6rem;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    color: var(--ink);
+    font-family: var(--font-sans);
+    font-size: 1rem;
+  }
+  textarea.ctl-old { min-height: 96px; resize: vertical; }
+
+  select { appearance: none; -webkit-appearance: none;
+    background-image: linear-gradient(45deg, transparent 50%, var(--muted) 50%), linear-gradient(135deg, var(--muted) 50%, transparent 50%);
+    background-position: right 14px center, right 9px center;
+    background-size: 5px 5px, 5px 5px;
+    background-repeat: no-repeat;
+    padding-right: 30px;
+  }
+  .ctl-new:focus { outline: 2px solid var(--btn-primary-bg); outline-offset: 1px; border-color: var(--btn-primary-bg); }
+  .ctl-old:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+  .measure { font-size: var(--text-micro); color: var(--muted); margin-top: 6px; font-variant-numeric: tabular-nums; }
+
+  /* ── buttons ────────────────────────────────────────────── */
+  .btnrow { display: flex; flex-wrap: wrap; gap: var(--space-3); align-items: center; }
+  .btn {
+    height: 40px;
+    padding: 0 var(--space-4);
+    border-radius: var(--radius);
+    font-family: var(--font-sans);
+    font-size: var(--text-ui);
+    border: 1px solid transparent;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+  }
+  .btn-primary   { background: var(--btn-primary-bg); color: var(--ink); font-weight: 600; }
+  .btn-secondary { background: var(--active); color: var(--ink); border-color: var(--border); font-weight: 500; }
+  .btn-ghost     { background: transparent; color: var(--accent-strong); font-weight: 500; }
+  .btn:disabled  { opacity: 0.6; cursor: default; }
+  .btn-small     { height: 32px; padding: 0 12px; font-size: var(--text-label); }
+
+  /* Busy state: a spinner replaces the label's trailing ellipsis. */
+  .spinner {
+    width: 15px; height: 15px; flex-shrink: 0;
+    border: 2px solid color-mix(in srgb, currentColor 35%, transparent);
+    border-top-color: currentColor;
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  @media (prefers-reduced-motion: reduce) { .spinner { animation-duration: 2.4s; } }
+
+  /* lucide icon host (real app uses lucide-react at strokeWidth 1.9) */
+  .i { display: inline-flex; align-items: center; justify-content: center; line-height: 0; }
+  .i svg { display: block; }
+  .i.spin { animation: spin 0.7s linear infinite; }
+  @media (prefers-reduced-motion: reduce) { .i.spin { animation-duration: 2.4s; } }
+
+  .badge {
+    display: inline-flex; align-items: center; gap: 5px;
+    font-size: var(--text-micro);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--muted);
+    background: var(--active);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    padding: 3px 9px;
+  }
+  .badge .dot { width: 5px; height: 5px; border-radius: 50%; background: var(--accent-strong); }
+
+  .spec-list { margin: var(--space-4) 0 0; padding: 0; list-style: none; display: flex; flex-wrap: wrap; gap: var(--space-2) var(--space-4); }
+  .spec-list li { font-size: var(--text-micro); color: var(--muted); }
+  .spec-list b { color: var(--ink); font-weight: 500; }
+
+  .btn-danger { background: var(--danger); color: var(--ink); font-weight: 600; }
+
+  /* ── modals ─────────────────────────────────────────────── */
+  .modal-stage {
+    background: #161615;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: clamp(20px, 4vw, 40px);
+    display: grid;
+    place-items: center;
+  }
+  /* Overlay: scrim + backdrop blur behind an open dialog (matches loom). */
+  .overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 100;
+    display: none;
+    place-items: center;
+    padding: 16px;
+    background: rgba(0,0,0,0.5);
+    backdrop-filter: blur(2px);
+    -webkit-backdrop-filter: blur(2px);
+  }
+  .overlay.open { display: grid; }
+  .modal {
+    width: min(560px, 100%);
+    max-height: 88vh;
+    overflow: auto;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: var(--space-5);
+    box-shadow: 0 24px 60px rgba(0,0,0,0.5);
+  }
+  .modal.sm { width: min(420px, 100%); }
+  .modal-head { display: flex; justify-content: space-between; align-items: flex-start; gap: var(--space-4); margin-bottom: var(--space-5); }
+  .modal-title { font-family: var(--font-serif); font-weight: 500; font-size: var(--text-title); margin: 0; }
+  .modal-close { background: none; border: none; color: var(--muted); line-height: 1; cursor: pointer; padding: 2px; display: inline-flex; }
+  .modal-close:hover { color: var(--ink); }
+  .modal-body { color: var(--muted); font-size: var(--text-body); margin: 0; }
+  .modal-foot { display: flex; justify-content: space-between; align-items: center; gap: var(--space-4); margin-top: var(--space-5); }
+  .modal-foot .help { font-size: var(--text-label); color: var(--muted); }
+  .foot-btns { display: flex; gap: var(--space-2); flex-shrink: 0; }
+
+  /* tag-editor layout */
+  .te-body { display: flex; gap: var(--space-4); }
+  @media (max-width: 560px) { .te-body { flex-direction: column; } }
+  .te-cover { width: 120px; flex-shrink: 0; }
+  .cover-box { width: 120px; height: 120px; border-radius: var(--radius); border: 1px solid var(--border); background: var(--active); display: grid; place-items: center; font-family: var(--font-serif); font-size: 2rem; color: var(--muted); }
+  .cover-link { display: block; text-align: center; margin-top: var(--space-2); font-size: var(--text-label); color: var(--accent-strong); background: none; border: none; cursor: pointer; width: 100%; }
+  .cover-help { font-size: var(--text-label); color: var(--muted); text-align: center; margin: 6px 0 0; line-height: 1.35; }
+  .te-fields { flex: 1; min-width: 0; display: grid; gap: var(--space-4); }
+  .te-2col { display: flex; gap: var(--space-3); }
+  .te-2col > div { flex: 1; }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 6px; }
+  .chip { display: inline-flex; align-items: center; gap: 5px; background: var(--active); border-radius: 999px; padding: 3px 10px; font-size: var(--text-label); }
+  .chip button { background: none; border: none; color: var(--muted); cursor: pointer; padding: 0; display: inline-flex; align-items: center; }
+
+  /* ── pills (Library tabs) ───────────────────────────────── */
+  .pills { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+  .pill { border-radius: 999px; cursor: pointer; font-family: var(--font-sans); border: 1px solid transparent; white-space: nowrap; }
+  .pill-old { padding: 0.35rem 0.85rem; font-size: 0.85rem; background: transparent; color: var(--muted); }
+  .pill-old.on { background: var(--active); color: var(--ink); }
+  .pill-new { padding: 7px 14px; font-size: var(--text-ui); background: transparent; color: var(--muted); }
+  .pill-new.on { background: var(--btn-primary-bg); color: var(--ink); font-weight: 500; }
+  .pill-new.filter { display: inline-flex; align-items: center; gap: 7px; background: transparent; border-color: var(--btn-primary-bg); color: var(--ink); }
+  .pill-new.filter .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--btn-primary-bg); }
+
+  /* ── song rows ──────────────────────────────────────────── */
+  .rows { margin-top: var(--space-5); display: flex; flex-direction: column; }
+  .row { display: flex; align-items: center; gap: var(--space-3); padding: 10px 12px; border-radius: var(--radius); }
+  .row:hover { background: var(--active); }
+  .row .cv { width: 44px; height: 44px; flex-shrink: 0; border-radius: 8px; background: var(--active); border: 1px solid var(--border); display: grid; place-items: center; color: var(--muted); font-family: var(--font-serif); font-size: 1.2rem; }
+  .row .meta { min-width: 0; flex: 1; }
+  .row .title { font-size: var(--text-ui); color: var(--ink); }
+  .row .sub { display: block; font-size: var(--text-label); color: var(--muted); }
+  .row .dur { font-size: var(--text-label); color: var(--muted); font-variant-numeric: tabular-nums; flex-shrink: 0; }
+
+  /* ── studio panel ───────────────────────────────────────── */
+  .studio { max-width: 620px; }
+  .studio .h { font-family: var(--font-serif); font-weight: 500; font-size: var(--text-display); margin: 0 0 6px; }
+  .studio .cap { color: var(--muted); font-size: var(--text-body); margin: 0 0 var(--space-5); }
+  .studio .tabs { display: inline-flex; gap: var(--space-1); background: var(--panel); border: 1px solid var(--border); border-radius: 999px; padding: 4px; margin-bottom: var(--space-5); }
+  .studio .tab { border: none; background: transparent; color: var(--muted); font-family: var(--font-sans); font-size: var(--text-ui); padding: 6px 14px; border-radius: 999px; cursor: pointer; }
+  .studio .tab.on { background: var(--btn-primary-bg); color: var(--ink); }
+  .row-between { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+  .row-between .lbl-new { margin-bottom: 0; }
+  .refine-row { display: flex; gap: var(--space-2); }
+  .refine-row .ctl-new { flex: 1; }
+  .generate-row { display: flex; align-items: center; gap: var(--space-4); margin-top: var(--space-2); }
+  .generate-row .help { font-size: var(--text-label); color: var(--muted); }
+
+  .placeholder { color: var(--muted); }
+
+  /* ── EXTENDED: accent roles callout ─────────────────────── */
+  .roles { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: var(--space-3); }
+  .role { display: flex; align-items: center; gap: var(--space-3); background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius); padding: var(--space-3) var(--space-4); }
+  .role .sw { width: 30px; height: 30px; border-radius: 8px; flex-shrink: 0; }
+  .role .rname { font-size: var(--text-ui); }
+  .role .rhex { font-size: var(--text-micro); color: var(--muted); font-variant-numeric: tabular-nums; }
+  .role .ruse { font-size: var(--text-label); color: var(--muted); }
+
+  /* icon buttons & toggles */
+  .iconbtn { width: 40px; height: 40px; border-radius: var(--radius); border: none; background: transparent; color: var(--ink); display: inline-grid; place-items: center; cursor: pointer; font: 500 18px/1 var(--font-sans); }
+  .iconbtn:hover { background: var(--active); }
+  .iconbtn.play { width: 46px; height: 46px; border-radius: 999px; background: var(--btn-primary-bg); }
+  .iconbtn.play:hover { background: var(--btn-primary-bg); }
+  .iconbtn.star.on { color: var(--accent-strong); }
+  .iconbtn.star.off { color: var(--muted); }
+  .iconbtn.onart { color: #fff; background: rgba(0,0,0,0.35); border: 1px solid rgba(255,255,255,0.3); border-radius: 999px; }
+  .glyphbtn { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 18px; padding: 2px; }
+  .swatchrow { display: flex; flex-wrap: wrap; gap: var(--space-3); align-items: center; }
+
+  /* sliders */
+  .seek { display: flex; align-items: center; gap: 10px; max-width: 460px; }
+  .seek input[type=range] { -webkit-appearance: none; appearance: none; height: 4px; border-radius: 999px; background: var(--border); flex: 1; accent-color: var(--btn-primary-bg); }
+  .seek input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 13px; height: 13px; border-radius: 50%; background: var(--btn-primary-bg); cursor: pointer; }
+  .seek input[type=range]::-moz-range-thumb { width: 13px; height: 13px; border: none; border-radius: 50%; background: var(--btn-primary-bg); cursor: pointer; }
+  .seek .t { font-size: var(--text-micro); color: var(--muted); font-variant-numeric: tabular-nums; min-width: 34px; }
+
+  /* player bar */
+  .playerbar { display: flex; align-items: center; gap: var(--space-4); background: color-mix(in srgb, var(--panel) 92%, transparent); border: 1px solid var(--border); border-radius: var(--radius); padding: 10px 14px; }
+  .playerbar .np { display: flex; align-items: center; gap: 10px; min-width: 0; width: 190px; }
+  .playerbar .np .cv { width: 44px; height: 44px; flex-shrink: 0; border-radius: 8px; background: var(--active); border: 1px solid var(--border); display: grid; place-items: center; font-family: var(--font-serif); color: var(--muted); }
+  .playerbar .np .title { font-size: var(--text-ui); color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .playerbar .np .sub { font-size: var(--text-label); color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .playerbar .center { flex: 1; display: flex; flex-direction: column; gap: 6px; align-items: center; }
+  .transport { display: flex; align-items: center; gap: 6px; }
+  @media (max-width: 640px) { .playerbar .np { width: auto; } .playerbar .center .seek { display: none; } }
+
+  /* context menu */
+  .menu { min-width: 220px; background: var(--elevated); border: 1px solid var(--elevated-border); border-radius: var(--radius); padding: 4px 0; box-shadow: 0 18px 32px rgba(0,0,0,0.38); }
+  .menu-label { padding: 6px 14px; font-size: var(--text-micro); text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); }
+  .menu-item { display: flex; align-items: center; gap: 10px; min-height: 32px; padding: 6px 12px; margin: 0 4px; border-radius: 6px; font-size: var(--text-ui); color: var(--elevated-ink); cursor: pointer; }
+  .menu-item:hover { background: var(--elevated-hover); }
+  .menu-item.danger { color: #ec7e7e; }
+  .menu-item.danger:hover { background: #d03b3b; color: #fff; }
+  .menu-item .ic { width: 19px; display: grid; place-items: center; color: var(--muted); }
+  .menu-item.danger .ic { color: inherit; }
+  .menu-item .count { margin-left: auto; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .menu-sep { height: 1px; background: var(--elevated-border); margin: 5px 12px; }
+
+  /* nav rail + mobile tab bar */
+  .rail { display: inline-flex; flex-direction: column; gap: 8px; background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius); padding: 8px; }
+  .rail-btn { width: 44px; height: 44px; border-radius: 12px; border: none; background: transparent; color: var(--muted); display: grid; place-items: center; cursor: pointer; font-size: 18px; }
+  .rail-btn.on { background: var(--active); color: var(--ink); }
+  .tabbar { display: inline-flex; gap: 4px; background: color-mix(in srgb, var(--panel) 95%, transparent); border: 1px solid var(--border); border-radius: var(--radius); padding: 8px 6px; }
+  .tab-item { display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 4px 14px; background: none; border: none; color: var(--muted); cursor: pointer; }
+  .tab-item .lab { font-size: var(--text-micro); }
+  .tab-item.on { color: var(--btn-primary-bg); }
+
+  /* toast + progress */
+  .toast { display: inline-flex; align-items: center; gap: 10px; background: var(--active); border: 1px solid var(--border); border-radius: 999px; padding: 8px 16px; font-size: var(--text-label); }
+  .progress { height: 5px; border-radius: 999px; background: var(--border); overflow: hidden; max-width: 300px; margin-top: 10px; }
+  .progress > i { display: block; height: 100%; width: 62%; border-radius: 999px; background: linear-gradient(90deg, var(--accent), var(--accent-strong)); }
+
+  /* on-art / immersive */
+  .onart-stage { position: relative; border-radius: 16px; overflow: hidden; padding: 28px; min-height: 210px; display: flex; flex-direction: column; justify-content: flex-end; background: radial-gradient(130% 130% at 18% 0%, #5f4a38, #221d19 68%); }
+  .onart-stage .scrim { position: absolute; inset: 0; background: linear-gradient(180deg, rgba(15,15,14,0.05), rgba(15,15,14,0.62)); pointer-events: none; }
+  .onart-inner { position: relative; }
+  .onart-eyebrow { font-size: var(--text-label); letter-spacing: 0.14em; text-transform: uppercase; color: rgba(255,255,255,0.8); margin: 0 0 8px; }
+  .onart-title { font-family: var(--font-serif); font-weight: 500; font-size: clamp(1.8rem, 4vw, 2.8rem); line-height: 1.05; color: #fff; margin: 0 0 6px; text-shadow: 0 2px 24px rgba(0,0,0,0.4); }
+  .onart-sub { color: rgba(255,255,255,0.86); font-size: var(--text-body); margin: 0 0 16px; }
+  .onart-btns { display: flex; gap: 10px; flex-wrap: wrap; }
+  .pill-btn { border-radius: 999px; padding: 10px 20px; font-size: var(--text-ui); border: none; cursor: pointer; display: inline-flex; align-items: center; gap: 7px; }
+  .pill-btn.solid { background: var(--btn-primary-bg); color: var(--ink); font-weight: 600; }
+  .pill-btn.glass { background: rgba(0,0,0,0.35); border: 1px solid rgba(255,255,255,0.35); color: #fff; font-weight: 500; }
+
+  /* search field (999 pill) */
+  .searchfield { display: flex; align-items: center; gap: 10px; background: var(--panel); border: 1px solid var(--border); border-radius: 999px; padding: 0 16px; height: 44px; max-width: 440px; }
+  .searchfield input { flex: 1; background: none; border: none; color: var(--ink); font-size: var(--text-ui); outline: none; font-family: var(--font-sans); }
+  .searchfield .ic { color: var(--muted); }
+
+  /* grid tiles */
+  .tiles { display: flex; gap: var(--space-4); flex-wrap: wrap; align-items: flex-start; }
+  .tile-card { width: 150px; }
+  .tile-cover { width: 150px; height: 150px; border-radius: 12px; background: var(--active); border: 1px solid var(--border); display: grid; place-items: center; font-family: var(--font-serif); font-size: 2.2rem; color: var(--muted); position: relative; overflow: hidden; }
+  .tile-name { font-size: var(--text-ui); margin-top: 8px; }
+  .tile-sub { font-size: var(--text-label); color: var(--muted); }
+  .dashed-tile { width: 150px; height: 150px; border-radius: 12px; border: 1px dashed var(--border); background: transparent; color: var(--muted); display: grid; place-items: center; cursor: pointer; font-size: var(--text-label); }
+  .genre-card { width: 210px; padding: 14px; border-radius: 12px; background: linear-gradient(135deg, #3a2f28, #211c19); border: 1px solid var(--border); position: relative; }
+  .genre-card .gname { font-family: var(--font-serif); font-size: 1.05rem; }
+  .genre-card .gsub { font-size: var(--text-label); color: var(--muted); margin-top: 2px; }
+  .ribbon { position: absolute; top: 8px; right: 8px; display: inline-flex; align-items: center; gap: 5px; background: rgba(0,0,0,0.5); color: #fff; border-radius: 999px; padding: 2px 9px; font-size: var(--text-micro); }
+  .ribbon .dot { width: 5px; height: 5px; border-radius: 50%; background: var(--accent-strong); }
+  .tint-cta { display: inline-flex; align-items: center; gap: 6px; width: 100%; justify-content: center; margin-top: 10px; font-size: var(--text-label); font-weight: 600; color: var(--accent-strong); border: 1px solid var(--accent-strong); border-radius: var(--radius); padding: 7px 10px; background: color-mix(in srgb, var(--accent-strong) 12%, transparent); cursor: pointer; }
+
+  /* selectable 16:9 thumbnails */
+  .thumbs { display: flex; gap: var(--space-3); flex-wrap: wrap; align-items: flex-start; }
+  .thumb { width: 150px; aspect-ratio: 16/9; border-radius: 10px; background: linear-gradient(135deg, #3a2f28, #201c19); border: 1px solid var(--border); position: relative; cursor: pointer; }
+  .thumb.sel { border: 2px solid var(--btn-primary-bg); }
+  .thumb .star { position: absolute; top: 6px; right: 6px; background: rgba(0,0,0,0.5); border-radius: 6px; width: 24px; height: 24px; display: grid; place-items: center; color: var(--accent-strong); border: none; cursor: pointer; }
+  .upload-thumb { width: 150px; aspect-ratio: 16/9; border-radius: 10px; border: 1px dashed var(--border); color: var(--accent-strong); display: grid; place-items: center; font-size: var(--text-label); cursor: pointer; background: transparent; gap: 4px; }
+
+  /* autocomplete */
+  .ac { max-width: 360px; }
+  .ac-list { margin-top: 4px; background: var(--active); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+  .ac-item { display: flex; justify-content: space-between; gap: 10px; padding: 8px 12px; cursor: pointer; font-size: var(--text-ui); }
+  .ac-item:hover { background: color-mix(in srgb, var(--ink) 8%, transparent); }
+  .ac-item .c { color: var(--muted); }
+
+  /* feedback + text */
+  .empty { text-align: center; padding: 48px 16px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--panel); }
+  .empty h3 { font-family: var(--font-serif); font-weight: 500; font-size: var(--text-title); margin: 0 0 8px; }
+  .empty p { color: var(--muted); font-size: var(--text-body); margin: 0 0 16px; }
+  .loading { color: var(--muted); display: inline-flex; align-items: center; gap: 8px; font-size: var(--text-body); }
+  .loading .spinner { border-color: color-mix(in srgb, var(--muted) 35%, transparent); border-top-color: var(--muted); }
+  .errtext { color: var(--accent-strong); font-size: var(--text-label); }
+  .link { color: var(--accent-strong); background: none; border: none; padding: 0; cursor: pointer; font-size: var(--text-ui); font-family: var(--font-sans); }
+  .link.muted { color: var(--muted); font-size: var(--text-label); }
+  .ranklist { max-width: 360px; }
+  .rankrow { display: flex; align-items: center; gap: 12px; padding: 6px 8px; border-radius: var(--radius); }
+  .rankrow:hover { background: var(--active); }
+  .rankrow .n { font-variant-numeric: tabular-nums; font-size: 1.15rem; min-width: 22px; text-align: right; color: var(--muted); }
+  .rankrow .n.top { color: var(--accent-strong); }
+  .rankrow .nm { font-size: var(--text-ui); }
+  .rankrow .plays { margin-left: auto; font-size: var(--text-label); color: var(--muted); font-variant-numeric: tabular-nums; }
+
+  .subgrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: var(--space-5); }
+  .spec-card { background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius); padding: var(--space-4); }
+  .spec-card > h4 { margin: 0 0 var(--space-3); font-size: var(--text-label); font-weight: 500; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; }
+
+  .topbar { display: flex; align-items: center; justify-content: space-between; gap: var(--space-4); background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius); padding: 8px 12px; }
+  .topbar .tb-title { font-family: var(--font-serif); font-size: 1.05rem; }
+  .spec-card.chosen { border-color: color-mix(in srgb, var(--btn-primary-bg) 55%, var(--border)); }
+  .chosen-tag { display: inline-block; margin-left: 6px; font-size: var(--text-micro); color: var(--btn-primary-bg); border: 1px solid currentColor; border-radius: 999px; padding: 1px 7px; letter-spacing: 0.04em; }
+
+  /* queue drawer */
+  .drawer { width: 320px; max-width: 100%; background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius); padding: var(--space-4); }
+  .drawer-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--space-4); }
+  .drawer-head h3 { margin: 0; font-family: var(--font-serif); font-weight: 500; font-size: var(--text-title); }
+  .drawer-label { font-size: var(--text-micro); text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); margin: var(--space-4) 0 6px; }
+  .q-row { display: flex; align-items: center; gap: 10px; padding: 7px 0; }
+  .q-grab { color: var(--muted); cursor: grab; font-size: 15px; }
+  .q-row .title { font-size: var(--text-ui); }
+  .q-row .sub { font-size: var(--text-label); color: var(--muted); }
+  .q-row .dur { margin-left: auto; font-size: var(--text-label); color: var(--muted); font-variant-numeric: tabular-nums; }
+
+  /* expanded player */
+  .expanded { display: flex; gap: var(--space-4); align-items: center; border-radius: 16px; padding: 20px; background: radial-gradient(130% 130% at 20% 0%, #5f4a38, #201c19 70%); }
+  .exp-cover { width: 96px; height: 96px; flex-shrink: 0; border-radius: 12px; background: rgba(0,0,0,0.35); display: grid; place-items: center; font-family: var(--font-serif); font-size: 2rem; color: rgba(255,255,255,0.85); box-shadow: 0 16px 40px rgba(0,0,0,0.5); }
+  .exp-title { font-family: var(--font-serif); font-weight: 500; font-size: 1.4rem; color: #fff; margin: 0; }
+  .exp-sub { color: rgba(255,255,255,0.8); font-size: var(--text-ui); margin: 2px 0 12px; }
+
+  /* detail glass panel over art */
+  .art-strip { height: 120px; border-radius: 16px 16px 0 0; background: radial-gradient(120% 140% at 25% 0%, #6a4d3a, #241f1b 72%); position: relative; }
+  .back-btn { position: absolute; top: 12px; left: 12px; width: 36px; height: 36px; border-radius: 999px; border: none; background: rgba(0,0,0,0.35); color: #fff; display: grid; place-items: center; cursor: pointer; }
+  .glasspanel { margin: -28px var(--space-4) 0; position: relative; background: color-mix(in srgb, var(--panel) 72%, transparent); backdrop-filter: blur(18px) saturate(1.1); -webkit-backdrop-filter: blur(18px) saturate(1.1); border: 1px solid color-mix(in srgb, var(--border) 80%, transparent); border-radius: 16px; padding: var(--space-4); }
+
+  /* account / auth slot */
+  .avatar { width: 28px; height: 28px; border-radius: 999px; background: var(--accent); display: grid; place-items: center; font-family: var(--font-serif); font-size: 0.8rem; font-weight: 600; color: var(--ink); border: none; cursor: pointer; }
+  .avatar.dev { border-radius: 8px; }
+  .avatar.out { background: var(--active); color: var(--muted); }
+
+  /* search top-result card */
+  .topresult { display: flex; gap: var(--space-3); align-items: center; border: 1px solid var(--border); border-radius: 12px; padding: 14px; }
+  .tr-cover { width: 56px; height: 56px; flex-shrink: 0; border-radius: 8px; background: var(--active); border: 1px solid var(--border); display: grid; place-items: center; font-family: var(--font-serif); font-size: 1.4rem; color: var(--muted); }
+  .tr-type { font-size: var(--text-label); color: var(--muted); text-transform: capitalize; }
+  .tr-name { font-size: var(--text-ui); }
+
+  /* editor-layout comparison */
+  .compare2 { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-5); align-items: start; }
+  @media (max-width: 860px) { .compare2 { grid-template-columns: 1fr; } }
+  .opt-label { font-size: var(--text-label); color: var(--muted); margin: 0 0 10px; }
+  .opt-label b { color: var(--ink); }
+  .opt-label .chosen-tag { margin-left: 0; }
+
+  .sheet { display: flex; flex-direction: column; height: 540px; background: var(--panel); border: 1px solid var(--border); border-radius: 14px; overflow: hidden; box-shadow: 0 24px 60px rgba(0,0,0,0.5); }
+  .sheet-head { display: flex; align-items: center; justify-content: space-between; padding: 16px 18px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+  .sheet-head h3 { margin: 0; font-family: var(--font-serif); font-weight: 500; font-size: var(--text-title); }
+  .sheet-body { flex: 1; overflow: auto; padding: 18px; display: grid; gap: var(--space-5); }
+  .sheet-foot { display: flex; align-items: center; justify-content: space-between; gap: var(--space-4); padding: 14px 18px; border-top: 1px solid var(--border); flex-shrink: 0; }
+  .sheet-foot .help { font-size: var(--text-label); color: var(--muted); }
+
+  .mtabs { display: inline-flex; gap: 2px; background: var(--bg); border: 1px solid var(--border); border-radius: 999px; padding: 3px; margin-bottom: var(--space-4); }
+  .mtab { border: none; background: transparent; color: var(--muted); font-family: var(--font-sans); font-size: var(--text-ui); padding: 5px 14px; border-radius: 999px; cursor: pointer; }
+  .mtab.on { background: var(--btn-primary-bg); color: var(--ink); }
+  .lyrics { min-height: 150px; line-height: 1.6; }
+
+  /* mobile phone frames */
+  .phones { display: flex; gap: var(--space-5); flex-wrap: wrap; }
+  .phone { width: 290px; height: 580px; border: 8px solid #0e0e0d; border-radius: 34px; overflow: hidden; background: var(--bg); display: flex; flex-direction: column; box-shadow: 0 24px 60px rgba(0,0,0,0.5); }
+  .phone-cap { font-size: var(--text-label); color: var(--muted); margin: 8px 2px 0; text-align: center; }
+  .fs-head { display: flex; align-items: center; justify-content: space-between; padding: 14px 16px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+  .fs-head h3 { margin: 0; font-family: var(--font-serif); font-weight: 500; font-size: 1.15rem; }
+  .fs-body { flex: 1; overflow: auto; padding: 16px; display: grid; gap: var(--space-4); }
+  .fs-foot { display: flex; gap: 10px; padding: 12px 16px; border-top: 1px solid var(--border); flex-shrink: 0; }
+  .fs-foot .btn { flex: 1; justify-content: center; }
+  .phone .mtabs { display: flex; margin: 0; }
+  .phone .mtab { flex: 1; text-align: center; padding: 5px 8px; }
+
+  /* streaming */
+  .stream-head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); margin-bottom: 6px; }
+  .stream-status { display: inline-flex; align-items: center; gap: 6px; font-size: var(--text-label); color: var(--accent-strong); white-space: nowrap; }
+  .streaming { min-height: 96px; padding: 10px 12px; white-space: pre-wrap; line-height: 1.5; color: var(--ink); }
+  .caret { display: inline-block; width: 2px; height: 1.05em; background: var(--accent-strong); vertical-align: text-bottom; margin-left: 1px; animation: blink 1s steps(1) infinite; }
+  @keyframes blink { 50% { opacity: 0; } }
+</style>
+
+<div class="wrap">
+
+  <header class="masthead">
+    <p class="eyebrow">Music · UI pattern proposal</p>
+    <h1>One type scale, one control, one system.</h1>
+    <p>A single Warm Editorial pattern to replace ~130 ad-hoc inline font sizes (≈28 distinct
+    values) scattered across the app. Serif headings, sans body &amp; UI, the existing dark palette —
+    only with discipline. Every panel below is rendered on the real tokens.</p>
+    <p class="note"><b style="color:var(--ink)">Font note:</b> this mock substitutes Georgia (serif) and
+    the system sans, because webfonts are blocked in a shared preview. The real app keeps Anthropic
+    Serif &amp; Anthropic Sans — proportions and the scale hold; only the letterforms differ.</p>
+  </header>
+
+  <!-- TYPE SCALE -->
+  <section>
+    <p class="eyebrow">Foundation</p>
+    <h2>Type scale — six steps</h2>
+    <p class="lead">Every text element maps to one of these. Nothing lives between the steps.</p>
+    <div class="scale">
+      <div class="scale-row">
+        <div class="scale-meta"><span class="tok">--text-display</span> · <span class="px">28px</span><span class="use">Page title · serif</span></div>
+        <div class="s-serif sz-display">Studio</div>
+      </div>
+      <div class="scale-row">
+        <div class="scale-meta"><span class="tok">--text-title</span> · <span class="px">20px</span><span class="use">Section heading · serif</span></div>
+        <div class="s-serif sz-title">Recently added</div>
+      </div>
+      <div class="scale-row">
+        <div class="scale-meta"><span class="tok">--text-body</span> · <span class="px">16px</span><span class="use">Body &amp; captions · sans</span></div>
+        <div class="s-sans sz-body">Generate cover fanart for a genre.</div>
+      </div>
+      <div class="scale-row">
+        <div class="scale-meta"><span class="tok">--text-ui</span> · <span class="px">15px</span><span class="use">Controls · buttons · tabs</span></div>
+        <div class="s-sans sz-ui">Fast · flux-2-klein-4b</div>
+      </div>
+      <div class="scale-row">
+        <div class="scale-meta"><span class="tok">--text-label</span> · <span class="px">13px</span><span class="use">Field labels · helper</span></div>
+        <div class="s-sans sz-label">Wide 16:9 background · saved to the genre's gallery.</div>
+      </div>
+      <div class="scale-row">
+        <div class="scale-meta"><span class="tok">--text-micro</span> · <span class="px">11px</span><span class="use">Uppercase badges</span></div>
+        <div class="s-sans sz-micro">Unpublished</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CONTROLS -->
+  <section>
+    <p class="eyebrow">Foundation</p>
+    <h2>Form controls — one comfortable size</h2>
+    <p class="lead">Every select / input / textarea is 40px tall with 15px UI text and a 13px
+    label, so the box sits comfortably taller than its text. Focus into a field to see the ring.</p>
+    <div class="card after" style="max-width:420px">
+      <div class="field">
+        <label class="lbl-new">Genre</label>
+        <select class="ctl-new"><option>Metal</option></select>
+      </div>
+      <div class="field">
+        <label class="lbl-new">Model</label>
+        <select class="ctl-new"><option>Fast · flux-2-klein-4b</option></select>
+      </div>
+    </div>
+    <ul class="spec-list">
+      <li><b>min-height</b> 40px</li>
+      <li><b>padding</b> 0 12px</li>
+      <li><b>font</b> 15px sans</li>
+      <li><b>radius</b> 10px (token)</li>
+      <li><b>label</b> 13px muted, wt 500</li>
+      <li><b>focus</b> 2px accent ring</li>
+    </ul>
+  </section>
+
+  <!-- BUTTONS -->
+  <section>
+    <p class="eyebrow">Actions</p>
+    <h2>Buttons — three variants, one size</h2>
+    <p class="lead">All 40px tall, 10px radius, 15px text. The stray 8px radii and the six
+    different button font-sizes across the app collapse into this set.</p>
+    <div class="card">
+      <div class="btnrow">
+        <button class="btn btn-primary">Generate fanart</button>
+        <button class="btn btn-secondary">Refine</button>
+        <button class="btn btn-ghost"><span class="i" data-lucide="feather" data-size="15"></span>Suggest prompt</button>
+        <button class="btn btn-ghost" disabled><span class="i spin" data-lucide="loader-circle" data-size="15"></span>Suggesting</button>
+        <button class="btn btn-primary" disabled><span class="i spin" data-lucide="loader-circle" data-size="15"></span>Generating</button>
+        <button class="btn btn-secondary btn-small">Set as background</button>
+        <span class="badge"><span class="dot"></span>Unpublished</span>
+      </div>
+      <ul class="spec-list">
+        <li><b>primary</b> accent-strong fill · wt 600</li>
+        <li><b>secondary</b> active + border · wt 500</li>
+        <li><b>ghost</b> accent text</li>
+        <li><b>small</b> 32px · 13px</li>
+        <li><b>disabled</b> opacity 0.6</li>
+        <li><b>busy</b> spinner + label (no ellipsis)</li>
+      </ul>
+    </div>
+    <div class="note" style="margin-top:var(--space-4); max-width:none">
+      <b style="color:var(--ink)">The ellipsis rule.</b> A trailing <b style="color:var(--ink)">…</b>
+      means the command <b style="color:var(--ink)">opens more UI to gather input</b> before it acts —
+      “Edit tags…”, “Add to playlist…”, “Replace cover…”, “New playlist…”. It is <b style="color:var(--ink)">not</b>
+      used for actions that happen immediately (Play, Save changes, Generate), for a command that only
+      opens a confirmation (“Delete playlist” → confirm, no …), or for busy labels (the spinner is the
+      progress signal: “Generating”, not “Generating…”). Placeholder hints (“Search…”) are a separate,
+      accepted idiom. Always the character <b style="color:var(--ink)">…</b> (U+2026), never three dots.
+    </div>
+  </section>
+
+  <!-- STUDIO PANEL -->
+  <section>
+    <p class="eyebrow">Applied · Studio</p>
+    <h2>Genre → Fanart, rebuilt on the pattern</h2>
+    <p class="lead">The exact screenshot scene — every element now on the scale, controls at
+    40px, one label size, consistent spacing rhythm.</p>
+    <div class="card studio">
+      <div class="h">Studio</div>
+      <p class="cap">Generate cover fanart for a genre.</p>
+      <div class="tabs">
+        <button class="tab on">Genre → Fanart</button>
+        <button class="tab">Album Cover</button>
+        <button class="tab">Song → Suno</button>
+      </div>
+      <div class="field">
+        <label class="lbl-new">Genre</label>
+        <select class="ctl-new" style="max-width:280px"><option>Metal</option></select>
+      </div>
+      <div class="field">
+        <label class="lbl-new">Model</label>
+        <select class="ctl-new" style="max-width:320px"><option>Fast · flux-2-klein-4b</option></select>
+      </div>
+      <div class="field">
+        <div class="row-between">
+          <label class="lbl-new">Prompt</label>
+          <button class="btn btn-ghost btn-small"><span class="i" data-lucide="feather" data-size="14"></span>Suggest prompt</button>
+        </div>
+        <textarea class="ctl-new" placeholder="Describe the scene for this genre's background…"></textarea>
+      </div>
+      <div class="field refine-row">
+        <input class="ctl-new" placeholder="Refine the prompt — e.g. &ldquo;make it darker&rdquo;, &ldquo;add neon&rdquo;">
+        <button class="btn btn-secondary">Refine</button>
+      </div>
+      <div class="generate-row">
+        <button class="btn btn-primary">Generate fanart</button>
+        <span class="help">Wide 16:9 background · saved to the genre's gallery.</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- LIBRARY PILLS -->
+  <section>
+    <p class="eyebrow">Applied · Library</p>
+    <h2>Tabs &amp; filter pills</h2>
+    <p class="lead">Pills keep their rounded shape but adopt the 15px UI size and consistent
+    padding, with one active/inactive state. The genre filter pill uses the accent outline.</p>
+    <div class="card after">
+      <div class="pills">
+        <button class="pill pill-new on">All songs</button>
+        <button class="pill pill-new">Favorites</button>
+        <button class="pill pill-new">Unpublished</button>
+        <button class="pill pill-new">Playlists</button>
+        <button class="pill pill-new">Genres</button>
+      </div>
+      <div class="pills" style="margin-top:16px">
+        <button class="pill pill-new filter"><span class="dot"></span>Needs artwork</button>
+      </div>
+    </div>
+    <div class="rows">
+      <div class="row">
+        <span class="cv">M</span>
+        <div class="meta"><span class="title">Iron Verdict</span><span class="sub">Ashfall Choir</span></div>
+        <span class="dur">3:42</span>
+      </div>
+      <div class="row">
+        <span class="cv">M</span>
+        <div class="meta"><span class="title">Molten Requiem</span><span class="sub">Ashfall Choir</span></div>
+        <span class="dur">4:18</span>
+      </div>
+      <div class="row">
+        <span class="cv">M</span>
+        <div class="meta"><span class="title">Cathedral of Rust</span><span class="sub">Nightforge</span></div>
+        <span class="dur">5:07</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- MODALS -->
+  <section>
+    <p class="eyebrow">Applied · Modals</p>
+    <h2>Dialogs — the MP3 tag editor &amp; confirm</h2>
+    <p class="lead">Just three sizes in the whole dialog — a <b style="color:var(--ink)">serif 20px</b>
+    title, 15px controls, 13px labels &amp; helpers. The editor's old 0.7rem uppercase labels and
+    11px helper are retired. Right-aligned footer; destructive confirms use the danger fill.</p>
+
+    <div class="btnrow" style="margin-bottom:var(--space-3)">
+      <button class="btn btn-secondary" data-open="ov-tags"><span class="i" data-lucide="square-pen" data-size="15"></span>Edit tags…</button>
+      <button class="btn btn-danger" data-open="ov-confirm"><span class="i" data-lucide="trash-2" data-size="15"></span>Delete playlist</button>
+    </div>
+    <p class="lead">Opens over the page with a <b style="color:var(--ink)">rgba(0,0,0,.5)</b> scrim and a
+    <b style="color:var(--ink)">2px backdrop-blur</b> (matching loom's <code>SettingsModal</code>). Click the
+    backdrop, ✕, or Cancel to close.</p>
+
+    <div class="overlay" id="ov-tags" role="presentation">
+      <div class="modal" role="dialog" aria-modal="true" aria-label="Edit tags">
+        <div class="modal-head">
+          <h3 class="modal-title">Edit tags</h3>
+          <button class="modal-close" aria-label="Close"><span class="i" data-lucide="x" data-size="18"></span></button>
+        </div>
+        <div class="mtabs">
+          <button class="mtab on">Details</button>
+          <button class="mtab">Cover</button>
+          <button class="mtab">Lyrics</button>
+        </div>
+        <div class="te-body">
+          <div class="te-cover">
+            <div class="cover-box">A</div>
+            <button class="cover-link">Replace cover…</button>
+            <p class="cover-help">Applies to every track on this artist + album.</p>
+          </div>
+          <div class="te-fields">
+            <div>
+              <label class="lbl-new">Title</label>
+              <input class="ctl-new" value="Iron Verdict">
+            </div>
+            <div>
+              <label class="lbl-new">Artist</label>
+              <input class="ctl-new" value="Ashfall Choir">
+            </div>
+            <div>
+              <label class="lbl-new">Album</label>
+              <input class="ctl-new" value="Molten Requiem">
+            </div>
+            <div>
+              <label class="lbl-new">Genres</label>
+              <div class="chips">
+                <span class="chip">Metal <button aria-label="Remove Metal"><span class="i" data-lucide="x" data-size="12"></span></button></span>
+                <span class="chip">Doom <button aria-label="Remove Doom"><span class="i" data-lucide="x" data-size="12"></span></button></span>
+              </div>
+              <input class="ctl-new" placeholder="Add genre and press Enter">
+            </div>
+            <div class="te-2col">
+              <div>
+                <label class="lbl-new">Year</label>
+                <input class="ctl-new" value="2024" inputmode="numeric">
+              </div>
+              <div>
+                <label class="lbl-new">Track no.</label>
+                <input class="ctl-new" value="3" inputmode="numeric">
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="modal-foot">
+          <span class="help">Changes save to the file's ID3 tags.</span>
+          <div class="foot-btns">
+            <button class="btn btn-secondary">Cancel</button>
+            <button class="btn btn-primary">Save changes</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="overlay" id="ov-confirm" role="presentation">
+      <div class="modal sm" role="alertdialog" aria-modal="true" aria-label="Delete playlist">
+        <div class="modal-head">
+          <h3 class="modal-title">Delete playlist?</h3>
+          <button class="modal-close" aria-label="Close"><span class="i" data-lucide="x" data-size="18"></span></button>
+        </div>
+        <p class="modal-body">&ldquo;Late-night Doom&rdquo; will be removed. The songs stay in your library.</p>
+        <div class="modal-foot" style="justify-content:flex-end">
+          <div class="foot-btns">
+            <button class="btn btn-secondary">Cancel</button>
+            <button class="btn btn-danger">Delete</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- MP3 EDITOR -->
+  <section>
+    <p class="eyebrow">Applied · MP3 editor</p>
+    <h2>Tabbed tag editor</h2>
+    <p class="lead">Details / Cover / Lyrics tabs keep each screen short as the form grows. A
+    centered modal on desktop, full-screen on mobile — both open over the loom-style blurred
+    backdrop (try <b style="color:var(--ink)">Edit tags…</b> in the Modals section). Lyrics is a
+    tall textarea on its own tab.</p>
+    <div class="compare2">
+      <div>
+        <p class="opt-label"><b>Desktop</b> — centered modal, blurred backdrop.</p>
+        <div class="modal" style="margin:0; max-height:none">
+          <div class="modal-head">
+            <h3 class="modal-title">Edit tags</h3>
+            <button class="modal-close" aria-label="Close"><span class="i" data-lucide="x" data-size="18"></span></button>
+          </div>
+          <div class="mtabs">
+            <button class="mtab">Details</button>
+            <button class="mtab">Cover</button>
+            <button class="mtab on">Lyrics</button>
+          </div>
+          <div>
+            <div class="row-between">
+              <label class="lbl-new">Lyrics</label>
+              <button class="btn btn-ghost btn-small" title="Remove [Verse]/[Chorus]-style Suno tags">Clean</button>
+            </div>
+            <textarea class="ctl-new lyrics" placeholder="Paste lyrics here. Clean removes [Verse]/[Chorus] tags.">Beneath the ashfall sky we kneel,
+molten choir in the nave,
+iron verdict, tolling bells —
+rust cathedral, doom we crave.</textarea>
+          </div>
+          <div class="modal-foot">
+            <span class="help">Changes save to the file's ID3 tags.</span>
+            <div class="foot-btns">
+              <button class="btn btn-secondary">Cancel</button>
+              <button class="btn btn-primary">Save changes</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div>
+        <p class="opt-label"><b>Mobile</b> — full-screen, same tabs.</p>
+        <div class="phone">
+          <div class="fs-head"><h3>Edit tags</h3><button class="modal-close" aria-label="Close"><span class="i" data-lucide="x" data-size="18"></span></button></div>
+          <div style="padding:12px 16px 0"><div class="mtabs"><button class="mtab">Details</button><button class="mtab">Cover</button><button class="mtab on">Lyrics</button></div></div>
+          <div class="fs-body">
+            <div>
+              <div class="row-between"><label class="lbl-new">Lyrics</label><button class="btn btn-ghost btn-small" title="Remove [Verse]/[Chorus]-style Suno tags">Clean</button></div>
+              <textarea class="ctl-new lyrics" style="min-height:260px" placeholder="Paste lyrics here. Clean removes [Verse]/[Chorus] tags.">Beneath the ashfall sky we kneel,
+molten choir in the nave,
+iron verdict, tolling bells —
+rust cathedral, doom we crave.</textarea>
+            </div>
+          </div>
+          <div class="fs-foot"><button class="btn btn-secondary">Cancel</button><button class="btn btn-primary">Save</button></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ACCENT ROLES -->
+  <section>
+    <p class="eyebrow">Color roles</p>
+    <h2>Three accents, three jobs</h2>
+    <p class="lead">The app currently mixes two oranges arbitrarily. The pattern gives each a
+    single role so a color always means the same thing.</p>
+    <div class="roles">
+      <div class="role">
+        <span class="sw" style="background:var(--btn-primary-bg)"></span>
+        <div><div class="rname">Accent fill <span class="rhex">#c25f34</span></div>
+        <div class="ruse">Primary buttons · active tab/pill/nav · selection ring · focus ring · slider</div></div>
+      </div>
+      <div class="role">
+        <span class="sw" style="background:var(--accent-strong)"></span>
+        <div><div class="rname">Accent text <span class="rhex">#d97757</span></div>
+        <div class="ruse">Links · ghost buttons · favorite stars · outline CTAs · dots &amp; ribbons</div></div>
+      </div>
+      <div class="role">
+        <span class="sw" style="background:var(--danger)"></span>
+        <div><div class="rname">Danger <span class="rhex">#c14638</span></div>
+        <div class="ruse">Destructive fills · delete confirms · danger menu items</div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ICON BUTTONS & SLIDERS -->
+  <section>
+    <p class="eyebrow">Controls · extended</p>
+    <h2>Icon buttons, toggles &amp; the seek slider</h2>
+    <p class="lead">Icon-only buttons are 40px square, ghost by default. The transport play is a
+    circular accent button. The seek bar is the app's only range slider (there is no volume
+    slider); its fill and thumb use the accent fill.</p>
+    <div class="subgrid">
+      <div class="spec-card">
+        <h4>Icon buttons</h4>
+        <div class="swatchrow">
+          <button class="iconbtn" title="Previous"><span class="i" data-lucide="skip-back"></span></button>
+          <button class="iconbtn play" title="Play"><span class="i" data-lucide="play" data-size="22"></span></button>
+          <button class="iconbtn" title="Next"><span class="i" data-lucide="skip-forward"></span></button>
+          <button class="iconbtn star on" title="Favorited"><span class="i" data-lucide="star" data-fill></span></button>
+          <button class="iconbtn star off" title="Favorite"><span class="i" data-lucide="star"></span></button>
+          <button class="glyphbtn" title="Remove"><span class="i" data-lucide="x" data-size="18"></span></button>
+          <button class="glyphbtn" title="Drag">⠿</button>
+        </div>
+      </div>
+      <div class="spec-card">
+        <h4>Seek slider</h4>
+        <div class="seek">
+          <span class="t">1:24</span>
+          <input type="range" min="0" max="100" value="38" aria-label="Seek">
+          <span class="t">3:42</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- PLAYER BAR -->
+  <section>
+    <p class="eyebrow">Applied · Player</p>
+    <h2>Docked player bar</h2>
+    <p class="lead">Now-playing text on the scale, the transport cluster, and the seek slider in
+    one bar — the persistent chrome at the bottom of every page.</p>
+    <div class="playerbar">
+      <div class="np">
+        <span class="cv">A</span>
+        <div style="min-width:0">
+          <div class="title">Iron Verdict</div>
+          <div class="sub">Ashfall Choir</div>
+        </div>
+      </div>
+      <div class="center">
+        <div class="transport">
+          <button class="iconbtn" title="Previous"><span class="i" data-lucide="skip-back"></span></button>
+          <button class="iconbtn play" title="Pause"><span class="i" data-lucide="pause" data-size="22"></span></button>
+          <button class="iconbtn" title="Next"><span class="i" data-lucide="skip-forward"></span></button>
+        </div>
+        <div class="seek" style="width:100%">
+          <span class="t">1:24</span>
+          <input type="range" min="0" max="100" value="38" aria-label="Seek">
+          <span class="t">3:42</span>
+        </div>
+      </div>
+      <div class="transport">
+        <button class="iconbtn star on" title="Favorited"><span class="i" data-lucide="star" data-fill></span></button>
+        <button class="iconbtn" title="Queue"><span class="i" data-lucide="list"></span></button>
+        <button class="iconbtn" title="Expand"><span class="i" data-lucide="chevron-up"></span></button>
+      </div>
+    </div>
+  </section>
+
+  <!-- MENUS + NAV -->
+  <section>
+    <p class="eyebrow">Applied · Menus &amp; nav</p>
+    <h2>Context menu, rail &amp; tab bar</h2>
+    <p class="lead">Menus sit on an <b style="color:var(--ink)">elevated</b> warm-charcoal surface
+    — today hardcoded in <code>Menu.tsx</code>; the pattern promotes it to <code>--elevated*</code>
+    tokens. Nav uses a subtle grey active on the persistent desktop rail, accent on the mobile tab.</p>
+    <div class="subgrid">
+      <div class="spec-card">
+        <h4>Context menu</h4>
+        <div class="menu">
+          <div class="menu-label">Iron Verdict</div>
+          <div class="menu-item"><span class="ic"><span class="i" data-lucide="play" data-size="17"></span></span>Play next</div>
+          <div class="menu-item"><span class="ic"><span class="i" data-lucide="folder-plus" data-size="17"></span></span>Add to playlist…<span class="count">12</span></div>
+          <div class="menu-item"><span class="ic"><span class="i" data-lucide="square-pen" data-size="17"></span></span>Edit tags…</div>
+          <div class="menu-sep"></div>
+          <div class="menu-item danger"><span class="ic"><span class="i" data-lucide="trash-2" data-size="17"></span></span>Delete song</div>
+        </div>
+      </div>
+      <div class="spec-card">
+        <h4>Desktop rail</h4>
+        <div class="swatchrow" style="align-items:flex-start">
+          <div class="rail">
+            <button class="rail-btn on" title="Home"><span class="i" data-lucide="house" data-size="22"></span></button>
+            <button class="rail-btn" title="Search"><span class="i" data-lucide="search" data-size="22"></span></button>
+            <button class="rail-btn" title="Library"><span class="i" data-lucide="library" data-size="22"></span></button>
+            <button class="rail-btn" title="Studio"><span class="i" data-lucide="sparkles" data-size="22"></span></button>
+          </div>
+          <div class="tabbar">
+            <button class="tab-item on"><span class="i" data-lucide="house" data-size="22"></span><span class="lab">Home</span></button>
+            <button class="tab-item"><span class="i" data-lucide="search" data-size="22"></span><span class="lab">Search</span></button>
+            <button class="tab-item"><span class="i" data-lucide="library" data-size="22"></span><span class="lab">Library</span></button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- QUEUE CONTROL -->
+  <section>
+    <p class="eyebrow">Applied · Top chrome</p>
+    <h2>The “Queue” control</h2>
+    <p class="lead">An icon-only 40px ghost button (list icon, tooltip “Queue”), matching the
+    player-bar icon buttons.</p>
+    <div class="spec-card" style="max-width:420px">
+      <div class="topbar"><span class="tb-title">Home</span><button class="iconbtn" title="Queue"><span class="i" data-lucide="list"></span></button></div>
+    </div>
+  </section>
+
+  <!-- TOAST + FEEDBACK -->
+  <section>
+    <p class="eyebrow">Feedback</p>
+    <h2>Toasts, loading, empty &amp; error states</h2>
+    <p class="lead">Transient upload toast with a progress bar, the loading spinner in muted, the
+    empty-state block (serif title + CTA), and inline error text in accent.</p>
+    <div class="subgrid">
+      <div class="spec-card">
+        <h4>Upload toast</h4>
+        <div class="toast"><span class="i spin" data-lucide="loader-circle" data-size="15"></span>Uploading “Iron Verdict.mp3”</div>
+        <div class="progress"><i></i></div>
+      </div>
+      <div class="spec-card">
+        <h4>Loading / error</h4>
+        <div class="loading"><span class="i spin" data-lucide="loader-circle" data-size="16"></span>Loading songs</div>
+        <p class="errtext" style="margin:14px 0 0">Could not save changes — check your connection and try again.</p>
+      </div>
+    </div>
+    <div class="empty" style="margin-top:var(--space-5)">
+      <h3>No favorites yet</h3>
+      <p>Tap the star on any song to keep it here.</p>
+      <button class="btn btn-primary" style="margin:0 auto">Browse the library</button>
+    </div>
+  </section>
+
+  <!-- IMMERSIVE / ON-ART -->
+  <section>
+    <p class="eyebrow">Applied · Immersive</p>
+    <h2>Display type &amp; controls over artwork</h2>
+    <p class="lead">A deliberate exception to the squared 10px UI: over imagery, headings scale
+    fluidly (<code>clamp()</code>) and buttons become <b style="color:var(--ink)">999-radius pills</b>
+    (solid accent + glass) for legibility on photography. Used by hero, detail &amp; chapter.</p>
+    <div class="onart-stage">
+      <span class="scrim"></span>
+      <div class="onart-inner">
+        <p class="onart-eyebrow">Genre</p>
+        <h3 class="onart-title">Doom Metal</h3>
+        <p class="onart-sub">42 songs · 8 artists</p>
+        <div class="onart-btns">
+          <button class="pill-btn solid"><span class="i" data-lucide="play" data-size="18" data-fill></span>Play</button>
+          <button class="pill-btn glass">Shuffle</button>
+          <button class="iconbtn onart" title="Share"><span class="i" data-lucide="share-2" data-size="18"></span></button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- SEARCH + AUTOCOMPLETE -->
+  <section>
+    <p class="eyebrow">Applied · Search</p>
+    <h2>Search field &amp; typeahead</h2>
+    <p class="lead">The search field is a 999-radius pill (a shape reserved for search &amp; on-art),
+    distinct from the squared form controls. Autocomplete rows sit on the active surface.</p>
+    <div class="subgrid">
+      <div class="spec-card">
+        <h4>Search field</h4>
+        <div class="searchfield"><span class="ic i" data-lucide="search" data-size="20"></span><input placeholder="Search songs, artists, genres…" value="ashfall"></div>
+      </div>
+      <div class="spec-card">
+        <h4>Autocomplete</h4>
+        <div class="ac">
+          <input class="ctl-new" placeholder="Add a song…" value="iron">
+          <div class="ac-list">
+            <div class="ac-item"><span>Iron Verdict</span><span class="c">Ashfall Choir</span></div>
+            <div class="ac-item"><span>Iron Wake</span><span class="c">Nightforge</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- GRID TILES -->
+  <section>
+    <p class="eyebrow">Applied · Grids</p>
+    <h2>Cover tiles, genre cards &amp; placeholders</h2>
+    <p class="lead">Cover art falls back to a serif monogram on the active surface. Cards carry
+    ribbons and tinted CTAs; a dashed tile is the "add" affordance.</p>
+    <div class="tiles">
+      <div class="tile-card">
+        <div class="tile-cover">A<span class="ribbon"><span class="dot"></span>Unpublished</span></div>
+        <div class="tile-name">Molten Requiem</div>
+        <div class="tile-sub">Ashfall Choir</div>
+      </div>
+      <div class="tile-card">
+        <button class="dashed-tile"><span class="i" data-lucide="plus" data-size="16"></span>&nbsp;New playlist…</button>
+      </div>
+      <div class="genre-card">
+        <span class="ribbon"><span class="dot"></span>Needs artwork</span>
+        <div class="gname">Doom Metal</div>
+        <div class="gsub">42 songs</div>
+        <button class="tint-cta"><span class="i" data-lucide="sparkles" data-size="13"></span>Create in Studio</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- SELECTABLE THUMBS -->
+  <section>
+    <p class="eyebrow">Applied · Studio gallery</p>
+    <h2>Selectable 16:9 fanart &amp; upload tile</h2>
+    <p class="lead">Generated backgrounds show as 16:9 thumbnails; the chosen one gets the accent
+    selection ring, with a star toggle to set the genre hero. A dashed tile uploads your own.</p>
+    <div class="thumbs">
+      <div class="thumb sel"><button class="star" title="Set as hero"><span class="i" data-lucide="star" data-size="15" data-fill></span></button></div>
+      <div class="thumb"><button class="star" title="Set as hero" style="color:var(--muted)"><span class="i" data-lucide="star" data-size="15"></span></button></div>
+      <button class="upload-thumb"><span class="i" data-lucide="upload" data-size="18"></span><span>Upload…</span></button>
+    </div>
+  </section>
+
+  <!-- LINKS + RANK -->
+  <section>
+    <p class="eyebrow">Text &amp; data</p>
+    <h2>Links &amp; ranked lists</h2>
+    <p class="lead">Text links use accent text; section "see all" links are muted. Ranked/stat
+    numbers use tabular figures, accent for the top three.</p>
+    <div class="subgrid">
+      <div class="spec-card">
+        <h4>Links</h4>
+        <div class="swatchrow" style="gap:var(--space-4)">
+          <button class="link" style="display:inline-flex;align-items:center;gap:4px"><span class="i" data-lucide="chevron-left" data-size="16"></span>Home</button>
+          <button class="link">Replace cover…</button>
+          <button class="link muted" style="display:inline-flex;align-items:center;gap:4px">Your library<span class="i" data-lucide="chevron-right" data-size="15"></span></button>
+        </div>
+      </div>
+      <div class="spec-card">
+        <h4>Top ten (rank numbers)</h4>
+        <div class="ranklist">
+          <div class="rankrow"><span class="n top">1</span><span class="nm">Iron Verdict</span><span class="plays">4,182</span></div>
+          <div class="rankrow"><span class="n top">2</span><span class="nm">Molten Requiem</span><span class="plays">3,904</span></div>
+          <div class="rankrow"><span class="n">3</span><span class="nm">Cathedral of Rust</span><span class="plays">2,551</span></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ASYNC & STREAMING -->
+  <section>
+    <p class="eyebrow">Behavior · Async</p>
+    <h2>Spin while waiting · stream the answer</h2>
+    <p class="lead">Two rules that apply everywhere: <b style="color:var(--ink)">any</b> pending
+    operation shows a spinner, and LLM answers <b style="color:var(--ink)">stream</b> in — while
+    streaming, the input is <b style="color:var(--ink)">locked</b> (no editing) and only the answer
+    is shown (reasoning omitted). The box unlocks when the stream completes. The point is
+    perceived speed: streaming tokens keep <b style="color:var(--ink)">something visibly happening</b>,
+    so the wait feels shorter than a spinner staring back at an empty box.</p>
+    <div class="subgrid">
+      <div class="spec-card">
+        <h4>Suggest / Refine → streams into locked field</h4>
+        <div class="stream-head">
+          <span class="lbl-new" style="margin:0">Prompt</span>
+          <span class="stream-status"><span class="i spin" data-lucide="loader-circle" data-size="14"></span>Streaming <span style="color:var(--muted)">· input locked</span></span>
+        </div>
+        <div class="ctl-new streaming" id="streamOut"></div>
+        <div class="refine-row" style="margin-top:10px; opacity:0.55; pointer-events:none">
+          <input class="ctl-new" placeholder="Refine the prompt…" disabled>
+          <button class="btn btn-secondary" disabled><span class="i spin" data-lucide="loader-circle" data-size="15"></span>Refining</button>
+        </div>
+      </div>
+      <div class="spec-card">
+        <h4>Pending states (all spin)</h4>
+        <div class="btnrow" style="align-items:flex-start; flex-direction:column; gap:var(--space-3)">
+          <button class="btn btn-primary" disabled><span class="i spin" data-lucide="loader-circle" data-size="15"></span>Generating</button>
+          <div class="loading"><span class="i spin" data-lucide="loader-circle" data-size="16"></span>Loading songs</div>
+          <div class="toast"><span class="i spin" data-lucide="loader-circle" data-size="15"></span>Uploading “Iron Verdict.mp3”</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- EXTENDED SURFACES -->
+  <section>
+    <p class="eyebrow">Applied · Surfaces</p>
+    <h2>Drawer, expanded player, glass panel, account &amp; top result</h2>
+    <p class="lead">The remaining distinct surfaces, on the pattern: a right-side queue drawer,
+    the immersive now-playing view, the frosted song-list over a hero, the account slot, and
+    search's highlighted best-match card.</p>
+    <div class="subgrid">
+      <div class="spec-card">
+        <h4>Queue drawer</h4>
+        <div class="drawer">
+          <div class="drawer-head"><h3>Queue</h3><button class="glyphbtn" title="Close"><span class="i" data-lucide="x" data-size="18"></span></button></div>
+          <div class="drawer-label">Now playing</div>
+          <div class="q-row"><span class="q-grab">⠿</span><div><div class="title">Iron Verdict</div><div class="sub">Ashfall Choir</div></div><span class="dur">3:42</span></div>
+          <div class="drawer-label">Next up</div>
+          <div class="q-row"><span class="q-grab">⠿</span><div><div class="title">Molten Requiem</div><div class="sub">Ashfall Choir</div></div><span class="dur">4:18</span></div>
+          <div class="q-row"><span class="q-grab">⠿</span><div><div class="title">Cathedral of Rust</div><div class="sub">Nightforge</div></div><span class="dur">5:07</span></div>
+        </div>
+      </div>
+      <div class="spec-card">
+        <h4>Expanded player</h4>
+        <div class="expanded">
+          <div class="exp-cover">A</div>
+          <div style="min-width:0">
+            <p class="exp-title">Iron Verdict</p>
+            <p class="exp-sub">Ashfall Choir</p>
+            <div class="transport">
+              <button class="iconbtn onart" title="Previous"><span class="i" data-lucide="skip-back" data-size="18"></span></button>
+              <button class="iconbtn play" title="Pause"><span class="i" data-lucide="pause" data-size="22"></span></button>
+              <button class="iconbtn onart" title="Next"><span class="i" data-lucide="skip-forward" data-size="18"></span></button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="subgrid" style="margin-top:var(--space-5)">
+      <div class="spec-card">
+        <h4>Detail glass panel (over hero)</h4>
+        <div class="art-strip"><button class="back-btn" title="Back"><span class="i" data-lucide="chevron-left" data-size="22"></span></button></div>
+        <div class="glasspanel">
+          <div class="q-row"><div style="flex:1"><div class="title">Iron Verdict</div><div class="sub">Ashfall Choir</div></div><span class="dur">3:42</span></div>
+          <div class="q-row"><div style="flex:1"><div class="title">Molten Requiem</div><div class="sub">Ashfall Choir</div></div><span class="dur">4:18</span></div>
+        </div>
+      </div>
+      <div class="spec-card">
+        <h4>Account slot &amp; search top result</h4>
+        <div class="topbar">
+          <span class="tb-title">Library</span>
+          <span style="display:inline-flex; gap:10px; align-items:center">
+            <button class="avatar" title="Signed in as Jan · sign out">J</button>
+            <button class="btn btn-ghost btn-small">Sign in</button>
+          </span>
+        </div>
+        <p class="cover-help" style="text-align:left; margin:8px 0 14px">Round = OIDC · square = dev mode · tooltip via native <code>title</code>.</p>
+        <div class="topresult">
+          <span class="tr-cover">A</span>
+          <div><div class="tr-type">Artist · best match</div><div class="tr-name">Ashfall Choir</div></div>
+          <button class="iconbtn play" title="Play" style="margin-left:auto"><span class="i" data-lucide="play" data-size="20" data-fill></span></button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<script>
+  // lucide icon node data (v1.24.0, ISC) — the exact set from Icon.tsx / Glyph.tsx.
+  const ICONS = {
+    "play":"<path d=\"M5 5a2 2 0 0 1 3.008-1.728l11.997 6.998a2 2 0 0 1 .003 3.458l-12 7A2 2 0 0 1 5 19z\"/>",
+    "pause":"<rect x=\"14\" y=\"3\" width=\"5\" height=\"18\" rx=\"1\"/><rect x=\"5\" y=\"3\" width=\"5\" height=\"18\" rx=\"1\"/>",
+    "skip-back":"<path d=\"M17.971 4.285A2 2 0 0 1 21 6v12a2 2 0 0 1-3.029 1.715l-9.997-5.998a2 2 0 0 1-.003-3.432z\"/><path d=\"M3 20V4\"/>",
+    "skip-forward":"<path d=\"M21 4v16\"/><path d=\"M6.029 4.285A2 2 0 0 0 3 6v12a2 2 0 0 0 3.029 1.715l9.997-5.998a2 2 0 0 0 .003-3.432z\"/>",
+    "star":"<path d=\"M11.525 2.295a.53.53 0 0 1 .95 0l2.31 4.679a2.123 2.123 0 0 0 1.595 1.16l5.166.756a.53.53 0 0 1 .294.904l-3.736 3.638a2.123 2.123 0 0 0-.611 1.878l.882 5.14a.53.53 0 0 1-.771.56l-4.618-2.428a2.122 2.122 0 0 0-1.973 0L6.396 21.01a.53.53 0 0 1-.77-.56l.881-5.139a2.122 2.122 0 0 0-.611-1.879L2.16 9.795a.53.53 0 0 1 .294-.906l5.165-.755a2.122 2.122 0 0 0 1.597-1.16z\"/>",
+    "star-off":"<path d=\"m10.344 4.688 1.181-2.393a.53.53 0 0 1 .95 0l2.31 4.679a2.12 2.12 0 0 0 1.595 1.16l5.166.756a.53.53 0 0 1 .294.904l-3.237 3.152\"/><path d=\"m17.945 17.945.43 2.505a.53.53 0 0 1-.771.56l-4.618-2.428a2.12 2.12 0 0 0-1.973 0L6.396 21.01a.53.53 0 0 1-.77-.56l.881-5.139a2.12 2.12 0 0 0-.611-1.879L2.16 9.795a.53.53 0 0 1 .294-.906l5.165-.755a8 8 0 0 0 .4-.099\"/><path d=\"m2 2 20 20\"/>",
+    "trash-2":"<path d=\"M10 11v6\"/><path d=\"M14 11v6\"/><path d=\"M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6\"/><path d=\"M3 6h18\"/><path d=\"M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2\"/>",
+    "square-pen":"<path d=\"M12 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7\"/><path d=\"M18.375 2.625a1 1 0 0 1 3 3l-9.013 9.014a2 2 0 0 1-.853.505l-2.873.84a.5.5 0 0 1-.62-.62l.84-2.873a2 2 0 0 1 .506-.852z\"/>",
+    "folder-plus":"<path d=\"M12 10v6\"/><path d=\"M9 13h6\"/><path d=\"M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z\"/>",
+    "plus":"<path d=\"M5 12h14\"/><path d=\"M12 5v14\"/>",
+    "house":"<path d=\"M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8\"/><path d=\"M3 10a2 2 0 0 1 .709-1.528l7-6a2 2 0 0 1 2.582 0l7 6A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z\"/>",
+    "search":"<path d=\"m21 21-4.34-4.34\"/><circle cx=\"11\" cy=\"11\" r=\"8\"/>",
+    "library":"<path d=\"m16 6 4 14\"/><path d=\"M12 6v14\"/><path d=\"M8 8v12\"/><path d=\"M4 4v16\"/>",
+    "sparkles":"<path d=\"M11.017 2.814a1 1 0 0 1 1.966 0l1.051 5.558a2 2 0 0 0 1.594 1.594l5.558 1.051a1 1 0 0 1 0 1.966l-5.558 1.051a2 2 0 0 0-1.594 1.594l-1.051 5.558a1 1 0 0 1-1.966 0l-1.051-5.558a2 2 0 0 0-1.594-1.594l-5.558-1.051a1 1 0 0 1 0-1.966l5.558-1.051a2 2 0 0 0 1.594-1.594z\"/><path d=\"M20 2v4\"/><path d=\"M22 4h-4\"/><circle cx=\"4\" cy=\"20\" r=\"2\"/>",
+    "loader-circle":"<path d=\"M21 12a9 9 0 1 1-6.219-8.56\"/>",
+    "upload":"<path d=\"M12 3v12\"/><path d=\"m17 8-5-5-5 5\"/><path d=\"M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4\"/>",
+    "chevron-left":"<path d=\"m15 18-6-6 6-6\"/>",
+    "chevron-right":"<path d=\"m9 18 6-6-6-6\"/>",
+    "chevron-up":"<path d=\"m18 15-6-6-6 6\"/>",
+    "share-2":"<circle cx=\"18\" cy=\"5\" r=\"3\"/><circle cx=\"6\" cy=\"12\" r=\"3\"/><circle cx=\"18\" cy=\"19\" r=\"3\"/><line x1=\"8.59\" x2=\"15.42\" y1=\"13.51\" y2=\"17.49\"/><line x1=\"15.41\" x2=\"8.59\" y1=\"6.51\" y2=\"10.49\"/>",
+    "feather":"<path d=\"M12.67 19a2 2 0 0 0 1.416-.588l6.154-6.172a6 6 0 0 0-8.49-8.49L5.586 9.914A2 2 0 0 0 5 11.328V18a1 1 0 0 0 1 1z\"/><path d=\"M16 8 2 22\"/><path d=\"M17.5 15H9\"/>",
+    "list":"<path d=\"M3 5h.01\"/><path d=\"M3 12h.01\"/><path d=\"M3 19h.01\"/><path d=\"M8 5h13\"/><path d=\"M8 12h13\"/><path d=\"M8 19h13\"/>",
+    "x":"<path d=\"M18 6 6 18\"/><path d=\"m6 6 12 12\"/>",
+    "ellipsis":"<circle cx=\"12\" cy=\"12\" r=\"1\"/><circle cx=\"19\" cy=\"12\" r=\"1\"/><circle cx=\"5\" cy=\"12\" r=\"1\"/>"
+  };
+  document.querySelectorAll("[data-lucide]").forEach(function (el) {
+    var name = el.getAttribute("data-lucide");
+    var size = el.getAttribute("data-size") || "20";
+    var fill = el.hasAttribute("data-fill") ? "currentColor" : "none";
+    var inner = ICONS[name] || "";
+    el.innerHTML =
+      '<svg xmlns="http://www.w3.org/2000/svg" width="' + size + '" height="' + size +
+      '" viewBox="0 0 24 24" fill="' + fill +
+      '" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">' +
+      inner + "</svg>";
+  });
+
+  // Modal open/close — demonstrates the blurred backdrop.
+  function closeAll() {
+    document.querySelectorAll(".overlay.open").forEach(function (o) { o.classList.remove("open"); });
+  }
+  document.querySelectorAll("[data-open]").forEach(function (btn) {
+    btn.addEventListener("click", function () {
+      var ov = document.getElementById(btn.getAttribute("data-open"));
+      if (ov) ov.classList.add("open");
+    });
+  });
+  document.querySelectorAll(".overlay").forEach(function (ov) {
+    ov.addEventListener("click", function (e) {
+      // Backdrop click, the ✕ close, or any footer .btn dismisses.
+      if (e.target === ov || e.target.closest(".modal-close") || e.target.closest(".modal-foot .btn")) {
+        closeAll();
+      }
+    });
+  });
+  document.addEventListener("keydown", function (e) { if (e.key === "Escape") closeAll(); });
+
+  // Streaming demo — text appends token-by-token into a locked field (felt-speed).
+  (function () {
+    var out = document.getElementById("streamOut");
+    if (!out) return;
+    var text = "A colossal doom-metal cathedral at dusk — cracked basalt columns, molten amber " +
+               "light bleeding through shattered stained glass, volumetric fog rolling across the " +
+               "nave, a lone hooded figure at the altar. Cinematic wide shot, 16:9.";
+    var reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (reduce) { out.textContent = text; return; }
+    var i = 0, hold = 0;
+    function render() {
+      out.textContent = text.slice(0, i);
+      var c = document.createElement("span");
+      c.className = "caret";
+      c.innerHTML = "&nbsp;";
+      out.appendChild(c);
+    }
+    setInterval(function () {
+      if (i < text.length) { i += 1; render(); }
+      else { hold += 1; if (hold > 28) { i = 0; hold = 0; render(); } } // pause on complete, then loop
+    }, 42);
+    render();
+  })();
+</script>

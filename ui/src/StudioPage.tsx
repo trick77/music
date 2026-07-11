@@ -4,6 +4,7 @@ import { copyText } from "./share";
 import { Icon } from "./Icon";
 import { GenreFanartMode } from "./StudioGenreFanart";
 import { AlbumCoverMode } from "./StudioAlbumCover";
+import { Button, Spinner, buttonStyle, controlClass, t } from "./ui";
 
 const STYLE_LIMIT = 500;
 
@@ -20,21 +21,9 @@ function CopyButton({ text, label = "Copy" }: { text: string; label?: string }) 
     window.setTimeout(() => setCopied(false), 1500);
   };
   return (
-    <button
-      onClick={onCopy}
-      aria-label={label}
-      style={{
-        fontSize: "0.78rem",
-        color: "var(--color-ink)",
-        background: "var(--color-active)",
-        border: "1px solid var(--color-border)",
-        borderRadius: 8,
-        padding: "0.25rem 0.6rem",
-        cursor: "pointer",
-      }}
-    >
+    <Button variant="secondary" small onClick={onCopy} aria-label={label}>
       {copied ? "Copied" : label}
-    </button>
+    </Button>
   );
 }
 
@@ -46,9 +35,9 @@ export function ResultCard({ name, note, count, text, monospace = false, onChang
     background: "color-mix(in srgb, var(--color-bg) 70%, #000)",
     border: "1px solid var(--color-border)",
     borderRadius: "var(--radius-ui)",
-    padding: "0.8rem 0.9rem",
+    padding: "12px 14px",
     fontFamily: monospace ? "ui-monospace, SFMono-Regular, Menlo, monospace" : "var(--font-sans)",
-    fontSize: monospace ? "0.82rem" : "0.88rem",
+    fontSize: monospace ? "var(--text-label)" : "var(--text-ui)",
     lineHeight: monospace ? 1.55 : 1.7,
     color: "color-mix(in srgb, var(--color-ink) 88%, transparent)",
     whiteSpace: "pre-wrap" as const,
@@ -57,12 +46,12 @@ export function ResultCard({ name, note, count, text, monospace = false, onChang
   return (
     <div style={{ marginBottom: "1.4rem" }}>
       <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: "0.4rem", gap: "0.75rem" }}>
-        <span style={{ fontWeight: 600, fontSize: "0.9rem" }}>
+        <span style={{ fontWeight: 600, fontSize: "var(--text-ui)" }}>
           {name}
-          {note && <span style={{ fontWeight: 400, color: "var(--color-muted)", fontSize: "0.78rem", marginLeft: "0.4rem" }}>{note}</span>}
+          {note && <span style={{ fontWeight: 400, color: "var(--color-muted)", fontSize: "var(--text-label)", marginLeft: "0.4rem" }}>{note}</span>}
         </span>
         <span style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
-          {count && <span style={{ color: "var(--color-muted)", fontSize: "0.78rem", fontVariantNumeric: "tabular-nums" }}>{count}</span>}
+          {count && <span style={{ color: "var(--color-muted)", fontSize: "var(--text-label)", fontVariantNumeric: "tabular-nums" }}>{count}</span>}
           <CopyButton text={text} />
         </span>
       </div>
@@ -110,54 +99,31 @@ export function CoverArtCard({ prompt, models = [], defaultModel = "" }: { promp
   const disabled = busy || prompt.trim() === "";
   return (
     <div style={{ marginBottom: "1.4rem" }}>
-      <div style={{ display: "flex", gap: "0.5rem", alignItems: "center", marginBottom: "0.6rem" }}>
+      <div style={{ display: "flex", gap: "var(--space-2)", alignItems: "center", marginBottom: "var(--space-3)" }}>
         <select
           value={model}
           onChange={(e) => setModel(e.target.value)}
           aria-label="Cover art model"
+          className={controlClass}
           disabled={busy}
-          style={{
-            background: "var(--color-panel)",
-            border: "1px solid var(--color-border)",
-            borderRadius: "var(--radius-ui)",
-            padding: "0.5rem 0.6rem",
-            color: "var(--color-ink)",
-            fontFamily: "var(--font-sans)",
-            fontSize: "0.85rem",
-            outline: "none",
-          }}
+          style={{ width: "auto", maxWidth: 320 }}
         >
           {options.map((m) => (
             <option key={m.id} value={m.id}>{m.label}</option>
           ))}
         </select>
-        <button
-          onClick={generate}
-          disabled={disabled}
-          style={{
-            background: "var(--color-accent-strong)",
-            color: "var(--color-ink)",
-            fontWeight: 600,
-            fontSize: "0.85rem",
-            border: "none",
-            borderRadius: "var(--radius-ui)",
-            padding: "0.5rem 0.9rem",
-            cursor: disabled ? "default" : "pointer",
-            opacity: disabled ? 0.6 : 1,
-            whiteSpace: "nowrap",
-          }}
-        >
-          {busy ? "Generating…" : image ? "Regenerate" : "Generate cover art"}
-        </button>
+        <Button busy={busy} disabled={disabled} onClick={generate} style={{ whiteSpace: "nowrap" }}>
+          {busy ? "Generating" : image ? "Regenerate" : "Generate cover art"}
+        </Button>
       </div>
       {busy && (
-        <div aria-live="polite" aria-busy="true" style={{ display: "flex", alignItems: "center", gap: "0.6rem", color: "var(--color-ink)", fontSize: "0.9rem" }}>
-          <Spinner />
-          <span>Generating cover art…</span>
+        <div aria-live="polite" aria-busy="true" style={{ display: "flex", alignItems: "center", gap: "var(--space-2)", color: "var(--color-muted)", ...t.body }}>
+          <Spinner size="18px" />
+          <span>Generating cover art</span>
         </div>
       )}
       {error && !busy && (
-        <p role="alert" style={{ color: "var(--color-accent-strong)", fontSize: "0.85rem", margin: "0.4rem 0 0" }}>{error}</p>
+        <p role="alert" style={{ color: "var(--color-accent-strong)", fontSize: "var(--text-label)", margin: "0.4rem 0 0" }}>{error}</p>
       )}
       {image && !busy && (
         <div style={{ marginTop: "0.4rem" }}>
@@ -169,7 +135,7 @@ export function CoverArtCard({ prompt, models = [], defaultModel = "" }: { promp
           <a
             href={studioCoverArtUrl(image.id)}
             download={`cover-${image.id}.png`}
-            style={{ display: "inline-flex", alignItems: "center", gap: "0.4rem", marginTop: "0.6rem", fontSize: "0.82rem", color: "var(--color-ink)", background: "var(--color-active)", border: "1px solid var(--color-border)", borderRadius: 8, padding: "0.35rem 0.7rem", textDecoration: "none" }}
+            style={{ ...buttonStyle("secondary", { small: true }), marginTop: "var(--space-3)", textDecoration: "none" }}
           >
             <Icon name="download" size="14px" /> Download
           </a>
@@ -239,8 +205,8 @@ export function StudioPage({ imageGenEnabled = false, chatEnabled = false, image
 
   return (
     <div style={{ maxWidth: 720 }}>
-      <h1 style={{ fontFamily: "var(--font-serif)", fontWeight: 500, fontSize: "1.9rem", margin: "0 0 0.25rem" }}>Studio</h1>
-      <p style={{ color: "var(--color-muted)", margin: "0 0 1.2rem" }}>
+      <h1 style={{ ...t.display, margin: "0 0 0.25rem" }}>Studio</h1>
+      <p style={{ color: "var(--color-muted)", margin: "0 0 var(--space-5)" }}>
         {mode === "fanart" ? "Generate cover fanart for a genre." : mode === "coverart" ? "Create or replace cover art for an album." : "Turn a song into a Suno prompt."}
       </p>
 
@@ -254,8 +220,8 @@ export function StudioPage({ imageGenEnabled = false, chatEnabled = false, image
               role="tab"
               aria-selected={mode === m}
               onClick={() => setMode(m)}
-              style={{ border: "none", background: mode === m ? "var(--color-active)" : "transparent", color: mode === m ? "var(--color-ink)" : "var(--color-muted)",
-                font: "inherit", fontSize: "0.83rem", padding: "0.35rem 0.9rem", borderRadius: 999, cursor: "pointer" }}
+              style={{ border: "none", background: mode === m ? "var(--color-accent-fill)" : "transparent", color: mode === m ? "var(--color-ink)" : "var(--color-muted)",
+                fontFamily: "var(--font-sans)", fontSize: "var(--text-ui)", padding: "6px 14px", borderRadius: 999, cursor: "pointer" }}
             >
               {label}
             </button>
@@ -283,58 +249,34 @@ export function StudioPage({ imageGenEnabled = false, chatEnabled = false, image
           onChange={(e) => setReference(e.target.value)}
           placeholder="Name a song — e.g. Metallica, Enter Sandman"
           aria-label="Song reference"
+          className={controlClass}
           disabled={busy}
-          style={{
-            flex: 1,
-            background: "var(--color-panel)",
-            border: "1px solid var(--color-border)",
-            borderRadius: "var(--radius-ui)",
-            padding: "0.7rem 0.9rem",
-            color: "var(--color-ink)",
-            fontFamily: "var(--font-sans)",
-            fontSize: "1rem",
-            outline: "none",
-          }}
+          style={{ flex: 1 }}
         />
-        <button
-          type="submit"
-          disabled={busy || reference.trim() === ""}
-          style={{
-            background: "var(--color-accent-strong)",
-            color: "var(--color-ink)",
-            fontWeight: 600,
-            fontSize: "0.95rem",
-            border: "none",
-            borderRadius: "var(--radius-ui)",
-            padding: "0.7rem 1.2rem",
-            cursor: busy || reference.trim() === "" ? "default" : "pointer",
-            opacity: busy || reference.trim() === "" ? 0.6 : 1,
-            whiteSpace: "nowrap",
-          }}
-        >
-          {status === "loading" ? "Working…" : "Generate"}
-        </button>
+        <Button type="submit" busy={status === "loading"} disabled={busy || reference.trim() === ""} style={{ whiteSpace: "nowrap" }}>
+          {status === "loading" ? "Working" : "Generate"}
+        </Button>
       </form>
-      <p style={{ color: "var(--color-muted)", fontSize: "0.8rem", margin: "0.5rem 0 0" }}>
+      <p style={{ color: "var(--color-muted)", fontSize: "var(--text-label)", margin: "0.5rem 0 0" }}>
         MiMo researches the song on the web, captures its style, writes fresh original lyrics on the same theme (never the original words), and sketches cover art. Results are shown once and not stored.
       </p>
       {stale && (
-        <p style={{ color: "var(--color-accent-strong)", fontSize: "0.8rem", margin: "0.5rem 0 0" }}>
+        <p style={{ color: "var(--color-accent-strong)", fontSize: "var(--text-label)", margin: "0.5rem 0 0" }}>
           Press Enter to regenerate for “{reference.trim()}”.
         </p>
       )}
 
       {/* Live research progress */}
       {busy && (
-        <div style={{ marginTop: "1.6rem" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: "0.6rem", color: "var(--color-ink)", fontSize: "0.9rem" }}>
-            <Spinner />
-            <span>{current ? current.detail : "Starting research…"}</span>
+        <div style={{ marginTop: "var(--space-6)" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "var(--space-2)", color: "var(--color-muted)", ...t.body }}>
+            <Spinner size="18px" />
+            <span>{current ? current.detail : "Starting research"}</span>
           </div>
           {steps.length > 1 && (
-            <ul style={{ listStyle: "none", padding: 0, margin: "0.8rem 0 0", color: "var(--color-muted)", fontSize: "0.82rem" }}>
+            <ul style={{ listStyle: "none", padding: 0, margin: "var(--space-3) 0 0", color: "var(--color-muted)", fontSize: "var(--text-label)" }}>
               {steps.slice(0, -1).map((s, i) => (
-                <li key={i} style={{ padding: "0.15rem 0" }}>✓ {s.detail}</li>
+                <li key={i} style={{ display: "flex", alignItems: "center", gap: 6, padding: "0.15rem 0" }}><Icon name="check" size="13px" /> {s.detail}</li>
               ))}
             </ul>
           )}
@@ -375,37 +317,13 @@ export function StudioPage({ imageGenEnabled = false, chatEnabled = false, image
               onChange={(e) => setRefineInstruction(e.target.value)}
               placeholder="Refine the lyrics — e.g. “do not say lullaby”, “darker chorus”"
               aria-label="Refine lyrics instruction"
+              className={controlClass}
               disabled={busy}
-              style={{
-                flex: 1,
-                background: "var(--color-panel)",
-                border: "1px solid var(--color-border)",
-                borderRadius: 8,
-                padding: "0.55rem 0.75rem",
-                color: "var(--color-ink)",
-                fontFamily: "var(--font-sans)",
-                fontSize: "0.85rem",
-                outline: "none",
-              }}
+              style={{ flex: 1 }}
             />
-            <button
-              type="submit"
-              disabled={busy || refineInstruction.trim() === ""}
-              style={{
-                fontSize: "0.85rem",
-                color: "var(--color-ink)",
-                fontWeight: 500,
-                background: "var(--color-active)",
-                border: "1px solid var(--color-border)",
-                borderRadius: 8,
-                padding: "0.55rem 0.9rem",
-                cursor: busy || refineInstruction.trim() === "" ? "default" : "pointer",
-                opacity: busy || refineInstruction.trim() === "" ? 0.6 : 1,
-                whiteSpace: "nowrap",
-              }}
-            >
+            <Button type="submit" variant="secondary" busy={refining} disabled={busy || refineInstruction.trim() === ""} style={{ whiteSpace: "nowrap" }}>
               Refine
-            </button>
+            </Button>
           </form>
 
           <ResultCard
@@ -419,16 +337,5 @@ export function StudioPage({ imageGenEnabled = false, chatEnabled = false, image
       )}
       </>)}
     </div>
-  );
-}
-
-// Spinner is a small CSS-less rotating indicator using an SVG stroke arc.
-function Spinner() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden style={{ animation: "studio-spin 0.8s linear infinite" }}>
-      <circle cx="12" cy="12" r="9" stroke="var(--color-border)" strokeWidth="3" />
-      <path d="M21 12a9 9 0 0 0-9-9" stroke="var(--color-accent-strong)" strokeWidth="3" strokeLinecap="round" />
-      <style>{`@keyframes studio-spin { to { transform: rotate(360deg); transform-origin: center; } }`}</style>
-    </svg>
   );
 }

@@ -1,9 +1,9 @@
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
+import { Spinner, buttonStyle } from "./ui";
 
-// ConfirmDialog is a reusable modal confirmation, mirroring loom's delete modal
-// (hardcoded loom hexes, since the app already mirrors loom's Menu colors and
-// uses inline styles rather than Tailwind). Escape or the backdrop cancels; the
-// confirm button is focused on mount.
+// ConfirmDialog is a reusable modal confirmation on the elevated surface, over the
+// loom-style blurred backdrop. Escape or the backdrop cancels; the confirm button
+// is focused on mount. Destructive confirms use the danger fill.
 export function ConfirmDialog({
   title,
   message,
@@ -26,8 +26,6 @@ export function ConfirmDialog({
   onCancel: () => void;
 }) {
   const confirmRef = useRef<HTMLButtonElement>(null);
-  const [cancelHot, setCancelHot] = useState(false);
-  const [confirmHot, setConfirmHot] = useState(false);
 
   useEffect(() => {
     confirmRef.current?.focus();
@@ -43,26 +41,20 @@ export function ConfirmDialog({
   return (
     <div
       onClick={() => { if (!busy) onCancel(); }}
-      style={{ position: "fixed", inset: 0, zIndex: 100, display: "grid", placeItems: "center", background: "rgba(0,0,0,0.5)", backdropFilter: "blur(2px)", padding: "0 1rem" }}
+      style={{ position: "fixed", inset: 0, zIndex: 100, display: "grid", placeItems: "center", background: "rgba(0,0,0,0.5)", backdropFilter: "blur(2px)", WebkitBackdropFilter: "blur(2px)", padding: "0 1rem" }}
     >
       <section
         role="dialog"
         aria-modal="true"
         aria-label={title}
         onClick={(e) => e.stopPropagation()}
-        style={{ width: "100%", maxWidth: 460, borderRadius: 10, border: "1px solid #55524b", background: "#383834", padding: "1.5rem", boxShadow: "0 24px 60px rgba(0,0,0,0.45)", boxSizing: "border-box" }}
+        style={{ width: "100%", maxWidth: 460, borderRadius: 14, border: "1px solid var(--color-elevated-border)", background: "var(--color-elevated)", padding: "var(--space-5)", boxShadow: "0 24px 60px rgba(0,0,0,0.5)", boxSizing: "border-box" }}
       >
-        <h2 style={{ margin: 0, fontFamily: "var(--font-sans)", fontSize: 22, fontWeight: 600, color: "#f4f0e8" }}>{title}</h2>
-        <div style={{ marginTop: "0.75rem", fontSize: "0.875rem", lineHeight: 1.7, color: "#d5d2c9" }}>{message}</div>
-        {error !== "" && <p style={{ margin: "0.75rem 0 0", fontSize: "0.875rem", color: "#d98278" }}>{error}</p>}
-        <div style={{ marginTop: "1.25rem", display: "flex", justifyContent: "flex-end", gap: "0.5rem" }}>
-          <button
-            type="button"
-            onClick={onCancel}
-            onMouseEnter={() => setCancelHot(true)}
-            onMouseLeave={() => setCancelHot(false)}
-            style={{ height: 32, borderRadius: 6, border: "none", background: cancelHot ? "rgba(255,255,255,0.14)" : "rgba(255,255,255,0.10)", padding: "0 0.875rem", fontSize: "0.875rem", fontWeight: 500, color: "#f3f0e8", cursor: "pointer" }}
-          >
+        <h2 style={{ margin: 0, fontFamily: "var(--font-serif)", fontSize: "var(--text-title)", fontWeight: 500, color: "var(--color-elevated-ink)" }}>{title}</h2>
+        <div style={{ marginTop: "0.75rem", fontSize: "var(--text-body)", lineHeight: 1.6, color: "var(--color-elevated-ink)" }}>{message}</div>
+        {error !== "" && <p style={{ margin: "0.75rem 0 0", fontSize: "var(--text-label)", color: "var(--color-accent-strong)" }}>{error}</p>}
+        <div style={{ marginTop: "var(--space-5)", display: "flex", justifyContent: "flex-end", gap: "var(--space-2)" }}>
+          <button type="button" onClick={onCancel} style={buttonStyle("secondary")}>
             {cancelLabel}
           </button>
           <button
@@ -70,22 +62,9 @@ export function ConfirmDialog({
             type="button"
             disabled={busy}
             onClick={onConfirm}
-            onMouseEnter={() => setConfirmHot(true)}
-            onMouseLeave={() => setConfirmHot(false)}
-            style={{
-              height: 32,
-              borderRadius: 6,
-              border: "none",
-              background: danger ? (confirmHot ? "#e34948" : "#d03b3b") : "var(--color-accent-strong)",
-              padding: "0 0.875rem",
-              fontSize: "0.875rem",
-              fontWeight: 500,
-              color: danger ? "#fff" : "var(--color-ink)",
-              cursor: busy ? "default" : "pointer",
-              opacity: busy ? 0.5 : 1,
-            }}
+            style={{ ...buttonStyle(danger ? "danger" : "primary"), ...(busy ? { opacity: 0.6, cursor: "default" } : null) }}
           >
-            {confirmLabel}
+            {busy && <Spinner />}{confirmLabel}
           </button>
         </div>
       </section>

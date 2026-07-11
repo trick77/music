@@ -19,6 +19,7 @@ import { useFavorites } from "./favorites";
 import { addToQueue, playNext } from "./queue";
 import { songShareUrl, copyText } from "./share";
 import { Icon } from "./Icon";
+import { t } from "./ui";
 
 // UploadToast is the bottom-center feedback pill. As a plain flash it stays a
 // rounded pill; during an upload it expands to show a determinate progress bar
@@ -28,7 +29,7 @@ import { Icon } from "./Icon";
 export function UploadToast({ message, uploading, pct, bottom }: { message: string; uploading: boolean; pct: number; bottom: number }) {
   const finalizing = uploading && pct >= 100;
   return (
-    <div style={{ position: "fixed", bottom, left: "50%", transform: "translateX(-50%)", display: "flex", flexDirection: "column", gap: "0.4rem", background: "var(--color-active)", border: "1px solid var(--color-border)", borderRadius: uploading ? 14 : 999, padding: uploading ? "0.55rem 0.9rem" : "0.4rem 1rem", fontSize: "0.85rem", zIndex: 95, minWidth: uploading ? 260 : undefined, maxWidth: "92vw" }}>
+    <div style={{ position: "fixed", bottom, left: "50%", transform: "translateX(-50%)", display: "flex", flexDirection: "column", gap: "0.4rem", background: "var(--color-active)", border: "1px solid var(--color-border)", borderRadius: uploading ? 14 : 999, padding: uploading ? "0.55rem 0.9rem" : "0.4rem 1rem", ...t.label, zIndex: 95, minWidth: uploading ? 260 : undefined, maxWidth: "92vw" }}>
       <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
         {finalizing && <Icon name="spinner" size="15px" style={{ animation: "app-spin 0.8s linear infinite" }} />}
         <span>{message}</span>
@@ -168,10 +169,7 @@ export function App() {
       {authed && !song.published && (
         <span
           style={{
-            fontSize: "0.65rem",
-            textTransform: "uppercase",
-            letterSpacing: "0.04em",
-            color: "var(--color-muted)",
+            ...t.micro,
             border: "1px solid var(--color-border)",
             borderRadius: 999,
             padding: "0.1rem 0.45rem",
@@ -183,16 +181,18 @@ export function App() {
       )}
       <button
         aria-label="favorite"
+        className="iconbtn-sm"
         onClick={() => fav.toggle(song.id)}
-        style={{ display: "grid", placeItems: "center", background: "none", border: "none", cursor: "pointer", color: fav.has(song.id) ? "var(--color-accent-strong)" : "var(--color-muted)" }}
+        style={{ color: fav.has(song.id) ? "var(--color-accent-strong)" : "var(--color-muted)" }}
       >
         <Icon name={fav.has(song.id) ? "starFilled" : "star"} size="18px" />
       </button>
       <span style={{ position: "relative" }}>
         <button
           aria-label="more"
+          className="iconbtn-sm"
           onClick={() => setMenuFor(menuFor === song.id ? null : song.id)}
-          style={{ display: "grid", placeItems: "center", background: "none", border: "none", cursor: "pointer", color: "var(--color-muted)" }}
+          style={{ color: "var(--color-muted)" }}
         >
           <Icon name="moreVertical" size="18px" />
         </button>
@@ -223,7 +223,9 @@ export function App() {
       <div style={{ maxWidth: 1080, margin: "0 auto", padding: "1.5rem 1.25rem 9rem" }}>
         {/* Minimal top chrome: Queue access, no wordmark. */}
         <div style={{ display: "flex", justifyContent: "flex-end", gap: "1rem", marginBottom: "1rem" }}>
-          <button onClick={() => setShowQueue(true)} style={{ background: "none", border: "none", color: "var(--color-muted)", cursor: "pointer" }}>Queue</button>
+          <button className="iconbtn" aria-label="Queue" title="Queue" onClick={() => setShowQueue(true)}>
+            <Icon name="allThreads" size="20px" />
+          </button>
         </div>
 
         {route.name === "home" ? (
@@ -273,7 +275,7 @@ export function App() {
         <ConfirmDialog
           title="Delete song"
           message={<>Delete “{deleteFor.title}” by {deleteFor.artistName}? This removes it from your library, playlists, and history. This can’t be undone.</>}
-          confirmLabel={deleteBusy ? "Deleting…" : "Delete"}
+          confirmLabel={deleteBusy ? "Deleting" : "Delete"}
           danger
           busy={deleteBusy}
           error={deleteErr}
@@ -284,7 +286,7 @@ export function App() {
       {addFor && <AddToPlaylist song={addFor} authenticated={authed} onClose={() => setAddFor(null)} onDone={(name) => { setAddFor(null); flash(`Added to ${name}`); }} />}
       {editingPlaylist !== null && <PlaylistEditor existing={editingPlaylist === "new" ? null : editingPlaylist} onClose={() => setEditingPlaylist(null)} onSaved={(pl) => { setEditingPlaylist(null); navigate(`/playlist/${pl.id}`); }} />}
       {toast && <UploadToast message={toast} uploading={uploading} pct={uploadPct} bottom={player.current ? 120 : 80} />}
-      <style>{`@keyframes app-spin { to { transform: rotate(360deg); } } @keyframes app-upload-indef { 0% { transform: translateX(-110%); } 100% { transform: translateX(310%); } } @media (prefers-reduced-motion: reduce) { [style*="app-upload-indef"] { animation: none !important; } }`}</style>
+      <style>{`.iconbtn, .iconbtn-sm { display: grid; place-items: center; background: transparent; border: none; cursor: pointer; color: var(--color-muted); border-radius: var(--radius-ui); } .iconbtn { width: 40px; height: 40px; } .iconbtn-sm { width: 32px; height: 32px; border-radius: 8px; } .iconbtn:hover, .iconbtn-sm:hover { background: var(--color-active); color: var(--color-ink); } @keyframes app-spin { to { transform: rotate(360deg); } } @keyframes app-upload-indef { 0% { transform: translateX(-110%); } 100% { transform: translateX(310%); } } @media (prefers-reduced-motion: reduce) { [style*="app-upload-indef"] { animation: none !important; } }`}</style>
     </div>
   );
 }
@@ -300,16 +302,16 @@ function SongPage({ id, songs, onPlay }: { id: string; songs: Song[]; onPlay: (s
   }, [song?.id]);
   if (!song)
     return (
-      <p style={{ color: "var(--color-muted)" }}>
+      <p style={t.label}>
         Loading song…{" "}
-        <button onClick={() => navigate("/")} style={{ background: "none", border: "none", color: "var(--color-accent-strong)", cursor: "pointer" }}>Home</button>
+        <button onClick={() => navigate("/")} style={{ background: "none", border: "none", color: "var(--color-accent-strong)", cursor: "pointer", ...t.ui }}>Home</button>
       </p>
     );
   return (
     <div>
-      <button onClick={() => navigate("/")} style={{ background: "none", border: "none", color: "var(--color-muted)", cursor: "pointer", marginBottom: "1rem" }}>← Home</button>
-      <h1 style={{ fontFamily: "var(--font-serif)" }}>{song.title}</h1>
-      <p style={{ color: "var(--color-muted)" }}>{song.artistName}</p>
+      <button onClick={() => navigate("/")} style={{ background: "none", border: "none", color: "var(--color-accent-strong)", cursor: "pointer", marginBottom: "1rem", ...t.ui }}>← Home</button>
+      <h1 style={t.display}>{song.title}</h1>
+      <p style={t.label}>{song.artistName}</p>
     </div>
   );
 }

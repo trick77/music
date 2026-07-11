@@ -1,21 +1,29 @@
 import { useState } from "react";
-import { uploadFanart, generateFanart, getFanartMeta, patchGenre, type GenreDetail, type Fanart } from "./api";
+import { uploadFanart, generateFanart, getFanartMeta, patchGenre, suggestGenrePrompt, type GenreDetail, type Fanart } from "./api";
 import { fanartUrl } from "./fanart";
 import { Icon } from "./Icon";
 
-type Props = { detail: GenreDetail; imageGenEnabled: boolean; onClose: () => void; onChanged: () => void };
+type Props = { detail: GenreDetail; imageGenEnabled: boolean; chatEnabled: boolean; onClose: () => void; onChanged: () => void };
 
 const labelStyle: React.CSSProperties = {
   display: "block", fontSize: "0.7rem", letterSpacing: "0.08em", textTransform: "uppercase",
   color: "var(--color-muted)", marginBottom: 4,
 };
 
-export function GenreEditor({ detail, imageGenEnabled, onClose, onChanged }: Props) {
+export function GenreEditor({ detail, imageGenEnabled, chatEnabled, onClose, onChanged }: Props) {
   const [name, setName] = useState(detail.genre.name);
   const [busy, setBusy] = useState(false);
+  const [suggesting, setSuggesting] = useState(false);
   const [prompt, setPrompt] = useState("");
   const [err, setErr] = useState<string | null>(null);
   const genreId = detail.genre.id;
+
+  const onSuggest = async () => {
+    setSuggesting(true); setErr(null);
+    try { setPrompt(await suggestGenrePrompt(genreId)); }
+    catch { setErr("Could not suggest a prompt"); }
+    finally { setSuggesting(false); }
+  };
 
   const refresh = () => onChanged();
 
@@ -112,7 +120,17 @@ export function GenreEditor({ detail, imageGenEnabled, onClose, onChanged }: Pro
 
         {imageGenEnabled && (
           <div style={{ borderTop: "1px solid var(--color-border)", paddingTop: "1rem" }}>
-            <label style={labelStyle}>Generate image</label>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
+              <label style={{ ...labelStyle, marginBottom: 0 }}>Generate image</label>
+              {chatEnabled && (
+                <button onClick={onSuggest} disabled={suggesting}
+                  style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "none",
+                    border: "1px solid var(--color-border)", color: "var(--color-accent-strong)", borderRadius: 8,
+                    padding: "0.3rem 0.65rem", font: "inherit", fontSize: "0.8rem", cursor: suggesting ? "default" : "pointer" }}>
+                  <Icon name="feather" size="14px" />{suggesting ? "Thinking…" : "Suggest prompt"}
+                </button>
+              )}
+            </div>
             <textarea value={prompt} onChange={(e) => setPrompt(e.target.value)} placeholder="Describe the image you want…" rows={3}
               style={{ width: "100%", background: "var(--color-bg)", color: "var(--color-ink)", border: "1px solid var(--color-border)", borderRadius: 8, padding: "0.5rem 0.6rem", font: "inherit", resize: "vertical" }} />
             <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 8 }}>

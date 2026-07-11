@@ -20,30 +20,37 @@ import (
 // New builds the app handler with generation wired from cfg (a real BFL client
 // when a key is set) and no OIDC authenticator (dev mode / tests).
 func New(cfg config.Config, st *store.Store, spa http.Handler) http.Handler {
-	return build(cfg, st, spa, nil, nil, nil, nil)
+	return build(cfg, st, spa, nil, nil, nil, nil, nil)
 }
 
 // NewWithProvider builds the app handler, allowing an image-generation Provider
 // and a completion hook to be injected (used by tests). When gen is nil and
 // generation is configured, a real BFL client is built.
 func NewWithProvider(cfg config.Config, st *store.Store, spa http.Handler, gen imagegen.Provider, onGenComplete func(string)) http.Handler {
-	return build(cfg, st, spa, gen, onGenComplete, nil, nil)
+	return build(cfg, st, spa, gen, onGenComplete, nil, nil, nil)
 }
 
 // NewWithStudioProvider builds the app handler with a Studio Provider injected
 // (used by tests so no live LLM/MCP calls are made).
 func NewWithStudioProvider(cfg config.Config, st *store.Store, spa http.Handler, sp studio.Provider) http.Handler {
-	return build(cfg, st, spa, nil, nil, nil, sp)
+	return build(cfg, st, spa, nil, nil, nil, sp, nil)
+}
+
+// NewWithGenrePrompter builds the app handler with an image-generation Provider
+// and a genre-prompt suggester injected (used by tests so no live LLM call is
+// made). Mirrors NewWithProvider but also wires the suggest-prompt route.
+func NewWithGenrePrompter(cfg config.Config, st *store.Store, spa http.Handler, gen imagegen.Provider, onGenComplete func(string), gp studio.GenrePrompter) http.Handler {
+	return build(cfg, st, spa, gen, onGenComplete, nil, nil, gp)
 }
 
 // NewWithAuth builds the app handler with an OIDC Authenticator wired in
 // (production oidc mode and the auth-flow tests). A nil authr registers no
 // login/callback/logout routes.
 func NewWithAuth(cfg config.Config, st *store.Store, spa http.Handler, authr *auth.Authenticator) http.Handler {
-	return build(cfg, st, spa, nil, nil, authr, nil)
+	return build(cfg, st, spa, nil, nil, authr, nil, nil)
 }
 
-func build(cfg config.Config, st *store.Store, spa http.Handler, gen imagegen.Provider, onGenComplete func(string), authr *auth.Authenticator, studioProvider studio.Provider) http.Handler {
+func build(cfg config.Config, st *store.Store, spa http.Handler, gen imagegen.Provider, onGenComplete func(string), authr *auth.Authenticator, studioProvider studio.Provider, genrePrompter studio.GenrePrompter) http.Handler {
 	mux := http.NewServeMux()
 	var shareRepo *library.Repo
 
@@ -58,6 +65,7 @@ func build(cfg config.Config, st *store.Store, spa http.Handler, gen imagegen.Pr
 			"username":        id.Username,
 			"imageGenEnabled": cfg.ImageGenEnabled() && id.Authenticated,
 			"studioEnabled":   cfg.StudioEnabled() && id.Authenticated,
+			"chatEnabled":     cfg.ChatEnabled() && id.Authenticated,
 			"authMode":        string(cfg.AuthMode),
 		})
 	})
@@ -102,6 +110,13 @@ func build(cfg config.Config, st *store.Store, spa http.Handler, gen imagegen.Pr
 					PollTimeout: cfg.BFLPollTimeout,
 				})
 			}
+			// Real one-shot genre-prompt suggester when the chat key is set and none
+			// was injected. Independent of Studio (no Tavily/MCP research loop).
+			if genrePrompter == nil && cfg.ChatEnabled() {
+				genrePrompter = studio.NewGenrePrompter(
+					&llm.Client{BaseURL: cfg.ChatBaseURL, APIKey: cfg.ChatAPIKey, Model: "mimo-v2.5-pro", ReasoningEffort: "high"},
+				)
+			}
 			h := &songHandlers{
 				cfg:           cfg,
 				repo:          library.NewRepo(st.DB()),
@@ -110,6 +125,7 @@ func build(cfg config.Config, st *store.Store, spa http.Handler, gen imagegen.Pr
 				imageGen:      gen,
 				bflModel:      cfg.BFLModel,
 				onGenComplete: onGenComplete,
+				genrePrompter: genrePrompter,
 				throttle:      newPlayThrottle(),
 			}
 			// Reap generation rows orphaned by a prior restart (their goroutines
@@ -134,6 +150,7 @@ func build(cfg config.Config, st *store.Store, spa http.Handler, gen imagegen.Pr
 			mux.HandleFunc("GET /api/genres", h.listGenres)
 			mux.HandleFunc("GET /api/genres/{id}", h.getGenreExtended)
 			mux.HandleFunc("PATCH /api/genres/{id}", h.patchGenre)
+			mux.HandleFunc("POST /api/genres/{id}/suggest-prompt", h.postGenreSuggestPrompt)
 			mux.HandleFunc("POST /api/fanart", h.postFanart)
 			mux.HandleFunc("GET /api/fanart/{id}", h.getFanart)
 			mux.HandleFunc("POST /api/fanart/generate", h.postFanartGenerate)

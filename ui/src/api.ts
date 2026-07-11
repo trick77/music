@@ -1,4 +1,4 @@
-export type Session = { authenticated: boolean; username: string; imageGenEnabled: boolean; studioEnabled: boolean; authMode: string };
+export type Session = { authenticated: boolean; username: string; imageGenEnabled: boolean; studioEnabled: boolean; chatEnabled: boolean; authMode: string };
 
 export type Song = {
   id: string;
@@ -167,7 +167,7 @@ export type Fanart = {
   error?: string;
 };
 
-export type GenreSummary = { id: string; name: string; songCount: number; accentColor: string };
+export type GenreSummary = { id: string; name: string; songCount: number; accentColor: string; hasBackground: boolean };
 
 export type GenreDetail = {
   genre: GenreSummary;
@@ -208,6 +208,13 @@ export async function generateFanart(prompt: string, kind: "genre" | "hero", gen
   });
   if (!r.ok) throw new Error(`generate failed (${r.status})`);
   return r.json();
+}
+
+export async function suggestGenrePrompt(genreId: string): Promise<string> {
+  const r = await fetch(`/api/genres/${genreId}/suggest-prompt`, { method: "POST" });
+  if (!r.ok) throw new Error(`suggest failed (${r.status})`);
+  const data = await r.json();
+  return data.prompt ?? "";
 }
 
 export async function getFanartMeta(id: string): Promise<Fanart> {

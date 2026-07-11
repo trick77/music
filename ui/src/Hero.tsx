@@ -1,8 +1,13 @@
+import { Fragment } from "react";
 import { fanartUrl } from "./fanart";
 import { coverUrl } from "./cover";
 import { Glyph } from "./Glyph";
 import { Icon } from "./Icon";
+import { navigate } from "./router";
 import type { HomeHero, Song } from "./api";
+
+/** A featured-song genre, with its id resolved for linking when known. */
+export type GenreLink = { name: string; id: string | null };
 
 // Hero is the full-bleed featured panel at the top of Home. The background is
 // the starred is_hero fanart (presented as ordinary art — never any AI/prompt
@@ -12,6 +17,7 @@ export function Hero({
   hero,
   featured,
   playing,
+  genres = [],
   onPlay,
   onShare,
 }: {
@@ -19,6 +25,8 @@ export function Hero({
   featured: Song | null;
   /** True when the featured song is the current track AND actively playing. */
   playing: boolean;
+  /** The featured song's genres (resolved to ids where possible) for the eyebrow. */
+  genres?: GenreLink[];
   onPlay: (s: Song) => void;
   onShare: (s: Song) => void;
 }) {
@@ -69,6 +77,24 @@ export function Hero({
           }}
         >
           {featured ? "Featured song" : "Featured"}
+          {/* Genre(s) trail the label, middle-dot separated; each links to its
+              genre page when the id resolved (plain text otherwise). */}
+          {genres.map((g) => (
+            <Fragment key={g.name}>
+              <span aria-hidden="true" style={{ opacity: 0.55, margin: "0 0.45em" }}>·</span>
+              {g.id ? (
+                <a
+                  className="hero-genre"
+                  href={`/genre/${g.id}`}
+                  onClick={(e) => { e.preventDefault(); navigate(`/genre/${g.id}`); }}
+                >
+                  {g.name}
+                </a>
+              ) : (
+                <span>{g.name}</span>
+              )}
+            </Fragment>
+          ))}
         </div>
         <h1
           style={{

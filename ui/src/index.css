@@ -100,6 +100,17 @@ html {
   pointer-events: none;
 }
 
+/* Genre links in the featured-song eyebrow — accent-tinted, underline on hover/focus. */
+.hero-genre {
+  color: var(--color-accent-strong);
+  text-decoration: none;
+  cursor: pointer;
+}
+.hero-genre:hover,
+.hero-genre:focus-visible {
+  text-decoration: underline;
+}
+
 /* Play affordance that fades in on hover of a cover tile. */
 .playfab {
   opacity: 0;

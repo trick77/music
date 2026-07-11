@@ -151,7 +151,7 @@ func TestHomeFeed_anonymousHeroHidesUnpublishedGenre(t *testing.T) {
 	if err != nil {
 		t.Fatalf("HomeFeed authed: %v", err)
 	}
-	if authed.Hero == nil || authed.Hero.GenreID != gid || authed.Hero.AccentColor != "#123456" || authed.Hero.Title != "Secret" {
+	if authed.Hero == nil || authed.Hero.GenreID != gid || authed.Hero.AccentColor != "#123456" || authed.Hero.Title != "secret" {
 		t.Fatalf("authed hero = %+v, want the genre surfaced", authed.Hero)
 	}
 	// Anonymous: the genre has no published songs, so its name/accent/link are

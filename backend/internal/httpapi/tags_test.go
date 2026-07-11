@@ -36,7 +36,7 @@ func TestPatchSong_editReflectedInDownload(t *testing.T) {
 		Genres []string `json:"genres"`
 	}
 	json.Unmarshal(rr.Body.Bytes(), &updated)
-	if updated.Title != "Renamed" || len(updated.Genres) != 1 || updated.Genres[0] != "Ambient" {
+	if updated.Title != "Renamed" || len(updated.Genres) != 1 || updated.Genres[0] != "ambient" {
 		t.Fatalf("edit not reflected: %+v", updated)
 	}
 

@@ -1,5 +1,23 @@
 import { describe, it, expect } from "vitest";
-import { titleCase, detectLang } from "./titleCase";
+import { titleCase, detectLang, genreLabel } from "./titleCase";
+
+describe("genreLabel", () => {
+  it("title-cases lowercase genre names", () => {
+    expect(genreLabel("dream pop")).toBe("Dream Pop");
+    expect(genreLabel("synthwave")).toBe("Synthwave");
+  });
+  it("normalizes ALL-CAPS", () => {
+    expect(genreLabel("SYNTHWAVE")).toBe("Synthwave");
+  });
+  it("keeps small words lowercase mid-title", () => {
+    expect(genreLabel("drum and bass")).toBe("Drum and Bass");
+  });
+  it("forces English rules even for a French-looking genre", () => {
+    // With auto-detection this would sentence-case; the override keeps it title-cased.
+    expect(genreLabel("musique concrète")).toBe("Musique Concrète");
+    expect(titleCase("musique concrète")).toBe("Musique concrète");
+  });
+});
 
 describe("detectLang", () => {
   it("defaults to English with no signal", () => {

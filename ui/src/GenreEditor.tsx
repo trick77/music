@@ -4,6 +4,7 @@ import { fanartUrl } from "./fanart";
 import { Icon } from "./Icon";
 import { navigate } from "./router";
 import { Button, controlClass, fieldLabel, t } from "./ui";
+import { genreLabel } from "./titleCase";
 
 type Props = { detail: GenreDetail; studioEnabled: boolean; imageGenEnabled: boolean; onClose: () => void; onChanged: () => void };
 
@@ -12,7 +13,9 @@ export function GenreEditor({ detail, studioEnabled, imageGenEnabled, onClose, o
   // Studio LLM keys and the image generator are configured — mirror the exact
   // gate the Genres grid uses so both entry points agree.
   const canGenerate = studioEnabled && imageGenEnabled;
-  const [name, setName] = useState(detail.genre.name);
+  // Genres are stored lowercase; show the title-cased label for editing. On save
+  // the backend re-lowercases, so this round-trips cleanly.
+  const [name, setName] = useState(genreLabel(detail.genre.name));
   const [err, setErr] = useState<string | null>(null);
   const genreId = detail.genre.id;
 

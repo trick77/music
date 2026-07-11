@@ -6,6 +6,8 @@ import { Glyph } from "./Glyph";
 import { Hero } from "./Hero";
 import { Chapter } from "./Chapter";
 import { Button, t } from "./ui";
+import { usePlayer } from "./player";
+import { NowPlayingBars } from "./NowPlayingBars";
 
 type Props = {
   authenticated: boolean;
@@ -25,6 +27,7 @@ const sectionHead: React.CSSProperties = {
 };
 
 export function Home({ authenticated, onPlay, onShare, onUpload, renderRowActions, reloadKey }: Props) {
+  const { current, playing } = usePlayer();
   const [feed, setFeed] = useState<HomeFeed | null>(null);
   useEffect(() => {
     getHome().then(setFeed).catch(() => setFeed(null));
@@ -89,9 +92,9 @@ export function Home({ authenticated, onPlay, onShare, onUpload, renderRowAction
               >
                 <span
                   className="rank-num"
-                  style={{ fontSize: "var(--text-body)", color: i < 3 ? "var(--color-accent-strong)" : "var(--color-muted)", textAlign: "right" }}
+                  style={{ fontSize: "var(--text-body)", color: i < 3 ? "var(--color-accent-strong)" : "var(--color-muted)", textAlign: "right", display: "flex", alignItems: "center", justifyContent: "flex-end" }}
                 >
-                  {String(i + 1)}
+                  {current?.id === s.id ? <NowPlayingBars playing={playing} /> : String(i + 1)}
                 </span>
                 <button onClick={() => onPlay(s, topTail(i))} aria-label={`Play ${s.title}`} style={{ padding: 0, border: "none", background: "none", cursor: "pointer" }}>
                   <span style={{ display: "grid", placeItems: "center", width: 48, height: 48, borderRadius: 8, overflow: "hidden", background: "var(--color-active)" }}>
@@ -103,7 +106,7 @@ export function Home({ authenticated, onPlay, onShare, onUpload, renderRowAction
                   </span>
                 </button>
                 <button onClick={() => onPlay(s, topTail(i))} style={{ padding: 0, border: "none", background: "none", cursor: "pointer", textAlign: "left", minWidth: 0 }}>
-                  <div style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.title}</div>
+                  <div style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: current?.id === s.id ? "var(--color-accent-strong)" : undefined }}>{s.title}</div>
                   <div style={{ ...t.label, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.artistName}</div>
                 </button>
                 <span className="rank-num" style={{ ...t.label, whiteSpace: "nowrap" }}>

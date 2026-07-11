@@ -111,7 +111,7 @@ html {
 }
 
 /* Now-playing equalizer: five bars with independent rhythms for an organic
-   "spectrum" look. Bars freeze mid-height when paused. */
+   "spectrum" look. Rendered only while a song is actually playing. */
 .eq-bars {
   display: inline-flex;
   align-items: flex-end;
@@ -132,7 +132,6 @@ html {
 .eq-bars span:nth-child(3) { animation: eqbar3 960ms ease-in-out infinite; }
 .eq-bars span:nth-child(4) { animation: eqbar4 700ms ease-in-out infinite; }
 .eq-bars span:nth-child(5) { animation: eqbar5 1000ms ease-in-out infinite; }
-.eq-bars--paused span { animation-play-state: paused; }
 @keyframes eqbar1 { 0%, 100% { transform: scaleY(0.3); } 50% { transform: scaleY(0.9); } }
 @keyframes eqbar2 { 0%, 100% { transform: scaleY(0.6); } 50% { transform: scaleY(1); } }
 @keyframes eqbar3 { 0%, 100% { transform: scaleY(0.2); } 50% { transform: scaleY(0.75); } }

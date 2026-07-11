@@ -146,14 +146,14 @@ export function Library({ songs, favoriteIds, authenticated, studioEnabled = fal
         <ul style={{ listStyle: "none", margin: 0, padding: 0 }}>
           {shown.length === 0 && <p style={{ color: "var(--color-muted)" }}>{tab === "favorites" ? "No favorites yet — tap the star on a song." : tab === "unpublished" ? "Nothing unpublished — every song is live." : "Nothing here yet."}</p>}
           {shown.map((song) => {
-            const isPlaying = current?.id === song.id;
+            const isPlaying = current?.id === song.id && playing;
             return (
             <li key={song.id} onClick={() => onPlay(song)} style={{ display: "flex", alignItems: "center", gap: "0.85rem", padding: "0.6rem 0.85rem", borderRadius: "var(--radius-ui, 10px)", cursor: "pointer" }}>
               <span style={{ position: "relative", width: 44, height: 44, flexShrink: 0, borderRadius: 8, overflow: "hidden", background: "var(--color-active)", display: "grid", placeItems: "center", border: "1px solid var(--color-border)" }}>
                 {song.coverArtId ? <img src={coverUrl(song.coverArtId)} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <span style={{ fontFamily: "var(--font-serif)", color: "var(--color-muted)" }}>{coverInitial(song.artistName)}</span>}
                 {isPlaying && (
                   <span style={{ position: "absolute", inset: 0, display: "grid", placeItems: "center", background: "rgba(0,0,0,0.5)" }}>
-                    <NowPlayingBars playing={playing} />
+                    <NowPlayingBars />
                   </span>
                 )}
               </span>

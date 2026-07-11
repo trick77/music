@@ -35,9 +35,9 @@ export function ResultCard({ name, note, count, text, monospace = false, onChang
     background: "color-mix(in srgb, var(--color-bg) 70%, #000)",
     border: "1px solid var(--color-border)",
     borderRadius: "var(--radius-ui)",
-    padding: "0.8rem 0.9rem",
+    padding: "12px 14px",
     fontFamily: monospace ? "ui-monospace, SFMono-Regular, Menlo, monospace" : "var(--font-sans)",
-    fontSize: monospace ? "0.82rem" : "0.88rem",
+    fontSize: monospace ? "var(--text-label)" : "var(--text-ui)",
     lineHeight: monospace ? 1.55 : 1.7,
     color: "color-mix(in srgb, var(--color-ink) 88%, transparent)",
     whiteSpace: "pre-wrap" as const,
@@ -276,7 +276,7 @@ export function StudioPage({ imageGenEnabled = false, chatEnabled = false, image
           {steps.length > 1 && (
             <ul style={{ listStyle: "none", padding: 0, margin: "var(--space-3) 0 0", color: "var(--color-muted)", fontSize: "var(--text-label)" }}>
               {steps.slice(0, -1).map((s, i) => (
-                <li key={i} style={{ padding: "0.15rem 0" }}>✓ {s.detail}</li>
+                <li key={i} style={{ display: "flex", alignItems: "center", gap: 6, padding: "0.15rem 0" }}><Icon name="check" size="13px" /> {s.detail}</li>
               ))}
             </ul>
           )}

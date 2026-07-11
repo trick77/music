@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { updateSong, uploadCover, suggest, type Song, type Suggestion } from "./api";
 import { coverUrl, coverInitial } from "./cover";
 import { Icon } from "./Icon";
@@ -11,10 +11,10 @@ type Tab = "details" | "cover" | "lyrics";
 // and tidies leftover whitespace, leaving only sung words. Parentheses are left intact —
 // "(ooh)"/"(yeah)" ad-libs are usually actually sung. Keep in sync with the server-side
 // cleanLyrics in backend/internal/metadata/mp3.go.
-const cleanLyrics = (t: string) =>
-  t.replace(/\[[^\]]*\]/g, "")   // remove [Verse], [Chorus], [Guitar solo], …
-    .replace(/[ \t]+$/gm, "")    // trailing spaces left behind
-    .replace(/\n{3,}/g, "\n\n")  // collapse blank-line runs
+const cleanLyrics = (raw: string) =>
+  raw.replace(/\[[^\]]*\]/g, "")  // remove [Verse], [Chorus], [Guitar solo], …
+    .replace(/[ \t]+$/gm, "")     // trailing spaces left behind
+    .replace(/\n{3,}/g, "\n\n")   // collapse blank-line runs
     .trim();
 
 // TagEditor is a tabbed editor (Details / Cover / Lyrics) — a centered modal on
@@ -35,6 +35,13 @@ export function TagEditor({ song, onClose, onSaved }: Props) {
   const [artistOpts, setArtistOpts] = useState<Suggestion[]>([]);
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+
+  // Esc closes the dialog (unless a save is in flight), matching the other modals.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape" && !saving) onClose(); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose, saving]);
 
   const addGenre = (g: string) => {
     const v = g.trim();
@@ -94,7 +101,7 @@ export function TagEditor({ song, onClose, onSaved }: Props) {
   );
 
   return (
-    <div className="ui-overlay" onClick={onClose}>
+    <div className="ui-overlay" onClick={() => { if (!saving) onClose(); }}>
       <div className="ui-modal" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-label="Edit tags">
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "var(--space-4)", padding: "var(--space-4) var(--space-5)", borderBottom: "1px solid var(--color-border)" }}>
           <h3 style={{ margin: 0, ...t.title }}>Edit tags</h3>

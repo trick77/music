@@ -4,6 +4,7 @@ import { coverUrl, coverInitial } from "./cover";
 import { formatDuration } from "./format";
 import { navigate } from "./router";
 import { Glyph } from "./Glyph";
+import { Icon } from "./Icon";
 import { t } from "./ui";
 
 type Tab = "all" | "favorites" | "unpublished" | "playlists" | "genres";
@@ -127,7 +128,7 @@ export function Library({ songs, favoriteIds, authenticated, studioEnabled = fal
           {playlists.map((pl) => (
             <button key={pl.id} onClick={() => navigate(`/playlist/${pl.id}`)} style={{ textAlign: "left", background: "none", border: "none", cursor: "pointer", padding: 0 }}>
               <div style={{ position: "relative", aspectRatio: "1", borderRadius: 10, overflow: "hidden", background: "var(--color-active)", border: "1px solid var(--color-border)", display: "grid", placeItems: "center" }}>
-                {pl.coverArtId ? <img src={coverUrl(pl.coverArtId)} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <span style={{ color: "var(--color-muted)", fontSize: "1.5rem" }}>♪</span>}
+                {pl.coverArtId ? <img src={coverUrl(pl.coverArtId)} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <Icon name="music" size="24px" style={{ color: "var(--color-muted)" }} />}
                 {authenticated && !pl.published && (
                   <span style={{ position: "absolute", top: 6, left: 6, background: "rgba(0,0,0,0.55)", borderRadius: 999, padding: "2px 8px", ...t.micro, color: "#fff" }}>Unpublished</span>
                 )}

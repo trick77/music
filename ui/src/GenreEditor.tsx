@@ -52,7 +52,7 @@ export function GenreEditor({ detail, studioEnabled, imageGenEnabled, onClose, o
       <div onClick={(e) => e.stopPropagation()} style={{ width: "min(680px,100%)", background: "var(--color-panel)", border: "1px solid var(--color-border)", borderRadius: 14, padding: "1.25rem", maxHeight: "90vh", overflow: "auto" }}>
         <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "1rem" }}>
           <h3 style={{ margin: 0, ...t.title }}>Edit genre</h3>
-          <button onClick={onClose} aria-label="Close" style={{ background: "none", border: "none", color: "var(--color-muted)", cursor: "pointer", fontSize: "1.2rem" }}>✕</button>
+          <button onClick={onClose} aria-label="Close" style={{ display: "inline-flex", background: "none", border: "none", color: "var(--color-muted)", cursor: "pointer", padding: 2 }}><Icon name="close" size="18px" /></button>
         </div>
 
         <div style={{ height: 200, borderRadius: 12, marginBottom: "1rem", background: active ? `linear-gradient(180deg,rgba(0,0,0,0.05),rgba(0,0,0,0.55)), url(${fanartUrl(active.id, "hero")}) center/cover` : "var(--color-active)", display: "grid", placeItems: "center" }}>

@@ -3,7 +3,7 @@
 The single UX pattern for the whole app. **Follow this for every UI change.** When something
 here is ambiguous, the visual reference wins: [`docs/mockups/design-system.html`](./mockups/design-system.html)
 (open in a browser). Aesthetic is *Warm Editorial, dark* — serif headings, sans body/UI, warm
-clay accent. Tokens live in `ui/src/index.css` (`@theme`); shared primitives live in `ui/src/ui.ts`.
+clay accent. Tokens live in `ui/src/index.css` (`@theme`); shared primitives live in `ui/src/ui.tsx`.
 
 ## Foundations
 

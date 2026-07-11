@@ -1,4 +1,5 @@
 import { fanartUrl } from "./fanart";
+import { coverUrl } from "./cover";
 import { Glyph } from "./Glyph";
 import { Icon } from "./Icon";
 import type { HomeHero, Song } from "./api";
@@ -18,7 +19,10 @@ export function Hero({
   onPlay: (s: Song) => void;
   onShare: (s: Song) => void;
 }) {
-  const bg = hero ? fanartUrl(hero.fanartId, "hero") : "";
+  const heroBg = hero ? fanartUrl(hero.fanartId, "hero") : "";
+  // With no starred fanart, fall back to the featured song's own cover, blurred
+  // to fill the wide banner (a square cover can't) — instead of a flat gradient.
+  const coverBg = !hero && featured?.coverArtId ? coverUrl(featured.coverArtId, "card") : "";
   const accent = hero?.accentColor || "var(--color-accent)";
   const title = hero?.title || featured?.title || "Your library";
   const subtitle = featured
@@ -34,11 +38,22 @@ export function Hero({
         minHeight: "clamp(320px, 52vh, 560px)",
         display: "flex",
         alignItems: "flex-end",
-        background: bg
-          ? `url(${bg}) center/cover no-repeat`
-          : `radial-gradient(120% 120% at 30% 20%, ${accent} 0%, var(--color-panel) 70%)`,
+        background: `radial-gradient(120% 120% at 30% 20%, ${accent} 0%, var(--color-panel) 70%)`,
       }}
     >
+      {heroBg ? (
+        <div style={{ position: "absolute", inset: 0, background: `url(${heroBg}) center/cover no-repeat` }} />
+      ) : coverBg ? (
+        <div
+          style={{
+            position: "absolute",
+            inset: 0,
+            background: `url(${coverBg}) center/cover no-repeat`,
+            filter: "blur(38px) saturate(1.15)",
+            transform: "scale(1.3)",
+          }}
+        />
+      ) : null}
       <div className="scrim" />
       <div style={{ position: "relative", padding: "clamp(1.25rem, 3vw, 2.5rem)", maxWidth: 640 }}>
         <div

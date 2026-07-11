@@ -76,15 +76,7 @@ func (r *Repo) SetSongCover(ctx context.Context, songID, coverID string) error {
 	}
 
 	if key := albumKey(album.String); key != "" {
-		if _, err := tx.ExecContext(ctx,
-			`INSERT INTO album_covers(artist_id, album_key, cover_art_id) VALUES(?,?,?)
-			 ON CONFLICT(artist_id, album_key) DO UPDATE SET cover_art_id = excluded.cover_art_id`,
-			artistID, key, coverID); err != nil {
-			return err
-		}
-		if _, err := tx.ExecContext(ctx,
-			`UPDATE songs SET cover_art_id = ? WHERE artist_id = ? AND lower(album) = ?`,
-			coverID, artistID, key); err != nil {
+		if err := setAlbumCoverTx(ctx, tx, artistID, key, coverID); err != nil {
 			return err
 		}
 	} else {
@@ -94,6 +86,45 @@ func (r *Repo) SetSongCover(ctx context.Context, songID, coverID string) error {
 		}
 	}
 	return tx.Commit()
+}
+
+// SetAlbumCover maps a cover to an artist+album directly (no representative song
+// needed) and applies it to every existing song of that album; future songs pick
+// it up via the album_covers mapping. Used by the Studio album-cover flow, which
+// already knows the artist+album. A blank album is rejected — album covers are
+// keyed by album, and singles use per-song covers via SetSongCover.
+func (r *Repo) SetAlbumCover(ctx context.Context, artistID, album, coverID string) error {
+	key := albumKey(album)
+	if key == "" {
+		return errors.New("album is required")
+	}
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	if err := setAlbumCoverTx(ctx, tx, artistID, key, coverID); err != nil {
+		return err
+	}
+	return tx.Commit()
+}
+
+// setAlbumCoverTx upserts the album_covers mapping and bulk-applies the cover to
+// every song of the artist+album within an existing transaction. key must be a
+// non-empty albumKey (lower-cased album).
+func setAlbumCoverTx(ctx context.Context, tx *sql.Tx, artistID, key, coverID string) error {
+	if _, err := tx.ExecContext(ctx,
+		`INSERT INTO album_covers(artist_id, album_key, cover_art_id) VALUES(?,?,?)
+		 ON CONFLICT(artist_id, album_key) DO UPDATE SET cover_art_id = excluded.cover_art_id`,
+		artistID, key, coverID); err != nil {
+		return err
+	}
+	if _, err := tx.ExecContext(ctx,
+		`UPDATE songs SET cover_art_id = ? WHERE artist_id = ? AND lower(album) = ?`,
+		coverID, artistID, key); err != nil {
+		return err
+	}
+	return nil
 }
 
 // albumCoverIDTx returns the mapped cover id for an (artist, album), or "".

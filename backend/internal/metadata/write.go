@@ -17,6 +17,11 @@ type WriteableTags struct {
 	Year    int
 	TrackNo int
 	Genres  []string
+	// CoverBytes, when non-empty, is embedded as the front-cover attached picture
+	// (APIC). CoverMIME is its MIME type (e.g. "image/jpeg"). Empty CoverBytes
+	// leaves any existing embedded art untouched.
+	CoverBytes []byte
+	CoverMIME  string
 }
 
 // WriteTags opens the MP3 at path, mutates its existing ID3v2 tag in place, and
@@ -50,6 +55,23 @@ func WriteTags(path string, t WriteableTags) error {
 		tag.DeleteFrames(trackID)
 	}
 	tag.SetGenre(strings.Join(t.Genres, "; "))
+
+	if len(t.CoverBytes) > 0 {
+		// Replace any existing attached picture(s) with the app's cover so the
+		// download reflects the current cover mapping, not stale embedded art.
+		tag.DeleteFrames(tag.CommonID("Attached picture"))
+		mime := t.CoverMIME
+		if mime == "" {
+			mime = "image/jpeg"
+		}
+		tag.AddAttachedPicture(id3v2.PictureFrame{
+			Encoding:    tag.DefaultEncoding(),
+			MimeType:    mime,
+			PictureType: id3v2.PTFrontCover,
+			Description: "Front cover",
+			Picture:     t.CoverBytes,
+		})
+	}
 
 	return tag.Save()
 }

@@ -62,7 +62,9 @@ describe("ResultCard", () => {
 // action. Rendered idle (no fetch on mount), so SSR markup is deterministic.
 describe("CoverArtCard", () => {
   it("renders the model picker and a generate action", () => {
-    const html = renderToStaticMarkup(<CoverArtCard prompt="a moody album cover" />);
+    const html = renderToStaticMarkup(
+      <CoverArtCard prompt="a moody album cover" models={["flux-2-klein-4b", "flux-2-flex", "flux-2-pro"]} defaultModel="flux-2-klein-4b" />,
+    );
     expect(html).toContain("Generate cover art");
     expect(html).toContain("flux-2-pro");
     expect(html).toContain("flux-2-klein-4b");

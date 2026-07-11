@@ -1,6 +1,9 @@
 package studio
 
-import "fmt"
+import (
+	"fmt"
+	"strings"
+)
 
 // generateSystemPrompt instructs MiMo to research a named song and emit a Suno
 // prompt. It encodes the suno-prompt-generator rules, Suno tag literacy, the
@@ -86,12 +89,63 @@ Rules for the prompt itself:
 Respond with ONLY a single JSON object and nothing else (no prose, no code fences):
 {"prompt":"..."}`
 
+// albumCoverPromptSystemPrompt instructs the model to author ONE image prompt for
+// a SQUARE album cover, seeded with the artist, album title, and genre(s). Unlike
+// the genre background (wide, depicts a scene), this is a tight single-subject
+// album composition, period-correct to the genre's sonic aesthetic.
+const albumCoverPromptSystemPrompt = `You write ONE image-generation prompt for a SQUARE album cover. You are given an
+artist name, an album title, and its genre(s).
+
+Depict a strong, single central subject or motif that fits the album — its genre,
+mood, and era. This is an album cover, not a movie poster and not a page banner.
+Never put any text, letters, words, logos, or watermarks in the image (the title
+and artist are added separately).
+
+Rules for the prompt itself:
+- One or two vivid sentences, at most ~60 words. Image models degrade on long
+  rambling descriptions, so favor a single strong subject plus palette and mood.
+- Bake in the era/epoch that fits the genre's SONIC aesthetic so it is
+  period-correct.
+- SQUARE composition, centered and balanced for a 1:1 album tile.
+
+Respond with ONLY a single JSON object and nothing else (no prose, no code fences):
+{"prompt":"..."}`
+
+// refinePromptSystemPrompt instructs the model to rewrite an existing image prompt
+// per a user instruction, keeping it concise and text-free. Reused by both the
+// genre-background and album-cover refine flows; the caller passes any relevant
+// context (e.g. the genre name or artist/album) in the user message.
+const refinePromptSystemPrompt = `You revise image-generation prompts. You are given the CURRENT prompt, optional
+context, and a refinement instruction. Rewrite the prompt to satisfy the
+instruction while keeping it a single concise image prompt (one or two vivid
+sentences, at most ~60 words, no text/letters/logos in the image). Keep whatever
+the instruction does not change.
+
+Respond with ONLY a single JSON object and nothing else (no prose, no code fences):
+{"prompt":"..."}`
+
 func generateUserPrompt(reference string) string {
 	return fmt.Sprintf("Reference song: %s", reference)
 }
 
 func genrePromptUserPrompt(genre string) string {
 	return fmt.Sprintf("Genre: %s", genre)
+}
+
+func albumCoverPromptUserPrompt(artist, album string, genres []string) string {
+	genre := strings.Join(genres, ", ")
+	if strings.TrimSpace(genre) == "" {
+		genre = "(unknown)"
+	}
+	return fmt.Sprintf("Artist: %s\nAlbum: %s\nGenre(s): %s", artist, album, genre)
+}
+
+func refinePromptUserPrompt(current, instruction, context string) string {
+	if strings.TrimSpace(context) != "" {
+		return fmt.Sprintf("Context: %s\n\nCurrent prompt:\n%s\n\nRefinement instruction: %s",
+			context, current, instruction)
+	}
+	return fmt.Sprintf("Current prompt:\n%s\n\nRefinement instruction: %s", current, instruction)
 }
 
 func refineUserPrompt(reference, lyrics, instruction string) string {

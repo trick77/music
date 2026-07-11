@@ -20,6 +20,14 @@ func (f fakeGenrePrompter) GenrePrompt(_ context.Context, _ string) (string, err
 	return f.prompt, f.err
 }
 
+func (f fakeGenrePrompter) AlbumCoverPrompt(_ context.Context, _, _ string, _ []string) (string, error) {
+	return f.prompt, f.err
+}
+
+func (f fakeGenrePrompter) RefinePrompt(_ context.Context, _, _, _ string) (string, error) {
+	return f.prompt, f.err
+}
+
 // suggestServer builds a two-handler rig (dev + anon) over one store, wiring a
 // fake genre prompter so no live LLM call is made.
 func suggestServer(t *testing.T, gp *fakeGenrePrompter) (dev, anon http.Handler, genreID string) {

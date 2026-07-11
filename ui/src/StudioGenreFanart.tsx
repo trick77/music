@@ -1,32 +1,24 @@
 import { useEffect, useState } from "react";
-import { listGenres, generateFanart, getFanartMeta, suggestGenrePrompt, patchGenre, type GenreSummary, type Fanart } from "./api";
+import { listGenres, generateFanart, getFanartMeta, suggestGenrePrompt, refineGenrePrompt, patchGenre, type GenreSummary, type Fanart } from "./api";
 import { fanartUrl } from "./fanart";
 import { Icon } from "./Icon";
 import { navigate } from "./router";
+import { controlStyle, fieldLabelStyle, ModelPicker, RefineRow } from "./StudioShared";
 
-type Props = { chatEnabled: boolean; initialGenreId?: string };
-
-const controlStyle: React.CSSProperties = {
-  background: "var(--color-panel)",
-  border: "1px solid var(--color-border)",
-  borderRadius: "var(--radius-ui)",
-  padding: "0.5rem 0.6rem",
-  color: "var(--color-ink)",
-  fontFamily: "var(--font-sans)",
-  fontSize: "0.9rem",
-  outline: "none",
-};
+type Props = { chatEnabled: boolean; imageModels: string[]; defaultImageModel: string; initialGenreId?: string };
 
 // GenreFanartMode generates a wide 16:9 background image for a genre. It reuses
 // the same endpoints as the (retired) in-modal generator: suggest-prompt authors
 // an editable prompt, generate kicks off an async job that we poll to ready, and
 // set-as-background activates the result on the genre. Fetches happen in effects
 // so SSR renders a deterministic, fetch-free idle surface.
-export function GenreFanartMode({ chatEnabled, initialGenreId }: Props) {
+export function GenreFanartMode({ chatEnabled, imageModels, defaultImageModel, initialGenreId }: Props) {
   const [genres, setGenres] = useState<GenreSummary[]>([]);
   const [genreId, setGenreId] = useState(initialGenreId ?? "");
   const [prompt, setPrompt] = useState("");
+  const [model, setModel] = useState(defaultImageModel);
   const [suggesting, setSuggesting] = useState(false);
+  const [refining, setRefining] = useState(false);
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<Fanart | null>(null);
   const [saved, setSaved] = useState(false);
@@ -50,6 +42,14 @@ export function GenreFanartMode({ chatEnabled, initialGenreId }: Props) {
     finally { setSuggesting(false); }
   };
 
+  const onRefine = async (instruction: string) => {
+    if (!genreId || !prompt.trim()) return;
+    setRefining(true); setErr(null);
+    try { setPrompt(await refineGenrePrompt(genreId, prompt.trim(), instruction)); }
+    catch { setErr("Could not refine the prompt"); }
+    finally { setRefining(false); }
+  };
+
   const pollUntilDone = async (id: string) => {
     for (let i = 0; i < 120; i++) {
       const fa = await getFanartMeta(id);
@@ -71,7 +71,7 @@ export function GenreFanartMode({ chatEnabled, initialGenreId }: Props) {
     if (!genreId || !prompt.trim() || busy) return;
     setBusy(true); setErr(null); setResult(null); setSaved(false);
     try {
-      const { id } = await generateFanart(prompt.trim(), "genre", genreId);
+      const { id } = await generateFanart(prompt.trim(), "genre", genreId, model);
       void pollUntilDone(id);
     } catch { setErr("Could not start generation"); setBusy(false); }
   };
@@ -86,7 +86,7 @@ export function GenreFanartMode({ chatEnabled, initialGenreId }: Props) {
 
   return (
     <div>
-      <label htmlFor="fanart-genre" style={{ display: "block", fontSize: "0.78rem", color: "var(--color-muted)", marginBottom: 7 }}>Genre</label>
+      <label htmlFor="fanart-genre" style={fieldLabelStyle}>Genre</label>
       <select
         id="fanart-genre"
         aria-label="Genre"
@@ -101,8 +101,10 @@ export function GenreFanartMode({ chatEnabled, initialGenreId }: Props) {
         ))}
       </select>
 
+      <ModelPicker models={imageModels} value={model} onChange={setModel} disabled={busy} />
+
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 7 }}>
-        <label htmlFor="fanart-prompt" style={{ fontSize: "0.78rem", color: "var(--color-muted)" }}>Prompt</label>
+        <label htmlFor="fanart-prompt" style={{ ...fieldLabelStyle, marginBottom: 0 }}>Prompt</label>
         {chatEnabled && (
           <button
             onClick={onSuggest}
@@ -124,6 +126,7 @@ export function GenreFanartMode({ chatEnabled, initialGenreId }: Props) {
         rows={3}
         style={{ ...controlStyle, width: "100%", boxSizing: "border-box", resize: "vertical", marginBottom: "0.8rem" }}
       />
+      {chatEnabled && <RefineRow onRefine={onRefine} busy={refining} disabled={busy || !genreId || prompt.trim() === ""} />}
       <div style={{ display: "flex", alignItems: "center", gap: "0.8rem", marginBottom: "0.4rem" }}>
         <button
           onClick={onGenerate}

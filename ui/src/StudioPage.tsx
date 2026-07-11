@@ -1,8 +1,9 @@
 import { useState } from "react";
-import { studioGenerate, studioRefine, generateStudioCoverArt, studioCoverArtUrl, COVER_ART_MODELS, type StudioProgress, type StudioResult } from "./api";
+import { studioGenerate, studioRefine, generateStudioCoverArt, studioCoverArtUrl, imageModelOptions, type StudioProgress, type StudioResult } from "./api";
 import { copyText } from "./share";
 import { Icon } from "./Icon";
 import { GenreFanartMode } from "./StudioGenreFanart";
+import { AlbumCoverMode } from "./StudioAlbumCover";
 
 const STYLE_LIMIT = 500;
 
@@ -84,8 +85,9 @@ export function ResultCard({ name, note, count, text, monospace = false, onChang
 // using the configured image generator. It picks a model, shows the image inline,
 // and offers a download. Ephemeral in the UI: state resets when a new song is
 // generated (the parent remounts it via key).
-export function CoverArtCard({ prompt }: { prompt: string }) {
-  const [model, setModel] = useState(COVER_ART_MODELS[0].id);
+export function CoverArtCard({ prompt, models = [], defaultModel = "" }: { prompt: string; models?: string[]; defaultModel?: string }) {
+  const options = imageModelOptions(models);
+  const [model, setModel] = useState(defaultModel || options[0]?.id || "");
   const [busy, setBusy] = useState(false);
   const [image, setImage] = useState<{ id: string } | null>(null);
   const [error, setError] = useState("");
@@ -125,7 +127,7 @@ export function CoverArtCard({ prompt }: { prompt: string }) {
             outline: "none",
           }}
         >
-          {COVER_ART_MODELS.map((m) => (
+          {options.map((m) => (
             <option key={m.id} value={m.id}>{m.label}</option>
           ))}
         </select>
@@ -180,11 +182,11 @@ export function CoverArtCard({ prompt }: { prompt: string }) {
 // StudioPage turns a named reference song into a Suno prompt. It streams live
 // research progress, shows three ephemeral outputs, refines the lyrics on
 // request, and resets fully when a new song is submitted.
-export function StudioPage({ imageGenEnabled = false, chatEnabled = false, initialGenreId }: { imageGenEnabled?: boolean; chatEnabled?: boolean; initialGenreId?: string }) {
-  // Genre → Fanart is a second mode that only exists when the image generator is
-  // configured; otherwise Studio stays the single-purpose Suno tool. Arriving
-  // with a genre (from the Genres grid) opens straight into fanart mode.
-  const [mode, setMode] = useState<"suno" | "fanart">(imageGenEnabled && initialGenreId ? "fanart" : "suno");
+export function StudioPage({ imageGenEnabled = false, chatEnabled = false, imageModels = [], defaultImageModel = "", initialGenreId }: { imageGenEnabled?: boolean; chatEnabled?: boolean; imageModels?: string[]; defaultImageModel?: string; initialGenreId?: string }) {
+  // Genre → Fanart and Album Cover are extra modes that only exist when the image
+  // generator is configured; otherwise Studio stays the single-purpose Suno tool.
+  // Arriving with a genre (from the Genres grid) opens straight into fanart mode.
+  const [mode, setMode] = useState<"suno" | "fanart" | "coverart">(imageGenEnabled && initialGenreId ? "fanart" : "suno");
   const [reference, setReference] = useState("");
   const [generatedRef, setGeneratedRef] = useState("");
   const [status, setStatus] = useState<"idle" | "loading" | "done" | "error">("idle");
@@ -239,13 +241,14 @@ export function StudioPage({ imageGenEnabled = false, chatEnabled = false, initi
     <div style={{ maxWidth: 720 }}>
       <h1 style={{ fontFamily: "var(--font-serif)", fontWeight: 500, fontSize: "1.9rem", margin: "0 0 0.25rem" }}>Studio</h1>
       <p style={{ color: "var(--color-muted)", margin: "0 0 1.2rem" }}>
-        {mode === "fanart" ? "Generate cover fanart for a genre." : "Turn a song into a Suno prompt."}
+        {mode === "fanart" ? "Generate cover fanart for a genre." : mode === "coverart" ? "Create or replace cover art for an album." : "Turn a song into a Suno prompt."}
       </p>
 
-      {/* Mode switch appears only when the image generator is configured. */}
+      {/* Mode switch appears only when the image generator is configured. Song →
+          Suno is last per the studio ordering. */}
       {imageGenEnabled && (
         <div role="tablist" aria-label="Studio mode" style={{ display: "inline-flex", padding: 3, gap: 3, border: "1px solid var(--color-border)", borderRadius: 999, background: "var(--color-panel)", marginBottom: "1.6rem" }}>
-          {([["suno", "Song → Suno"], ["fanart", "Genre → Fanart"]] as const).map(([m, label]) => (
+          {([["fanart", "Genre → Fanart"], ["coverart", "Album Cover"], ["suno", "Song → Suno"]] as const).map(([m, label]) => (
             <button
               key={m}
               role="tab"
@@ -261,7 +264,9 @@ export function StudioPage({ imageGenEnabled = false, chatEnabled = false, initi
       )}
 
       {mode === "fanart" ? (
-        <GenreFanartMode chatEnabled={chatEnabled} initialGenreId={initialGenreId} />
+        <GenreFanartMode chatEnabled={chatEnabled} imageModels={imageModels} defaultImageModel={defaultImageModel} initialGenreId={initialGenreId} />
+      ) : mode === "coverart" ? (
+        <AlbumCoverMode chatEnabled={chatEnabled} imageModels={imageModels} defaultImageModel={defaultImageModel} />
       ) : (<>
 
       {/* Reference input — submit (Enter or Generate) is the single reset+run action. */}
@@ -409,7 +414,7 @@ export function StudioPage({ imageGenEnabled = false, chatEnabled = false, initi
             text={result.coverArtPrompt}
             onChange={(value) => setResult({ ...result, coverArtPrompt: value })}
           />
-          {imageGenEnabled && <CoverArtCard key={generatedRef} prompt={result.coverArtPrompt} />}
+          {imageGenEnabled && <CoverArtCard key={generatedRef} prompt={result.coverArtPrompt} models={imageModels} defaultModel={defaultImageModel} />}
         </div>
       )}
       </>)}

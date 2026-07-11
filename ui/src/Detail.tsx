@@ -3,6 +3,7 @@ import {
   getGenre,
   getArtist,
   getPlaylist,
+  setPlaylistPublished,
   type GenreDetail as GD,
   type PlaylistDetail as PD,
   type Song,
@@ -52,6 +53,17 @@ export function Detail({ kind, id, authenticated, imageGenEnabled, chatEnabled, 
   const [notFound, setNotFound] = useState(false);
 
   const loadGenre = () => getGenre(id).then(setGenre).catch(() => setNotFound(true));
+
+  // Toggle a playlist's publish state (mirrors song publishing). Unpublished
+  // playlists are visible only to logged-in users.
+  const togglePlaylistPublish = async () => {
+    if (!playlist) return;
+    try {
+      setPlaylist(await setPlaylistPublished(playlist.id, !playlist.published));
+    } catch {
+      /* leave state as-is on failure */
+    }
+  };
 
   useEffect(() => {
     setGenre(null);
@@ -128,7 +140,12 @@ export function Detail({ kind, id, authenticated, imageGenEnabled, chatEnabled, 
           <Icon name="chevronLeft" size="24px" />
         </button>
         <div style={{ position: "relative", padding: "clamp(1.1rem, 2.6vw, 2rem)", width: "100%" }}>
-          <div style={{ fontSize: "0.75rem", letterSpacing: "0.14em", textTransform: "uppercase", color: "rgba(255,255,255,0.8)" }}>{kind}</div>
+          <div style={{ fontSize: "0.75rem", letterSpacing: "0.14em", textTransform: "uppercase", color: "rgba(255,255,255,0.8)" }}>
+            {kind}
+            {kind === "playlist" && authenticated && playlist && !playlist.published && (
+              <span style={{ marginLeft: 8, padding: "0.1rem 0.45rem", borderRadius: 999, border: "1px solid rgba(255,255,255,0.5)", fontSize: "0.62rem" }}>Unpublished</span>
+            )}
+          </div>
           <h1 style={{ margin: "0.15rem 0 0.35rem", fontFamily: "var(--font-serif)", fontSize: "clamp(1.8rem, 4vw, 2.8rem)", color: "#fff", textShadow: "0 2px 18px rgba(0,0,0,0.55)" }}>{view.title}</h1>
           <p style={{ margin: "0 0 1rem", color: "rgba(255,255,255,0.85)" }}>{view.subtitle}</p>
           <div style={{ display: "flex", gap: "0.6rem", flexWrap: "wrap" }}>
@@ -142,6 +159,11 @@ export function Detail({ kind, id, authenticated, imageGenEnabled, chatEnabled, 
             </button>
             {view.onEdit && (
               <button onClick={view.onEdit} style={pillGhost}>Edit</button>
+            )}
+            {kind === "playlist" && authenticated && playlist && (
+              <button onClick={togglePlaylistPublish} style={pillGhost}>
+                <Icon name="globe" size="18px" /> {playlist.published ? "Unpublish" : "Publish"}
+              </button>
             )}
           </div>
         </div>

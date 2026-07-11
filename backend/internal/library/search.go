@@ -56,7 +56,7 @@ func (r *Repo) Search(ctx context.Context, q string, limit int, includeUnpublish
 	if res.Genres, err = r.searchGenres(ctx, like, limit, includeUnpublished); err != nil {
 		return nil, err
 	}
-	if res.Playlists, err = r.searchPlaylists(ctx, like, limit); err != nil {
+	if res.Playlists, err = r.searchPlaylists(ctx, like, limit, includeUnpublished); err != nil {
 		return nil, err
 	}
 
@@ -111,11 +111,16 @@ func (r *Repo) searchGenres(ctx context.Context, like string, limit int, include
 	return out, rows.Err()
 }
 
-func (r *Repo) searchPlaylists(ctx context.Context, like string, limit int) ([]PlaylistSummary, error) {
+// searchPlaylists matches playlists by name. Anonymous viewers only see
+// published playlists, with published-track counts.
+func (r *Repo) searchPlaylists(ctx context.Context, like string, limit int, includeUnpublished bool) ([]PlaylistSummary, error) {
+	pubFilter := ""
+	if !includeUnpublished {
+		pubFilter = " AND p.is_published = 1"
+	}
 	rows, err := r.db.QueryContext(ctx,
-		`SELECT p.id, p.name, p.description, p.cover_art_id,
-		        (SELECT COUNT(*) FROM playlist_songs ps WHERE ps.playlist_id = p.id)
-		 FROM playlists p WHERE p.name LIKE ? ESCAPE '\' ORDER BY p.name LIMIT ?`, like, limit)
+		`SELECT p.id, p.name, p.description, p.cover_art_id, `+playlistCountExpr(includeUnpublished)+`, p.is_published
+		 FROM playlists p WHERE p.name LIKE ? ESCAPE '\'`+pubFilter+` ORDER BY p.name LIMIT ?`, like, limit)
 	if err != nil {
 		return nil, err
 	}

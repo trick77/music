@@ -167,7 +167,7 @@ func TestListPlaylists_newestFirst(t *testing.T) {
 	ctx := context.Background()
 	first, _ := r.CreatePlaylist(ctx, "First", "")
 	second, _ := r.CreatePlaylist(ctx, "Second", "")
-	list, err := r.ListPlaylists(ctx)
+	list, err := r.ListPlaylists(ctx, true)
 	if err != nil {
 		t.Fatalf("ListPlaylists: %v", err)
 	}

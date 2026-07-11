@@ -103,8 +103,11 @@ export function Library({ songs, favoriteIds, authenticated, initialTab, onPlay,
           )}
           {playlists.map((pl) => (
             <button key={pl.id} onClick={() => navigate(`/playlist/${pl.id}`)} style={{ textAlign: "left", background: "none", border: "none", cursor: "pointer", padding: 0 }}>
-              <div style={{ aspectRatio: "1", borderRadius: 10, overflow: "hidden", background: "var(--color-active)", border: "1px solid var(--color-border)", display: "grid", placeItems: "center" }}>
+              <div style={{ position: "relative", aspectRatio: "1", borderRadius: 10, overflow: "hidden", background: "var(--color-active)", border: "1px solid var(--color-border)", display: "grid", placeItems: "center" }}>
                 {pl.coverArtId ? <img src={coverUrl(pl.coverArtId)} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <span style={{ color: "var(--color-muted)", fontSize: "1.5rem" }}>♪</span>}
+                {authenticated && !pl.published && (
+                  <span style={{ position: "absolute", top: 6, left: 6, background: "rgba(0,0,0,0.55)", color: "#fff", borderRadius: 999, padding: "2px 8px", fontSize: "0.6rem", letterSpacing: "0.02em" }}>Unpublished</span>
+                )}
               </div>
               <div style={{ marginTop: 6, color: "var(--color-ink)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{pl.name}</div>
               <div style={{ color: "var(--color-muted)", fontSize: "0.8rem" }}>{pl.songCount} songs</div>

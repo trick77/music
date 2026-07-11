@@ -166,6 +166,8 @@ func build(cfg config.Config, st *store.Store, spa http.Handler, gen imagegen.Pr
 			mux.HandleFunc("POST /api/playlists", pl.create)
 			mux.HandleFunc("PATCH /api/playlists/{id}", pl.patch)
 			mux.HandleFunc("DELETE /api/playlists/{id}", pl.delete)
+			mux.HandleFunc("POST /api/playlists/{id}/publish", pl.publish)
+			mux.HandleFunc("POST /api/playlists/{id}/unpublish", pl.unpublish)
 			mux.HandleFunc("POST /api/playlists/{id}/songs", pl.addSong)
 			mux.HandleFunc("DELETE /api/playlists/{id}/songs/{songId}", pl.removeSong)
 			mux.HandleFunc("PUT /api/playlists/{id}/reorder", pl.reorder)

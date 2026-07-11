@@ -70,7 +70,7 @@ karaoke "wipe" highlighting. Line-level falls out of the word timings for free.
 | **1 — Lyrics field** | ✅ Done (PR #48) | Lyrics box + Clean button in the tag editor; read/write ID3 `USLT`. |
 | **2 — Alignment engine** | ✅ Done (PR #52) | Generate + store word-level timings via the sidecar. Engine only, no UI. |
 | **2.5 — Quality evaluation** | ✅ Validated (spike) | Real container built + run; a real Suno song aligned **cleanly** (see results below). Two build bugs found + fixed. |
-| **3 — Highlighting player** | ✅ Done (PR #TBD) | Apple-Music-style karaoke sweep in the full-screen player, lyrics-driven + manual triggers, serialized queue, "syncing" indicators, and SYLT baked into downloads. |
+| **3 — Highlighting player** | ✅ Done (PR #65) | Apple-Music-style karaoke sweep in the full-screen player, lyrics-driven + manual triggers, serialized queue, "syncing" indicators, and SYLT baked into downloads. |
 | **4 — Correction editor** | 📋 Planned | UI to hand-correct mis-timed words. |
 
 ---

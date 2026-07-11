@@ -35,6 +35,77 @@ func listSongIDs(t *testing.T, h http.Handler) []string {
 	return ids
 }
 
+// getJSON issues a GET and unmarshals the JSON body into v.
+func getJSON(t *testing.T, h http.Handler, path string, v any) {
+	t.Helper()
+	rr := httptest.NewRecorder()
+	h.ServeHTTP(rr, httptest.NewRequest("GET", path, nil))
+	if err := json.Unmarshal(rr.Body.Bytes(), v); err != nil {
+		t.Fatalf("decode %s: %v (body=%s)", path, err, rr.Body.String())
+	}
+}
+
+func TestBrowse_anonymousHidesUnpublishedOnlyArtistAndGenre(t *testing.T) {
+	dev, anon := devAndAnon(t)
+	uploadedSongID(t, dev) // fixture lands unpublished ("Test Artist", genres Synthwave/Dream Pop)
+
+	// Resolve the artist + a genre id as the authenticated viewer.
+	var songs struct {
+		Songs []struct {
+			ArtistID string `json:"artistId"`
+		} `json:"songs"`
+	}
+	getJSON(t, dev, "/api/songs", &songs)
+	if len(songs.Songs) != 1 {
+		t.Fatalf("dev songs = %d, want 1", len(songs.Songs))
+	}
+	artistID := songs.Songs[0].ArtistID
+	var genres struct {
+		Genres []struct {
+			ID string `json:"id"`
+		} `json:"genres"`
+	}
+	getJSON(t, dev, "/api/genres", &genres)
+	if len(genres.Genres) == 0 {
+		t.Fatalf("dev genres empty")
+	}
+	genreID := genres.Genres[0].ID
+
+	// Anonymous: the artist and genres are hidden entirely and their pages 404.
+	var anonArtists struct {
+		Artists []json.RawMessage `json:"artists"`
+	}
+	getJSON(t, anon, "/api/artists", &anonArtists)
+	if len(anonArtists.Artists) != 0 {
+		t.Fatalf("anon artist list = %d, want 0", len(anonArtists.Artists))
+	}
+	var anonGenres struct {
+		Genres []json.RawMessage `json:"genres"`
+	}
+	getJSON(t, anon, "/api/genres", &anonGenres)
+	if len(anonGenres.Genres) != 0 {
+		t.Fatalf("anon genre list = %d, want 0", len(anonGenres.Genres))
+	}
+	if code := getStatus(t, anon, "/api/artists/"+artistID); code != http.StatusNotFound {
+		t.Fatalf("anon artist page = %d, want 404", code)
+	}
+	if code := getStatus(t, anon, "/api/genres/"+genreID); code != http.StatusNotFound {
+		t.Fatalf("anon genre page = %d, want 404", code)
+	}
+
+	// Publishing the song surfaces the artist + genre for anonymous.
+	if rr := doJSON(t, dev, "POST", "/api/songs/"+listSongIDs(t, dev)[0]+"/publish", ""); rr.Code != http.StatusOK {
+		t.Fatalf("publish = %d", rr.Code)
+	}
+	getJSON(t, anon, "/api/artists", &anonArtists)
+	if len(anonArtists.Artists) != 1 {
+		t.Fatalf("after publish, anon artist list = %d, want 1", len(anonArtists.Artists))
+	}
+	if code := getStatus(t, anon, "/api/artists/"+artistID); code != http.StatusOK {
+		t.Fatalf("after publish, anon artist page = %d, want 200", code)
+	}
+}
+
 func TestUpload_landsUnpublished(t *testing.T) {
 	h := testServer(t, config.AuthModeDev)
 	rr := uploadFixture(t, h)

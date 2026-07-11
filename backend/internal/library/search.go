@@ -50,10 +50,10 @@ func (r *Repo) Search(ctx context.Context, q string, limit int, includeUnpublish
 		return nil, err
 	}
 
-	if res.Artists, err = r.searchArtists(ctx, like, limit); err != nil {
+	if res.Artists, err = r.searchArtists(ctx, like, limit, includeUnpublished); err != nil {
 		return nil, err
 	}
-	if res.Genres, err = r.searchGenres(ctx, like, limit); err != nil {
+	if res.Genres, err = r.searchGenres(ctx, like, limit, includeUnpublished); err != nil {
 		return nil, err
 	}
 	if res.Playlists, err = r.searchPlaylists(ctx, like, limit); err != nil {
@@ -64,10 +64,12 @@ func (r *Repo) Search(ctx context.Context, q string, limit int, includeUnpublish
 	return res, nil
 }
 
-func (r *Repo) searchArtists(ctx context.Context, like string, limit int) ([]ArtistSummary, error) {
+// searchArtists matches artists by name. Anonymous viewers see published-only
+// counts and no artist whose songs are all unpublished.
+func (r *Repo) searchArtists(ctx context.Context, like string, limit int, includeUnpublished bool) ([]ArtistSummary, error) {
 	rows, err := r.db.QueryContext(ctx,
 		`SELECT a.id, a.name, COUNT(s.id) FROM artists a JOIN songs s ON s.artist_id = a.id
-		 WHERE a.name LIKE ? ESCAPE '\' GROUP BY a.id ORDER BY a.name LIMIT ?`, like, limit)
+		 WHERE a.name LIKE ? ESCAPE '\'`+publishedFilter(includeUnpublished, true)+` GROUP BY a.id ORDER BY a.name LIMIT ?`, like, limit)
 	if err != nil {
 		return nil, err
 	}
@@ -83,10 +85,16 @@ func (r *Repo) searchArtists(ctx context.Context, like string, limit int) ([]Art
 	return out, rows.Err()
 }
 
-func (r *Repo) searchGenres(ctx context.Context, like string, limit int) ([]GenreSummary, error) {
+// searchGenres matches genres by name. Anonymous viewers see published-only
+// counts and no genre whose songs are all unpublished.
+func (r *Repo) searchGenres(ctx context.Context, like string, limit int, includeUnpublished bool) ([]GenreSummary, error) {
+	songJoin := ""
+	if !includeUnpublished {
+		songJoin = " JOIN songs s ON s.id = sg.song_id AND s.is_published = 1"
+	}
 	rows, err := r.db.QueryContext(ctx,
 		`SELECT g.id, g.name, COALESCE(g.accent_color,''), COUNT(sg.song_id) FROM genres g
-		 JOIN song_genres sg ON sg.genre_id = g.id
+		 JOIN song_genres sg ON sg.genre_id = g.id`+songJoin+`
 		 WHERE g.name LIKE ? ESCAPE '\' GROUP BY g.id ORDER BY g.name LIMIT ?`, like, limit)
 	if err != nil {
 		return nil, err

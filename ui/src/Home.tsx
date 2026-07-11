@@ -92,16 +92,21 @@ export function Home({ authenticated, onPlay, onShare, onUpload, renderRowAction
               >
                 <span
                   className="rank-num"
-                  style={{ fontSize: "var(--text-body)", color: i < 3 ? "var(--color-accent-strong)" : "var(--color-muted)", textAlign: "right", display: "flex", alignItems: "center", justifyContent: "flex-end" }}
+                  style={{ fontSize: "var(--text-body)", color: i < 3 ? "var(--color-accent-strong)" : "var(--color-muted)", textAlign: "right" }}
                 >
-                  {current?.id === s.id ? <NowPlayingBars playing={playing} /> : String(i + 1)}
+                  {String(i + 1)}
                 </span>
                 <button onClick={() => onPlay(s, topTail(i))} aria-label={`Play ${s.title}`} style={{ padding: 0, border: "none", background: "none", cursor: "pointer" }}>
-                  <span style={{ display: "grid", placeItems: "center", width: 48, height: 48, borderRadius: 8, overflow: "hidden", background: "var(--color-active)" }}>
+                  <span style={{ position: "relative", display: "grid", placeItems: "center", width: 48, height: 48, borderRadius: 8, overflow: "hidden", background: "var(--color-active)" }}>
                     {s.coverArtId ? (
                       <img src={coverUrl(s.coverArtId, "thumb")} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
                     ) : (
                       <span style={{ fontFamily: "var(--font-serif)", color: "var(--color-muted)" }}>{coverInitial(s.title)}</span>
+                    )}
+                    {current?.id === s.id && playing && (
+                      <span style={{ position: "absolute", inset: 0, display: "grid", placeItems: "center", background: "rgba(0,0,0,0.5)" }}>
+                        <NowPlayingBars />
+                      </span>
                     )}
                   </span>
                 </button>

@@ -34,9 +34,31 @@
   --color-muted: #9c9a92;
   --color-accent: #c6613f;
   --color-accent-strong: #d97757;
+  /* accent roles (see docs/design-system.md): fill = active/primary, strong = interactive text. */
+  --color-accent-fill: #c25f34;
+  --color-danger: #c14638;
+  /* elevated surface for menus/popovers (promoted from Menu.tsx). */
+  --color-elevated: #363632;
+  --color-elevated-border: #454540;
+  --color-elevated-ink: #f3f0e8;
+  --color-elevated-hover: #3f3f3a;
   --font-sans: "Anthropic Sans", system-ui, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   --font-serif: "Anthropic Serif", Georgia, "Times New Roman", Times, serif;
   --radius-ui: 10px;
+  /* type scale — six steps; nothing in between. */
+  --text-display: 1.75rem;
+  --text-title: 1.25rem;
+  --text-body: 1rem;
+  --text-ui: 0.9375rem;
+  --text-label: 0.8125rem;
+  --text-micro: 0.6875rem;
+  /* spacing scale. */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
 }
 
 html {
@@ -155,4 +177,71 @@ body {
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+/* ── Design system primitives (docs/design-system.md) ─────────────────────── */
+
+/* Form controls: one comfortable 40px size, accent-fill focus ring. */
+.ui-control {
+  width: 100%;
+  min-height: 40px;
+  padding: 0 12px;
+  background: var(--color-panel);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-ui);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  font-size: var(--text-ui);
+  outline: none;
+}
+.ui-control:focus-visible {
+  outline: 2px solid var(--color-accent-fill);
+  outline-offset: 1px;
+  border-color: var(--color-accent-fill);
+}
+textarea.ui-control {
+  min-height: 96px;
+  padding: 10px 12px;
+  line-height: 1.5;
+  resize: vertical;
+}
+
+/* Spinner: every async wait spins (busy buttons, loading, streaming). */
+@keyframes ui-spin { to { transform: rotate(360deg); } }
+.ui-spin { animation: ui-spin 0.7s linear infinite; display: inline-flex; }
+@media (prefers-reduced-motion: reduce) { .ui-spin { animation-duration: 2.4s; } }
+
+/* Modal overlay: loom-style dim + 2px backdrop blur behind an open dialog. */
+.ui-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
+}
+/* Dialog surface: centered modal on desktop, full-screen on mobile (≤720px). */
+.ui-modal {
+  display: flex;
+  flex-direction: column;
+  width: min(560px, 100%);
+  max-height: 90vh;
+  background: var(--color-panel);
+  border: 1px solid var(--color-border);
+  border-radius: 14px;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.5);
+}
+.ui-modal-body { flex: 1; overflow: auto; min-height: 0; }
+@media (max-width: 720px) {
+  .ui-overlay { padding: 0; }
+  .ui-modal {
+    width: 100%;
+    max-height: none;
+    height: 100dvh;
+    border: none;
+    border-radius: 0;
+  }
 }

@@ -1,27 +1,11 @@
 import { useState } from "react";
 import { imageModelOptions } from "./api";
+import { Button, controlClass, fieldLabel } from "./ui";
 
-// controlStyle is the shared look for Studio inputs (select / textarea / text).
-// fontSize is 1rem so inputs match their field labels, which in turn match the
-// panel's "Generate cover fanart for a genre" caption (body default, 16px).
-export const controlStyle: React.CSSProperties = {
-  background: "var(--color-panel)",
-  border: "1px solid var(--color-border)",
-  borderRadius: "var(--radius-ui)",
-  padding: "0.5rem 0.6rem",
-  color: "var(--color-ink)",
-  fontFamily: "var(--font-sans)",
-  fontSize: "1rem",
-  outline: "none",
-};
-
-// fieldLabelStyle sizes a field label to match the panel caption (1rem).
-export const fieldLabelStyle: React.CSSProperties = {
-  display: "block",
-  fontSize: "1rem",
-  color: "var(--color-muted)",
-  marginBottom: 7,
-};
+// Studio controls use the shared design-system primitives (docs/design-system.md):
+// the 40px `ui-control` and the 13px field label. Re-exported here so existing Studio
+// call sites keep importing controlStyle/fieldLabelStyle from this module.
+export { controlStyle, fieldLabel as fieldLabelStyle } from "./ui";
 
 // ModelPicker is the shared image-model selector. Options come from the session
 // (imageModels); the caller preselects the env default (defaultImageModel).
@@ -38,15 +22,16 @@ export function ModelPicker({
 }) {
   const options = imageModelOptions(models);
   return (
-    <div style={{ marginBottom: "1.1rem" }}>
-      <label htmlFor="studio-model" style={fieldLabelStyle}>Model</label>
+    <div style={{ marginBottom: "var(--space-5)" }}>
+      <label htmlFor="studio-model" style={fieldLabel}>Model</label>
       <select
         id="studio-model"
         aria-label="Image model"
+        className={controlClass}
         value={value}
         onChange={(e) => onChange(e.target.value)}
         disabled={disabled}
-        style={{ ...controlStyle, minWidth: 260 }}
+        style={{ maxWidth: 320 }}
       >
         {options.length === 0 && <option value="">Default</option>}
         {options.map((m) => (
@@ -59,7 +44,7 @@ export function ModelPicker({
 
 // RefineRow is the shared "type an instruction → LLM rewrites the prompt" control.
 // It owns only its input text; the caller performs the refine call and updates the
-// prompt. Rendered under a prompt textarea.
+// prompt. While busy the input is locked and the button spins (no ellipsis label).
 export function RefineRow({
   onRefine,
   busy,
@@ -78,29 +63,26 @@ export function RefineRow({
     setInstruction("");
   };
   return (
-    <form onSubmit={submit} style={{ display: "flex", gap: "0.5rem", margin: "0 0 1.1rem" }}>
+    <form onSubmit={submit} style={{ display: "flex", gap: "var(--space-2)", margin: "0 0 var(--space-5)" }}>
       <input
         type="text"
+        className={controlClass}
         value={instruction}
         onChange={(e) => setInstruction(e.target.value)}
         placeholder="Refine the prompt — e.g. “make it darker”, “add neon”"
         aria-label="Refine prompt instruction"
         disabled={busy || disabled}
-        style={{ ...controlStyle, flex: 1 }}
+        style={{ flex: 1 }}
       />
-      <button
+      <Button
         type="submit"
-        disabled={busy || disabled || instruction.trim() === ""}
-        style={{
-          fontSize: "1rem", color: "var(--color-ink)", fontWeight: 500,
-          background: "var(--color-active)", border: "1px solid var(--color-border)",
-          borderRadius: 8, padding: "0.5rem 0.9rem",
-          cursor: busy || disabled || instruction.trim() === "" ? "default" : "pointer",
-          opacity: busy || disabled || instruction.trim() === "" ? 0.6 : 1, whiteSpace: "nowrap",
-        }}
+        variant="secondary"
+        busy={busy}
+        disabled={disabled || instruction.trim() === ""}
+        style={{ whiteSpace: "nowrap" }}
       >
-        {busy ? "Refining…" : "Refine"}
-      </button>
+        Refine
+      </Button>
     </form>
   );
 }

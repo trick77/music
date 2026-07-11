@@ -21,12 +21,12 @@ function StarButton({ song, fav, size = 20 }: { song: Song; fav: Fav; size?: num
   );
 }
 
-function Scrubber({ positionMs, durationMs, onSeek, accent = "var(--color-accent-strong)" }: { positionMs: number; durationMs: number; onSeek: (ms: number) => void; accent?: string }) {
+function Scrubber({ positionMs, durationMs, onSeek, accent = "var(--color-accent-fill)" }: { positionMs: number; durationMs: number; onSeek: (ms: number) => void; accent?: string }) {
   const max = durationMs || 0;
   const pct = max > 0 ? Math.min(100, (positionMs / max) * 100) : 0;
   return (
     <div style={{ display: "flex", alignItems: "center", gap: "0.6rem", width: "100%" }}>
-      <span className="rank-num" style={{ fontSize: "0.72rem", color: "var(--color-muted)", minWidth: 36, textAlign: "right" }}>{formatDuration(positionMs)}</span>
+      <span className="rank-num" style={{ fontSize: "var(--text-label)", color: "var(--color-muted)", minWidth: 36, textAlign: "right" }}>{formatDuration(positionMs)}</span>
       <input
         type="range"
         min={0}
@@ -36,7 +36,7 @@ function Scrubber({ positionMs, durationMs, onSeek, accent = "var(--color-accent
         aria-label="Seek"
         style={{ flex: 1, accentColor: accent, background: "transparent", height: 4 }}
       />
-      <span className="rank-num" style={{ fontSize: "0.72rem", color: "var(--color-muted)", minWidth: 36 }}>{formatDuration(max)}</span>
+      <span className="rank-num" style={{ fontSize: "var(--text-label)", color: "var(--color-muted)", minWidth: 36 }}>{formatDuration(max)}</span>
       <span style={{ display: "none" }}>{pct}</span>
     </div>
   );
@@ -49,7 +49,7 @@ function Transport({ playing, onPrev, onToggle, onNext, size = 22 }: { playing: 
       <button
         aria-label={playing ? "Pause" : "Play"}
         onClick={onToggle}
-        style={{ ...iconBtn, width: size + 22, height: size + 22, borderRadius: 999, background: "var(--color-accent-strong)", color: "var(--color-ink)" }}
+        style={{ ...iconBtn, width: size + 22, height: size + 22, borderRadius: 999, background: "var(--color-accent-fill)", color: "var(--color-ink)" }}
       >
         <Glyph name={playing ? "pause" : "play"} size={size} />
       </button>
@@ -100,8 +100,8 @@ export function PlayerBar({ fav, onShare }: { fav: Fav; onShare: (s: Song) => vo
               {song.coverArtId ? <img src={coverUrl(song.coverArtId, "thumb")} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <span style={{ fontFamily: "var(--font-serif)", color: "var(--color-muted)" }}>{coverInitial(song.title)}</span>}
             </span>
             <span style={{ minWidth: 0 }}>
-              <span style={{ display: "block", color: "var(--color-ink)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{song.title}</span>
-              <span style={{ display: "block", color: "var(--color-muted)", fontSize: "0.85rem", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{song.artistName}</span>
+              <span style={{ display: "block", color: "var(--color-ink)", fontSize: "var(--text-ui)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{song.title}</span>
+              <span style={{ display: "block", color: "var(--color-muted)", fontSize: "var(--text-label)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{song.artistName}</span>
             </span>
           </button>
           <StarButton song={song} fav={fav} />

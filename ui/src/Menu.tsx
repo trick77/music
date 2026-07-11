@@ -6,11 +6,11 @@ import { Icon, type IconName } from "./Icon";
 // into every entry (#3f3f3a) so no entry can forget it, a leading icon in a 21px
 // grid at 19px, and the destructive entry in loom's danger treatment (#ec7e7e
 // resting text, #d03b3b fill + white on hover).
-export const MENU_SURFACE_BG = "#363632";
-export const MENU_SURFACE_BORDER = "#454540";
-export const MENU_ITEM_INK = "#f3f0e8";
-export const MENU_ITEM_HOVER = "#3f3f3a";
-export const MENU_SEPARATOR = "#4a4741";
+export const MENU_SURFACE_BG = "var(--color-elevated)";
+export const MENU_SURFACE_BORDER = "var(--color-elevated-border)";
+export const MENU_ITEM_INK = "var(--color-elevated-ink)";
+export const MENU_ITEM_HOVER = "var(--color-elevated-hover)";
+export const MENU_SEPARATOR = "var(--color-elevated-border)";
 export const MENU_DANGER_INK = "#ec7e7e";
 export const MENU_DANGER_FILL = "#d03b3b";
 
@@ -50,7 +50,7 @@ export function MenuItem({ icon, danger, href, onClick, children, trailing }: Me
     width: "calc(100% - 8px)",
     textAlign: "left",
     cursor: "pointer",
-    fontSize: "0.9rem",
+    fontSize: "var(--text-ui)",
     border: "none",
     textDecoration: "none",
     transition: "background .12s, color .12s",

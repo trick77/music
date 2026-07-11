@@ -27,7 +27,7 @@ function AccountSlot({ authMode, authenticated, username }: { authMode?: string;
       href={href}
       aria-label={label}
       title={label}
-      style={{ ...base, display: "grid", placeItems: "center", color: "var(--color-ink)", textDecoration: "none", fontFamily: "var(--font-serif)", fontSize: "0.8rem", fontWeight: 600 }}
+      style={{ ...base, display: "grid", placeItems: "center", color: "var(--color-ink)", textDecoration: "none", fontFamily: "var(--font-serif)", fontSize: "var(--text-label)", fontWeight: 600 }}
     >
       {authenticated && username ? username.charAt(0).toUpperCase() : null}
     </a>
@@ -73,10 +73,10 @@ export function Rail({ route, authenticated, studioEnabled = false, authMode, us
         key={it.key}
         aria-label={it.label}
         onClick={() => nav(it.path)}
-        style={{ flex: 1, display: "grid", placeItems: "center", gap: 2, background: "none", border: "none", color: active ? "var(--color-accent-strong)" : "var(--color-muted)", cursor: "pointer", padding: "0.5rem 0" }}
+        style={{ flex: 1, display: "grid", placeItems: "center", gap: 2, background: "none", border: "none", color: active ? "var(--color-accent-fill)" : "var(--color-muted)", cursor: "pointer", padding: "0.5rem 0" }}
       >
         <Glyph name={it.icon} size={22} />
-        <span style={{ fontSize: "0.65rem" }}>{it.label}</span>
+        <span style={{ fontSize: "var(--text-micro)" }}>{it.label}</span>
       </button>
     );
   };

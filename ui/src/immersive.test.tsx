@@ -42,6 +42,7 @@ describe("Chapter", () => {
     name: "Synthwave",
     songCount: 2,
     accentColor: "#d97757",
+    hasBackground: true,
     backgroundFanartId: "f2",
     songs: [song("s1", "Chrome Sunset"), song("s2", "Afterimage")],
   };

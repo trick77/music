@@ -43,7 +43,7 @@ export function App() {
   useEffect(() => {
     getSession()
       .then(setSession)
-      .catch(() => setSession({ authenticated: false, username: "", imageGenEnabled: false, studioEnabled: false, authMode: "" }));
+      .catch(() => setSession({ authenticated: false, username: "", imageGenEnabled: false, studioEnabled: false, chatEnabled: false, authMode: "" }));
     refresh();
   }, []);
 
@@ -184,11 +184,11 @@ export function App() {
         ) : route.name === "studio" ? (
           authed && session?.studioEnabled ? <StudioPage /> : <Home authenticated={authed} onPlay={onPlay} onShare={shareSong} onUpload={triggerUpload} renderRowActions={rowActions} reloadKey={feedVersion} />
         ) : route.name === "playlist" ? (
-          <Detail kind="playlist" id={route.id} authenticated={authed} imageGenEnabled={!!session?.imageGenEnabled} onPlay={onPlay} onShare={shareUrl} onEditPlaylist={(pl) => setEditingPlaylist(pl)} renderRowActions={rowActions} />
+          <Detail kind="playlist" id={route.id} authenticated={authed} imageGenEnabled={!!session?.imageGenEnabled} chatEnabled={!!session?.chatEnabled} onPlay={onPlay} onShare={shareUrl} onEditPlaylist={(pl) => setEditingPlaylist(pl)} renderRowActions={rowActions} />
         ) : route.name === "genre" ? (
-          <Detail kind="genre" id={route.id} authenticated={authed} imageGenEnabled={!!session?.imageGenEnabled} onPlay={onPlay} onShare={shareUrl} onEditPlaylist={(pl) => setEditingPlaylist(pl)} renderRowActions={rowActions} />
+          <Detail kind="genre" id={route.id} authenticated={authed} imageGenEnabled={!!session?.imageGenEnabled} chatEnabled={!!session?.chatEnabled} onPlay={onPlay} onShare={shareUrl} onEditPlaylist={(pl) => setEditingPlaylist(pl)} renderRowActions={rowActions} />
         ) : route.name === "artist" ? (
-          <Detail kind="artist" id={route.id} authenticated={authed} imageGenEnabled={!!session?.imageGenEnabled} onPlay={onPlay} onShare={shareUrl} onEditPlaylist={(pl) => setEditingPlaylist(pl)} renderRowActions={rowActions} />
+          <Detail kind="artist" id={route.id} authenticated={authed} imageGenEnabled={!!session?.imageGenEnabled} chatEnabled={!!session?.chatEnabled} onPlay={onPlay} onShare={shareUrl} onEditPlaylist={(pl) => setEditingPlaylist(pl)} renderRowActions={rowActions} />
         ) : route.name === "song" ? (
           <SongPage id={route.id} songs={songs} onPlay={(s) => onPlay(s)} />
         ) : (

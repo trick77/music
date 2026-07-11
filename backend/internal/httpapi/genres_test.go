@@ -2,11 +2,31 @@ package httpapi
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 )
+
+// seedGenreSong gives a genre one song so it appears in GET /api/genres (which
+// inner-joins song_genres). Returns nothing; the genre is now listable.
+func (ts *fanartTS) seedGenreSong(t *testing.T, genreID, key string) {
+	t.Helper()
+	db := ts.st.DB()
+	if _, err := db.ExecContext(context.Background(),
+		`INSERT INTO artists(id,name,name_key) VALUES(?,?,?)`, "art-"+key, "Artist "+key, "artist "+key); err != nil {
+		t.Fatalf("seed artist: %v", err)
+	}
+	if _, err := db.ExecContext(context.Background(),
+		`INSERT INTO songs(id,title,artist_id,file_path) VALUES(?,?,?,?)`, "song-"+key, "Song "+key, "art-"+key, "x/"+key+".mp3"); err != nil {
+		t.Fatalf("seed song: %v", err)
+	}
+	if _, err := db.ExecContext(context.Background(),
+		`INSERT INTO song_genres(song_id,genre_id,is_primary) VALUES(?,?,1)`, "song-"+key, genreID); err != nil {
+		t.Fatalf("seed song_genre: %v", err)
+	}
+}
 
 func (ts *fanartTS) patchGenreJSON(t *testing.T, id string, body map[string]any, authed bool) *httptest.ResponseRecorder {
 	t.Helper()
@@ -56,6 +76,43 @@ func TestPatchGenre_renameAndForeignBackgroundRejected(t *testing.T) {
 	// Assign g1's image as g2's background -> 400.
 	if rec := ts.patchGenreJSON(t, g2, map[string]any{"backgroundFanartId": fanartID}, true); rec.Code != http.StatusBadRequest {
 		t.Fatalf("foreign background code = %d, want 400", rec.Code)
+	}
+}
+
+func TestListGenres_hasBackgroundFlag(t *testing.T) {
+	ts := newFanartTestServer(t)
+	withBg := ts.seedGenre(t, "Jazz")
+	without := ts.seedGenre(t, "Rock")
+	ts.seedGenreSong(t, withBg, "j")
+	ts.seedGenreSong(t, without, "r")
+	// Give Jazz an active background; leave Rock with none.
+	up := ts.uploadFanart(t, "genre", withBg, pngBytes(t, 8, 8))
+	fanartID := ts.idFromResponse(t, up)
+	if rec := ts.patchGenreJSON(t, withBg, map[string]any{"backgroundFanartId": fanartID}, true); rec.Code != http.StatusOK {
+		t.Fatalf("set background code = %d", rec.Code)
+	}
+
+	rr := httptest.NewRecorder()
+	ts.dev.ServeHTTP(rr, httptest.NewRequest("GET", "/api/genres", nil))
+	if rr.Code != http.StatusOK {
+		t.Fatalf("GET /api/genres = %d", rr.Code)
+	}
+	var out struct {
+		Genres []struct {
+			Name          string `json:"name"`
+			HasBackground bool   `json:"hasBackground"`
+		} `json:"genres"`
+	}
+	json.Unmarshal(rr.Body.Bytes(), &out)
+	got := map[string]bool{}
+	for _, g := range out.Genres {
+		got[g.Name] = g.HasBackground
+	}
+	if !got["Jazz"] {
+		t.Errorf("Jazz should have background")
+	}
+	if got["Rock"] {
+		t.Errorf("Rock should not have background")
 	}
 }
 

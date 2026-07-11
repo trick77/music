@@ -3,6 +3,7 @@ import { search, type SearchResults, type Song } from "./api";
 import { coverUrl, coverInitial } from "./cover";
 import { navigate } from "./router";
 import { Glyph } from "./Glyph";
+import { t } from "./ui";
 
 // Search is the grouped results screen: a debounced query with a Top result and
 // Songs / Artists / Genres / Playlists sections.
@@ -15,10 +16,10 @@ export function Search({ onPlay }: { onPlay: (s: Song, tail: Song[]) => void }) 
       setRes(null);
       return;
     }
-    const t = setTimeout(() => {
+    const timer = setTimeout(() => {
       search(q).then(setRes).catch(() => setRes(null));
     }, 200);
-    return () => clearTimeout(t);
+    return () => clearTimeout(timer);
   }, [q]);
 
   const openTop = () => {
@@ -41,7 +42,7 @@ export function Search({ onPlay }: { onPlay: (s: Song, tail: Song[]) => void }) 
           value={q}
           onChange={(e) => setQ(e.target.value)}
           placeholder="Search songs, artists, genres, playlists…"
-          style={{ flex: 1, background: "none", border: "none", color: "var(--color-ink)", fontSize: "1rem", outline: "none" }}
+          style={{ flex: 1, background: "none", border: "none", color: "var(--color-ink)", fontSize: "var(--text-ui)", outline: "none" }}
         />
       </div>
 
@@ -58,7 +59,7 @@ export function Search({ onPlay }: { onPlay: (s: Song, tail: Song[]) => void }) 
                 </span>
                 <span>
                   <div style={{ color: "var(--color-ink)" }}>{topLabel(res)}</div>
-                  <div style={{ color: "var(--color-muted)", fontSize: "0.85rem", textTransform: "capitalize" }}>{res.top.type}</div>
+                  <div style={{ ...t.label, textTransform: "capitalize" }}>{res.top.type}</div>
                 </span>
               </button>
             </section>
@@ -74,7 +75,7 @@ export function Search({ onPlay }: { onPlay: (s: Song, tail: Song[]) => void }) 
                   </span>
                   <span style={{ minWidth: 0 }}>
                     <span style={{ display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.title}</span>
-                    <span style={{ display: "block", color: "var(--color-muted)", fontSize: "0.85rem", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.artistName}</span>
+                    <span style={{ display: "block", ...t.label, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.artistName}</span>
                   </span>
                 </button>
               ))}
@@ -89,7 +90,7 @@ export function Search({ onPlay }: { onPlay: (s: Song, tail: Song[]) => void }) 
                   <span style={{ width: 40, height: 40, borderRadius: 999, background: "var(--color-active)", display: "grid", placeItems: "center", color: "var(--color-muted)", fontFamily: "var(--font-serif)" }}>{coverInitial(a.name)}</span>
                   <span>
                     <span style={{ display: "block" }}>{a.name}</span>
-                    <span style={{ display: "block", color: "var(--color-muted)", fontSize: "0.85rem" }}>{a.songCount} songs</span>
+                    <span style={{ display: "block", ...t.label }}>{a.songCount} songs</span>
                   </span>
                 </button>
               ))}
@@ -140,7 +141,7 @@ function topLabel(res: SearchResults): string {
   return res.playlists.find((x) => x.id === id)?.name ?? "";
 }
 
-const head: React.CSSProperties = { margin: "0 0 0.6rem", fontFamily: "var(--font-serif)", fontSize: "1.2rem" };
+const head: React.CSSProperties = { margin: "0 0 0.6rem", ...t.title };
 
 const rowBtn: React.CSSProperties = {
   display: "flex",

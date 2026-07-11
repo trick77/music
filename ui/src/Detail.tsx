@@ -136,14 +136,14 @@ export function Detail({ kind, id, authenticated, studioEnabled, imageGenEnabled
         }}
       >
         <div className="scrim" />
-        <button onClick={() => history.back()} aria-label="Back" style={{ ...linkBtn, position: "absolute", top: 14, left: 14, color: "#fff", display: "grid", placeItems: "center" }}>
+        <button onClick={() => history.back()} aria-label="Back" style={{ ...linkBtn, position: "absolute", top: 14, left: 14, width: 40, height: 40, color: "#fff", display: "grid", placeItems: "center" }}>
           <Icon name="chevronLeft" size="24px" />
         </button>
         <div style={{ position: "relative", padding: "clamp(1.1rem, 2.6vw, 2rem)", width: "100%" }}>
-          <div style={{ fontSize: "0.75rem", letterSpacing: "0.14em", textTransform: "uppercase", color: "rgba(255,255,255,0.8)" }}>
+          <div style={{ fontSize: "var(--text-micro)", letterSpacing: "0.14em", textTransform: "uppercase", color: "rgba(255,255,255,0.8)" }}>
             {kind}
             {kind === "playlist" && authenticated && playlist && !playlist.published && (
-              <span style={{ marginLeft: 8, padding: "0.1rem 0.45rem", borderRadius: 999, border: "1px solid rgba(255,255,255,0.5)", fontSize: "0.62rem" }}>Unpublished</span>
+              <span style={{ marginLeft: 8, padding: "0.1rem 0.45rem", borderRadius: 999, border: "1px solid rgba(255,255,255,0.5)", fontSize: "var(--text-micro)" }}>Unpublished</span>
             )}
           </div>
           <h1 style={{ margin: "0.15rem 0 0.35rem", fontFamily: "var(--font-serif)", fontSize: "clamp(1.8rem, 4vw, 2.8rem)", color: "#fff", textShadow: "0 2px 18px rgba(0,0,0,0.55)" }}>{view.title}</h1>
@@ -180,7 +180,7 @@ export function Detail({ kind, id, authenticated, studioEnabled, imageGenEnabled
               </button>
               <button onClick={() => onPlay(s, songs.slice(i + 1))} style={{ ...linkBtn, textAlign: "left", minWidth: 0 }}>
                 <div style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.title}</div>
-                <div style={{ color: "var(--color-muted)", fontSize: "0.85rem", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.artistName}</div>
+                <div style={{ color: "var(--color-muted)", fontSize: "var(--text-label)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.artistName}</div>
               </button>
               <span style={{ display: "flex", alignItems: "center", gap: "0.35rem" }}>{renderRowActions(s)}</span>
             </div>
@@ -201,11 +201,12 @@ const pillPrimary: React.CSSProperties = {
   display: "inline-flex",
   alignItems: "center",
   gap: "0.5rem",
-  background: "var(--color-accent-strong)",
+  background: "var(--color-accent-fill)",
   color: "var(--color-ink)",
   border: "none",
   borderRadius: 999,
   padding: "0.55rem 1.25rem",
+  fontSize: "var(--text-ui)",
   cursor: "pointer",
   fontWeight: 600,
 };
@@ -219,5 +220,6 @@ const pillGhost: React.CSSProperties = {
   border: "1px solid rgba(255,255,255,0.35)",
   borderRadius: 999,
   padding: "0.55rem 1.1rem",
+  fontSize: "var(--text-ui)",
   cursor: "pointer",
 };

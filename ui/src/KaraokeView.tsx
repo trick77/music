@@ -70,6 +70,7 @@ export function KaraokeView({ lines }: { lines: AlignedLine[] }) {
     }
 
     let raf = 0;
+    let cancelled = false;
     let lastActive = -2;
     function frame() {
       const audio = player.getAudioElement();
@@ -107,6 +108,9 @@ export function KaraokeView({ lines }: { lines: AlignedLine[] }) {
     }
 
     function start() {
+      // The fonts.ready promise can resolve after unmount; bail so we don't spawn
+      // an uncancellable rAF loop mutating detached DOM.
+      if (cancelled) return;
       measure();
       const el = L[0]?.el;
       if (el) inner!.style.transform = "translateY(" + (window.innerHeight * 0.4 - (el.offsetTop + el.offsetHeight / 2)) + "px)";
@@ -121,6 +125,7 @@ export function KaraokeView({ lines }: { lines: AlignedLine[] }) {
     else raf = requestAnimationFrame(start);
 
     return () => {
+      cancelled = true;
       cancelAnimationFrame(raf);
       window.removeEventListener("resize", onResize);
     };

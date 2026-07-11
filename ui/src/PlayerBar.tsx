@@ -106,12 +106,18 @@ export function PlayerBar({ fav, onShare, alignmentEnabled }: { fav: Fav; onShar
       alive = false;
       if (timer) clearTimeout(timer);
     };
-  }, [full, lyricsMode, canKaraoke, song?.id]);
+    // align?.status is a dep so the in-view Generate/Try-again buttons (which set
+    // status to "generating" without changing any other dep) re-arm the poll; it
+    // converges because same-status refetches don't change the dep.
+  }, [full, lyricsMode, canKaraoke, song?.id, align?.status]);
 
   if (!p.current || !song) return null;
 
-  const onGenerate = () => {
-    void postAlign(song.id);
+  // Await the POST so the row is claimed before we flip to generating; otherwise
+  // the poll's immediate getAlign can race ahead of the claim and 404 back to the
+  // needs-sync card. Flipping status also re-arms the poll effect (align?.status dep).
+  const onGenerate = async () => {
+    await postAlign(song.id);
     setAlign({ status: "generating" });
   };
   const syncing = align?.status === "generating";

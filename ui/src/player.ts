@@ -37,6 +37,19 @@ export function removeSong(state: PlayerState, id: string): PlayerState {
   return { ...state, queue, history };
 }
 
+// replaceSong swaps an edited song in wherever its id appears (current, queue,
+// history), leaving playback position/state untouched — a tag edit changes the
+// metadata shown, not what is playing.
+export function replaceSong(state: PlayerState, saved: Song): PlayerState {
+  const swap = (s: Song) => (s.id === saved.id ? saved : s);
+  return {
+    ...state,
+    current: state.current ? swap(state.current) : state.current,
+    queue: state.queue.map(swap),
+    history: state.history.map(swap),
+  };
+}
+
 // back pops history into current, pushing the outgoing current to the front of
 // the queue. With empty history it restarts the current track.
 export function back(state: PlayerState): PlayerState {
@@ -236,6 +249,15 @@ export const player = {
     if (wasCurrent) getAudio().pause();
     emit();
   },
+  // patchSong swaps in an edited song wherever it appears (current/queue/history)
+  // so a tag edit is reflected live. It deliberately does NOT reload the audio
+  // element — playback continues uninterrupted; only the metadata shown changes.
+  patchSong(saved: Song) {
+    const wasCurrent = state.current?.id === saved.id;
+    state = replaceSong(state, saved);
+    if (wasCurrent) setMediaMetadata(saved);
+    emit();
+  },
   toggle() {
     if (!state.current) return;
     const el = getAudio();
@@ -306,5 +328,6 @@ export function usePlayer() {
     setQueue: player.setQueue,
     restore: player.restore,
     remove: player.remove,
+    patchSong: player.patchSong,
   };
 }

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { advance, back, qualifiesForPlay, shouldReport, removeSong, type PlayerState } from "./player";
+import { advance, back, qualifiesForPlay, shouldReport, removeSong, replaceSong, type PlayerState } from "./player";
 import type { Song } from "./api";
 
 function song(id: string): Song {
@@ -88,6 +88,29 @@ describe("removeSong", () => {
     expect(s.current).toBeNull();
     expect(s.playing).toBe(false);
     expect(s.positionMs).toBe(0);
+    expect(s.queue.map((q) => q.id)).toEqual(["b"]);
+  });
+});
+
+describe("replaceSong", () => {
+  it("swaps the edited song into current/queue/history without disturbing playback", () => {
+    const edited = { ...song("a"), title: "New Title", coverArtId: "cover-2" };
+    const s = replaceSong(
+      base({ current: song("a"), queue: [song("a"), song("b")], history: [song("a")], playing: true, positionMs: 5000 }),
+      edited,
+    );
+    expect(s.current).toBe(edited);
+    expect(s.current?.title).toBe("New Title");
+    expect(s.queue.map((q) => q.title)).toEqual(["New Title", "b"]);
+    expect(s.history[0].title).toBe("New Title");
+    // Playback state is untouched — a tag edit changes metadata, not what plays.
+    expect(s.playing).toBe(true);
+    expect(s.positionMs).toBe(5000);
+  });
+
+  it("leaves state unchanged when the edited id is absent", () => {
+    const s = replaceSong(base({ current: song("a"), queue: [song("b")] }), { ...song("z"), title: "Z" });
+    expect(s.current?.id).toBe("a");
     expect(s.queue.map((q) => q.id)).toEqual(["b"]);
   });
 });

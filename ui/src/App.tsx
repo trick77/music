@@ -133,14 +133,24 @@ export function App() {
     }
   };
 
+  // propagateSong pushes a server-updated song into every place the app caches
+  // song objects: the App-level list (Library/SongPage), the Home/Detail feeds
+  // (via feedVersion), and the player store (now-playing bar/queue/history). Used
+  // by both tag edits and the publish toggle so an edit shows up everywhere at
+  // once without a page reload.
+  const propagateSong = (updated: Song) => {
+    setSongs((prev) => prev.map((s) => (s.id === updated.id ? updated : s)));
+    setFeedVersion((v) => v + 1);
+    player.patchSong(updated);
+  };
+
   // togglePublish flips a song's publish state and reflects it in the loaded
   // list so the Library "Unpublished" pill + row badge update immediately.
   const togglePublish = async (song: Song) => {
     setMenuFor(null);
     try {
       const updated = await setPublished(song.id, !song.published);
-      setSongs((prev) => prev.map((s) => (s.id === updated.id ? updated : s)));
-      setFeedVersion((v) => v + 1);
+      propagateSong(updated);
       flash(updated.published ? "Published" : "Unpublished");
     } catch {
       flash("Couldn't update");
@@ -233,11 +243,11 @@ export function App() {
         ) : route.name === "studio" ? (
           authed && session?.studioEnabled ? <StudioPage key={route.genreId ?? "studio"} imageGenEnabled={!!session?.imageGenEnabled} chatEnabled={!!session?.chatEnabled} imageModels={session?.imageModels ?? []} defaultImageModel={session?.defaultImageModel ?? ""} initialGenreId={route.genreId} /> : <Home authenticated={authed} onPlay={onPlay} onShare={shareSong} onUpload={triggerUpload} renderRowActions={rowActions} reloadKey={feedVersion} />
         ) : route.name === "playlist" ? (
-          <Detail kind="playlist" id={route.id} authenticated={authed} studioEnabled={!!session?.studioEnabled} imageGenEnabled={!!session?.imageGenEnabled} onPlay={onPlay} onShare={shareUrl} onEditPlaylist={(pl) => setEditingPlaylist(pl)} renderRowActions={rowActions} />
+          <Detail kind="playlist" id={route.id} authenticated={authed} studioEnabled={!!session?.studioEnabled} imageGenEnabled={!!session?.imageGenEnabled} onPlay={onPlay} onShare={shareUrl} onEditPlaylist={(pl) => setEditingPlaylist(pl)} renderRowActions={rowActions} reloadKey={feedVersion} />
         ) : route.name === "genre" ? (
-          <Detail kind="genre" id={route.id} authenticated={authed} studioEnabled={!!session?.studioEnabled} imageGenEnabled={!!session?.imageGenEnabled} onPlay={onPlay} onShare={shareUrl} onEditPlaylist={(pl) => setEditingPlaylist(pl)} renderRowActions={rowActions} />
+          <Detail kind="genre" id={route.id} authenticated={authed} studioEnabled={!!session?.studioEnabled} imageGenEnabled={!!session?.imageGenEnabled} onPlay={onPlay} onShare={shareUrl} onEditPlaylist={(pl) => setEditingPlaylist(pl)} renderRowActions={rowActions} reloadKey={feedVersion} />
         ) : route.name === "artist" ? (
-          <Detail kind="artist" id={route.id} authenticated={authed} studioEnabled={!!session?.studioEnabled} imageGenEnabled={!!session?.imageGenEnabled} onPlay={onPlay} onShare={shareUrl} onEditPlaylist={(pl) => setEditingPlaylist(pl)} renderRowActions={rowActions} />
+          <Detail kind="artist" id={route.id} authenticated={authed} studioEnabled={!!session?.studioEnabled} imageGenEnabled={!!session?.imageGenEnabled} onPlay={onPlay} onShare={shareUrl} onEditPlaylist={(pl) => setEditingPlaylist(pl)} renderRowActions={rowActions} reloadKey={feedVersion} />
         ) : route.name === "song" ? (
           <SongPage id={route.id} songs={songs} onPlay={(s) => onPlay(s)} />
         ) : (
@@ -268,7 +278,7 @@ export function App() {
           onClose={() => setShowQueue(false)}
         />
       )}
-      {editing && <TagEditor song={editing} onClose={() => setEditing(null)} onSaved={(saved) => { setSongs((prev) => prev.map((s) => (s.id === saved.id ? saved : s))); setEditing(saved); }} />}
+      {editing && <TagEditor song={editing} onClose={() => setEditing(null)} onSaved={(saved) => { propagateSong(saved); setEditing(saved); }} />}
       {deleteFor && (
         <ConfirmDialog
           title="Delete song"

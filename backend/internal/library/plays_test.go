@@ -24,6 +24,35 @@ func seedSong(t *testing.T, r *Repo, title string) string {
 	return s.ID
 }
 
+// Regression: the top-ten payload must carry lyrics, like every other song
+// source. It previously omitted them, so editing a song from the home featured/
+// top-ten rail loaded an empty Lyrics field and saving wiped the stored lyrics.
+func TestTopTen_IncludesLyrics(t *testing.T) {
+	r := newRepo(t)
+	ctx := context.Background()
+	id, err := r.Create(ctx, NewID(), CreateSongParams{
+		Title: "Sung", ArtistName: "A", DurationMS: 1000,
+		FilePath: "songs/sung.mp3", FileSize: 1, ContentHash: "hash-sung",
+		Lyrics: "line one\nline two",
+	})
+	if err != nil {
+		t.Fatalf("create: %v", err)
+	}
+	if err := r.RecordPlay(ctx, id.ID); err != nil {
+		t.Fatalf("RecordPlay: %v", err)
+	}
+	top, err := r.TopTen(ctx, true)
+	if err != nil {
+		t.Fatalf("TopTen: %v", err)
+	}
+	if len(top) != 1 {
+		t.Fatalf("len(top) = %d, want 1", len(top))
+	}
+	if top[0].Lyrics != "line one\nline two" {
+		t.Fatalf("TopTen lyrics = %q, want the stored lyrics (payload gap regressed)", top[0].Lyrics)
+	}
+}
+
 func TestPlays_RecordAndCount(t *testing.T) {
 	r := newRepo(t)
 	ctx := context.Background()

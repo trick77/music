@@ -29,10 +29,9 @@ services:
       BACKEND_CHAT_API_KEY: "${BACKEND_CHAT_API_KEY:-}"
       BACKEND_TAVILY_URL: "${BACKEND_TAVILY_URL:-https://mcp.tavily.com/mcp/}"
       BACKEND_TAVILY_API_KEY: "${BACKEND_TAVILY_API_KEY:-}"
-      # Karaoke word-timing alignment (optional; leave empty to disable). To enable,
-      # start the sidecar with `docker compose --profile align up` and set this to
-      # http://align:8000.
-      BACKEND_ALIGN_URL: "${BACKEND_ALIGN_URL:-}"
+      # Karaoke word-timing alignment. Defaults to the bundled `align` sidecar, which
+      # starts alongside this service (set to empty to disable karaoke).
+      BACKEND_ALIGN_URL: "${BACKEND_ALIGN_URL:-http://align:8000}"
       BACKEND_ALIGN_TIMEOUT: "${BACKEND_ALIGN_TIMEOUT:-10m}"
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8080/api/health"]
@@ -56,17 +55,15 @@ services:
       traefik.http.routers.music.tls: "true"
       traefik.http.services.music.loadbalancer.server.port: "8080"
 
-  # Word-timing alignment sidecar (WhisperX + Demucs). Opt-in and heavy (GBs of ML
-  # deps + models), so it only starts under the "align" profile:
-  #   docker compose --profile align up -d
-  # Then set BACKEND_ALIGN_URL=http://align:8000 on the music service.
+  # Word-timing alignment sidecar (WhisperX + Demucs). Starts by default so karaoke
+  # works out of the box; it's heavy (GBs of ML deps + models) — to disable, set
+  # BACKEND_ALIGN_URL="" on the music service and don't run this service.
   align:
     build:
       context: ./sidecar/align
       dockerfile: Containerfile   # Docker defaults to "Dockerfile"; ours is Containerfile
     platform: linux/amd64         # several ML deps ship no arm64 wheel (validated amd64)
     restart: unless-stopped
-    profiles: ["align"]
     networks:
       - traefik                  # shared network so `music` can resolve `align` by name
     # GPU (optional, ~10x faster). Uncomment with the NVIDIA container toolkit installed:

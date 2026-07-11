@@ -26,6 +26,10 @@ type Song struct {
 	Lyrics      string   `json:"lyrics,omitempty"`
 	CreatedAt   string   `json:"createdAt"`
 	Published   bool     `json:"published"`
+	// AlignmentStatus is the karaoke word-timing state ("" = never requested,
+	// generating|ready|failed). Rides every song payload via a LEFT JOIN so list
+	// rows can show a "syncing" indicator (Phase 3).
+	AlignmentStatus string `json:"alignmentStatus"`
 }
 
 // CreateSongParams carries the data for a new song import.
@@ -178,8 +182,10 @@ func (r *Repo) List(ctx context.Context, includeUnpublished bool) ([]Song, error
 }
 
 const songSelect = `SELECT s.id, s.title, s.artist_id, a.name, s.album, s.year, s.track_no,
-	s.duration_ms, s.file_path, s.file_size, s.content_hash, s.cover_art_id, s.lyrics, s.created_at, s.is_published
-	FROM songs s JOIN artists a ON a.id = s.artist_id`
+	s.duration_ms, s.file_path, s.file_size, s.content_hash, s.cover_art_id, s.lyrics, s.created_at, s.is_published,
+	COALESCE(al.status, '') AS alignment_status
+	FROM songs s JOIN artists a ON a.id = s.artist_id
+	LEFT JOIN song_alignment al ON al.song_id = s.id`
 
 // publishedFilter appends a clause restricting to published songs. hasWhere
 // selects AND vs WHERE; includeUnpublished (an authenticated viewer) yields "".
@@ -203,7 +209,8 @@ func scanSong(row scanner) (*Song, error) {
 	var year, track sql.NullInt64
 	var published int64
 	if err := row.Scan(&s.ID, &s.Title, &s.ArtistID, &s.ArtistName, &album, &year, &track,
-		&s.DurationMS, &s.FilePath, &s.FileSize, &s.ContentHash, &cover, &lyrics, &s.CreatedAt, &published); err != nil {
+		&s.DurationMS, &s.FilePath, &s.FileSize, &s.ContentHash, &cover, &lyrics, &s.CreatedAt, &published,
+		&s.AlignmentStatus); err != nil {
 		return nil, err
 	}
 	s.Album = album.String

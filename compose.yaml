@@ -61,7 +61,10 @@ services:
   #   docker compose --profile align up -d
   # Then set BACKEND_ALIGN_URL=http://align:8000 on the music service.
   align:
-    build: ./sidecar/align       # or image: ghcr.io/trick77/music-align:latest once published
+    build:
+      context: ./sidecar/align
+      dockerfile: Containerfile   # Docker defaults to "Dockerfile"; ours is Containerfile
+    platform: linux/amd64         # several ML deps ship no arm64 wheel (validated amd64)
     restart: unless-stopped
     profiles: ["align"]
     networks:

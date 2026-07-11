@@ -1,4 +1,4 @@
-export type Session = { authenticated: boolean; username: string; imageGenEnabled: boolean; studioEnabled: boolean; chatEnabled: boolean; authMode: string };
+export type Session = { authenticated: boolean; username: string; imageGenEnabled: boolean; studioEnabled: boolean; chatEnabled: boolean; imageModels: string[]; defaultImageModel: string; authMode: string };
 
 export type Song = {
   id: string;
@@ -246,11 +246,11 @@ export async function uploadFanart(kind: "genre" | "hero", genreId: string, file
   return r.json();
 }
 
-export async function generateFanart(prompt: string, kind: "genre" | "hero", genreId: string): Promise<{ id: string; status: string }> {
+export async function generateFanart(prompt: string, kind: "genre" | "hero", genreId: string, model?: string): Promise<{ id: string; status: string }> {
   const r = await fetch("/api/fanart/generate", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ prompt, kind, genreId }),
+    body: JSON.stringify({ prompt, kind, genreId, model }),
   });
   if (!r.ok) throw new Error(`generate failed (${r.status})`);
   return r.json();
@@ -439,11 +439,19 @@ export async function studioRefine(
   return String(result.lyrics ?? "");
 }
 
-export const COVER_ART_MODELS: { id: string; label: string }[] = [
-  { id: "flux-2-klein-4b", label: "Fast · flux-2-klein-4b" },
-  { id: "flux-2-flex", label: "Balanced (typography) · flux-2-flex" },
-  { id: "flux-2-pro", label: "Best quality · flux-2-pro" },
-];
+// MODEL_LABELS gives known BFL models a friendly picker label; the model list
+// itself comes from the session (imageModels), so an operator-set model still
+// renders (falling back to its raw id).
+const MODEL_LABELS: Record<string, string> = {
+  "flux-2-klein-4b": "Fast · flux-2-klein-4b",
+  "flux-2-flex": "Balanced (typography) · flux-2-flex",
+  "flux-2-pro": "Best quality · flux-2-pro",
+};
+
+// imageModelOptions turns the session's model ids into {id,label} picker options.
+export function imageModelOptions(models: string[]): { id: string; label: string }[] {
+  return (models ?? []).map((id) => ({ id, label: MODEL_LABELS[id] ?? id }));
+}
 
 export async function generateStudioCoverArt(
   prompt: string,
@@ -460,4 +468,56 @@ export async function generateStudioCoverArt(
 
 export function studioCoverArtUrl(id: string): string {
   return `/api/studio/coverart/${id}`;
+}
+
+export type AlbumSummary = { artistId: string; artistName: string; album: string; songCount: number; hasCover: boolean };
+
+export async function listAlbums(): Promise<AlbumSummary[]> {
+  const r = await fetch("/api/albums");
+  if (!r.ok) throw new Error("failed to load albums");
+  const data = await r.json();
+  return data.albums ?? [];
+}
+
+export async function suggestAlbumPrompt(artistId: string, album: string): Promise<string> {
+  const r = await fetch("/api/albums/suggest-prompt", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ artistId, album }),
+  });
+  if (!r.ok) throw new Error(`suggest failed (${r.status})`);
+  const data = await r.json();
+  return data.prompt ?? "";
+}
+
+export async function refineGenrePrompt(genreId: string, prompt: string, instruction: string): Promise<string> {
+  const r = await fetch(`/api/genres/${genreId}/refine-prompt`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ prompt, instruction }),
+  });
+  if (!r.ok) throw new Error(`refine failed (${r.status})`);
+  const data = await r.json();
+  return data.prompt ?? "";
+}
+
+export async function refineAlbumPrompt(artistId: string, album: string, prompt: string, instruction: string): Promise<string> {
+  const r = await fetch("/api/albums/refine-prompt", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ artistId, album, prompt, instruction }),
+  });
+  if (!r.ok) throw new Error(`refine failed (${r.status})`);
+  const data = await r.json();
+  return data.prompt ?? "";
+}
+
+export async function setAlbumCover(artistId: string, album: string, studioCoverArtId: string): Promise<{ coverArtId: string }> {
+  const r = await fetch("/api/albums/cover", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ artistId, album, studioCoverArtId }),
+  });
+  if (!r.ok) throw new Error(`apply cover failed (${r.status})`);
+  return r.json();
 }

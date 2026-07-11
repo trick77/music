@@ -166,11 +166,14 @@ func TestStudioCoverArt_disabledWhenNoImageGen(t *testing.T) {
 	}
 }
 
-func TestStudioCoverArt_disabledWhenStudioOff(t *testing.T) {
+func TestStudioCoverArt_worksWhenStudioOff(t *testing.T) {
+	// Cover generation needs no web research, so it is gated on image generation
+	// only — NOT on StudioEnabled()/Tavily. With image gen on and studio off it
+	// must still succeed (the album-cover panel depends on this).
 	ts := newStudioCoverServer(t, okProvider(t), false) // image gen on, studio off
 	rec := ts.postCover(t, ts.dev, map[string]any{"prompt": "x", "model": "flux-2-pro"})
-	if rec.Code != http.StatusNotFound {
-		t.Fatalf("code = %d, want 404", rec.Code)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("code = %d, want 200", rec.Code)
 	}
 }
 

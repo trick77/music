@@ -66,7 +66,12 @@ func build(cfg config.Config, st *store.Store, spa http.Handler, gen imagegen.Pr
 			"imageGenEnabled": cfg.ImageGenEnabled() && id.Authenticated,
 			"studioEnabled":   cfg.StudioEnabled() && id.Authenticated,
 			"chatEnabled":     cfg.ChatEnabled() && id.Authenticated,
-			"authMode":        string(cfg.AuthMode),
+			// Image models the picker may offer, with the env default (cfg.BFLModel)
+			// guaranteed present and preselected. Sent regardless of auth so the shape
+			// is stable; the generation routes still enforce auth + the allowlist.
+			"imageModels":       imagegen.PickerModels(cfg.BFLModel),
+			"defaultImageModel": cfg.BFLModel,
+			"authMode":          string(cfg.AuthMode),
 		})
 	})
 
@@ -154,11 +159,16 @@ func build(cfg config.Config, st *store.Store, spa http.Handler, gen imagegen.Pr
 			mux.HandleFunc("GET /api/genres/{id}", h.getGenreExtended)
 			mux.HandleFunc("PATCH /api/genres/{id}", h.patchGenre)
 			mux.HandleFunc("POST /api/genres/{id}/suggest-prompt", h.postGenreSuggestPrompt)
+			mux.HandleFunc("POST /api/genres/{id}/refine-prompt", h.postGenreRefinePrompt)
 			mux.HandleFunc("POST /api/fanart", h.postFanart)
 			mux.HandleFunc("GET /api/fanart/{id}", h.getFanart)
 			mux.HandleFunc("POST /api/fanart/generate", h.postFanartGenerate)
 			mux.HandleFunc("POST /api/studio/coverart", h.postStudioCoverArt)
 			mux.HandleFunc("GET /api/studio/coverart/{id}", h.getStudioCoverArt)
+			mux.HandleFunc("GET /api/albums", h.listAlbums)
+			mux.HandleFunc("POST /api/albums/suggest-prompt", h.postAlbumSuggestPrompt)
+			mux.HandleFunc("POST /api/albums/refine-prompt", h.postAlbumRefinePrompt)
+			mux.HandleFunc("POST /api/albums/cover", h.postAlbumCover)
 
 			pl := &playlistHandlers{cfg: cfg, repo: h.repo, media: mstore, maxBytes: int64(cfg.MaxUploadMB) * 1024 * 1024}
 			mux.HandleFunc("GET /api/playlists", pl.list)

@@ -24,6 +24,47 @@ type GenreSummary struct {
 	HasBackground bool   `json:"hasBackground"`
 }
 
+// AlbumSummary is a distinct artist+album pairing for the album-cover picker.
+// HasCover reports whether the album already has a mapped cover so the UI can flag
+// albums that still need artwork. Album is the display value; ArtistID+Album key
+// the album downstream (album_covers uses lower(album)).
+type AlbumSummary struct {
+	ArtistID   string `json:"artistId"`
+	ArtistName string `json:"artistName"`
+	Album      string `json:"album"`
+	SongCount  int    `json:"songCount"`
+	HasCover   bool   `json:"hasCover"`
+}
+
+// ListAlbums returns distinct non-empty (artist, album) pairings with a song
+// count, joined to album_covers for HasCover. Authed-only surface (Studio), so it
+// always includes unpublished songs. Albums are grouped case-insensitively by
+// lower(album); the displayed title is one representative spelling.
+func (r *Repo) ListAlbums(ctx context.Context) ([]AlbumSummary, error) {
+	rows, err := r.db.QueryContext(ctx,
+		`SELECT s.artist_id, a.name, MIN(s.album) album, COUNT(*) c,
+		        EXISTS(SELECT 1 FROM album_covers ac WHERE ac.artist_id = s.artist_id AND ac.album_key = lower(s.album)) hascover
+		 FROM songs s JOIN artists a ON a.id = s.artist_id
+		 WHERE s.album IS NOT NULL AND trim(s.album) != ''
+		 GROUP BY s.artist_id, lower(s.album)
+		 ORDER BY a.name, album`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := []AlbumSummary{}
+	for rows.Next() {
+		var al AlbumSummary
+		var hasCover int
+		if err := rows.Scan(&al.ArtistID, &al.ArtistName, &al.Album, &al.SongCount, &hasCover); err != nil {
+			return nil, err
+		}
+		al.HasCover = hasCover != 0
+		out = append(out, al)
+	}
+	return out, rows.Err()
+}
+
 // ListArtists returns artists with a song count. For anonymous viewers
 // (includeUnpublished=false) the count is published-only and artists with no
 // published songs are omitted entirely — an unpublished-only artist does not

@@ -13,28 +13,20 @@ import (
 	"github.com/trick77/music/internal/library"
 )
 
-// coverArtModels is the allowlist of BFL models the Studio cover-art picker may
-// request. The value becomes a URL path segment in the BFL call, so only known
-// models are accepted; anything else is rejected before any upstream request.
-var coverArtModels = map[string]bool{
-	"flux-2-klein-4b": true,
-	"flux-2-flex":     true,
-	"flux-2-pro":      true,
-}
-
 // coverArtSize is the square album dimension (matches the prompt's
 // "square album composition").
 const coverArtSize = 1024
 
 // postStudioCoverArt generates a cover-art image from a prompt synchronously,
-// persists it (accumulating), and returns its id. Authed-only, both-keys gate:
-// Studio configured (chat+Tavily) AND image generation configured (BFL).
+// persists it (accumulating), and returns its id. Authed-only, gated on image
+// generation being configured (BFL). Cover generation needs no web research, so
+// it is NOT tied to StudioEnabled()/Tavily — the album-cover panel reuses this.
 func (h *songHandlers) postStudioCoverArt(w http.ResponseWriter, r *http.Request) {
 	if !identify(h.cfg, r).Authenticated {
 		httpError(w, http.StatusForbidden, "authentication required")
 		return
 	}
-	if !h.cfg.StudioEnabled() || !h.cfg.ImageGenEnabled() || h.imageGen == nil {
+	if !h.cfg.ImageGenEnabled() || h.imageGen == nil {
 		httpError(w, http.StatusNotFound, "studio cover art is not configured")
 		return
 	}
@@ -55,10 +47,8 @@ func (h *songHandlers) postStudioCoverArt(w http.ResponseWriter, r *http.Request
 		httpError(w, http.StatusBadRequest, "prompt is too long")
 		return
 	}
-	model := req.Model
-	if model == "" {
-		model = h.cfg.BFLModel
-	} else if !coverArtModels[model] {
+	model, ok := imagegen.ResolveModel(req.Model, h.cfg.BFLModel)
+	if !ok {
 		httpError(w, http.StatusBadRequest, "unknown model")
 		return
 	}

@@ -2,6 +2,7 @@ import { useState } from "react";
 import { studioGenerate, studioRefine, generateStudioCoverArt, studioCoverArtUrl, COVER_ART_MODELS, type StudioProgress, type StudioResult } from "./api";
 import { copyText } from "./share";
 import { Icon } from "./Icon";
+import { GenreFanartMode } from "./StudioGenreFanart";
 
 const STYLE_LIMIT = 500;
 
@@ -179,7 +180,11 @@ export function CoverArtCard({ prompt }: { prompt: string }) {
 // StudioPage turns a named reference song into a Suno prompt. It streams live
 // research progress, shows three ephemeral outputs, refines the lyrics on
 // request, and resets fully when a new song is submitted.
-export function StudioPage({ imageGenEnabled = false }: { imageGenEnabled?: boolean }) {
+export function StudioPage({ imageGenEnabled = false, chatEnabled = false, initialGenreId }: { imageGenEnabled?: boolean; chatEnabled?: boolean; initialGenreId?: string }) {
+  // Genre → Fanart is a second mode that only exists when the image generator is
+  // configured; otherwise Studio stays the single-purpose Suno tool. Arriving
+  // with a genre (from the Genres grid) opens straight into fanart mode.
+  const [mode, setMode] = useState<"suno" | "fanart">(imageGenEnabled && initialGenreId ? "fanart" : "suno");
   const [reference, setReference] = useState("");
   const [generatedRef, setGeneratedRef] = useState("");
   const [status, setStatus] = useState<"idle" | "loading" | "done" | "error">("idle");
@@ -233,7 +238,31 @@ export function StudioPage({ imageGenEnabled = false }: { imageGenEnabled?: bool
   return (
     <div style={{ maxWidth: 720 }}>
       <h1 style={{ fontFamily: "var(--font-serif)", fontWeight: 500, fontSize: "1.9rem", margin: "0 0 0.25rem" }}>Studio</h1>
-      <p style={{ color: "var(--color-muted)", margin: "0 0 1.6rem" }}>Turn a song into a Suno prompt.</p>
+      <p style={{ color: "var(--color-muted)", margin: "0 0 1.2rem" }}>
+        {mode === "fanart" ? "Generate cover fanart for a genre." : "Turn a song into a Suno prompt."}
+      </p>
+
+      {/* Mode switch appears only when the image generator is configured. */}
+      {imageGenEnabled && (
+        <div role="tablist" aria-label="Studio mode" style={{ display: "inline-flex", padding: 3, gap: 3, border: "1px solid var(--color-border)", borderRadius: 999, background: "var(--color-panel)", marginBottom: "1.6rem" }}>
+          {([["suno", "Song → Suno"], ["fanart", "Genre → Fanart"]] as const).map(([m, label]) => (
+            <button
+              key={m}
+              role="tab"
+              aria-selected={mode === m}
+              onClick={() => setMode(m)}
+              style={{ border: "none", background: mode === m ? "var(--color-active)" : "transparent", color: mode === m ? "var(--color-ink)" : "var(--color-muted)",
+                font: "inherit", fontSize: "0.83rem", padding: "0.35rem 0.9rem", borderRadius: 999, cursor: "pointer" }}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {mode === "fanart" ? (
+        <GenreFanartMode chatEnabled={chatEnabled} initialGenreId={initialGenreId} />
+      ) : (<>
 
       {/* Reference input — submit (Enter or Generate) is the single reset+run action. */}
       <form
@@ -383,6 +412,7 @@ export function StudioPage({ imageGenEnabled = false }: { imageGenEnabled?: bool
           {imageGenEnabled && <CoverArtCard key={generatedRef} prompt={result.coverArtPrompt} />}
         </div>
       )}
+      </>)}
     </div>
   );
 }

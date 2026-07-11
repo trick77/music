@@ -3,6 +3,7 @@ import { listPlaylists, listGenres, type Playlist, type GenreSummary, type Song 
 import { coverUrl, coverInitial } from "./cover";
 import { formatDuration } from "./format";
 import { navigate } from "./router";
+import { Glyph } from "./Glyph";
 
 type Tab = "all" | "favorites" | "unpublished" | "playlists" | "genres";
 
@@ -10,13 +11,15 @@ type Props = {
   songs: Song[];
   favoriteIds: string[];
   authenticated: boolean;
+  studioEnabled?: boolean;
+  imageGenEnabled?: boolean;
   initialTab: Tab;
   onPlay: (song: Song) => void;
   renderRowActions: (song: Song) => React.ReactNode;
   onNewPlaylist: () => void;
 };
 
-export function Library({ songs, favoriteIds, authenticated, initialTab, onPlay, renderRowActions, onNewPlaylist }: Props) {
+export function Library({ songs, favoriteIds, authenticated, studioEnabled = false, imageGenEnabled = false, initialTab, onPlay, renderRowActions, onNewPlaylist }: Props) {
   const [tab, setTab] = useState<Tab>(initialTab);
   const [playlists, setPlaylists] = useState<Playlist[]>([]);
   const [genres, setGenres] = useState<GenreSummary[]>([]);
@@ -73,22 +76,41 @@ export function Library({ songs, favoriteIds, authenticated, initialTab, onPlay,
             </div>
           )}
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(140px,1fr))", gap: 12 }}>
-            {shownGenres.map((g) => (
-              <button key={g.id} onClick={() => navigate(`/genre/${g.id}`)}
-                style={{ position: "relative", textAlign: "left", padding: "0.9rem", borderRadius: 12, cursor: "pointer",
+            {shownGenres.map((g) => {
+              // A genre that needs artwork offers a direct route into Studio to
+              // generate it — the entry point lives where the gap is flagged.
+              const canMake = !g.hasBackground && studioEnabled && imageGenEnabled;
+              return (
+              <div key={g.id} className="tile"
+                style={{ position: "relative", padding: "0.9rem", borderRadius: 12,
                   background: g.accentColor ? `linear-gradient(135deg, ${g.accentColor}, var(--color-panel))` : "var(--color-active)",
                   border: g.hasBackground ? "1px solid var(--color-border)" : "1px dashed var(--color-border)", color: "var(--color-ink)" }}>
+                {/* Base click layer: open the genre. Sits behind the label and the CTA. */}
+                <button onClick={() => navigate(`/genre/${g.id}`)} aria-label={g.name}
+                  style={{ position: "absolute", inset: 0, border: "none", background: "transparent", cursor: "pointer", padding: 0 }} />
                 {!g.hasBackground && (
-                  <span style={{ position: "absolute", top: 8, right: 8, display: "inline-flex", alignItems: "center", gap: 4,
+                  <span style={{ position: "absolute", top: 8, right: 8, display: "inline-flex", alignItems: "center", gap: 4, pointerEvents: "none",
                     background: "rgba(0,0,0,0.45)", color: "#fff", borderRadius: 999, padding: "2px 8px", fontSize: "0.62rem", letterSpacing: "0.02em" }}>
                     <span style={{ width: 5, height: 5, borderRadius: "50%", background: "var(--color-accent-strong)" }} />
                     Needs artwork
                   </span>
                 )}
-                <div style={{ fontFamily: "var(--font-serif)", fontSize: "1.05rem" }}>{g.name}</div>
-                <div style={{ color: "var(--color-muted)", fontSize: "0.8rem" }}>{g.songCount} songs</div>
-              </button>
-            ))}
+                <div style={{ position: "relative", pointerEvents: "none" }}>
+                  <div style={{ fontFamily: "var(--font-serif)", fontSize: "1.05rem" }}>{g.name}</div>
+                  <div style={{ color: "var(--color-muted)", fontSize: "0.8rem" }}>{g.songCount} songs</div>
+                </div>
+                {canMake && (
+                  <button onClick={() => navigate(`/studio/genre/${g.id}`)}
+                    style={{ position: "relative", marginTop: 10, width: "100%", display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 6,
+                      fontSize: "0.72rem", fontWeight: 600, color: "var(--color-accent-strong)", cursor: "pointer",
+                      border: "1px solid var(--color-accent-strong)", borderRadius: 8, padding: "5px 8px",
+                      background: "color-mix(in srgb, var(--color-accent-strong) 12%, transparent)" }}>
+                    <Glyph name="spark" size={13} /> Create in Studio
+                  </button>
+                )}
+              </div>
+              );
+            })}
             {genres.length === 0 && <p style={{ color: "var(--color-muted)" }}>No genres yet.</p>}
             {genres.length > 0 && shownGenres.length === 0 && (
               <p style={{ color: "var(--color-muted)" }}>Every genre has artwork.</p>

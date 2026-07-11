@@ -21,6 +21,10 @@ describe("parsePath", () => {
   it("parses a genre detail route", () => {
     expect(parsePath("/genre/g1")).toEqual({ name: "genre", id: "g1" });
   });
+  it("parses the studio route with and without a target genre", () => {
+    expect(parsePath("/studio")).toEqual({ name: "studio" });
+    expect(parsePath("/studio/genre/g1")).toEqual({ name: "studio", genreId: "g1" });
+  });
   it("falls back to home for unknown paths", () => {
     expect(parsePath("/nope/deep/path")).toEqual({ name: "home" });
   });

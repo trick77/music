@@ -11,44 +11,42 @@ const detail: GenreDetail = {
   heroId: "",
 };
 
-// The no-AI-in-UI invariant guarded at the render level: with generation
-// disabled, the editor must not render a prompt box, a "Generate" control, or
-// any AI reference — even in the raw HTML an anonymous/owner browser receives.
-describe("GenreEditor no-AI-in-UI invariant", () => {
-  it("hides the prompt and Generate control when generation is disabled", () => {
+// Generation moved to Studio: the editor manages upload / gallery / active
+// background, but never runs an in-browser generator. The no-AI-in-UI invariant
+// now means no prompt box and no in-modal generate control at all.
+describe("GenreEditor generation moved to Studio", () => {
+  it("renders no prompt box or in-modal generate control", () => {
     const html = renderToStaticMarkup(
-      <GenreEditor detail={detail} imageGenEnabled={false} chatEnabled={false} onClose={() => {}} onChanged={() => {}} />,
+      <GenreEditor detail={detail} studioEnabled={false} imageGenEnabled={false} onClose={() => {}} onChanged={() => {}} />,
     );
     expect(html).not.toContain("Describe the image");
-    expect(html.toLowerCase()).not.toContain("generate");
-  });
-
-  it("hides Suggest prompt when generation is off even if chat is on", () => {
-    // Suggest lives inside the generate panel: with no image generator to run
-    // the prompt, the whole panel (and the AI button) stays hidden.
-    const html = renderToStaticMarkup(
-      <GenreEditor detail={detail} imageGenEnabled={false} chatEnabled={true} onClose={() => {}} onChanged={() => {}} />,
-    );
     expect(html).not.toContain("Suggest prompt");
-    expect(html.toLowerCase()).not.toContain("generate");
+    expect(html).not.toContain("<textarea");
   });
 
-  it("shows the generate panel only when enabled", () => {
+  it("shows 'Generate in Studio' only when BOTH Studio and image generation are configured", () => {
+    const neither = renderToStaticMarkup(
+      <GenreEditor detail={detail} studioEnabled={false} imageGenEnabled={false} onClose={() => {}} onChanged={() => {}} />,
+    );
+    expect(neither).not.toContain("Generate in Studio");
+
+    // Studio present but no image generator — the link must stay hidden so it
+    // never dead-ends into the Suno tool (the two entry points share one gate).
+    const noImageGen = renderToStaticMarkup(
+      <GenreEditor detail={detail} studioEnabled={true} imageGenEnabled={false} onClose={() => {}} onChanged={() => {}} />,
+    );
+    expect(noImageGen).not.toContain("Generate in Studio");
+
+    const both = renderToStaticMarkup(
+      <GenreEditor detail={detail} studioEnabled={true} imageGenEnabled={true} onClose={() => {}} onChanged={() => {}} />,
+    );
+    expect(both).toContain("Generate in Studio");
+  });
+
+  it("keeps the upload affordance regardless of Studio availability", () => {
     const html = renderToStaticMarkup(
-      <GenreEditor detail={detail} imageGenEnabled={true} chatEnabled={false} onClose={() => {}} onChanged={() => {}} />,
+      <GenreEditor detail={detail} studioEnabled={false} imageGenEnabled={false} onClose={() => {}} onChanged={() => {}} />,
     );
-    expect(html).toContain("Describe the image");
-    expect(html).toContain("Generate");
-  });
-
-  it("hides Suggest prompt unless chat is enabled", () => {
-    const off = renderToStaticMarkup(
-      <GenreEditor detail={detail} imageGenEnabled={true} chatEnabled={false} onClose={() => {}} onChanged={() => {}} />,
-    );
-    expect(off).not.toContain("Suggest prompt");
-    const on = renderToStaticMarkup(
-      <GenreEditor detail={detail} imageGenEnabled={true} chatEnabled={true} onClose={() => {}} onChanged={() => {}} />,
-    );
-    expect(on).toContain("Suggest prompt");
+    expect(html).toContain("Upload");
   });
 });

@@ -204,13 +204,13 @@ export function App() {
         ) : route.name === "search" ? (
           <Search onPlay={onPlay} />
         ) : route.name === "studio" ? (
-          authed && session?.studioEnabled ? <StudioPage imageGenEnabled={!!session?.imageGenEnabled} /> : <Home authenticated={authed} onPlay={onPlay} onShare={shareSong} onUpload={triggerUpload} renderRowActions={rowActions} reloadKey={feedVersion} />
+          authed && session?.studioEnabled ? <StudioPage imageGenEnabled={!!session?.imageGenEnabled} chatEnabled={!!session?.chatEnabled} initialGenreId={route.genreId} /> : <Home authenticated={authed} onPlay={onPlay} onShare={shareSong} onUpload={triggerUpload} renderRowActions={rowActions} reloadKey={feedVersion} />
         ) : route.name === "playlist" ? (
-          <Detail kind="playlist" id={route.id} authenticated={authed} imageGenEnabled={!!session?.imageGenEnabled} chatEnabled={!!session?.chatEnabled} onPlay={onPlay} onShare={shareUrl} onEditPlaylist={(pl) => setEditingPlaylist(pl)} renderRowActions={rowActions} />
+          <Detail kind="playlist" id={route.id} authenticated={authed} studioEnabled={!!session?.studioEnabled} imageGenEnabled={!!session?.imageGenEnabled} onPlay={onPlay} onShare={shareUrl} onEditPlaylist={(pl) => setEditingPlaylist(pl)} renderRowActions={rowActions} />
         ) : route.name === "genre" ? (
-          <Detail kind="genre" id={route.id} authenticated={authed} imageGenEnabled={!!session?.imageGenEnabled} chatEnabled={!!session?.chatEnabled} onPlay={onPlay} onShare={shareUrl} onEditPlaylist={(pl) => setEditingPlaylist(pl)} renderRowActions={rowActions} />
+          <Detail kind="genre" id={route.id} authenticated={authed} studioEnabled={!!session?.studioEnabled} imageGenEnabled={!!session?.imageGenEnabled} onPlay={onPlay} onShare={shareUrl} onEditPlaylist={(pl) => setEditingPlaylist(pl)} renderRowActions={rowActions} />
         ) : route.name === "artist" ? (
-          <Detail kind="artist" id={route.id} authenticated={authed} imageGenEnabled={!!session?.imageGenEnabled} chatEnabled={!!session?.chatEnabled} onPlay={onPlay} onShare={shareUrl} onEditPlaylist={(pl) => setEditingPlaylist(pl)} renderRowActions={rowActions} />
+          <Detail kind="artist" id={route.id} authenticated={authed} studioEnabled={!!session?.studioEnabled} imageGenEnabled={!!session?.imageGenEnabled} onPlay={onPlay} onShare={shareUrl} onEditPlaylist={(pl) => setEditingPlaylist(pl)} renderRowActions={rowActions} />
         ) : route.name === "song" ? (
           <SongPage id={route.id} songs={songs} onPlay={(s) => onPlay(s)} />
         ) : (
@@ -218,6 +218,8 @@ export function App() {
             songs={songs}
             favoriteIds={fav.ids}
             authenticated={authed}
+            studioEnabled={!!session?.studioEnabled}
+            imageGenEnabled={!!session?.imageGenEnabled}
             initialTab={route.name === "favorites" ? "favorites" : route.name === "playlists" ? "playlists" : route.name === "genres" ? "genres" : "all"}
             onPlay={(s) => onPlay(s)}
             renderRowActions={rowActions}

@@ -80,7 +80,7 @@ export function ConfirmDialog({
               padding: "0 0.875rem",
               fontSize: "0.875rem",
               fontWeight: 500,
-              color: danger ? "#fff" : "#1a0f0a",
+              color: danger ? "#fff" : "var(--color-ink)",
               cursor: busy ? "default" : "pointer",
               opacity: busy ? 0.5 : 1,
             }}

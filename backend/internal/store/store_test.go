@@ -72,12 +72,20 @@ func TestOpen_squashedSchemaHasPhase4Objects(t *testing.T) {
 		}
 	}
 
-	// A single squashed migration is recorded now that 0002/0003/0004 are folded in.
+	// The songs.lyrics column (0002_song_lyrics) exists.
+	var lyricsCol string
+	if err := st.DB().QueryRow(
+		`SELECT name FROM pragma_table_info('songs') WHERE name='lyrics'`).Scan(&lyricsCol); err != nil {
+		t.Fatalf("songs.lyrics column missing: %v", err)
+	}
+
+	// Two migrations recorded: the 0001 squash (0002/0003/0004 folded in) plus the
+	// later 0002_song_lyrics add-column.
 	var count int
 	if err := st.DB().QueryRow(`SELECT COUNT(*) FROM schema_migrations`).Scan(&count); err != nil {
 		t.Fatalf("count migrations: %v", err)
 	}
-	if count != 1 {
-		t.Fatalf("expected 1 recorded migration, got %d", count)
+	if count != 2 {
+		t.Fatalf("expected 2 recorded migrations, got %d", count)
 	}
 }

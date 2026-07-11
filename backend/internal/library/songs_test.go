@@ -175,6 +175,42 @@ func TestUpdate_editsFieldsAndReplacesGenres(t *testing.T) {
 	}
 }
 
+func TestLyrics_roundTripsThroughCreateAndUpdate(t *testing.T) {
+	r := newRepo(t)
+	ctx := context.Background()
+
+	p := sampleParams()
+	p.Lyrics = "First line\nSecond line"
+	created, err := r.Create(ctx, NewID(), p)
+	if err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+	if created.Lyrics != p.Lyrics {
+		t.Fatalf("create lyrics = %q, want %q", created.Lyrics, p.Lyrics)
+	}
+
+	// Editing lyrics persists; clearing them reads back as empty (not stale).
+	updated, err := r.Update(ctx, created.ID, UpdateSongParams{
+		Title: "New Title", ArtistName: "Test Artist", Lyrics: "Edited words", FileSize: 1,
+	})
+	if err != nil {
+		t.Fatalf("Update: %v", err)
+	}
+	if updated.Lyrics != "Edited words" {
+		t.Fatalf("update lyrics = %q, want %q", updated.Lyrics, "Edited words")
+	}
+
+	cleared, err := r.Update(ctx, created.ID, UpdateSongParams{
+		Title: "New Title", ArtistName: "Test Artist", Lyrics: "", FileSize: 1,
+	})
+	if err != nil {
+		t.Fatalf("Update (clear): %v", err)
+	}
+	if cleared.Lyrics != "" {
+		t.Fatalf("cleared lyrics = %q, want empty", cleared.Lyrics)
+	}
+}
+
 func TestSuggest_artistAndGenreCounts(t *testing.T) {
 	r := newRepo(t)
 	ctx := context.Background()

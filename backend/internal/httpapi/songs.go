@@ -198,6 +198,7 @@ func (h *songHandlers) upload(w http.ResponseWriter, r *http.Request) {
 		FilePath:    relPath,
 		ContentHash: hash,
 		Genres:      tags.Genres,
+		Lyrics:      tags.Lyrics,
 	})
 	if err != nil {
 		// A concurrent upload of the same bytes can slip in between our dedupe
@@ -336,6 +337,7 @@ func (h *songHandlers) songTags(ctx context.Context, s *library.Song) metadata.W
 		Year:    s.Year,
 		TrackNo: s.TrackNo,
 		Genres:  s.Genres,
+		Lyrics:  s.Lyrics,
 	}
 	if s.CoverArtID == "" {
 		return t

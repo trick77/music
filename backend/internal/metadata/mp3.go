@@ -3,6 +3,7 @@ package metadata
 
 import (
 	"io"
+	"regexp"
 	"strings"
 
 	"github.com/dhowden/tag"
@@ -22,6 +23,7 @@ type Tags struct {
 	Year       int
 	TrackNo    int
 	Genres     []string
+	Lyrics     string
 	DurationMS int64
 }
 
@@ -42,11 +44,32 @@ func Parse(r io.ReadSeeker) (Tags, error) {
 		out.TrackNo = n
 	}
 	out.Genres = splitGenres(m.Genre())
+	out.Lyrics = cleanLyrics(m.Lyrics())
 
 	if _, err := r.Seek(0, io.SeekStart); err == nil {
 		out.DurationMS = decodeDurationMS(r)
 	}
 	return out, nil
+}
+
+var (
+	bracketTag = regexp.MustCompile(`\[[^\]]*\]`)
+	blankRuns  = regexp.MustCompile(`\n{3,}`)
+)
+
+// cleanLyrics strips Suno's bracketed directives ([Verse], [Chorus], [Guitar solo], …)
+// and tidies the leftover whitespace, leaving only sung words. Parentheses are left
+// intact — "(ooh)"/"(yeah)" ad-libs are usually actually sung. Keep in sync with the
+// client-side cleanLyrics in ui/src/TagEditor.tsx.
+func cleanLyrics(s string) string {
+	s = bracketTag.ReplaceAllString(s, "")
+	lines := strings.Split(s, "\n")
+	for i, ln := range lines {
+		lines[i] = strings.TrimRight(ln, " \t")
+	}
+	s = strings.Join(lines, "\n")
+	s = blankRuns.ReplaceAllString(s, "\n\n")
+	return strings.TrimSpace(s)
 }
 
 func splitGenres(raw string) []string {

@@ -88,6 +88,38 @@ html {
   opacity: 1;
 }
 
+/* Now-playing equalizer: five bars with independent rhythms for an organic
+   "spectrum" look. Bars freeze mid-height when paused. */
+.eq-bars {
+  display: inline-flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 15px;
+}
+.eq-bars span {
+  display: block;
+  width: 3px;
+  height: 100%;
+  border-radius: 1px;
+  background: var(--color-accent-strong);
+  transform-origin: bottom;
+  transform: scaleY(0.3);
+}
+.eq-bars span:nth-child(1) { animation: eqbar1 1100ms ease-in-out infinite; }
+.eq-bars span:nth-child(2) { animation: eqbar2 780ms ease-in-out infinite; }
+.eq-bars span:nth-child(3) { animation: eqbar3 960ms ease-in-out infinite; }
+.eq-bars span:nth-child(4) { animation: eqbar4 700ms ease-in-out infinite; }
+.eq-bars span:nth-child(5) { animation: eqbar5 1000ms ease-in-out infinite; }
+.eq-bars--paused span { animation-play-state: paused; }
+@keyframes eqbar1 { 0%, 100% { transform: scaleY(0.3); } 50% { transform: scaleY(0.9); } }
+@keyframes eqbar2 { 0%, 100% { transform: scaleY(0.6); } 50% { transform: scaleY(1); } }
+@keyframes eqbar3 { 0%, 100% { transform: scaleY(0.2); } 50% { transform: scaleY(0.75); } }
+@keyframes eqbar4 { 0%, 100% { transform: scaleY(0.5); } 50% { transform: scaleY(1); } }
+@keyframes eqbar5 { 0%, 100% { transform: scaleY(0.35); } 50% { transform: scaleY(0.85); } }
+@media (prefers-reduced-motion: reduce) {
+  .eq-bars span { animation: none; transform: scaleY(0.55); }
+}
+
 /* App shell leaves room for the fixed desktop rail; the mobile tab bar sits at
    the bottom so content just needs bottom padding (handled inline). */
 .app-shell {

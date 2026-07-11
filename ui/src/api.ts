@@ -36,12 +36,35 @@ export async function listSongs(): Promise<Song[]> {
   return data.songs ?? [];
 }
 
-export async function uploadSong(file: File): Promise<Song> {
+// uploadSong posts an MP3 and, unlike fetch(), reports byte-level upload
+// progress via onProgress (0–100) — fetch has no upload-progress API, so we
+// drop to XMLHttpRequest to hook xhr.upload.onprogress. onProgress fires up to
+// 100% as bytes leave the client; the server then hashes/dedupes before
+// responding, so callers should show an indeterminate state at 100%.
+export function uploadSong(file: File, onProgress?: (pct: number) => void): Promise<Song> {
   const form = new FormData();
   form.append("file", file);
-  const r = await fetch("/api/songs", { method: "POST", body: form });
-  if (!r.ok) throw new Error(`upload failed (${r.status})`);
-  return r.json();
+  return new Promise<Song>((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", "/api/songs");
+    xhr.upload.onprogress = (e) => {
+      if (e.lengthComputable) onProgress?.(Math.round((e.loaded / e.total) * 100));
+    };
+    xhr.onload = () => {
+      // 201 Created, or 200 on a content-hash dedupe hit — both return a Song.
+      if (xhr.status === 200 || xhr.status === 201) {
+        try {
+          resolve(JSON.parse(xhr.responseText) as Song);
+        } catch {
+          reject(new Error("upload failed (bad response)"));
+        }
+      } else {
+        reject(new Error(`upload failed (${xhr.status})`));
+      }
+    };
+    xhr.onerror = () => reject(new Error("upload failed (network error)"));
+    xhr.send(form);
+  });
 }
 
 export function streamUrl(id: string): string {

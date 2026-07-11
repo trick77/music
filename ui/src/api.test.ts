@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
 import { coverUrl } from "./cover";
-import { getHome, getTopTen, search, reportPlay, getFavorites, addFavorite, removeFavorite } from "./api";
+import { getHome, getTopTen, search, reportPlay, getFavorites, addFavorite, removeFavorite, uploadSong } from "./api";
 
 function mockFetch(body: unknown, ok = true) {
   const spy = vi.fn().mockResolvedValue({
@@ -80,5 +80,75 @@ describe("api clients", () => {
   it("addFavorite throws on a non-ok response", async () => {
     mockFetch({}, false);
     await expect(addFavorite("s1")).rejects.toThrow();
+  });
+});
+
+// FakeXHR stands in for XMLHttpRequest so we can drive upload progress and the
+// load/error lifecycle synchronously from the test.
+class FakeXHR {
+  static last: FakeXHR;
+  status = 0;
+  responseText = "";
+  upload: { onprogress?: (e: { lengthComputable: boolean; loaded: number; total: number }) => void } = {};
+  onload?: () => void;
+  onerror?: () => void;
+  method = "";
+  url = "";
+  sent?: unknown;
+  constructor() { FakeXHR.last = this; }
+  open(method: string, url: string) { this.method = method; this.url = url; }
+  send(body: unknown) { this.sent = body; }
+}
+
+function mockXHR() {
+  globalThis.XMLHttpRequest = FakeXHR as unknown as typeof XMLHttpRequest;
+  return FakeXHR;
+}
+
+describe("uploadSong", () => {
+  it("POSTs the file to /api/songs and resolves the Song on 201", async () => {
+    mockXHR();
+    const file = new File(["id3"], "neon.mp3", { type: "audio/mpeg" });
+    const p = uploadSong(file);
+    const xhr = FakeXHR.last;
+    expect(xhr.method).toBe("POST");
+    expect(xhr.url).toBe("/api/songs");
+    expect(xhr.sent).toBeInstanceOf(FormData);
+    xhr.status = 201;
+    xhr.responseText = JSON.stringify({ id: "s1", title: "Neon" });
+    xhr.onload!();
+    const song = await p;
+    expect(song.id).toBe("s1");
+  });
+
+  it("reports byte progress as a 0–100 percentage", async () => {
+    mockXHR();
+    const pcts: number[] = [];
+    const p = uploadSong(new File(["x"], "a.mp3"), (n) => pcts.push(n));
+    const xhr = FakeXHR.last;
+    xhr.upload.onprogress!({ lengthComputable: true, loaded: 25, total: 100 });
+    xhr.upload.onprogress!({ lengthComputable: true, loaded: 100, total: 100 });
+    xhr.upload.onprogress!({ lengthComputable: false, loaded: 0, total: 0 });
+    expect(pcts).toEqual([25, 100]);
+    xhr.status = 200;
+    xhr.responseText = "{}";
+    xhr.onload!();
+    await p;
+  });
+
+  it("rejects on a non-2xx status", async () => {
+    mockXHR();
+    const p = uploadSong(new File(["x"], "a.mp3"));
+    const xhr = FakeXHR.last;
+    xhr.status = 413;
+    xhr.onload!();
+    await expect(p).rejects.toThrow("upload failed (413)");
+  });
+
+  it("rejects on a network error", async () => {
+    mockXHR();
+    const p = uploadSong(new File(["x"], "a.mp3"));
+    FakeXHR.last.onerror!();
+    await expect(p).rejects.toThrow();
   });
 });

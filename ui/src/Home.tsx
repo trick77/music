@@ -1,9 +1,9 @@
 import { useEffect, useState, type ReactNode } from "react";
-import { getHome, type HomeFeed, type Song } from "./api";
+import { getHome, listGenres, type HomeFeed, type Song } from "./api";
 import { coverUrl, coverInitial } from "./cover";
 import { navigate } from "./router";
 import { Glyph } from "./Glyph";
-import { Hero } from "./Hero";
+import { Hero, type GenreLink } from "./Hero";
 import { Chapter } from "./Chapter";
 import { Button, t } from "./ui";
 import { usePlayer } from "./player";
@@ -29,8 +29,16 @@ const sectionHead: React.CSSProperties = {
 export function Home({ authenticated, onPlay, onShare, onUpload, renderRowActions, reloadKey }: Props) {
   const { current, playing } = usePlayer();
   const [feed, setFeed] = useState<HomeFeed | null>(null);
+  // Genre name→id map, used to turn the featured song's genre names into links.
+  // Fetched once (genres change rarely); a failure just leaves genres un-linked.
+  const [genreIds, setGenreIds] = useState<Map<string, string>>(new Map());
   useEffect(() => {
     getHome().then(setFeed).catch(() => setFeed(null));
+  }, [reloadKey]);
+  useEffect(() => {
+    listGenres()
+      .then((gs) => setGenreIds(new Map(gs.map((g) => [g.name.toLowerCase(), g.id]))))
+      .catch(() => {});
   }, [reloadKey]);
 
   if (!feed) return <p style={{ color: "var(--color-muted)" }}>Loading</p>;
@@ -68,9 +76,14 @@ export function Home({ authenticated, onPlay, onShare, onUpload, renderRowAction
 
   const topTail = (i: number) => feed.topTen.slice(i + 1);
 
+  const featuredGenres: GenreLink[] = (featured?.genres ?? []).map((name) => ({
+    name,
+    id: genreIds.get(name.toLowerCase()) ?? null,
+  }));
+
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "2.5rem" }}>
-      <Hero hero={feed.hero} featured={featured} playing={current?.id === featured?.id && playing} onPlay={(s) => onPlay(s, [])} onShare={onShare} />
+      <Hero hero={feed.hero} featured={featured} playing={current?.id === featured?.id && playing} genres={featuredGenres} onPlay={(s) => onPlay(s, [])} onShare={onShare} />
 
       {feed.topTen.length > 0 && (
         <section>

@@ -36,6 +36,32 @@ describe("Hero", () => {
     expect(html).not.toContain("Play"); // no stale Play affordance while playing
   });
 
+  it("renders each genre as a middle-dot separated link to its genre page", () => {
+    const html = renderToStaticMarkup(
+      <Hero
+        hero={hero}
+        featured={song("s1", "Neon Undertow")}
+        playing={false}
+        genres={[{ name: "Synthwave", id: "g7" }, { name: "Dream Pop", id: "g9" }]}
+        onPlay={() => {}}
+        onShare={() => {}}
+      />,
+    );
+    expect(html).toContain('href="/genre/g7"');
+    expect(html).toContain('href="/genre/g9"');
+    expect(html).toContain("Synthwave");
+    expect(html).toContain("Dream Pop");
+    expect(html).toContain("·"); // middle-dot separator (U+00B7)
+  });
+
+  it("shows an unresolved genre as plain text, not a link", () => {
+    const html = renderToStaticMarkup(
+      <Hero hero={hero} featured={song("s1", "Neon Undertow")} playing={false} genres={[{ name: "Mystery", id: null }]} onPlay={() => {}} onShare={() => {}} />,
+    );
+    expect(html).toContain("Mystery");
+    expect(html).not.toContain("/genre/");
+  });
+
   it("degrades gracefully with no hero imagery", () => {
     const html = renderToStaticMarkup(<Hero hero={null} featured={null} playing={false} onPlay={() => {}} onShare={() => {}} />);
     expect(html).toContain("Your library");

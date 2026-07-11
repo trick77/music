@@ -13,6 +13,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/trick77/music/internal/config"
 	"github.com/trick77/music/internal/imagegen"
@@ -178,13 +179,19 @@ func (h *songHandlers) upload(w http.ResponseWriter, r *http.Request) {
 	if title == "" {
 		title = strings.TrimSuffix(header.Filename, filepath.Ext(header.Filename))
 	}
+	// Songs with no year tag fall back to the current year, so an imported song
+	// always has a year rather than a NULL.
+	year := tags.Year
+	if year == 0 {
+		year = time.Now().Year()
+	}
 	// The stored title is left exactly as tagged; the DB is the source of truth and
 	// duplicate artist+title rows are allowed to coexist as-is.
 	song, err := h.repo.Create(r.Context(), newID, library.CreateSongParams{
 		Title:       title,
 		ArtistName:  tags.Artist,
 		Album:       tags.Album,
-		Year:        tags.Year,
+		Year:        year,
 		TrackNo:     tags.TrackNo,
 		DurationMS:  tags.DurationMS,
 		FileSize:    size,

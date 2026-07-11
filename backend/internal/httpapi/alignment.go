@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"net/http"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/trick77/music/internal/align"
@@ -42,9 +43,9 @@ func (h *songHandlers) postAlign(w http.ResponseWriter, r *http.Request) {
 		httpError(w, http.StatusBadRequest, "song has no lyrics to align")
 		return
 	}
-	// Atomically claim the slot: started is false if one is already generating, so
+	// Claim + enqueue atomically: started is false if one is already generating, so
 	// concurrent POSTs can't both spawn a (minutes-long) job for the same song.
-	started, err := h.repo.StartAlignment(r.Context(), song.ID)
+	started, err := h.enqueueAlignment(r.Context(), song.ID, song.FilePath, song.Lyrics)
 	if err != nil {
 		serverError(w, "start alignment", err)
 		return
@@ -53,9 +54,50 @@ func (h *songHandlers) postAlign(w http.ResponseWriter, r *http.Request) {
 		httpError(w, http.StatusConflict, "alignment already in progress")
 		return
 	}
-	go h.runAlignment(song.ID, song.FilePath, song.Lyrics)
 	w.WriteHeader(http.StatusAccepted)
 	writeJSON(w, map[string]any{"status": "generating"})
+}
+
+// alignJob is one queued alignment: the song id, its stored relative path, and the
+// lyrics to align against.
+type alignJob struct {
+	songID  string
+	relPath string
+	lyrics  string
+}
+
+// initAlignQueue creates the queue and starts the single serial worker. Called
+// once at server init and by tests. Safe to call once per handler.
+func (h *songHandlers) initAlignQueue() {
+	h.alignQueue = make(chan alignJob, 1024)
+	go h.alignWorker()
+}
+
+// enqueueAlignment is the single funnel every trigger (manual, import, save) uses.
+// It claims the alignment slot synchronously (so the row flips to generating and
+// 202/409 semantics hold) then hands the job to the one serial worker. It no-ops
+// on a disabled aligner, blank lyrics, or a slot already generating.
+func (h *songHandlers) enqueueAlignment(ctx context.Context, songID, relPath, lyrics string) (bool, error) {
+	if h.aligner == nil || h.alignQueue == nil || strings.TrimSpace(lyrics) == "" {
+		return false, nil
+	}
+	started, err := h.repo.StartAlignment(ctx, songID)
+	if err != nil || !started {
+		return started, err
+	}
+	// Send on a goroutine so a full buffer can never block an HTTP handler; the row
+	// is already claimed, so the job is guaranteed to run when the worker reaches it.
+	// The single worker still executes jobs strictly one at a time.
+	go func() { h.alignQueue <- alignJob{songID: songID, relPath: relPath, lyrics: lyrics} }()
+	return true, nil
+}
+
+// alignWorker drains the queue, running exactly one alignment at a time. Each
+// runAlignment recovers its own panic, so one bad job cannot kill the worker.
+func (h *songHandlers) alignWorker() {
+	for job := range h.alignQueue {
+		h.runAlignment(job.songID, job.relPath, job.lyrics)
+	}
 }
 
 // runAlignment drives one alignment to completion on a detached context and records

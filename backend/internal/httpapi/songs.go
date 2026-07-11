@@ -44,6 +44,11 @@ type songHandlers struct {
 	genrePrompter studio.GenrePrompter
 
 	throttle *playThrottle
+
+	// alignQueue feeds the single serial alignment worker (Phase 3). All triggers
+	// (manual, import, save) funnel through enqueueAlignment onto this channel so
+	// the one-at-a-time sidecar is never stampeded. Nil until initAlignQueue runs.
+	alignQueue chan alignJob
 }
 
 func (h *songHandlers) list(w http.ResponseWriter, r *http.Request) {

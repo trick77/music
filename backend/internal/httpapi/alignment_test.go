@@ -6,7 +6,9 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"sync"
 	"testing"
+	"time"
 
 	"github.com/trick77/music/internal/align"
 	"github.com/trick77/music/internal/config"
@@ -50,7 +52,99 @@ func alignTestHandler(t *testing.T, a aligner) (*songHandlers, string) {
 		t.Fatalf("seed song: %v", err)
 	}
 	h := &songHandlers{cfg: config.Config{AuthMode: config.AuthModeDev}, repo: repo, media: ms, aligner: a}
+	h.initAlignQueue() // Phase 3: single serial worker drains the queue
 	return h, song.ID
+}
+
+// seedAlignableSong adds another song backed by a real tiny file to h's repo and
+// returns its id, for tests that need multiple concurrent enqueues.
+func seedAlignableSong(t *testing.T, h *songHandlers, n int) string {
+	t.Helper()
+	rel := "songs/x" + string(rune('0'+n)) + ".mp3"
+	f, err := h.media.Create(rel)
+	if err != nil {
+		t.Fatalf("media.Create: %v", err)
+	}
+	io.WriteString(f, "AUDIO")
+	f.Close()
+	song, err := h.repo.Create(context.Background(), library.NewID(), library.CreateSongParams{
+		Title: "T" + rel, ArtistName: "A", FilePath: rel, ContentHash: "h" + rel, Lyrics: "hi there",
+	})
+	if err != nil {
+		t.Fatalf("seed song: %v", err)
+	}
+	return song.ID
+}
+
+// waitFor polls cond up to ~2s, failing the test if it never becomes true.
+func waitFor(t *testing.T, cond func() bool) {
+	t.Helper()
+	for i := 0; i < 200; i++ {
+		if cond() {
+			return
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	t.Fatalf("condition not met within timeout")
+}
+
+// serialSpyAligner records the max concurrent Align calls and blocks each call
+// until released, proving the worker runs jobs strictly one at a time.
+type serialSpyAligner struct {
+	mu       sync.Mutex
+	inFlight int
+	maxSeen  int
+	release  chan struct{}
+}
+
+func (s *serialSpyAligner) Align(_ context.Context, audio io.Reader, _, _ string) (*align.Result, error) {
+	_, _ = io.Copy(io.Discard, audio)
+	s.mu.Lock()
+	s.inFlight++
+	if s.inFlight > s.maxSeen {
+		s.maxSeen = s.inFlight
+	}
+	s.mu.Unlock()
+	<-s.release
+	s.mu.Lock()
+	s.inFlight--
+	s.mu.Unlock()
+	return &align.Result{Engine: "stub", Lines: []align.Line{}}, nil
+}
+
+func TestAlignQueue_RunsOneAtATime(t *testing.T) {
+	spy := &serialSpyAligner{release: make(chan struct{})}
+	h, id0 := alignTestHandler(t, spy)
+	ctx := context.Background()
+	ids := []string{id0, seedAlignableSong(t, h, 1), seedAlignableSong(t, h, 2)}
+
+	for _, id := range ids {
+		song, _ := h.repo.Get(ctx, id)
+		started, err := h.enqueueAlignment(ctx, song.ID, song.FilePath, song.Lyrics)
+		if err != nil || !started {
+			t.Fatalf("enqueue %s: started=%v err=%v", id, started, err)
+		}
+	}
+
+	// Only ONE job may be in flight at a time.
+	waitFor(t, func() bool { spy.mu.Lock(); defer spy.mu.Unlock(); return spy.inFlight == 1 })
+	spy.mu.Lock()
+	if spy.maxSeen != 1 {
+		spy.mu.Unlock()
+		t.Fatalf("expected serial execution, maxSeen=%d", spy.maxSeen)
+	}
+	spy.mu.Unlock()
+
+	close(spy.release) // let all three drain
+	waitFor(t, func() bool {
+		a, _ := h.repo.GetAlignment(ctx, ids[2])
+		return a != nil && a.Status == "ready"
+	})
+	spy.mu.Lock()
+	defer spy.mu.Unlock()
+	if spy.maxSeen != 1 {
+		t.Fatalf("serialization violated, maxSeen=%d", spy.maxSeen)
+	}
 }
 
 func alignReq(t *testing.T, method, id string) *http.Request {

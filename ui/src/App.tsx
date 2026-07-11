@@ -20,12 +20,38 @@ import { addToQueue, playNext } from "./queue";
 import { songShareUrl, copyText } from "./share";
 import { Icon } from "./Icon";
 
+// UploadToast is the bottom-center feedback pill. As a plain flash it stays a
+// rounded pill; during an upload it expands to show a determinate progress bar
+// and live percentage driven by real byte progress. At 100% the client is done
+// but the server is still hashing/deduping, so it swaps to a spinner + an
+// indeterminate sweep instead of implying the whole operation has finished.
+export function UploadToast({ message, uploading, pct, bottom }: { message: string; uploading: boolean; pct: number; bottom: number }) {
+  const finalizing = uploading && pct >= 100;
+  return (
+    <div style={{ position: "fixed", bottom, left: "50%", transform: "translateX(-50%)", display: "flex", flexDirection: "column", gap: "0.4rem", background: "var(--color-active)", border: "1px solid var(--color-border)", borderRadius: uploading ? 14 : 999, padding: uploading ? "0.55rem 0.9rem" : "0.4rem 1rem", fontSize: "0.85rem", zIndex: 95, minWidth: uploading ? 260 : undefined, maxWidth: "92vw" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+        {finalizing && <Icon name="spinner" size="15px" style={{ animation: "app-spin 0.8s linear infinite" }} />}
+        <span>{message}</span>
+        {uploading && !finalizing && <span style={{ marginLeft: "auto", color: "var(--color-muted)", fontVariantNumeric: "tabular-nums" }}>{pct}%</span>}
+      </div>
+      {uploading && (
+        <div style={{ height: 5, borderRadius: 999, background: "var(--color-border)", overflow: "hidden" }}>
+          <div style={finalizing
+            ? { height: "100%", width: "40%", borderRadius: 999, background: "linear-gradient(90deg, var(--color-accent), var(--color-accent-strong))", animation: "app-upload-indef 1.1s ease-in-out infinite" }
+            : { height: "100%", width: `${pct}%`, borderRadius: 999, background: "linear-gradient(90deg, var(--color-accent), var(--color-accent-strong))", transition: "width 0.15s linear" }} />
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function App() {
   const route = useRoute();
   const player = usePlayer();
   const [session, setSession] = useState<Session | null>(null);
   const [songs, setSongs] = useState<Song[]>([]);
   const [uploading, setUploading] = useState(false);
+  const [uploadPct, setUploadPct] = useState(0);
   const [editing, setEditing] = useState<Song | null>(null);
   const [menuFor, setMenuFor] = useState<string | null>(null);
   const [deleteFor, setDeleteFor] = useState<Song | null>(null);
@@ -89,11 +115,12 @@ export function App() {
     const file = e.target.files?.[0];
     if (!file) return;
     setUploading(true);
+    setUploadPct(0);
     // Persistent "Uploading…" toast (no auto-dismiss) until the request settles,
     // so selecting a file gives immediate feedback for the hash/store round-trip.
     setToast(`Uploading “${file.name}”…`);
     try {
-      const song = await uploadSong(file);
+      const song = await uploadSong(file, setUploadPct);
       await refresh();
       setFeedVersion((v) => v + 1);
       // New uploads land unpublished — say so, so the user knows where it went.
@@ -254,13 +281,8 @@ export function App() {
       )}
       {addFor && <AddToPlaylist song={addFor} authenticated={authed} onClose={() => setAddFor(null)} onDone={(name) => { setAddFor(null); flash(`Added to ${name}`); }} />}
       {editingPlaylist !== null && <PlaylistEditor existing={editingPlaylist === "new" ? null : editingPlaylist} onClose={() => setEditingPlaylist(null)} onSaved={(pl) => { setEditingPlaylist(null); navigate(`/playlist/${pl.id}`); }} />}
-      {toast && (
-        <div style={{ position: "fixed", bottom: player.current ? 120 : 80, left: "50%", transform: "translateX(-50%)", display: "flex", alignItems: "center", gap: "0.5rem", background: "var(--color-active)", border: "1px solid var(--color-border)", borderRadius: 999, padding: "0.4rem 1rem", fontSize: "0.85rem", zIndex: 95 }}>
-          {uploading && <Icon name="spinner" size="15px" style={{ animation: "app-spin 0.8s linear infinite" }} />}
-          {toast}
-        </div>
-      )}
-      <style>{`@keyframes app-spin { to { transform: rotate(360deg); } }`}</style>
+      {toast && <UploadToast message={toast} uploading={uploading} pct={uploadPct} bottom={player.current ? 120 : 80} />}
+      <style>{`@keyframes app-spin { to { transform: rotate(360deg); } } @keyframes app-upload-indef { 0% { transform: translateX(-110%); } 100% { transform: translateX(310%); } } @media (prefers-reduced-motion: reduce) { [style*="app-upload-indef"] { animation: none !important; } }`}</style>
     </div>
   );
 }

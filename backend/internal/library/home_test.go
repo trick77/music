@@ -122,6 +122,52 @@ func TestHomeFeed_heroPopulatedFromStarredFanart(t *testing.T) {
 	}
 }
 
+func TestHomeFeed_anonymousHeroHidesUnpublishedGenre(t *testing.T) {
+	r := newRepo(t)
+	ctx := context.Background()
+	// A single unpublished song in genre "Secret".
+	if _, err := r.Create(ctx, NewID(), CreateSongParams{
+		Title: "H", ArtistName: "A", FilePath: "songs/h.mp3", ContentHash: "hh", Genres: []string{"Secret"},
+	}); err != nil {
+		t.Fatalf("create: %v", err)
+	}
+	genres, _ := r.ListGenres(ctx, true)
+	gid := genres[0].ID
+	if err := r.SetGenreAccent(ctx, gid, "#123456"); err != nil {
+		t.Fatalf("accent: %v", err)
+	}
+	// Hero fanart with NO caption, so the title would otherwise fall back to the
+	// genre name.
+	faID, err := r.CreateFanart(ctx, FanartParams{Kind: "genre", GenreID: gid, ImagePath: "fanart/h.jpg", Status: "ready", Caption: ""})
+	if err != nil {
+		t.Fatalf("fanart: %v", err)
+	}
+	if err := r.SetHero(ctx, faID); err != nil {
+		t.Fatalf("set hero: %v", err)
+	}
+
+	// Authenticated: the hero surfaces the genre's name, accent, and link.
+	authed, err := r.HomeFeed(ctx, 12, 8, true)
+	if err != nil {
+		t.Fatalf("HomeFeed authed: %v", err)
+	}
+	if authed.Hero == nil || authed.Hero.GenreID != gid || authed.Hero.AccentColor != "#123456" || authed.Hero.Title != "Secret" {
+		t.Fatalf("authed hero = %+v, want the genre surfaced", authed.Hero)
+	}
+	// Anonymous: the genre has no published songs, so its name/accent/link are
+	// withheld while the admin-curated art still shows.
+	anon, err := r.HomeFeed(ctx, 12, 8, false)
+	if err != nil {
+		t.Fatalf("HomeFeed anon: %v", err)
+	}
+	if anon.Hero == nil {
+		t.Fatal("anon hero nil, want the hero art to still show")
+	}
+	if anon.Hero.GenreID != "" || anon.Hero.AccentColor != "" || anon.Hero.Title != "Featured" {
+		t.Fatalf("anon hero leaked a hidden genre: %+v", anon.Hero)
+	}
+}
+
 func TestHomeFeed_zeroSongGenreOmitted(t *testing.T) {
 	r := newRepo(t)
 	ctx := context.Background()

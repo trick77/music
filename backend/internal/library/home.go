@@ -114,15 +114,29 @@ func (r *Repo) HomeFeed(ctx context.Context, recentLimit, chapterSongLimit int, 
 	if hero != nil {
 		hh := &HomeHero{FanartID: hero.ID, Kind: hero.Kind, GenreID: hero.GenreID, Title: hero.Caption}
 		if hero.GenreID != "" {
+			// Anonymous viewers must not learn a hidden genre's name/accent via the
+			// hero, and must not be linked to a genre page that would 404 — only
+			// resolve the genre when it has at least one published song for them.
+			query := `SELECT name, COALESCE(accent_color,'') FROM genres WHERE id=?`
+			if !includeUnpublished {
+				query = `SELECT g.name, COALESCE(g.accent_color,'') FROM genres g
+					WHERE g.id=? AND EXISTS(SELECT 1 FROM song_genres sg JOIN songs s ON s.id = sg.song_id
+					                        WHERE sg.genre_id = g.id AND s.is_published = 1)`
+			}
 			var name, accent string
-			if err := r.db.QueryRowContext(ctx,
-				`SELECT name, COALESCE(accent_color,'') FROM genres WHERE id=?`, hero.GenreID).Scan(&name, &accent); err != nil && !errors.Is(err, sql.ErrNoRows) {
+			switch err := r.db.QueryRowContext(ctx, query, hero.GenreID).Scan(&name, &accent); {
+			case errors.Is(err, sql.ErrNoRows):
+				if !includeUnpublished {
+					hh.GenreID = "" // hidden from this viewer — don't link to a 404
+				}
+			case err != nil:
 				return nil, err
+			default:
+				if hh.Title == "" {
+					hh.Title = name
+				}
+				hh.AccentColor = accent
 			}
-			if hh.Title == "" {
-				hh.Title = name
-			}
-			hh.AccentColor = accent
 		}
 		if hh.Title == "" {
 			hh.Title = "Featured"

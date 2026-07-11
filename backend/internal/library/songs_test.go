@@ -87,6 +87,36 @@ func TestCreate_persistsSongWithArtistAndGenres(t *testing.T) {
 	}
 }
 
+func TestSong_AlignmentStatus(t *testing.T) {
+	r := newRepo(t)
+	ctx := context.Background()
+	song, err := r.Create(ctx, NewID(), sampleParams())
+	if err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+
+	// No alignment row yet -> empty status.
+	got, err := r.Get(ctx, song.ID)
+	if err != nil || got == nil {
+		t.Fatalf("Get: %v", err)
+	}
+	if got.AlignmentStatus != "" {
+		t.Fatalf("want empty status, got %q", got.AlignmentStatus)
+	}
+
+	// After a claim, the song reports "generating".
+	if _, err := r.StartAlignment(ctx, song.ID); err != nil {
+		t.Fatal(err)
+	}
+	got, err = r.Get(ctx, song.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.AlignmentStatus != "generating" {
+		t.Fatalf("want generating, got %q", got.AlignmentStatus)
+	}
+}
+
 func TestCreate_reusesArtistCaseInsensitively(t *testing.T) {
 	r := newRepo(t)
 	ctx := context.Background()

@@ -4,6 +4,7 @@ import { coverUrl, coverInitial } from "./cover";
 import { formatDuration } from "./format";
 import { navigate } from "./router";
 import { Glyph } from "./Glyph";
+import { SyncingBadge } from "./SyncingBadge";
 import { Icon } from "./Icon";
 import { t } from "./ui";
 import { genreLabel } from "./titleCase";
@@ -160,7 +161,10 @@ export function Library({ songs, favoriteIds, authenticated, studioEnabled = fal
               </span>
               <span style={{ minWidth: 0, flex: 1 }}>
                 <span style={{ display: "block", color: isPlaying ? "var(--color-accent-strong)" : "var(--color-ink)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{song.title}</span>
-                <span style={{ display: "block", ...t.label }}>{song.artistName}</span>
+                <span style={{ display: "flex", alignItems: "center", gap: "0.6rem", ...t.label }}>
+                  <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{song.artistName}</span>
+                  <SyncingBadge status={song.alignmentStatus} />
+                </span>
               </span>
               <span style={{ color: "var(--color-muted)", fontVariantNumeric: "tabular-nums", flexShrink: 0 }}>{formatDuration(song.durationMs)}</span>
               <span style={{ position: "relative", display: "flex", alignItems: "center", gap: "0.9rem", flexShrink: 0 }} onClick={(e) => e.stopPropagation()}>{renderRowActions(song)}</span>

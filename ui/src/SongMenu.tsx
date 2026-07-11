@@ -4,12 +4,14 @@ import { MenuItem, MenuSeparator, menuSurface, useMenuPlacement } from "./Menu";
 type Props = {
   song: Song;
   authenticated: boolean;
+  alignmentEnabled: boolean;
   onPlayNext: () => void;
   onAddToQueue: () => void;
   onAddToPlaylist: () => void;
   onShare: () => void;
   onEdit: () => void;
   onPublish: () => void;
+  onSync: () => void;
   onDelete: () => void;
   onClose: () => void;
 };
@@ -37,6 +39,13 @@ export function SongMenu(p: Props) {
         <MenuItem icon="download" href={`/api/songs/${p.song.id}/download`}>Download</MenuItem>
         <MenuItem icon="share" onClick={p.onShare}>Share</MenuItem>
         {p.authenticated && <MenuItem icon="edit" onClick={p.onEdit}>Edit…</MenuItem>}
+        {/* Karaoke: only when enabled AND the song has lyrics — empty lyrics can
+            never trigger alignment. Re-sync when already synced. */}
+        {p.authenticated && p.alignmentEnabled && !!p.song.lyrics && p.song.lyrics.trim() !== "" && (
+          <MenuItem icon="music" onClick={p.onSync}>
+            {p.song.alignmentStatus === "ready" ? "Re-sync karaoke" : "Generate karaoke"}
+          </MenuItem>
+        )}
         {/* Publish gate (spec): an unpublished song is visible only to logged-in
             users until published. Signed-in only. */}
         {p.authenticated && (

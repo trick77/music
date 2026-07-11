@@ -33,8 +33,10 @@ func (r *Repo) RecordPlay(ctx context.Context, songID string) error {
 // inserted before GROUP BY so anonymous viewers never chart an unpublished song.
 const topTenSelect = `SELECT s.id, s.title, s.artist_id, a.name, s.album, s.year, s.track_no,
 	s.duration_ms, s.file_path, s.file_size, s.content_hash, s.cover_art_id, s.created_at, s.is_published,
+	COALESCE(al.status, '') AS alignment_status,
 	COUNT(p.id) AS play_count
-	FROM songs s JOIN artists a ON a.id = s.artist_id JOIN plays p ON p.song_id = s.id%s
+	FROM songs s JOIN artists a ON a.id = s.artist_id JOIN plays p ON p.song_id = s.id
+	LEFT JOIN song_alignment al ON al.song_id = s.id%s
 	GROUP BY s.id
 	ORDER BY play_count DESC, lower(s.title) ASC, s.id ASC
 	LIMIT 10`
@@ -77,7 +79,8 @@ func scanSongWithCount(row scanner, count *int) (*Song, error) {
 	var year, track sql.NullInt64
 	var published int64
 	if err := row.Scan(&s.ID, &s.Title, &s.ArtistID, &s.ArtistName, &album, &year, &track,
-		&s.DurationMS, &s.FilePath, &s.FileSize, &s.ContentHash, &cover, &s.CreatedAt, &published, count); err != nil {
+		&s.DurationMS, &s.FilePath, &s.FileSize, &s.ContentHash, &cover, &s.CreatedAt, &published,
+		&s.AlignmentStatus, count); err != nil {
 		return nil, err
 	}
 	s.Album = album.String

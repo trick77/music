@@ -98,14 +98,18 @@ func TestAlign_fullWiringThroughServer(t *testing.T) {
 	}
 	json.Unmarshal(up.Body.Bytes(), &song)
 
-	// Give the song lyrics (the sample fixture has none), then kick off alignment.
+	// Give the song lyrics (the sample fixture has none). Saving changed, non-empty
+	// lyrics AUTO-STARTS alignment (Phase 3 save trigger), so the row may already be
+	// generating by the time we POST /align explicitly below.
 	if pr := patch(t, h, song.ID, `{"title":"T","artistName":"Test Artist","genres":[],"lyrics":"la la"}`); pr.Code != http.StatusOK {
 		t.Fatalf("PATCH lyrics = %d", pr.Code)
 	}
+	// The explicit POST exercises the route wiring; it returns 202 when it claims the
+	// slot, or 409 when the save trigger already claimed it — both are valid here.
 	rr := httptest.NewRecorder()
 	h.ServeHTTP(rr, httptest.NewRequest("POST", "/api/songs/"+song.ID+"/align", nil))
-	if rr.Code != http.StatusAccepted {
-		t.Fatalf("POST /align = %d, want 202; body=%s", rr.Code, rr.Body.String())
+	if rr.Code != http.StatusAccepted && rr.Code != http.StatusConflict {
+		t.Fatalf("POST /align = %d, want 202 or 409; body=%s", rr.Code, rr.Body.String())
 	}
 
 	// Poll until the detached goroutine finishes (stub responds immediately).

@@ -169,7 +169,7 @@ export function StudioPage() {
           disabled={busy || reference.trim() === ""}
           style={{
             background: "var(--color-accent-strong)",
-            color: "#1a0f0a",
+            color: "#fff",
             fontWeight: 600,
             fontSize: "0.95rem",
             border: "none",

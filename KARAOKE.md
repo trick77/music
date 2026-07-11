@@ -70,7 +70,7 @@ karaoke "wipe" highlighting. Line-level falls out of the word timings for free.
 | **1 — Lyrics field** | ✅ Done (PR #48) | Lyrics box + Clean button in the tag editor; read/write ID3 `USLT`. |
 | **2 — Alignment engine** | ✅ Done (PR #52) | Generate + store word-level timings via the sidecar. Engine only, no UI. |
 | **2.5 — Quality evaluation** | ✅ Validated (spike) | Real container built + run; a real Suno song aligned **cleanly** (see results below). Two build bugs found + fixed. |
-| **3 — Highlighting player** | 🔜 Next | Apple-Music-style karaoke sweep in the full-screen player, trigger/indicator UI, and SYLT baked into downloads. |
+| **3 — Highlighting player** | ✅ Done (PR #65) | Apple-Music-style karaoke sweep in the full-screen player, lyrics-driven + manual triggers, serialized queue, "syncing" indicators, and SYLT baked into downloads. |
 | **4 — Correction editor** | 📋 Planned | UI to hand-correct mis-timed words. |
 
 ---
@@ -189,9 +189,26 @@ skip it.
 
 ---
 
-## Phase 3 — Highlighting karaoke player (🔜 next after 2.5)
+## Phase 3 — Highlighting karaoke player (✅ done)
 
-**Goal:** a beautiful in-app karaoke view — while a song with `ready` timings plays, a
+**Delivered:** the in-app karaoke sweep inside the full-screen player (`KaraokeView.tsx`,
+lifted from the locked mock: continuous per-line sweep on its own `requestAnimationFrame`
+loop reading the live `<audio>` via `player.getAudioElement()`, `LEAD=0.6`/`MAX_SWEEP=1.2`,
+distance dim+blur, eased auto-scroll; falls back to plain lyrics / needs-sync / generating /
+failed-with-retry cards, hides the toggle when there are no lyrics). Triggers are
+server-side (import when the file carries lyrics; a changed non-empty Lyrics save) plus a
+manual context-aware "Generate karaoke" / "Re-sync karaoke" in the song ··· menu and the
+Lyrics-view CTA — **empty lyrics can never trigger alignment** (gated at every surface;
+`postAlign` keeps its 400 as defense-in-depth). A single in-process **serialized queue**
+(`enqueueAlignment` → one worker, claim-at-enqueue) sits in front of the one-at-a-time
+sidecar. Progress shows via `song.alignmentStatus` (a `LEFT JOIN` on the Song payload):
+the now-playing chip, a "Syncing" song-row badge, and the Lyrics-view card. On download the
+timings are baked into a **`SYLT`** frame — bogem/id3v2 has no SYLT, so a custom
+`metadata.SyncedLyricsFrame` (`Framer`, UTF-16+BOM, ms timestamps, per-word entries with
+line-leading `\n`) writes it; verified byte-exact and round-tripped through an external
+parser (mutagen). No global toast (inline indicators cover it).
+
+**Original goal:** a beautiful in-app karaoke view — while a song with `ready` timings plays, a
 single continuous highlight sweeps across each line in time with the vocal (Apple-Music
 style), inactive lines depth-blurred, over the artwork backdrop — plus the trigger /
 lifecycle UI to generate timings, and baking the timings into the MP3 on download.

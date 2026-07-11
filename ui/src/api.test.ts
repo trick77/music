@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
 import { coverUrl } from "./cover";
-import { getHome, getTopTen, search, reportPlay, getFavorites, addFavorite, removeFavorite, uploadSong } from "./api";
+import { getHome, getTopTen, search, reportPlay, getFavorites, addFavorite, removeFavorite, uploadSong, getAlign, postAlign } from "./api";
 
 function mockFetch(body: unknown, ok = true) {
   const spy = vi.fn().mockResolvedValue({
@@ -150,5 +150,41 @@ describe("uploadSong", () => {
     const p = uploadSong(new File(["x"], "a.mp3"));
     FakeXHR.last.onerror!();
     await expect(p).rejects.toThrow();
+  });
+});
+
+describe("karaoke alignment", () => {
+  function fetchStatus(status: number, body: unknown = {}) {
+    const spy = vi.fn().mockResolvedValue({
+      ok: status >= 200 && status < 300,
+      status,
+      json: async () => body,
+    });
+    globalThis.fetch = spy as unknown as typeof fetch;
+    return spy;
+  }
+
+  it("getAlign returns null on 404", async () => {
+    fetchStatus(404);
+    expect(await getAlign("s1")).toBeNull();
+  });
+
+  it("getAlign parses a ready payload", async () => {
+    fetchStatus(200, { status: "ready", engine: "e", lines: [{ text: "hi", start: 1, end: 2, words: [] }] });
+    const a = await getAlign("s1");
+    expect(a?.status).toBe("ready");
+    expect(a?.lines?.[0].text).toBe("hi");
+  });
+
+  it("postAlign resolves on 202 and swallows 409/400/404", async () => {
+    for (const code of [202, 409, 400, 404]) {
+      fetchStatus(code);
+      await expect(postAlign("s1")).resolves.toBeUndefined();
+    }
+  });
+
+  it("postAlign throws on a real error", async () => {
+    fetchStatus(500);
+    await expect(postAlign("s1")).rejects.toThrow("align request failed (500)");
   });
 });

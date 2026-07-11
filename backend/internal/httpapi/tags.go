@@ -3,7 +3,9 @@ package httpapi
 import (
 	"encoding/json"
 	"errors"
+	"log/slog"
 	"net/http"
+	"strings"
 
 	"github.com/trick77/music/internal/library"
 )
@@ -52,6 +54,13 @@ func (h *songHandlers) patch(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		serverError(w, "update song", err)
 		return
+	}
+	// Karaoke: a changed, non-empty Lyrics value re-syncs in the background (covers
+	// "file had no lyrics, added later"). Unchanged or cleared lyrics never trigger.
+	if newLyrics := strings.TrimSpace(req.Lyrics); newLyrics != "" && req.Lyrics != song.Lyrics {
+		if _, err := h.enqueueAlignment(r.Context(), song.ID, song.FilePath, req.Lyrics); err != nil {
+			slog.Warn("karaoke: save alignment enqueue failed", "song", song.ID, "err", err)
+		}
 	}
 	writeJSON(w, updated)
 }

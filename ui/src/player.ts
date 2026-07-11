@@ -231,6 +231,11 @@ export const player = {
   getState(): PlayerState {
     return state;
   },
+  // getAudioElement exposes the live <audio> for the karaoke view's own rAF loop,
+  // which reads currentTime at 60fps — far finer than the throttled positionMs.
+  getAudioElement(): HTMLAudioElement | null {
+    return audio;
+  },
   subscribe(l: Listener): () => void {
     listeners.add(l);
     return () => listeners.delete(l);

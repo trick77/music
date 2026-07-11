@@ -23,6 +23,9 @@ type WriteableTags struct {
 	// leaves any existing embedded art untouched.
 	CoverBytes []byte
 	CoverMIME  string
+	// Synced, when non-empty, is baked as a SYLT (synchronised lyrics) frame — the
+	// karaoke word timings. Empty leaves no SYLT frame. Set only at download time.
+	Synced []SyncedWord
 }
 
 // WriteTags opens the MP3 at path, mutates its existing ID3v2 tag in place, and
@@ -67,6 +70,13 @@ func WriteTags(path string, t WriteableTags) error {
 			ContentDescriptor: "",
 			Lyrics:            t.Lyrics,
 		})
+	}
+
+	// Delete-then-set SYLT (like USLT/cover) so repeated stamps never duplicate and
+	// cleared timings don't linger.
+	tag.DeleteFrames("SYLT")
+	if len(t.Synced) > 0 {
+		tag.AddFrame("SYLT", NewSyncedLyricsFrame("eng", t.Synced))
 	}
 
 	if len(t.CoverBytes) > 0 {

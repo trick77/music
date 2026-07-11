@@ -21,7 +21,7 @@ describe("Hero", () => {
   const hero: HomeHero = { fanartId: "f1", kind: "genre", genreId: "g1", title: "Neon Undertow", subtitle: "", accentColor: "#c6613f" };
 
   it("renders the featured song with Play/Download/Share and no AI reference", () => {
-    const html = renderToStaticMarkup(<Hero hero={hero} featured={song("s1", "Neon Undertow")} onPlay={() => {}} onShare={() => {}} />);
+    const html = renderToStaticMarkup(<Hero hero={hero} featured={song("s1", "Neon Undertow")} playing={false} onPlay={() => {}} onShare={() => {}} />);
     expect(html).toContain("Neon Undertow");
     expect(html).toContain("Play");
     expect(html).toContain("Download");
@@ -29,8 +29,15 @@ describe("Hero", () => {
     assertNoAI(html);
   });
 
+  it("shows Pause on the featured song while it is playing", () => {
+    const html = renderToStaticMarkup(<Hero hero={hero} featured={song("s1", "Neon Undertow")} playing={true} onPlay={() => {}} onShare={() => {}} />);
+    expect(html).toContain("Pause");
+    expect(html).toContain("Pause Neon Undertow"); // aria-label reflects the toggle
+    expect(html).not.toContain("Play"); // no stale Play affordance while playing
+  });
+
   it("degrades gracefully with no hero imagery", () => {
-    const html = renderToStaticMarkup(<Hero hero={null} featured={null} onPlay={() => {}} onShare={() => {}} />);
+    const html = renderToStaticMarkup(<Hero hero={null} featured={null} playing={false} onPlay={() => {}} onShare={() => {}} />);
     expect(html).toContain("Your library");
     assertNoAI(html);
   });

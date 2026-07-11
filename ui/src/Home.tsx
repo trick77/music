@@ -70,7 +70,7 @@ export function Home({ authenticated, onPlay, onShare, onUpload, renderRowAction
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "2.5rem" }}>
-      <Hero hero={feed.hero} featured={featured} onPlay={(s) => onPlay(s, [])} onShare={onShare} />
+      <Hero hero={feed.hero} featured={featured} playing={current?.id === featured?.id && playing} onPlay={(s) => onPlay(s, [])} onShare={onShare} />
 
       {feed.topTen.length > 0 && (
         <section>

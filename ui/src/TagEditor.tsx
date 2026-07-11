@@ -13,6 +13,16 @@ const labelStyle: React.CSSProperties = {
   color: "var(--color-muted)", marginBottom: 4,
 };
 
+// cleanLyrics strips Suno's bracketed directives ([Verse], [Chorus], [Guitar solo], …)
+// and tidies leftover whitespace, leaving only sung words. Parentheses are left intact —
+// "(ooh)"/"(yeah)" ad-libs are usually actually sung. Keep in sync with the server-side
+// cleanLyrics in backend/internal/metadata/mp3.go.
+const cleanLyrics = (t: string) =>
+  t.replace(/\[[^\]]*\]/g, "")   // remove [Verse], [Chorus], [Guitar solo], …
+    .replace(/[ \t]+$/gm, "")    // trailing spaces left behind
+    .replace(/\n{3,}/g, "\n\n")  // collapse blank-line runs
+    .trim();
+
 export function TagEditor({ song, onClose, onSaved }: Props) {
   const [title, setTitle] = useState(song.title);
   const [artistName, setArtist] = useState(song.artistName);
@@ -21,6 +31,7 @@ export function TagEditor({ song, onClose, onSaved }: Props) {
   const [trackNo, setTrack] = useState(song.trackNo ? String(song.trackNo) : "");
   const [genres, setGenres] = useState<string[]>(song.genres);
   const [genreInput, setGenreInput] = useState("");
+  const [lyrics, setLyrics] = useState(song.lyrics ?? "");
   const [cover, setCover] = useState(song.coverArtId);
   const [artistOpts, setArtistOpts] = useState<Suggestion[]>([]);
   const [saving, setSaving] = useState(false);
@@ -44,7 +55,7 @@ export function TagEditor({ song, onClose, onSaved }: Props) {
     try {
       const saved = await updateSong(song.id, {
         title, artistName, album,
-        year: Number(year) || 0, trackNo: Number(trackNo) || 0, genres: finalGenres,
+        year: Number(year) || 0, trackNo: Number(trackNo) || 0, genres: finalGenres, lyrics,
       });
       onSaved(saved);
       onClose();
@@ -156,6 +167,27 @@ export function TagEditor({ song, onClose, onSaved }: Props) {
               </div>
             </div>
           </div>
+        </div>
+
+        <div style={{ marginBottom: "1rem" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
+            <label style={{ ...labelStyle, marginBottom: 0 }}>Lyrics</label>
+            <button
+              type="button"
+              onClick={() => setLyrics(cleanLyrics(lyrics))}
+              title="Remove [Verse]/[Chorus]-style Suno tags"
+              style={{ background: "none", border: "1px solid var(--color-border)", color: "var(--color-accent-strong)", borderRadius: 6, padding: "0.15rem 0.55rem", fontSize: "0.72rem", cursor: "pointer" }}
+            >
+              Clean
+            </button>
+          </div>
+          <textarea
+            value={lyrics}
+            onChange={(e) => setLyrics(e.target.value)}
+            rows={8}
+            placeholder="Paste lyrics here. Clean removes [Verse]/[Chorus] tags."
+            style={{ ...inputStyle, resize: "vertical", minHeight: 160, lineHeight: 1.4 }}
+          />
         </div>
 
         {err && <p style={{ color: "var(--color-accent-strong)" }}>{err}</p>}

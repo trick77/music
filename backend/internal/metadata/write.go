@@ -17,6 +17,7 @@ type WriteableTags struct {
 	Year    int
 	TrackNo int
 	Genres  []string
+	Lyrics  string
 	// CoverBytes, when non-empty, is embedded as the front-cover attached picture
 	// (APIC). CoverMIME is its MIME type (e.g. "image/jpeg"). Empty CoverBytes
 	// leaves any existing embedded art untouched.
@@ -55,6 +56,18 @@ func WriteTags(path string, t WriteableTags) error {
 		tag.DeleteFrames(trackID)
 	}
 	tag.SetGenre(strings.Join(t.Genres, "; "))
+
+	// Delete-then-set (like cover/album/year): clear any existing USLT so cleared
+	// lyrics don't stay baked in and repeated saves can't leave duplicate frames.
+	tag.DeleteFrames(tag.CommonID("Unsynchronised lyrics/text transcription"))
+	if strings.TrimSpace(t.Lyrics) != "" {
+		tag.AddUnsynchronisedLyricsFrame(id3v2.UnsynchronisedLyricsFrame{
+			Encoding:          tag.DefaultEncoding(),
+			Language:          "eng",
+			ContentDescriptor: "",
+			Lyrics:            t.Lyrics,
+		})
+	}
 
 	if len(t.CoverBytes) > 0 {
 		// Replace any existing attached picture(s) with the app's cover so the

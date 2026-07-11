@@ -14,6 +14,7 @@ type UpdateSongParams struct {
 	Year       int
 	TrackNo    int
 	Genres     []string
+	Lyrics     string
 	FileSize   int64
 }
 
@@ -39,17 +40,17 @@ func (r *Repo) Update(ctx context.Context, id string, p UpdateSongParams) (*Song
 
 	if coverID != "" {
 		if _, err := tx.ExecContext(ctx,
-			`UPDATE songs SET title=?, artist_id=?, album=?, year=?, track_no=?, file_size=?, cover_art_id=?
+			`UPDATE songs SET title=?, artist_id=?, album=?, year=?, track_no=?, lyrics=?, file_size=?, cover_art_id=?
 			 WHERE id=?`,
-			p.Title, artistID, nullStr(p.Album), nullInt(p.Year), nullInt(p.TrackNo), p.FileSize, coverID, id,
+			p.Title, artistID, nullStr(p.Album), nullInt(p.Year), nullInt(p.TrackNo), nullStr(p.Lyrics), p.FileSize, coverID, id,
 		); err != nil {
 			return nil, err
 		}
 	} else {
 		if _, err := tx.ExecContext(ctx,
-			`UPDATE songs SET title=?, artist_id=?, album=?, year=?, track_no=?, file_size=?
+			`UPDATE songs SET title=?, artist_id=?, album=?, year=?, track_no=?, lyrics=?, file_size=?
 			 WHERE id=?`,
-			p.Title, artistID, nullStr(p.Album), nullInt(p.Year), nullInt(p.TrackNo), p.FileSize, id,
+			p.Title, artistID, nullStr(p.Album), nullInt(p.Year), nullInt(p.TrackNo), nullStr(p.Lyrics), p.FileSize, id,
 		); err != nil {
 			return nil, err
 		}

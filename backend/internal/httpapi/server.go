@@ -157,6 +157,8 @@ func build(cfg config.Config, st *store.Store, spa http.Handler, gen imagegen.Pr
 			mux.HandleFunc("POST /api/fanart", h.postFanart)
 			mux.HandleFunc("GET /api/fanart/{id}", h.getFanart)
 			mux.HandleFunc("POST /api/fanart/generate", h.postFanartGenerate)
+			mux.HandleFunc("POST /api/studio/coverart", h.postStudioCoverArt)
+			mux.HandleFunc("GET /api/studio/coverart/{id}", h.getStudioCoverArt)
 
 			pl := &playlistHandlers{cfg: cfg, repo: h.repo, media: mstore, maxBytes: int64(cfg.MaxUploadMB) * 1024 * 1024}
 			mux.HandleFunc("GET /api/playlists", pl.list)

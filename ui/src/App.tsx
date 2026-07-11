@@ -204,7 +204,7 @@ export function App() {
         ) : route.name === "search" ? (
           <Search onPlay={onPlay} />
         ) : route.name === "studio" ? (
-          authed && session?.studioEnabled ? <StudioPage /> : <Home authenticated={authed} onPlay={onPlay} onShare={shareSong} onUpload={triggerUpload} renderRowActions={rowActions} reloadKey={feedVersion} />
+          authed && session?.studioEnabled ? <StudioPage imageGenEnabled={!!session?.imageGenEnabled} /> : <Home authenticated={authed} onPlay={onPlay} onShare={shareSong} onUpload={triggerUpload} renderRowActions={rowActions} reloadKey={feedVersion} />
         ) : route.name === "playlist" ? (
           <Detail kind="playlist" id={route.id} authenticated={authed} imageGenEnabled={!!session?.imageGenEnabled} chatEnabled={!!session?.chatEnabled} onPlay={onPlay} onShare={shareUrl} onEditPlaylist={(pl) => setEditingPlaylist(pl)} renderRowActions={rowActions} />
         ) : route.name === "genre" ? (

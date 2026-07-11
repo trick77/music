@@ -81,6 +81,19 @@ CREATE TABLE fanart (
 );
 CREATE INDEX idx_fanart_genre ON fanart(genre_id);
 
+CREATE TABLE studio_coverart (
+    id         TEXT PRIMARY KEY,
+    image_path TEXT NOT NULL,
+    prompt     TEXT,                       -- server-only, never served to clients
+    model      TEXT,                       -- server-only, never served to clients
+    seed       INTEGER,                    -- server-only
+    width      INTEGER NOT NULL DEFAULT 0,
+    height     INTEGER NOT NULL DEFAULT 0,
+    status     TEXT NOT NULL DEFAULT 'ready' CHECK (status IN ('generating', 'ready', 'failed')),
+    error      TEXT,                       -- server-only
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
 CREATE TABLE plays (
     id        TEXT PRIMARY KEY,
     song_id   TEXT NOT NULL REFERENCES songs(id) ON DELETE CASCADE,

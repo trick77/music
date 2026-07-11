@@ -18,12 +18,15 @@ const (
 	fetchTool = "fetch"
 )
 
-// ServerConfig describes one remote MCP server.
+// ServerConfig describes one MCP server.
 type ServerConfig struct {
 	URL     string
 	Headers map[string]string
 	// Tools is an optional allowlist of server-side tool names. Empty exposes all.
 	Tools []string
+	// InProcess routes this server to the in-process fetch client instead of a
+	// remote streamable-HTTP endpoint. When set, URL/Headers are unused.
+	InProcess bool
 }
 
 // ExposedToolName namespaces a server-side tool as serverName__toolName so the
@@ -55,7 +58,9 @@ func TavilyServerConfig(baseURL, apiKey string) ServerConfig {
 	return cfg
 }
 
-// FetchServerConfig builds the web-fetch server config.
-func FetchServerConfig(rawURL string) ServerConfig {
-	return ServerConfig{URL: rawURL, Tools: []string{fetchTool}}
+// FetchServerConfig builds the web-fetch server config. Fetch runs in-process
+// (via the shared github.com/trick77/webfetch module), so there is no URL; the
+// exposed tool name ("fetch__fetch") is unchanged.
+func FetchServerConfig() ServerConfig {
+	return ServerConfig{InProcess: true, Tools: []string{fetchTool}}
 }

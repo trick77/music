@@ -82,9 +82,8 @@ func build(cfg config.Config, st *store.Store, spa http.Handler, gen imagegen.Pr
 	if studioProvider == nil && cfg.StudioEnabled() {
 		servers := map[string]mcp.ServerConfig{
 			"tavily": mcp.TavilyServerConfig(cfg.TavilyURL, cfg.TavilyAPIKey),
-		}
-		if cfg.FetchMCPURL != "" {
-			servers["fetch"] = mcp.FetchServerConfig(cfg.FetchMCPURL)
+			// Fetch runs in-process (github.com/trick77/webfetch); always available.
+			"fetch": mcp.FetchServerConfig(),
 		}
 		studioProvider = studio.New(
 			&llm.Client{BaseURL: cfg.ChatBaseURL, APIKey: cfg.ChatAPIKey, Model: "mimo-v2.5-pro", ReasoningEffort: "high"},

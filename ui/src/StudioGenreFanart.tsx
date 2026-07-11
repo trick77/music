@@ -61,7 +61,10 @@ export function GenreFanartMode({ chatEnabled, initialGenreId }: Props) {
       }
       await new Promise((r) => setTimeout(r, 1500));
     }
+    // Ran out of poll attempts while still generating — surface it rather than
+    // dropping silently back to the idle button.
     setBusy(false);
+    setErr("Still generating — check the genre's gallery in a moment.");
   };
 
   const onGenerate = async () => {

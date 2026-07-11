@@ -86,7 +86,7 @@ export function Library({ songs, favoriteIds, authenticated, studioEnabled = fal
                   background: g.accentColor ? `linear-gradient(135deg, ${g.accentColor}, var(--color-panel))` : "var(--color-active)",
                   border: g.hasBackground ? "1px solid var(--color-border)" : "1px dashed var(--color-border)", color: "var(--color-ink)" }}>
                 {/* Base click layer: open the genre. Sits behind the label and the CTA. */}
-                <button onClick={() => navigate(`/genre/${g.id}`)} aria-label={g.name}
+                <button onClick={() => navigate(`/genre/${g.id}`)} aria-label={`${g.name}, ${g.songCount} songs`}
                   style={{ position: "absolute", inset: 0, border: "none", background: "transparent", cursor: "pointer", padding: 0 }} />
                 {!g.hasBackground && (
                   <span style={{ position: "absolute", top: 8, right: 8, display: "inline-flex", alignItems: "center", gap: 4, pointerEvents: "none",

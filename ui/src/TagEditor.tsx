@@ -118,8 +118,14 @@ export function TagEditor({ song, onClose, onSaved }: Props) {
         </div>
 
         <div className="ui-modal-body" style={{ padding: "var(--space-5)" }}>
+          {/* All three panels share a single grid cell (each pinned to row/col 1), so the
+              cell always sizes to the tallest panel (Details) and the modal keeps a constant
+              height across tabs instead of jumping. Inactive panels toggle via `visibility`
+              (not `display: none`) so they stay mounted — unsaved edits survive — while still
+              occupying the cell to hold the frame steady, yet out of tab order and clicks. */}
+          <div style={{ display: "grid" }}>
           {/* Details */}
-          <div style={{ display: tab === "details" ? "grid" : "none", gap: "var(--space-4)" }}>
+          <div style={{ gridColumn: 1, gridRow: 1, visibility: tab === "details" ? "visible" : "hidden", display: "grid", gap: "var(--space-4)" }}>
             <div>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
                 <label style={{ ...fieldLabel, marginBottom: 0 }}>Title</label>
@@ -190,7 +196,7 @@ export function TagEditor({ song, onClose, onSaved }: Props) {
           </div>
 
           {/* Cover */}
-          <div style={{ display: tab === "cover" ? "block" : "none" }}>
+          <div style={{ gridColumn: 1, gridRow: 1, visibility: tab === "cover" ? "visible" : "hidden" }}>
             <div style={{ width: 160, maxWidth: "100%", margin: "0 auto" }}>
               <div style={{ width: 160, height: 160, borderRadius: "var(--radius-ui)", overflow: "hidden", border: "1px solid var(--color-border)", background: "var(--color-active)", display: "grid", placeItems: "center" }}>
                 {cover ? (
@@ -210,7 +216,7 @@ export function TagEditor({ song, onClose, onSaved }: Props) {
           </div>
 
           {/* Lyrics */}
-          <div style={{ display: tab === "lyrics" ? "block" : "none" }}>
+          <div style={{ gridColumn: 1, gridRow: 1, visibility: tab === "lyrics" ? "visible" : "hidden" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
               <label style={{ ...fieldLabel, marginBottom: 0 }}>Lyrics</label>
               <Button variant="ghost" small onClick={() => setLyrics(cleanLyrics(lyrics))} title="Remove [Verse]/[Chorus]-style Suno tags">
@@ -225,6 +231,7 @@ export function TagEditor({ song, onClose, onSaved }: Props) {
               placeholder="Paste lyrics here. Clean removes [Verse]/[Chorus] tags."
               style={{ minHeight: 220, lineHeight: 1.5 }}
             />
+          </div>
           </div>
 
           {err && <p role="alert" style={{ color: "var(--color-accent-strong)", fontSize: "var(--text-label)", margin: "var(--space-3) 0 0" }}>{err}</p>}

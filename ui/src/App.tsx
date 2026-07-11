@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { getSession, listSongs, uploadSong, setPublished, type Session, type Song, type PlaylistDetail } from "./api";
+import { getSession, listSongs, uploadSong, setPublished, deleteSong, type Session, type Song, type PlaylistDetail } from "./api";
 import { TagEditor } from "./TagEditor";
 import { Library } from "./Library";
 import { PlaylistEditor } from "./PlaylistEditor";
@@ -12,6 +12,7 @@ import { Search } from "./Search";
 import { StudioPage } from "./StudioPage";
 import { Rail } from "./Rail";
 import { PlayerBar } from "./PlayerBar";
+import { ConfirmDialog } from "./ConfirmDialog";
 import { usePlayer } from "./player";
 import { useRoute, navigate } from "./router";
 import { useFavorites } from "./favorites";
@@ -27,6 +28,9 @@ export function App() {
   const [uploading, setUploading] = useState(false);
   const [editing, setEditing] = useState<Song | null>(null);
   const [menuFor, setMenuFor] = useState<string | null>(null);
+  const [deleteFor, setDeleteFor] = useState<Song | null>(null);
+  const [deleteBusy, setDeleteBusy] = useState(false);
+  const [deleteErr, setDeleteErr] = useState("");
   const [addFor, setAddFor] = useState<Song | null>(null);
   const [showQueue, setShowQueue] = useState(false);
   const [editingPlaylist, setEditingPlaylist] = useState<PlaylistDetail | null | "new">(null);
@@ -62,6 +66,24 @@ export function App() {
   };
 
   const onPlay = (song: Song, tail: Song[] = []) => player.play(song, tail);
+
+  const confirmDelete = async () => {
+    if (!deleteFor || deleteBusy) return;
+    setDeleteBusy(true);
+    setDeleteErr("");
+    try {
+      const id = deleteFor.id;
+      await deleteSong(id);
+      setSongs((prev) => prev.filter((s) => s.id !== id));
+      player.remove(id);
+      setDeleteFor(null);
+      flash("Song deleted");
+    } catch {
+      setDeleteErr("Could not delete this song. Please try again.");
+    } finally {
+      setDeleteBusy(false);
+    }
+  };
 
   const onUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -157,7 +179,7 @@ export function App() {
             onShare={() => shareSong(song)}
             onEdit={() => { setEditing(song); setMenuFor(null); }}
             onPublish={() => togglePublish(song)}
-            onDelete={() => { setMenuFor(null); flash("Delete is coming in a later phase"); }}
+            onDelete={() => { setMenuFor(null); setDeleteErr(""); setDeleteFor(song); }}
             onClose={() => setMenuFor(null)}
           />
         )}
@@ -218,6 +240,18 @@ export function App() {
         />
       )}
       {editing && <TagEditor song={editing} onClose={() => setEditing(null)} onSaved={(saved) => { setSongs((prev) => prev.map((s) => (s.id === saved.id ? saved : s))); setEditing(saved); }} />}
+      {deleteFor && (
+        <ConfirmDialog
+          title="Delete song"
+          message={<>Delete “{deleteFor.title}” by {deleteFor.artistName}? This removes it from your library, playlists, and history. This can’t be undone.</>}
+          confirmLabel={deleteBusy ? "Deleting…" : "Delete"}
+          danger
+          busy={deleteBusy}
+          error={deleteErr}
+          onConfirm={confirmDelete}
+          onCancel={() => { if (!deleteBusy) setDeleteFor(null); }}
+        />
+      )}
       {addFor && <AddToPlaylist song={addFor} authenticated={authed} onClose={() => setAddFor(null)} onDone={(name) => { setAddFor(null); flash(`Added to ${name}`); }} />}
       {editingPlaylist !== null && <PlaylistEditor existing={editingPlaylist === "new" ? null : editingPlaylist} onClose={() => setEditingPlaylist(null)} onSaved={(pl) => { setEditingPlaylist(null); navigate(`/playlist/${pl.id}`); }} />}
       {toast && (

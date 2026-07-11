@@ -6,6 +6,30 @@ import (
 	"time"
 )
 
+func TestAlignmentEnabled(t *testing.T) {
+	if (Config{}).AlignmentEnabled() {
+		t.Fatal("empty AlignURL should be disabled")
+	}
+	if !(Config{AlignURL: "http://align:8000"}).AlignmentEnabled() {
+		t.Fatal("set AlignURL should be enabled")
+	}
+}
+
+func TestLoad_alignTimeoutDefault(t *testing.T) {
+	t.Setenv("BACKEND_SESSION_SECRET", "test-secret")
+	t.Setenv("BACKEND_AUTH_MODE", "dev")
+	cfg, err := Load()
+	if err != nil {
+		t.Fatalf("Load() error: %v", err)
+	}
+	if cfg.AlignmentEnabled() {
+		t.Fatal("alignment should default disabled with no BACKEND_ALIGN_URL")
+	}
+	if cfg.AlignTimeout != 10*time.Minute {
+		t.Fatalf("AlignTimeout = %v, want 10m", cfg.AlignTimeout)
+	}
+}
+
 func TestLoad_devDefaults(t *testing.T) {
 	t.Setenv("BACKEND_SESSION_SECRET", "test-secret")
 	t.Setenv("BACKEND_AUTH_MODE", "dev")

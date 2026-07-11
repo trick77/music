@@ -61,11 +61,12 @@ func build(cfg config.Config, st *store.Store, spa http.Handler, gen imagegen.Pr
 	mux.HandleFunc("GET /api/auth/session", func(w http.ResponseWriter, r *http.Request) {
 		id := identify(cfg, r)
 		writeJSON(w, map[string]any{
-			"authenticated":   id.Authenticated,
-			"username":        id.Username,
-			"imageGenEnabled": cfg.ImageGenEnabled() && id.Authenticated,
-			"studioEnabled":   cfg.StudioEnabled() && id.Authenticated,
-			"chatEnabled":     cfg.ChatEnabled() && id.Authenticated,
+			"authenticated":    id.Authenticated,
+			"username":         id.Username,
+			"imageGenEnabled":  cfg.ImageGenEnabled() && id.Authenticated,
+			"studioEnabled":    cfg.StudioEnabled() && id.Authenticated,
+			"chatEnabled":      cfg.ChatEnabled() && id.Authenticated,
+			"alignmentEnabled": cfg.AlignmentEnabled() && id.Authenticated,
 			// Image models the picker may offer, with the env default (cfg.BFLModel)
 			// guaranteed present and preselected. Sent regardless of auth so the shape
 			// is stable; the generation routes still enforce auth + the allowlist.

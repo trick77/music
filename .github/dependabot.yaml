@@ -9,11 +9,6 @@ updates:
       go-minor-and-patch:
         patterns: ["*"]
         update-types: ["minor", "patch"]
-    ignore:
-      # Pinned at v0.23.x (see AGENTS.md). v0.24+ may require a newer Go toolchain than the
-      # 1.25 this repo targets, so hold major/minor bumps for manual review.
-      - dependency-name: github.com/ncruces/go-sqlite3
-        update-types: ["version-update:semver-major", "version-update:semver-minor"]
 
   # React frontend
   - package-ecosystem: npm

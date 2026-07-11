@@ -172,6 +172,11 @@ func build(cfg config.Config, st *store.Store, spa http.Handler, gen imagegen.Pr
 			mux.HandleFunc("DELETE /api/playlists/{id}/songs/{songId}", pl.removeSong)
 			mux.HandleFunc("PUT /api/playlists/{id}/reorder", pl.reorder)
 			mux.HandleFunc("PUT /api/playlists/{id}/cover", pl.putCover)
+
+			fav := &favoriteHandlers{cfg: cfg, repo: h.repo}
+			mux.HandleFunc("GET /api/favorites", fav.list)
+			mux.HandleFunc("PUT /api/favorites/{id}", fav.add)
+			mux.HandleFunc("DELETE /api/favorites/{id}", fav.remove)
 		}
 	}
 

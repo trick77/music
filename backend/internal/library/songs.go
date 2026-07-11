@@ -24,6 +24,7 @@ type Song struct {
 	CoverArtID  string   `json:"coverArtId"`
 	Genres      []string `json:"genres"`
 	CreatedAt   string   `json:"createdAt"`
+	Published   bool     `json:"published"`
 }
 
 // CreateSongParams carries the data for a new song import.
@@ -125,9 +126,10 @@ func (r *Repo) Get(ctx context.Context, id string) (*Song, error) {
 	return song, nil
 }
 
-// List returns all songs, newest first.
-func (r *Repo) List(ctx context.Context) ([]Song, error) {
-	rows, err := r.db.QueryContext(ctx, songSelect+` ORDER BY s.created_at DESC, s.id DESC`)
+// List returns all songs, newest first. includeUnpublished includes unpublished
+// songs (an authenticated viewer); anonymous callers pass false.
+func (r *Repo) List(ctx context.Context, includeUnpublished bool) ([]Song, error) {
+	rows, err := r.db.QueryContext(ctx, songSelect+publishedFilter(includeUnpublished, false)+` ORDER BY s.created_at DESC, s.id DESC`)
 	if err != nil {
 		return nil, err
 	}
@@ -149,8 +151,20 @@ func (r *Repo) List(ctx context.Context) ([]Song, error) {
 }
 
 const songSelect = `SELECT s.id, s.title, s.artist_id, a.name, s.album, s.year, s.track_no,
-	s.duration_ms, s.file_path, s.file_size, s.content_hash, s.cover_art_id, s.created_at
+	s.duration_ms, s.file_path, s.file_size, s.content_hash, s.cover_art_id, s.created_at, s.is_published
 	FROM songs s JOIN artists a ON a.id = s.artist_id`
+
+// publishedFilter appends a clause restricting to published songs. hasWhere
+// selects AND vs WHERE; includeUnpublished (an authenticated viewer) yields "".
+func publishedFilter(includeUnpublished, hasWhere bool) string {
+	if includeUnpublished {
+		return ""
+	}
+	if hasWhere {
+		return " AND s.is_published = 1"
+	}
+	return " WHERE s.is_published = 1"
+}
 
 type scanner interface {
 	Scan(dest ...any) error
@@ -160,14 +174,16 @@ func scanSong(row scanner) (*Song, error) {
 	var s Song
 	var album, cover sql.NullString
 	var year, track sql.NullInt64
+	var published int64
 	if err := row.Scan(&s.ID, &s.Title, &s.ArtistID, &s.ArtistName, &album, &year, &track,
-		&s.DurationMS, &s.FilePath, &s.FileSize, &s.ContentHash, &cover, &s.CreatedAt); err != nil {
+		&s.DurationMS, &s.FilePath, &s.FileSize, &s.ContentHash, &cover, &s.CreatedAt, &published); err != nil {
 		return nil, err
 	}
 	s.Album = album.String
 	s.Year = int(year.Int64)
 	s.TrackNo = int(track.Int64)
 	s.CoverArtID = cover.String
+	s.Published = published != 0
 	s.Genres = []string{}
 	return &s, nil
 }

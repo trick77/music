@@ -112,7 +112,7 @@ func TestFanart_activeBackgroundExclusiveAndAccent(t *testing.T) {
 	if err := r.SetGenreAccent(ctx, "g1", "#abcdef"); err != nil {
 		t.Fatal(err)
 	}
-	g, _, _ := r.GetGenre(ctx, "g1")
+	g, _, _ := r.GetGenre(ctx, "g1", true)
 	if g.AccentColor != "#abcdef" {
 		t.Fatalf("accent = %q", g.AccentColor)
 	}

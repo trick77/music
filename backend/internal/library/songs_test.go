@@ -125,7 +125,7 @@ func TestBrowse_artistsAndGenres(t *testing.T) {
 	if len(artists) != 1 || artists[0].Name != "Test Artist" || artists[0].SongCount != 2 {
 		t.Fatalf("artists = %#v", artists)
 	}
-	art, songs, err := r.GetArtist(ctx, artists[0].ID)
+	art, songs, err := r.GetArtist(ctx, artists[0].ID, true)
 	if err != nil || art == nil {
 		t.Fatalf("GetArtist: %v", err)
 	}
@@ -141,7 +141,7 @@ func TestBrowse_artistsAndGenres(t *testing.T) {
 	if len(genres) != 2 {
 		t.Fatalf("genres = %#v", genres)
 	}
-	_, gsongs, err := r.GetGenre(ctx, genres[0].ID)
+	_, gsongs, err := r.GetGenre(ctx, genres[0].ID, true)
 	if err != nil {
 		t.Fatalf("GetGenre: %v", err)
 	}
@@ -213,7 +213,7 @@ func TestList_newestFirst(t *testing.T) {
 	if _, err := r.Create(ctx, NewID(), p2); err != nil {
 		t.Fatalf("Create 2: %v", err)
 	}
-	songs, err := r.List(ctx)
+	songs, err := r.List(ctx, true)
 	if err != nil {
 		t.Fatalf("List: %v", err)
 	}

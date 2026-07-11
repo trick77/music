@@ -45,9 +45,10 @@ func (r *Repo) HeroFanart(ctx context.Context) (*Fanart, error) {
 	return f, err
 }
 
-// RecentSongs returns the newest songs, limited.
-func (r *Repo) RecentSongs(ctx context.Context, limit int) ([]Song, error) {
-	rows, err := r.db.QueryContext(ctx, songSelect+` ORDER BY s.created_at DESC, s.id DESC LIMIT ?`, limit)
+// RecentSongs returns the newest songs, limited. includeUnpublished includes
+// unpublished songs (an authenticated viewer).
+func (r *Repo) RecentSongs(ctx context.Context, limit int, includeUnpublished bool) ([]Song, error) {
+	rows, err := r.db.QueryContext(ctx, songSelect+publishedFilter(includeUnpublished, false)+` ORDER BY s.created_at DESC, s.id DESC LIMIT ?`, limit)
 	if err != nil {
 		return nil, err
 	}
@@ -55,9 +56,9 @@ func (r *Repo) RecentSongs(ctx context.Context, limit int) ([]Song, error) {
 }
 
 // genreSongs returns a genre's songs, newest first, limited.
-func (r *Repo) genreSongs(ctx context.Context, genreID string, limit int) ([]Song, error) {
+func (r *Repo) genreSongs(ctx context.Context, genreID string, limit int, includeUnpublished bool) ([]Song, error) {
 	rows, err := r.db.QueryContext(ctx,
-		songSelect+` WHERE s.id IN (SELECT song_id FROM song_genres WHERE genre_id = ?)
+		songSelect+` WHERE s.id IN (SELECT song_id FROM song_genres WHERE genre_id = ?)`+publishedFilter(includeUnpublished, true)+`
 		ORDER BY s.created_at DESC, s.id DESC LIMIT ?`, genreID, limit)
 	if err != nil {
 		return nil, err
@@ -96,8 +97,9 @@ func (r *Repo) activeBackgroundID(ctx context.Context, genreID string) (string, 
 }
 
 // HomeFeed assembles the immersive Home payload. recentLimit caps Recently-added;
-// chapterSongLimit caps each genre chapter's song rail.
-func (r *Repo) HomeFeed(ctx context.Context, recentLimit, chapterSongLimit int) (*HomeFeed, error) {
+// chapterSongLimit caps each genre chapter's song rail. includeUnpublished
+// (an authenticated viewer) surfaces unpublished songs across every section.
+func (r *Repo) HomeFeed(ctx context.Context, recentLimit, chapterSongLimit int, includeUnpublished bool) (*HomeFeed, error) {
 	feed := &HomeFeed{
 		TopTen:        []TopTenEntry{},
 		RecentlyAdded: []Song{},
@@ -128,10 +130,10 @@ func (r *Repo) HomeFeed(ctx context.Context, recentLimit, chapterSongLimit int) 
 		feed.Hero = hh
 	}
 
-	if feed.TopTen, err = r.TopTen(ctx); err != nil {
+	if feed.TopTen, err = r.TopTen(ctx, includeUnpublished); err != nil {
 		return nil, err
 	}
-	if feed.RecentlyAdded, err = r.RecentSongs(ctx, recentLimit); err != nil {
+	if feed.RecentlyAdded, err = r.RecentSongs(ctx, recentLimit, includeUnpublished); err != nil {
 		return nil, err
 	}
 
@@ -144,7 +146,7 @@ func (r *Repo) HomeFeed(ctx context.Context, recentLimit, chapterSongLimit int) 
 		if err != nil {
 			return nil, err
 		}
-		songs, err := r.genreSongs(ctx, g.ID, chapterSongLimit)
+		songs, err := r.genreSongs(ctx, g.ID, chapterSongLimit, includeUnpublished)
 		if err != nil {
 			return nil, err
 		}

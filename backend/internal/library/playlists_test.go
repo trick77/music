@@ -26,7 +26,7 @@ func TestCreateAndGetPlaylist(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreatePlaylist: %v", err)
 	}
-	got, err := r.GetPlaylist(ctx, id)
+	got, err := r.GetPlaylist(ctx, id, true)
 	if err != nil || got == nil {
 		t.Fatalf("GetPlaylist: %v (nil=%v)", err, got == nil)
 	}
@@ -43,7 +43,7 @@ func TestCreateAndGetPlaylist(t *testing.T) {
 
 func TestGetPlaylist_absentReturnsNil(t *testing.T) {
 	r := newRepo(t)
-	got, err := r.GetPlaylist(context.Background(), "nope")
+	got, err := r.GetPlaylist(context.Background(), "nope", true)
 	if err != nil {
 		t.Fatalf("GetPlaylist: %v", err)
 	}
@@ -68,7 +68,7 @@ func TestAddSong_appendsAndIsIdempotent(t *testing.T) {
 	if err := r.AddSong(ctx, pid, a); err != nil { // idempotent re-add
 		t.Fatalf("AddSong a again: %v", err)
 	}
-	got, _ := r.GetPlaylist(ctx, pid)
+	got, _ := r.GetPlaylist(ctx, pid, true)
 	if len(got.Songs) != 2 {
 		t.Fatalf("want 2 songs after idempotent add, got %d", len(got.Songs))
 	}
@@ -95,7 +95,7 @@ func TestReorder_rewritesPositions(t *testing.T) {
 	if err := r.Reorder(ctx, pid, []string{c, a, b}); err != nil {
 		t.Fatalf("Reorder: %v", err)
 	}
-	got, _ := r.GetPlaylist(ctx, pid)
+	got, _ := r.GetPlaylist(ctx, pid, true)
 	order := []string{got.Songs[0].ID, got.Songs[1].ID, got.Songs[2].ID}
 	if order[0] != c || order[1] != a || order[2] != b {
 		t.Fatalf("reorder wrong: %v", order)
@@ -136,7 +136,7 @@ func TestRemoveSong(t *testing.T) {
 	if err := r.RemoveSong(ctx, pid, a); err != nil {
 		t.Fatalf("RemoveSong: %v", err)
 	}
-	got, _ := r.GetPlaylist(ctx, pid)
+	got, _ := r.GetPlaylist(ctx, pid, true)
 	if len(got.Songs) != 1 || got.Songs[0].ID != b {
 		t.Fatalf("after remove: %+v", got.Songs)
 	}
@@ -149,14 +149,14 @@ func TestUpdateAndDeletePlaylist(t *testing.T) {
 	if err := r.UpdatePlaylist(ctx, pid, "New", "new desc"); err != nil {
 		t.Fatalf("UpdatePlaylist: %v", err)
 	}
-	got, _ := r.GetPlaylist(ctx, pid)
+	got, _ := r.GetPlaylist(ctx, pid, true)
 	if got.Name != "New" || got.Description != "new desc" {
 		t.Fatalf("update not applied: %+v", got)
 	}
 	if err := r.DeletePlaylist(ctx, pid); err != nil {
 		t.Fatalf("DeletePlaylist: %v", err)
 	}
-	gone, _ := r.GetPlaylist(ctx, pid)
+	gone, _ := r.GetPlaylist(ctx, pid, true)
 	if gone != nil {
 		t.Fatalf("expected deleted, got %+v", gone)
 	}
@@ -197,7 +197,7 @@ func TestSetPlaylistCover(t *testing.T) {
 	if err := r.SetPlaylistCover(ctx, pid, coverID); err != nil {
 		t.Fatalf("SetPlaylistCover: %v", err)
 	}
-	got, _ := r.GetPlaylist(ctx, pid)
+	got, _ := r.GetPlaylist(ctx, pid, true)
 	if got.CoverArtID != coverID {
 		t.Fatalf("cover = %q, want %q", got.CoverArtID, coverID)
 	}

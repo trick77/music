@@ -26,6 +26,7 @@ func patchSongTitle(t *testing.T, h http.Handler, id, title string) {
 func TestShareMeta_songEmitsOGTags(t *testing.T) {
 	h := testServer(t, config.AuthModeDev)
 	sid := uploadSongID(t, h)
+	doJSON(t, h, "POST", "/api/songs/"+sid+"/publish", "") // share preview only surfaces published songs
 
 	rr := httptest.NewRecorder()
 	req := httptest.NewRequest("GET", "/song/"+sid, nil)
@@ -56,6 +57,7 @@ func TestShareMeta_escapesHostileTitle(t *testing.T) {
 	h := testServer(t, config.AuthModeDev)
 	sid := uploadSongID(t, h)
 	patchSongTitle(t, h, sid, `Broken " <script>alert(1)</script>`)
+	doJSON(t, h, "POST", "/api/songs/"+sid+"/publish", "") // meta only emitted for published songs
 
 	rr := httptest.NewRecorder()
 	h.ServeHTTP(rr, httptest.NewRequest("GET", "/song/"+sid, nil))
@@ -69,6 +71,27 @@ func TestShareMeta_escapesHostileTitle(t *testing.T) {
 	}
 	if !strings.Contains(body, "&#34;") { // escaped double-quote
 		t.Fatalf("expected escaped quote in:\n%s", body)
+	}
+}
+
+func TestShareMeta_unpublishedSongOmitsOGTags(t *testing.T) {
+	// A freshly uploaded (unpublished) song must not leak its title/artist/cover
+	// into the public share-preview meta — it should fall through to the plain SPA
+	// shell, just like get/stream 404 for anonymous callers.
+	h := testServer(t, config.AuthModeDev)
+	sid := uploadSongID(t, h) // lands unpublished
+
+	rr := httptest.NewRecorder()
+	req := httptest.NewRequest("GET", "/song/"+sid, nil)
+	req.Host = "music.example.com"
+	h.ServeHTTP(rr, req)
+
+	if rr.Code == http.StatusInternalServerError {
+		t.Fatalf("unpublished song share should not 500")
+	}
+	body := rr.Body.String()
+	if strings.Contains(body, "og:title") || strings.Contains(body, "Test Song") {
+		t.Fatalf("unpublished song must not emit share meta:\n%s", body)
 	}
 }
 
@@ -97,6 +120,8 @@ func TestShareMeta_playlistFallsBackToFirstSongCover(t *testing.T) {
 	if cr.Code != http.StatusOK {
 		t.Fatalf("song cover = %d, body=%s", cr.Code, cr.Body.String())
 	}
+	// Publish it: the share preview is public and only surfaces published tracks.
+	doJSON(t, h, "POST", "/api/songs/"+sid+"/publish", "")
 	doJSON(t, h, "POST", "/api/playlists/"+pid+"/songs", `{"songId":"`+sid+`"}`)
 
 	rr := httptest.NewRecorder()

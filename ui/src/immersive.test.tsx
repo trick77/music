@@ -5,7 +5,7 @@ import { Chapter } from "./Chapter";
 import type { GenreChapter, HomeHero, Song } from "./api";
 
 function song(id: string, title: string): Song {
-  return { id, title, artistName: "Vesper Lake", album: "", year: 0, trackNo: 0, durationMs: 200000, genres: [], coverArtId: "" };
+  return { id, title, artistName: "Vesper Lake", album: "", year: 0, trackNo: 0, durationMs: 200000, genres: [], coverArtId: "", published: true };
 }
 
 const AI_TERMS = ["generate", "prompt", "flux", "bfl", " ai ", "model:", "seed"];

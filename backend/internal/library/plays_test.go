@@ -39,7 +39,7 @@ func TestPlays_RecordAndCount(t *testing.T) {
 		t.Fatalf("RecordPlay b: %v", err)
 	}
 
-	top, err := r.TopTen(ctx)
+	top, err := r.TopTen(ctx, true)
 	if err != nil {
 		t.Fatalf("TopTen: %v", err)
 	}
@@ -72,7 +72,7 @@ func TestPlays_DeterministicTieBreak(t *testing.T) {
 			t.Fatalf("RecordPlay: %v", err)
 		}
 	}
-	top, err := r.TopTen(ctx)
+	top, err := r.TopTen(ctx, true)
 	if err != nil {
 		t.Fatalf("TopTen: %v", err)
 	}
@@ -94,7 +94,7 @@ func TestPlays_LimitTen(t *testing.T) {
 			t.Fatalf("RecordPlay: %v", err)
 		}
 	}
-	top, err := r.TopTen(ctx)
+	top, err := r.TopTen(ctx, true)
 	if err != nil {
 		t.Fatalf("TopTen: %v", err)
 	}
@@ -109,7 +109,7 @@ func TestPlays_UnknownSongErrors(t *testing.T) {
 	if err := r.RecordPlay(ctx, "does-not-exist"); err == nil {
 		t.Fatal("RecordPlay for unknown song should error")
 	}
-	top, err := r.TopTen(ctx)
+	top, err := r.TopTen(ctx, true)
 	if err != nil {
 		t.Fatalf("TopTen: %v", err)
 	}

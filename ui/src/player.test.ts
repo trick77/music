@@ -3,7 +3,7 @@ import { advance, back, qualifiesForPlay, shouldReport, type PlayerState } from 
 import type { Song } from "./api";
 
 function song(id: string): Song {
-  return { id, title: id, artistName: "A", album: "", year: 0, trackNo: 0, durationMs: 200000, genres: [], coverArtId: "" };
+  return { id, title: id, artistName: "A", album: "", year: 0, trackNo: 0, durationMs: 200000, genres: [], coverArtId: "", published: true };
 }
 
 function base(overrides: Partial<PlayerState> = {}): PlayerState {

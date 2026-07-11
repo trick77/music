@@ -7,7 +7,7 @@ import (
 
 func TestSearch_blankQueryIsEmpty(t *testing.T) {
 	r := newRepo(t)
-	res, err := r.Search(context.Background(), "   ", 20)
+	res, err := r.Search(context.Background(), "   ", 20, true)
 	if err != nil {
 		t.Fatalf("Search: %v", err)
 	}
@@ -31,7 +31,7 @@ func TestSearch_matchesSongTitleCaseInsensitively(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create: %v", err)
 	}
-	res, err := r.Search(ctx, "neon", 20)
+	res, err := r.Search(ctx, "neon", 20, true)
 	if err != nil {
 		t.Fatalf("Search: %v", err)
 	}
@@ -51,7 +51,7 @@ func TestSearch_matchesArtist(t *testing.T) {
 	}); err != nil {
 		t.Fatalf("create: %v", err)
 	}
-	res, err := r.Search(ctx, "halcyon", 20)
+	res, err := r.Search(ctx, "halcyon", 20, true)
 	if err != nil {
 		t.Fatalf("Search: %v", err)
 	}
@@ -69,7 +69,7 @@ func TestSearch_wildcardCharsAreLiteral(t *testing.T) {
 	}); err != nil {
 		t.Fatalf("create: %v", err)
 	}
-	res, err := r.Search(ctx, "%", 20)
+	res, err := r.Search(ctx, "%", 20, true)
 	if err != nil {
 		t.Fatalf("Search: %v", err)
 	}

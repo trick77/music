@@ -35,7 +35,7 @@ func (h *playlistHandlers) list(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *playlistHandlers) get(w http.ResponseWriter, r *http.Request) {
-	pl, err := h.repo.GetPlaylist(r.Context(), r.PathValue("id"))
+	pl, err := h.repo.GetPlaylist(r.Context(), r.PathValue("id"), identify(h.cfg, r).Authenticated)
 	if err != nil {
 		serverError(w, "get playlist", err)
 		return
@@ -164,7 +164,7 @@ func (h *playlistHandlers) putCover(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	id := r.PathValue("id")
-	pl, err := h.repo.GetPlaylist(r.Context(), id)
+	pl, err := h.repo.GetPlaylist(r.Context(), id, true) // auth-gated write path; see all tracks
 	if err != nil {
 		serverError(w, "get playlist", err)
 		return
@@ -185,8 +185,9 @@ func (h *playlistHandlers) putCover(w http.ResponseWriter, r *http.Request) {
 }
 
 // respondDetail reloads and writes the playlist detail with the given status.
+// Only reached from auth-gated write handlers, so unpublished tracks are shown.
 func (h *playlistHandlers) respondDetail(w http.ResponseWriter, r *http.Request, id string, status int) {
-	pl, err := h.repo.GetPlaylist(r.Context(), id)
+	pl, err := h.repo.GetPlaylist(r.Context(), id, true)
 	if err != nil {
 		serverError(w, "reload playlist", err)
 		return

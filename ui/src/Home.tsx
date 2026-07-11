@@ -12,6 +12,8 @@ type Props = {
   onShare: (s: Song) => void;
   onUpload?: () => void;
   renderRowActions: (s: Song) => ReactNode;
+  /** Bump to force a re-fetch of the feed (e.g. after an upload or publish toggle). */
+  reloadKey?: number;
 };
 
 const sectionHead: React.CSSProperties = {
@@ -21,11 +23,11 @@ const sectionHead: React.CSSProperties = {
   marginBottom: "0.9rem",
 };
 
-export function Home({ authenticated, onPlay, onShare, onUpload, renderRowActions }: Props) {
+export function Home({ authenticated, onPlay, onShare, onUpload, renderRowActions, reloadKey }: Props) {
   const [feed, setFeed] = useState<HomeFeed | null>(null);
   useEffect(() => {
     getHome().then(setFeed).catch(() => setFeed(null));
-  }, []);
+  }, [reloadKey]);
 
   if (!feed) return <p style={{ color: "var(--color-muted)" }}>Loading…</p>;
 

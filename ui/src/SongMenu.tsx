@@ -9,6 +9,7 @@ type Props = {
   onAddToPlaylist: () => void;
   onShare: () => void;
   onEdit: () => void;
+  onPublish: () => void;
   onDelete: () => void;
   onClose: () => void;
 };
@@ -36,6 +37,11 @@ export function SongMenu(p: Props) {
         <MenuItem icon="sortDown" href={`/api/songs/${p.song.id}/download`}>Download</MenuItem>
         <MenuItem icon="externalLink" onClick={p.onShare}>Share</MenuItem>
         {p.authenticated && <MenuItem icon="edit" onClick={p.onEdit}>Edit tags</MenuItem>}
+        {/* Publish gate (spec): an unpublished song is visible only to logged-in
+            users until published. Signed-in only. */}
+        {p.authenticated && (
+          <MenuItem icon="globe" onClick={p.onPublish}>{p.song.published ? "Unpublish" : "Publish"}</MenuItem>
+        )}
         {p.authenticated && (
           <>
             <MenuSeparator />

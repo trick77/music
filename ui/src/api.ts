@@ -10,6 +10,7 @@ export type Song = {
   durationMs: number;
   genres: string[];
   coverArtId: string;
+  published: boolean;
 };
 
 export type SongEdit = {
@@ -45,6 +46,14 @@ export async function uploadSong(file: File): Promise<Song> {
 
 export function streamUrl(id: string): string {
   return `/api/songs/${id}/stream`;
+}
+
+// setPublished flips a song's publish state. Uploads land unpublished (visible
+// only to logged-in users); publishing makes a song visible to everyone.
+export async function setPublished(id: string, published: boolean): Promise<Song> {
+  const r = await fetch(`/api/songs/${id}/${published ? "publish" : "unpublish"}`, { method: "POST" });
+  if (!r.ok) throw new Error(`publish toggle failed (${r.status})`);
+  return r.json();
 }
 
 export async function updateSong(id: string, edit: SongEdit): Promise<Song> {

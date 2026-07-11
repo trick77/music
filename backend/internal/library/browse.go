@@ -40,7 +40,7 @@ func (r *Repo) ListArtists(ctx context.Context) ([]ArtistSummary, error) {
 	return out, rows.Err()
 }
 
-func (r *Repo) GetArtist(ctx context.Context, id string) (*ArtistSummary, []Song, error) {
+func (r *Repo) GetArtist(ctx context.Context, id string, includeUnpublished bool) (*ArtistSummary, []Song, error) {
 	var a ArtistSummary
 	err := r.db.QueryRowContext(ctx,
 		`SELECT a.id, a.name, COUNT(s.id) c FROM artists a LEFT JOIN songs s ON s.artist_id = a.id
@@ -51,7 +51,7 @@ func (r *Repo) GetArtist(ctx context.Context, id string) (*ArtistSummary, []Song
 	if err != nil {
 		return nil, nil, err
 	}
-	songs, err := r.songsWhere(ctx, `s.artist_id = ?`, id)
+	songs, err := r.songsWhere(ctx, includeUnpublished, `s.artist_id = ?`, id)
 	return &a, songs, err
 }
 
@@ -74,7 +74,7 @@ func (r *Repo) ListGenres(ctx context.Context) ([]GenreSummary, error) {
 	return out, rows.Err()
 }
 
-func (r *Repo) GetGenre(ctx context.Context, id string) (*GenreSummary, []Song, error) {
+func (r *Repo) GetGenre(ctx context.Context, id string, includeUnpublished bool) (*GenreSummary, []Song, error) {
 	var g GenreSummary
 	err := r.db.QueryRowContext(ctx,
 		`SELECT g.id, g.name, COALESCE(g.accent_color,''), COUNT(sg.song_id) c FROM genres g LEFT JOIN song_genres sg ON sg.genre_id = g.id
@@ -85,14 +85,15 @@ func (r *Repo) GetGenre(ctx context.Context, id string) (*GenreSummary, []Song, 
 	if err != nil {
 		return nil, nil, err
 	}
-	songs, err := r.songsWhere(ctx,
+	songs, err := r.songsWhere(ctx, includeUnpublished,
 		`s.id IN (SELECT song_id FROM song_genres WHERE genre_id = ?)`, id)
 	return &g, songs, err
 }
 
 // songsWhere runs songSelect with an extra WHERE clause and hydrates genres.
-func (r *Repo) songsWhere(ctx context.Context, where string, args ...any) ([]Song, error) {
-	rows, err := r.db.QueryContext(ctx, songSelect+" WHERE "+where+" ORDER BY s.created_at DESC, s.id DESC", args...)
+// Anonymous viewers (includeUnpublished=false) additionally exclude unpublished songs.
+func (r *Repo) songsWhere(ctx context.Context, includeUnpublished bool, where string, args ...any) ([]Song, error) {
+	rows, err := r.db.QueryContext(ctx, songSelect+" WHERE "+where+publishedFilter(includeUnpublished, true)+" ORDER BY s.created_at DESC, s.id DESC", args...)
 	if err != nil {
 		return nil, err
 	}

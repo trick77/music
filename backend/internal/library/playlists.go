@@ -74,7 +74,9 @@ func (r *Repo) ListPlaylists(ctx context.Context) ([]PlaylistSummary, error) {
 }
 
 // GetPlaylist returns a playlist with its ordered songs, or (nil,nil) if absent.
-func (r *Repo) GetPlaylist(ctx context.Context, id string) (*PlaylistDetail, error) {
+// includeUnpublished (an authenticated viewer) keeps unpublished tracks in the
+// track list; anonymous callers only see published tracks.
+func (r *Repo) GetPlaylist(ctx context.Context, id string, includeUnpublished bool) (*PlaylistDetail, error) {
 	row := r.db.QueryRowContext(ctx,
 		`SELECT p.id, p.name, p.description, p.cover_art_id,
 		        (SELECT COUNT(*) FROM playlist_songs ps WHERE ps.playlist_id = p.id)
@@ -86,7 +88,7 @@ func (r *Repo) GetPlaylist(ctx context.Context, id string) (*PlaylistDetail, err
 	if err != nil {
 		return nil, err
 	}
-	songs, err := r.playlistSongs(ctx, id)
+	songs, err := r.playlistSongs(ctx, id, includeUnpublished)
 	if err != nil {
 		return nil, err
 	}
@@ -95,10 +97,10 @@ func (r *Repo) GetPlaylist(ctx context.Context, id string) (*PlaylistDetail, err
 
 // playlistSongs returns the playlist's songs ordered by position (then id for
 // stable ties), with genres populated like List/Get.
-func (r *Repo) playlistSongs(ctx context.Context, playlistID string) ([]Song, error) {
+func (r *Repo) playlistSongs(ctx context.Context, playlistID string, includeUnpublished bool) ([]Song, error) {
 	rows, err := r.db.QueryContext(ctx,
 		songSelect+` JOIN playlist_songs ps ON ps.song_id = s.id
-		 WHERE ps.playlist_id = ? ORDER BY ps.position, s.id`, playlistID)
+		 WHERE ps.playlist_id = ?`+publishedFilter(includeUnpublished, true)+` ORDER BY ps.position, s.id`, playlistID)
 	if err != nil {
 		return nil, err
 	}

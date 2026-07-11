@@ -79,6 +79,30 @@ func (r *Repo) Update(ctx context.Context, id string, p UpdateSongParams) (*Song
 	return r.Get(ctx, id)
 }
 
+// SetPublished flips a song's publish state and returns the updated song, or
+// (nil,nil) if the id is unknown. Uploads land unpublished; this is the only way
+// to publish (or later unpublish) a song. The read model passed to authenticated
+// callers is returned so the UI can reflect the new state immediately.
+func (r *Repo) SetPublished(ctx context.Context, id string, published bool) (*Song, error) {
+	res, err := r.db.ExecContext(ctx, `UPDATE songs SET is_published = ? WHERE id = ?`, boolToInt(published), id)
+	if err != nil {
+		return nil, err
+	}
+	if n, err := res.RowsAffected(); err != nil {
+		return nil, err
+	} else if n == 0 {
+		return nil, nil
+	}
+	return r.Get(ctx, id)
+}
+
+func boolToInt(b bool) int {
+	if b {
+		return 1
+	}
+	return 0
+}
+
 // ErrUnknownSuggestField is returned by Suggest for an unsupported field, so the
 // handler can distinguish a bad request from a database failure.
 var ErrUnknownSuggestField = errors.New("library: unknown suggest field")

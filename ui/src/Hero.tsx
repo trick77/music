@@ -102,7 +102,13 @@ export function Hero({
                 fontWeight: 600,
               }}
             >
-              <Glyph name={playing ? "pause" : "play"} size={18} /> {playing ? "Pause" : "Play"}
+              <Glyph name={playing ? "pause" : "play"} size={18} />
+              {/* Reserve the width of the longer label ("Pause") so toggling
+                  Play↔Pause never resizes the button and shifts its siblings. */}
+              <span style={{ display: "inline-grid", justifyItems: "start" }}>
+                <span style={{ gridArea: "1 / 1", visibility: "hidden" }} aria-hidden="true">Pause</span>
+                <span style={{ gridArea: "1 / 1" }}>{playing ? "Pause" : "Play"}</span>
+              </span>
             </button>
             <a
               href={`/api/songs/${featured.id}/download`}

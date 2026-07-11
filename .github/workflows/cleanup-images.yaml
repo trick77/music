@@ -1,4 +1,4 @@
-name: Cleanup images
+name: Cleanup Images
 
 on:
   schedule:

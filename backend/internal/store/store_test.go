@@ -55,12 +55,13 @@ func TestOpen_squashedSchemaHasPhase4Objects(t *testing.T) {
 		}
 	}
 
-	// Two migrations recorded: the squash (0001) and the publish gate (0002).
+	// Three migrations recorded: the squash (0001), the song publish gate (0002),
+	// and the playlist publish gate (0003).
 	var count int
 	if err := st.DB().QueryRow(`SELECT COUNT(*) FROM schema_migrations`).Scan(&count); err != nil {
 		t.Fatalf("count migrations: %v", err)
 	}
-	if count != 2 {
-		t.Fatalf("expected 2 recorded migrations, got %d", count)
+	if count != 3 {
+		t.Fatalf("expected 3 recorded migrations, got %d", count)
 	}
 }

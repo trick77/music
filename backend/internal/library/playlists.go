@@ -18,6 +18,17 @@ type PlaylistSummary struct {
 	Description string `json:"description"`
 	CoverArtID  string `json:"coverArtId"`
 	SongCount   int    `json:"songCount"`
+	Published   bool   `json:"published"`
+}
+
+// playlistCountExpr is the SongCount subquery. For anonymous viewers it counts
+// only published tracks, matching the track list they actually receive.
+func playlistCountExpr(includeUnpublished bool) string {
+	if includeUnpublished {
+		return `(SELECT COUNT(*) FROM playlist_songs ps WHERE ps.playlist_id = p.id)`
+	}
+	return `(SELECT COUNT(*) FROM playlist_songs ps JOIN songs s ON s.id = ps.song_id
+	         WHERE ps.playlist_id = p.id AND s.is_published = 1)`
 }
 
 // PlaylistDetail is a playlist with its ordered tracks.
@@ -46,18 +57,35 @@ func (r *Repo) UpdatePlaylist(ctx context.Context, id, name, description string)
 	return err
 }
 
+// SetPlaylistPublished flips a playlist's publish state. Returns false if the id
+// is unknown. Playlists are created unpublished; this is the only way to publish
+// (or later unpublish) one, mirroring song publishing.
+func (r *Repo) SetPlaylistPublished(ctx context.Context, id string, published bool) (bool, error) {
+	res, err := r.db.ExecContext(ctx, `UPDATE playlists SET is_published = ? WHERE id = ?`, boolToInt(published), id)
+	if err != nil {
+		return false, err
+	}
+	n, err := res.RowsAffected()
+	return n > 0, err
+}
+
 // DeletePlaylist removes a playlist; playlist_songs rows cascade via FK.
 func (r *Repo) DeletePlaylist(ctx context.Context, id string) error {
 	_, err := r.db.ExecContext(ctx, `DELETE FROM playlists WHERE id=?`, id)
 	return err
 }
 
-// ListPlaylists returns all playlists, newest first, each with its song count.
-func (r *Repo) ListPlaylists(ctx context.Context) ([]PlaylistSummary, error) {
+// ListPlaylists returns playlists, newest first, each with its song count. For
+// anonymous viewers (includeUnpublished=false) only published playlists are
+// returned and counts are published-track only.
+func (r *Repo) ListPlaylists(ctx context.Context, includeUnpublished bool) ([]PlaylistSummary, error) {
+	where := ""
+	if !includeUnpublished {
+		where = " WHERE p.is_published = 1"
+	}
 	rows, err := r.db.QueryContext(ctx,
-		`SELECT p.id, p.name, p.description, p.cover_art_id,
-		        (SELECT COUNT(*) FROM playlist_songs ps WHERE ps.playlist_id = p.id)
-		 FROM playlists p ORDER BY p.created_at DESC, p.rowid DESC`)
+		`SELECT p.id, p.name, p.description, p.cover_art_id, `+playlistCountExpr(includeUnpublished)+`, p.is_published
+		 FROM playlists p`+where+` ORDER BY p.created_at DESC, p.rowid DESC`)
 	if err != nil {
 		return nil, err
 	}
@@ -75,11 +103,11 @@ func (r *Repo) ListPlaylists(ctx context.Context) ([]PlaylistSummary, error) {
 
 // GetPlaylist returns a playlist with its ordered songs, or (nil,nil) if absent.
 // includeUnpublished (an authenticated viewer) keeps unpublished tracks in the
-// track list; anonymous callers only see published tracks.
+// track list and returns unpublished playlists; anonymous callers only see
+// published tracks and get (nil,nil) for an unpublished playlist (→ 404).
 func (r *Repo) GetPlaylist(ctx context.Context, id string, includeUnpublished bool) (*PlaylistDetail, error) {
 	row := r.db.QueryRowContext(ctx,
-		`SELECT p.id, p.name, p.description, p.cover_art_id,
-		        (SELECT COUNT(*) FROM playlist_songs ps WHERE ps.playlist_id = p.id)
+		`SELECT p.id, p.name, p.description, p.cover_art_id, `+playlistCountExpr(includeUnpublished)+`, p.is_published
 		 FROM playlists p WHERE p.id = ?`, id)
 	summary, err := scanPlaylistSummary(row)
 	if errors.Is(err, sql.ErrNoRows) {
@@ -87,6 +115,9 @@ func (r *Repo) GetPlaylist(ctx context.Context, id string, includeUnpublished bo
 	}
 	if err != nil {
 		return nil, err
+	}
+	if !includeUnpublished && !summary.Published {
+		return nil, nil // unpublished playlists are invisible to anonymous callers
 	}
 	songs, err := r.playlistSongs(ctx, id, includeUnpublished)
 	if err != nil {
@@ -201,10 +232,12 @@ func (r *Repo) SetPlaylistCover(ctx context.Context, playlistID, coverID string)
 func scanPlaylistSummary(row scanner) (*PlaylistSummary, error) {
 	var p PlaylistSummary
 	var desc, cover sql.NullString
-	if err := row.Scan(&p.ID, &p.Name, &desc, &cover, &p.SongCount); err != nil {
+	var published int64
+	if err := row.Scan(&p.ID, &p.Name, &desc, &cover, &p.SongCount, &published); err != nil {
 		return nil, err
 	}
 	p.Description = desc.String
 	p.CoverArtID = cover.String
+	p.Published = published != 0
 	return &p, nil
 }

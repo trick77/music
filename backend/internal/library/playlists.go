@@ -57,7 +57,7 @@ func (r *Repo) ListPlaylists(ctx context.Context) ([]PlaylistSummary, error) {
 	rows, err := r.db.QueryContext(ctx,
 		`SELECT p.id, p.name, p.description, p.cover_art_id,
 		        (SELECT COUNT(*) FROM playlist_songs ps WHERE ps.playlist_id = p.id)
-		 FROM playlists p ORDER BY p.created_at DESC, p.id DESC`)
+		 FROM playlists p ORDER BY p.created_at DESC, p.rowid DESC`)
 	if err != nil {
 		return nil, err
 	}

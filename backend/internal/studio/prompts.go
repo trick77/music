@@ -48,8 +48,8 @@ const refineSystemPrompt = `You revise Suno lyrics. You are given a reference so
 lyrics, and a refinement instruction. Rewrite the lyrics to satisfy the
 instruction while keeping them original (never the reference song's actual
 words), on-theme, and structured with Suno meta/structure tags ([Verse],
-[Chorus], [Bridge], etc.). You may research on the web if it helps. Respond with
-ONLY a single JSON object and nothing else:
+[Chorus], [Bridge], etc.). Do not research; rewrite only the lyrics you are
+given. Respond with ONLY a single JSON object and nothing else:
 {"lyrics":"..."}`
 
 // genrePromptSystemPrompt instructs the model to author a single image prompt

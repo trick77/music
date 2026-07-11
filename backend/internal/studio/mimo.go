@@ -41,13 +41,20 @@ func (p *mimoProvider) Generate(ctx context.Context, req GenerateRequest, onProg
 	return res, nil
 }
 
+// Refine rewrites only the lyrics per an instruction. Unlike Generate it does
+// NOT research: the lyrics already exist, so it runs one tool-less completion
+// instead of the web-research loop (which would re-run discovery from scratch).
 func (p *mimoProvider) Refine(ctx context.Context, req RefineRequest, onProgress ProgressFunc) (string, error) {
-	raw, err := runResearch(ctx, p.chat, p.tools, refineSystemPrompt,
-		refineUserPrompt(req.Reference, req.Lyrics, req.Instruction), onProgress)
+	onProgress.emit(Progress{Phase: "composing", Detail: "Rewriting the lyrics"})
+	msgs := []llm.Message{
+		{Role: "system", Content: refineSystemPrompt},
+		{Role: "user", Content: refineUserPrompt(req.Reference, req.Lyrics, req.Instruction)},
+	}
+	reply, err := p.chat.Chat(ctx, msgs, nil) // no tools: one-shot rewrite, no re-research
 	if err != nil {
 		return "", err
 	}
-	obj, err := extractJSONObject(raw)
+	obj, err := extractJSONObject(reply.Content)
 	if err != nil {
 		return "", err
 	}

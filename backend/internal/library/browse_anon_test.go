@@ -94,7 +94,7 @@ func TestListGenres_anonymousHidesUnpublishedOnly(t *testing.T) {
 	mkPubSong(t, r, ctx, "Artist", "DraftGenre", "h2", false)
 
 	anon, _ := r.ListGenres(ctx, false)
-	if len(anon) != 1 || anon[0].Name != "PubGenre" || anon[0].SongCount != 1 {
+	if len(anon) != 1 || anon[0].Name != "pubgenre" || anon[0].SongCount != 1 {
 		t.Fatalf("anonymous genres = %#v, want only PubGenre(1)", anon)
 	}
 	all, _ := r.ListGenres(ctx, true)
@@ -111,8 +111,8 @@ func TestGetGenre_anonymousCountsPublishedAndHidesEmpty(t *testing.T) {
 	mkPubSong(t, r, ctx, "Artist", "Draft", "h3", false)
 
 	all, _ := r.ListGenres(ctx, true)
-	mixed, _ := findByName(all, func(g GenreSummary) string { return g.Name }, "Mixed")
-	draft, _ := findByName(all, func(g GenreSummary) string { return g.Name }, "Draft")
+	mixed, _ := findByName(all, func(g GenreSummary) string { return g.Name }, "mixed")
+	draft, _ := findByName(all, func(g GenreSummary) string { return g.Name }, "draft")
 
 	g, songs, err := r.GetGenre(ctx, mixed.ID, false)
 	if err != nil {

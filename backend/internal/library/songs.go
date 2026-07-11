@@ -255,7 +255,8 @@ func upsertArtist(ctx context.Context, tx *sql.Tx, name string) (string, error) 
 }
 
 func upsertGenre(ctx context.Context, tx *sql.Tx, name string) (string, error) {
-	name = strings.TrimSpace(name)
+	// Store genre names canonically lowercase; the UI title-cases them for display.
+	name = strings.ToLower(strings.TrimSpace(name))
 	var id string
 	err := tx.QueryRowContext(ctx, `SELECT id FROM genres WHERE name = ? COLLATE NOCASE`, name).Scan(&id)
 	if err == nil {

@@ -5,6 +5,7 @@ import { Icon } from "./Icon";
 import { GenreFanartMode } from "./StudioGenreFanart";
 import { AlbumCoverMode } from "./StudioAlbumCover";
 import { Button, Spinner, buttonStyle, controlClass, t } from "./ui";
+import { genreLabel } from "./titleCase";
 
 const STYLE_LIMIT = 500;
 
@@ -325,6 +326,19 @@ export function StudioPage({ imageGenEnabled = false, chatEnabled = false, image
             text={result.stylePrompt}
             monospace
           />
+
+          {/* Up to 3 genres the model picked for the song, shown automatically
+              alongside the style prompt. */}
+          {result.genres?.length > 0 && (
+            <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: "0.4rem", margin: "-0.9rem 0 1.6rem" }}>
+              <span style={{ ...t.label, marginRight: "0.15rem" }}>Genres</span>
+              {result.genres.map((g) => (
+                <span key={g} style={{ background: "var(--color-active)", borderRadius: 999, padding: "3px 10px", fontSize: "var(--text-label)", color: "var(--color-ink)" }}>
+                  {genreLabel(g)}
+                </span>
+              ))}
+            </div>
+          )}
 
           <ResultCard
             name="Cover-art prompt"

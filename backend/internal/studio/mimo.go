@@ -38,7 +38,33 @@ func (p *mimoProvider) Generate(ctx context.Context, req GenerateRequest, onProg
 		return GenerateResult{}, fmt.Errorf("studio: generate result missing a field")
 	}
 	res.Lyrics = formatLyrics(res.Lyrics)
+	// Genres are best-effort: a prompt can't guarantee the model returns at most 3
+	// clean, unique names, so enforce it here rather than trusting the reply.
+	res.Genres = sanitizeGenres(res.Genres)
 	return res, nil
+}
+
+// sanitizeGenres trims, drops blanks, de-duplicates case-insensitively, and caps
+// the list at 3 — the ceiling the dialog shows.
+func sanitizeGenres(in []string) []string {
+	seen := map[string]bool{}
+	out := make([]string, 0, 3)
+	for _, g := range in {
+		g = strings.TrimSpace(g)
+		if g == "" {
+			continue
+		}
+		key := strings.ToLower(g)
+		if seen[key] {
+			continue
+		}
+		seen[key] = true
+		out = append(out, g)
+		if len(out) == 3 {
+			break
+		}
+	}
+	return out
 }
 
 // Refine rewrites only the lyrics per an instruction. Unlike Generate it does

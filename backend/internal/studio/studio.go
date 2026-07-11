@@ -11,11 +11,13 @@ type GenerateRequest struct {
 	Reference string
 }
 
-// GenerateResult is the three-part ephemeral output.
+// GenerateResult is the ephemeral output: the three Suno prompt parts plus up to
+// three genre labels the model picks for the song (shown as chips in the dialog).
 type GenerateResult struct {
-	StylePrompt    string `json:"stylePrompt"`
-	Lyrics         string `json:"lyrics"`
-	CoverArtPrompt string `json:"coverArtPrompt"`
+	StylePrompt    string   `json:"stylePrompt"`
+	Lyrics         string   `json:"lyrics"`
+	CoverArtPrompt string   `json:"coverArtPrompt"`
+	Genres         []string `json:"genres"`
 }
 
 // RefineRequest asks for a lyrics rewrite guided by Instruction (e.g. "do not

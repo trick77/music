@@ -12,7 +12,7 @@ func (h *songHandlers) listArtists(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *songHandlers) getArtist(w http.ResponseWriter, r *http.Request) {
-	artist, songs, err := h.repo.GetArtist(r.Context(), r.PathValue("id"))
+	artist, songs, err := h.repo.GetArtist(r.Context(), r.PathValue("id"), identify(h.cfg, r).Authenticated)
 	if err != nil {
 		httpError(w, http.StatusInternalServerError, "get artist")
 		return

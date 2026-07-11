@@ -33,7 +33,7 @@ type songHandlers struct {
 }
 
 func (h *songHandlers) list(w http.ResponseWriter, r *http.Request) {
-	songs, err := h.repo.List(r.Context())
+	songs, err := h.repo.List(r.Context(), identify(h.cfg, r).Authenticated)
 	if err != nil {
 		httpError(w, http.StatusInternalServerError, "list songs")
 		return
@@ -47,7 +47,8 @@ func (h *songHandlers) get(w http.ResponseWriter, r *http.Request) {
 		httpError(w, http.StatusInternalServerError, "get song")
 		return
 	}
-	if song == nil {
+	// Unpublished songs are invisible to anonymous callers even by direct id.
+	if song == nil || (!song.Published && !identify(h.cfg, r).Authenticated) {
 		httpError(w, http.StatusNotFound, "not found")
 		return
 	}
@@ -174,6 +175,28 @@ func (h *songHandlers) upload(w http.ResponseWriter, r *http.Request) {
 	writeJSONStatus(w, http.StatusCreated, song)
 }
 
+func (h *songHandlers) publish(w http.ResponseWriter, r *http.Request)   { h.setPublished(w, r, true) }
+func (h *songHandlers) unpublish(w http.ResponseWriter, r *http.Request) { h.setPublished(w, r, false) }
+
+// setPublished flips a song's publish state. Authenticated-only (mirrors upload);
+// returns the updated song, or 404 when the id is unknown.
+func (h *songHandlers) setPublished(w http.ResponseWriter, r *http.Request, published bool) {
+	if !identify(h.cfg, r).Authenticated {
+		httpError(w, http.StatusForbidden, "authentication required")
+		return
+	}
+	song, err := h.repo.SetPublished(r.Context(), r.PathValue("id"), published)
+	if err != nil {
+		httpError(w, http.StatusInternalServerError, "set published")
+		return
+	}
+	if song == nil {
+		httpError(w, http.StatusNotFound, "not found")
+		return
+	}
+	writeJSON(w, song)
+}
+
 func (h *songHandlers) stream(w http.ResponseWriter, r *http.Request)   { h.serveFile(w, r, false) }
 func (h *songHandlers) download(w http.ResponseWriter, r *http.Request) { h.serveFile(w, r, true) }
 
@@ -183,7 +206,10 @@ func (h *songHandlers) serveFile(w http.ResponseWriter, r *http.Request, attach 
 		httpError(w, http.StatusInternalServerError, "get song")
 		return
 	}
-	if song == nil {
+	// An unpublished song must not stream or download for anonymous callers,
+	// even when the id is known (e.g. a shared link) — 404 to avoid leaking
+	// existence.
+	if song == nil || (!song.Published && !identify(h.cfg, r).Authenticated) {
 		httpError(w, http.StatusNotFound, "not found")
 		return
 	}

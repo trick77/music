@@ -3,6 +3,7 @@ package library
 import (
 	"context"
 	"database/sql"
+	"fmt"
 )
 
 // TopTenEntry is a song with its global play count for the chart.
@@ -26,17 +27,22 @@ func (r *Repo) RecordPlay(ctx context.Context, songID string) error {
 // topTenSelect ranks the ten most-played songs. Ordering is fully deterministic
 // — play count DESC, then case-folded title, then id — so ties never depend on
 // row insertion order.
+// topTenSelect ranks the ten most-played songs. Ordering is fully deterministic
+// — play count DESC, then case-folded title, then id — so ties never depend on
+// row insertion order. %s is a WHERE clause (empty or a published filter)
+// inserted before GROUP BY so anonymous viewers never chart an unpublished song.
 const topTenSelect = `SELECT s.id, s.title, s.artist_id, a.name, s.album, s.year, s.track_no,
-	s.duration_ms, s.file_path, s.file_size, s.content_hash, s.cover_art_id, s.created_at,
+	s.duration_ms, s.file_path, s.file_size, s.content_hash, s.cover_art_id, s.created_at, s.is_published,
 	COUNT(p.id) AS play_count
-	FROM songs s JOIN artists a ON a.id = s.artist_id JOIN plays p ON p.song_id = s.id
+	FROM songs s JOIN artists a ON a.id = s.artist_id JOIN plays p ON p.song_id = s.id%s
 	GROUP BY s.id
 	ORDER BY play_count DESC, lower(s.title) ASC, s.id ASC
 	LIMIT 10`
 
 // TopTen returns the ten most-played songs with their play counts.
-func (r *Repo) TopTen(ctx context.Context) ([]TopTenEntry, error) {
-	rows, err := r.db.QueryContext(ctx, topTenSelect)
+func (r *Repo) TopTen(ctx context.Context, includeUnpublished bool) ([]TopTenEntry, error) {
+	query := fmt.Sprintf(topTenSelect, publishedFilter(includeUnpublished, false))
+	rows, err := r.db.QueryContext(ctx, query)
 	if err != nil {
 		return nil, err
 	}
@@ -69,14 +75,16 @@ func scanSongWithCount(row scanner, count *int) (*Song, error) {
 	var s Song
 	var album, cover sql.NullString
 	var year, track sql.NullInt64
+	var published int64
 	if err := row.Scan(&s.ID, &s.Title, &s.ArtistID, &s.ArtistName, &album, &year, &track,
-		&s.DurationMS, &s.FilePath, &s.FileSize, &s.ContentHash, &cover, &s.CreatedAt, count); err != nil {
+		&s.DurationMS, &s.FilePath, &s.FileSize, &s.ContentHash, &cover, &s.CreatedAt, &published, count); err != nil {
 		return nil, err
 	}
 	s.Album = album.String
 	s.Year = int(year.Int64)
 	s.TrackNo = int(track.Int64)
 	s.CoverArtID = cover.String
+	s.Published = published != 0
 	s.Genres = []string{}
 	return &s, nil
 }

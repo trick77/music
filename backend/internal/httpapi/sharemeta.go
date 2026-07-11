@@ -58,7 +58,7 @@ func songMeta(ctx context.Context, repo *library.Repo, r *http.Request, id strin
 }
 
 func playlistMeta(ctx context.Context, repo *library.Repo, r *http.Request, id string) (string, bool) {
-	pl, err := repo.GetPlaylist(ctx, id)
+	pl, err := repo.GetPlaylist(ctx, id, false) // share preview is public; only published tracks
 	if err != nil || pl == nil {
 		return "", false
 	}

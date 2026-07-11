@@ -83,7 +83,7 @@ func (h *songHandlers) postPlay(w http.ResponseWriter, r *http.Request) {
 
 // getTopTen returns the deterministic ten-most-played chart. Public.
 func (h *songHandlers) getTopTen(w http.ResponseWriter, r *http.Request) {
-	entries, err := h.repo.TopTen(r.Context())
+	entries, err := h.repo.TopTen(r.Context(), identify(h.cfg, r).Authenticated)
 	if err != nil {
 		httpError(w, http.StatusInternalServerError, "top ten")
 		return

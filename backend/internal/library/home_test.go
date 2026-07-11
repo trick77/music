@@ -7,7 +7,7 @@ import (
 
 func TestHomeFeed_emptyLibraryDegradesGracefully(t *testing.T) {
 	r := newRepo(t)
-	feed, err := r.HomeFeed(context.Background(), 12, 8)
+	feed, err := r.HomeFeed(context.Background(), 12, 8, true)
 	if err != nil {
 		t.Fatalf("HomeFeed: %v", err)
 	}
@@ -29,7 +29,7 @@ func TestHomeFeed_recentNewestFirstWithLimit(t *testing.T) {
 	for _, name := range []string{"One", "Two", "Three"} {
 		seedSong(t, r, name)
 	}
-	feed, err := r.HomeFeed(ctx, 2, 8)
+	feed, err := r.HomeFeed(ctx, 2, 8, true)
 	if err != nil {
 		t.Fatalf("HomeFeed: %v", err)
 	}
@@ -67,7 +67,7 @@ func TestHomeFeed_genreChaptersHaveBackgroundAndSongs(t *testing.T) {
 		t.Fatalf("set active: %v", err)
 	}
 
-	feed, err := r.HomeFeed(ctx, 12, 8)
+	feed, err := r.HomeFeed(ctx, 12, 8, true)
 	if err != nil {
 		t.Fatalf("HomeFeed: %v", err)
 	}
@@ -104,7 +104,7 @@ func TestHomeFeed_heroPopulatedFromStarredFanart(t *testing.T) {
 	if err := r.SetHero(ctx, faID); err != nil {
 		t.Fatalf("set hero: %v", err)
 	}
-	feed, err := r.HomeFeed(ctx, 12, 8)
+	feed, err := r.HomeFeed(ctx, 12, 8, true)
 	if err != nil {
 		t.Fatalf("HomeFeed: %v", err)
 	}
@@ -129,7 +129,7 @@ func TestHomeFeed_zeroSongGenreOmitted(t *testing.T) {
 	if _, err := r.db.ExecContext(ctx, `INSERT INTO genres(id, name) VALUES(?,?)`, NewID(), "Empty"); err != nil {
 		t.Fatalf("insert genre: %v", err)
 	}
-	feed, err := r.HomeFeed(ctx, 12, 8)
+	feed, err := r.HomeFeed(ctx, 12, 8, true)
 	if err != nil {
 		t.Fatalf("HomeFeed: %v", err)
 	}

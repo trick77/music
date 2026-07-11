@@ -97,6 +97,8 @@ func TestShareMeta_playlistFallsBackToFirstSongCover(t *testing.T) {
 	if cr.Code != http.StatusOK {
 		t.Fatalf("song cover = %d, body=%s", cr.Code, cr.Body.String())
 	}
+	// Publish it: the share preview is public and only surfaces published tracks.
+	doJSON(t, h, "POST", "/api/songs/"+sid+"/publish", "")
 	doJSON(t, h, "POST", "/api/playlists/"+pid+"/songs", `{"songId":"`+sid+`"}`)
 
 	rr := httptest.NewRecorder()

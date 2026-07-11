@@ -92,7 +92,7 @@ func fanartMeta(fa *library.Fanart, authed bool) map[string]any {
 }
 
 func (h *songHandlers) genreExists(r *http.Request, id string) bool {
-	g, _, err := h.repo.GetGenre(r.Context(), id)
+	g, _, err := h.repo.GetGenre(r.Context(), id, true) // existence only; song list discarded
 	return err == nil && g != nil
 }
 
@@ -100,7 +100,7 @@ func (h *songHandlers) genreExists(r *http.Request, id string) bool {
 // hero id, and accent colour. Anonymous callers never see non-ready (generating /
 // failed) tiles; authenticated callers do (so the editor can show progress).
 func (h *songHandlers) getGenreExtended(w http.ResponseWriter, r *http.Request) {
-	genre, songs, err := h.repo.GetGenre(r.Context(), r.PathValue("id"))
+	genre, songs, err := h.repo.GetGenre(r.Context(), r.PathValue("id"), identify(h.cfg, r).Authenticated)
 	if err != nil {
 		httpError(w, http.StatusInternalServerError, "get genre")
 		return

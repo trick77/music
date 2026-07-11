@@ -24,7 +24,7 @@ func (h *songHandlers) patchGenre(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	genreID := r.PathValue("id")
-	g, _, err := h.repo.GetGenre(r.Context(), genreID)
+	g, _, err := h.repo.GetGenre(r.Context(), genreID, true) // existence only; song list discarded
 	if err != nil {
 		httpError(w, http.StatusInternalServerError, "get genre")
 		return

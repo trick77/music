@@ -28,7 +28,7 @@ func escapeLike(s string) string {
 
 // Search runs a case-insensitive substring match across songs (title), artists,
 // genres, and playlists (name), each group capped at limit.
-func (r *Repo) Search(ctx context.Context, q string, limit int) (*SearchResults, error) {
+func (r *Repo) Search(ctx context.Context, q string, limit int, includeUnpublished bool) (*SearchResults, error) {
 	res := &SearchResults{
 		Songs:     []Song{},
 		Artists:   []ArtistSummary{},
@@ -42,7 +42,7 @@ func (r *Repo) Search(ctx context.Context, q string, limit int) (*SearchResults,
 	like := "%" + escapeLike(q) + "%"
 
 	songRows, err := r.db.QueryContext(ctx,
-		songSelect+` WHERE s.title LIKE ? ESCAPE '\' ORDER BY lower(s.title), s.id LIMIT ?`, like, limit)
+		songSelect+` WHERE s.title LIKE ? ESCAPE '\'`+publishedFilter(includeUnpublished, true)+` ORDER BY lower(s.title), s.id LIMIT ?`, like, limit)
 	if err != nil {
 		return nil, err
 	}

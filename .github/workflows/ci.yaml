@@ -1,4 +1,4 @@
-name: ci
+name: CI
 
 # Tests run on pull requests (feature branches). Master does not run tests — it
 # builds and pushes the image (see release.yaml). No image build happens here.

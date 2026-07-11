@@ -15,11 +15,18 @@ import (
 // perCallTimeout bounds each individual tool call.
 const perCallTimeout = 30 * time.Second
 
-// Service routes tool calls to the right remote MCP server. Tool discovery is
-// lazy (first Tools call) so server boot never blocks on an MCP endpoint; a
-// server that fails discovery is skipped and the rest still work.
+// mcpClient is the behaviour Service needs from a tool server. It is satisfied
+// by the remote streamable-HTTP client and by the in-process fetch client.
+type mcpClient interface {
+	listTools(ctx context.Context) ([]Tool, error)
+	callTool(ctx context.Context, name string, arguments map[string]any) (string, error)
+}
+
+// Service routes tool calls to the right MCP server. Tool discovery is lazy
+// (first Tools call) so server boot never blocks on an MCP endpoint; a server
+// that fails discovery is skipped and the rest still work.
 type Service struct {
-	clients    map[string]*remoteClient
+	clients    map[string]mcpClient
 	httpClient *http.Client
 
 	mu         sync.Mutex
@@ -29,15 +36,21 @@ type Service struct {
 }
 
 type route struct {
-	client       *remoteClient
+	client       mcpClient
+	serverName   string
 	originalName string
 }
 
 // NewService builds a Service for the given servers (name -> config). Nil/empty
-// yields a Service whose Tools returns nothing.
+// yields a Service whose Tools returns nothing. A server with InProcess set is
+// served by the in-process fetch client; every other server is remote.
 func NewService(servers map[string]ServerConfig, httpClient *http.Client) *Service {
-	clients := make(map[string]*remoteClient, len(servers))
+	clients := make(map[string]mcpClient, len(servers))
 	for name, cfg := range servers {
+		if cfg.InProcess {
+			clients[name] = newFetchClient(name)
+			continue
+		}
 		clients[name] = newRemoteClient(name, cfg, httpClient)
 	}
 	return &Service{clients: clients, httpClient: httpClient}
@@ -70,7 +83,7 @@ func (s *Service) Tools(ctx context.Context) ([]llm.Tool, error) {
 			continue
 		}
 		for _, t := range discovered {
-			routes[t.Name] = route{client: client, originalName: t.OriginalName}
+			routes[t.Name] = route{client: client, serverName: name, originalName: t.OriginalName}
 			tools = append(tools, llm.Tool{
 				Type: "function",
 				Function: llm.ToolFunction{
@@ -107,9 +120,9 @@ func (s *Service) Call(ctx context.Context, name string, args map[string]any) (s
 	start := time.Now()
 	out, err := r.client.callTool(callCtx, r.originalName, args)
 	if err != nil {
-		slog.Warn("studio mcp: tool call failed", "server", r.client.serverName, "tool", name, "duration_ms", time.Since(start).Milliseconds(), "err", err)
+		slog.Warn("studio mcp: tool call failed", "server", r.serverName, "tool", name, "duration_ms", time.Since(start).Milliseconds(), "err", err)
 		return "", err
 	}
-	slog.Debug("studio mcp: tool call completed", "server", r.client.serverName, "tool", name, "duration_ms", time.Since(start).Milliseconds())
+	slog.Debug("studio mcp: tool call completed", "server", r.serverName, "tool", name, "duration_ms", time.Since(start).Milliseconds())
 	return out, nil
 }

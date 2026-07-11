@@ -129,6 +129,11 @@ export async function deletePlaylist(id: string): Promise<void> {
   if (!r.ok) throw new Error(`delete failed (${r.status})`);
 }
 
+export async function deleteSong(id: string): Promise<void> {
+  const r = await fetch(`/api/songs/${id}`, { method: "DELETE" });
+  if (!r.ok) throw new Error(`delete failed (${r.status})`);
+}
+
 export async function addSongToPlaylist(id: string, songId: string): Promise<PlaylistDetail> {
   const r = await fetch(`/api/playlists/${id}/songs`, {
     method: "POST",

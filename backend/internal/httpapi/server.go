@@ -144,6 +144,7 @@ func build(cfg config.Config, st *store.Store, spa http.Handler, gen imagegen.Pr
 			mux.HandleFunc("GET /api/home", h.getHome)
 			mux.HandleFunc("GET /api/search", h.getSearch)
 			mux.HandleFunc("PATCH /api/songs/{id}", h.patch)
+			mux.HandleFunc("DELETE /api/songs/{id}", h.delete)
 			mux.HandleFunc("GET /api/suggest", h.suggest)
 			mux.HandleFunc("PUT /api/songs/{id}/cover", h.putCover)
 			mux.HandleFunc("GET /api/cover/{id}", h.getCover)

@@ -291,14 +291,6 @@ export function StudioPage({ imageGenEnabled = false, chatEnabled = false, image
       {result && !busy && (
         <div style={{ marginTop: "2rem" }}>
           <ResultCard
-            name="Style prompt"
-            note="→ Suno “Style”"
-            count={`${result.stylePrompt.length} / ${STYLE_LIMIT}`}
-            text={result.stylePrompt}
-            monospace
-          />
-
-          <ResultCard
             name="Lyrics"
             note="→ Suno “Lyrics” · original, editable"
             text={result.lyrics}
@@ -325,6 +317,14 @@ export function StudioPage({ imageGenEnabled = false, chatEnabled = false, image
               Refine
             </Button>
           </form>
+
+          <ResultCard
+            name="Style prompt"
+            note="→ Suno “Style”"
+            count={`${result.stylePrompt.length} / ${STYLE_LIMIT}`}
+            text={result.stylePrompt}
+            monospace
+          />
 
           <ResultCard
             name="Cover-art prompt"

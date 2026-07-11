@@ -70,7 +70,7 @@ karaoke "wipe" highlighting. Line-level falls out of the word timings for free.
 | **1 — Lyrics field** | ✅ Done (PR #48) | Lyrics box + Clean button in the tag editor; read/write ID3 `USLT`. |
 | **2 — Alignment engine** | ✅ Done (PR #52) | Generate + store word-level timings via the sidecar. Engine only, no UI. |
 | **2.5 — Quality evaluation** | ✅ Validated (spike) | Real container built + run; a real Suno song aligned **cleanly** (see results below). Two build bugs found + fixed. |
-| **3 — Highlighting player** | 🔜 Next | Front-end karaoke view that highlights the active word/line as the song plays. In-app only. |
+| **3 — Highlighting player** | 🔜 Next | Apple-Music-style karaoke sweep in the full-screen player, trigger/indicator UI, and SYLT baked into downloads. |
 | **4 — Correction editor** | 📋 Planned | UI to hand-correct mis-timed words. |
 
 ---
@@ -189,27 +189,66 @@ skip it.
 
 ---
 
-## Phase 3 — Highlighting player (🔜 next after 2.5)
+## Phase 3 — Highlighting karaoke player (🔜 next after 2.5)
 
-**Goal:** while a song with `ready` timings plays, highlight the active word/line in
-time with the audio. **In-app only — no export** (decided: the timings are consumed
-solely by this app's player; no `.lrc` file, no SYLT-in-download).
+**Goal:** a beautiful in-app karaoke view — while a song with `ready` timings plays, a
+single continuous highlight sweeps across each line in time with the vocal (Apple-Music
+style), inactive lines depth-blurred, over the artwork backdrop — plus the trigger /
+lifecycle UI to generate timings, and baking the timings into the MP3 on download.
 
-Scope:
-1. **Karaoke view** in the web UI. On each audio `timeupdate` tick, find the active
-   segment (`start ≤ currentTime < end`), highlight the current word/line, and
-   auto-scroll it into view. Optional per-word gradient "wipe" using
-   `(currentTime − start) / (end − start)`. Fall back gracefully to the plain stored
-   lyrics when a song has no alignment. Gate on the `alignmentEnabled` session flag +
-   the per-song alignment `status`.
+### The player view (design locked via mock — see `docs/mockups/`)
+- Lives **inside the existing full-screen player** (`PlayerBar.tsx` `full` state), which
+  already paints a blurred cover-art background. A **Lyrics toggle** in the control row
+  swaps cover art ↔ karaoke sweep; artwork shrinks to a now-playing chip; the scrubber /
+  transport stay docked and keep driving playback. No new route or shell.
+- **Continuous per-line sweep** (NOT per-word): one bright overlay per line clipped to a
+  single leading edge that glides through words *and* the spaces between them, driven by
+  the word timings. Sweep speed tracks each word's duration (fast words accelerate, held
+  words ease), capped at `MAX_SWEEP` so long words don't crawl.
+- **Line-advance lead**: the active line takes focus/scroll `LEAD` seconds *before* its
+  first word (clamped past the previous line's end), so the eye arrives early.
+- Inactive lines **dim + blur, increasing with distance**; eased auto-scroll anchors the
+  active line ~40% down; top/bottom fade masks.
+- Validated mock values: `LEAD ≈ 0.6 s`, `MAX_SWEEP ≈ 1.2 s`; themed to loom tokens
+  (cream-ink fill, terracotta glow, serif type).
+- **Fallback**: lyrics but no alignment → plain lyrics; no lyrics → hide the Lyrics
+  toggle. Gate on `alignmentEnabled` + per-song `status`.
+
+### Triggering alignment (lyrics-driven + manual)
+Alignment is meaningless without lyrics and goes stale if lyrics change, so it's driven
+by lyrics availability — never blanket-on-import:
+1. **On lyrics save in the tag editor** — saving a non-empty, *changed* Lyrics field
+   auto-starts alignment in the background (covers "file had no lyrics, added later").
+2. **On import** — only when the uploaded MP3 already carries embedded lyrics.
+3. **Manual "Generate karaoke" / "Re-sync"** — in the Lyrics-view CTA and the song ···
+   menu (`SongMenu.tsx`), for on-demand runs or re-syncs.
+
+Editing lyrics later re-triggers (the DB upsert already resets the row to `generating`).
+
+### Async + queue + progress indicator
+- Runs as a background job (fanart pattern: detached goroutine, `generating/ready/failed`
+  DB status, boot reaper). The sidecar processes one song at a time, so triggers feed a
+  **serialized queue** (one alignment at a time) — a Phase 3 addition (Phase 2 has none).
+- **Indicator** driven by the song's `generating` status, shown everywhere the song
+  appears: the now-playing chip ("● Syncing karaoke…"), the **song row** in lists, the
+  Lyrics-view card, and optionally a global toast (like `UploadToast.tsx`). Clients poll
+  `GET /api/songs/:id/align` while generating.
+
+### Storage + download bake (SYLT)
+- **DB is the source of truth** — `song_alignment.data` JSON; **no server-side file**.
+- **On download, bake the timings into the MP3's `SYLT` (synchronised lyrics) frame**,
+  stamped like the other tags (title/artist/USLT/cover) via `metadata.StampTags` /
+  `songTags` — the stored file is untouched; timings go into the throwaway download copy.
+  *Impl caveat:* confirm `bogem/id3v2` supports `SYLT`; if not, add a small custom frame
+  writer. (Reverses the earlier "in-app only, no export" note.)
 
 Integration points:
-- Timings come from `GET /api/songs/:id/align` → `{status, engine, lines:[{text,
-  start,end,words:[{w,start,end,conf}]}]}` (see Data contract below).
-- The front end is React/TS with **inline `React.CSSProperties` + CSS custom
-  properties** (no CSS framework); mirror that. The now-playing player lives in
-  `ui/src` — decide during brainstorming where the karaoke view attaches (overlay,
-  dedicated route, or expanded now-playing panel).
+- Timings: `GET /api/songs/:id/align` → `{status, engine, lines:[{text,start,end,
+  words:[{w,start,end,conf}]}]}`.
+- Trigger: `POST /api/songs/:id/align` (exists) — wire it to the tag-editor save, the
+  CTA, and the song menu; add the serialized queue in front of it.
+- Front end is React/TS, inline `React.CSSProperties` + CSS custom properties (loom
+  tokens): player `PlayerBar.tsx`, menu `SongMenu.tsx`, tag editor `TagEditor.tsx`.
 
 Process: worktree; brainstorm the UI/placement first; write a plan; TDD; **verify the
 visible UI in a real browser (Playwright)**, not just build+tests; generic-subagent

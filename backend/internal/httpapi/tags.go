@@ -15,6 +15,7 @@ type editSongRequest struct {
 	Year       int      `json:"year"`
 	TrackNo    int      `json:"trackNo"`
 	Genres     []string `json:"genres"`
+	Lyrics     string   `json:"lyrics"`
 }
 
 func (h *songHandlers) patch(w http.ResponseWriter, r *http.Request) {
@@ -46,7 +47,7 @@ func (h *songHandlers) patch(w http.ResponseWriter, r *http.Request) {
 	// baked into the bytes on the fly at download time, not here.
 	updated, err := h.repo.Update(r.Context(), song.ID, library.UpdateSongParams{
 		Title: req.Title, ArtistName: req.ArtistName, Album: req.Album,
-		Year: req.Year, TrackNo: req.TrackNo, Genres: req.Genres, FileSize: song.FileSize,
+		Year: req.Year, TrackNo: req.TrackNo, Genres: req.Genres, Lyrics: req.Lyrics, FileSize: song.FileSize,
 	})
 	if err != nil {
 		serverError(w, "update song", err)

@@ -15,7 +15,7 @@ available tools (web search, and page fetch when available). Also search for the
 CURRENT set of Suno prompt/meta tags — Suno's supported tags change over time —
 and prefer tags you can confirm are current.
 
-Using what you learn, produce THREE things:
+Using what you learn, produce FOUR things:
 
 1. stylePrompt — a comma-separated list of style/genre descriptors for Suno's
    "Style" box. Rules: NO spaces after commas; lowercase except proper nouns;
@@ -39,9 +39,15 @@ Using what you learn, produce THREE things:
    aesthetic is period-correct (e.g. a 1991 thrash-metal cover, not a modern one).
    No text in the image; square album composition.
 
+4. genres — an array of UP TO 3 concise genre names that best classify the song
+   (1-3 words each, e.g. "synthwave", "dream pop", "drum and bass"). Lowercase,
+   no duplicates, most representative first. These are the song's genres, distinct
+   from the fuller comma-separated stylePrompt above. Return fewer than 3 if the
+   song does not warrant three; never more than 3.
+
 When you have finished researching, respond with ONLY a single JSON object and
 nothing else (no prose, no code fences):
-{"stylePrompt":"...","lyrics":"...","coverArtPrompt":"..."}`
+{"stylePrompt":"...","lyrics":"...","coverArtPrompt":"...","genres":["...","...","..."]}`
 
 // refineSystemPrompt instructs MiMo to rewrite only the lyrics per an instruction.
 const refineSystemPrompt = `You revise Suno lyrics. You are given a reference song, the current ORIGINAL

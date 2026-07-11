@@ -35,7 +35,7 @@ func (c *cannedChat) Chat(_ context.Context, messages []llm.Message, tools []llm
 
 func TestGenerate_parsesThreeFieldsFromFencedJSON(t *testing.T) {
 	chat := &cannedChat{reply: "Here you go:\n```json\n" +
-		`{"stylePrompt":"1990s,heavy metal,thrash","lyrics":"[Verse]\nfresh words","coverArtPrompt":"a dim bedroom, 1991 thrash aesthetic"}` +
+		`{"stylePrompt":"1990s,heavy metal,thrash","lyrics":"[Verse]\nfresh words","coverArtPrompt":"a dim bedroom, 1991 thrash aesthetic","genres":["heavy metal","thrash","heavy metal","groove metal","nu metal"]}` +
 		"\n```\nHope that helps!"}
 	p := New(chat, &fakeTools{})
 
@@ -45,6 +45,10 @@ func TestGenerate_parsesThreeFieldsFromFencedJSON(t *testing.T) {
 	}
 	if res.StylePrompt != "1990s,heavy metal,thrash" {
 		t.Fatalf("StylePrompt = %q", res.StylePrompt)
+	}
+	// Genres are de-duplicated (case-insensitively) and capped at 3.
+	if len(res.Genres) != 3 || res.Genres[0] != "heavy metal" || res.Genres[1] != "thrash" || res.Genres[2] != "groove metal" {
+		t.Fatalf("Genres = %#v, want [heavy metal, thrash, groove metal]", res.Genres)
 	}
 	if !strings.Contains(res.Lyrics, "[Verse]") {
 		t.Fatalf("Lyrics = %q", res.Lyrics)

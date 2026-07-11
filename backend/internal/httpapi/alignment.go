@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"math"
 	"net/http"
 	"path/filepath"
 	"strings"
@@ -113,7 +114,8 @@ func (h *songHandlers) runAlignment(songID, relPath, lyrics string) {
 			h.failAlignment(songID, fmt.Sprintf("alignment panicked: %v", p))
 		}
 	}()
-	slog.Info("alignment started", "song", songID)
+	started := time.Now()
+	slog.Info("alignment started", "song", songID, "queued", len(h.alignQueue))
 	f, err := h.media.Open(relPath)
 	if err != nil {
 		h.failAlignment(songID, "open audio: "+err.Error())
@@ -125,6 +127,7 @@ func (h *songHandlers) runAlignment(songID, relPath, lyrics string) {
 	defer cancel()
 	res, err := h.aligner.Align(genCtx, f, filepath.Base(relPath), lyrics)
 	if err != nil {
+		slog.Error("alignment failed", "song", songID, "elapsed", time.Since(started).Round(time.Millisecond), "err", err)
 		h.failAlignment(songID, err.Error())
 		return
 	}
@@ -140,7 +143,61 @@ func (h *songHandlers) runAlignment(songID, relPath, lyrics string) {
 		slog.Error("alignment: record failed", "song", songID, "err", err)
 		return
 	}
-	slog.Info("alignment completed", "song", songID, "lines", len(res.Lines))
+	st := summarizeAlignment(res)
+	slog.Info("alignment completed",
+		"song", songID,
+		"engine", res.Engine,
+		"elapsed", time.Since(started).Round(time.Millisecond),
+		"lines", len(res.Lines),
+		"words", st.words,
+		"span", st.spanSeconds(),
+		"lowConfPct", st.lowConfPct(),
+	)
+}
+
+// alignStats are the conversion metrics logged on a completed alignment, mirroring
+// the Phase 2.5 quality checks (coverage span + low-confidence share).
+type alignStats struct {
+	words     int
+	lowConf   int     // words with conf < 0.4
+	firstWord float64 // start of the first word
+	lastWord  float64 // end of the last word
+}
+
+func (s alignStats) spanSeconds() float64 {
+	if s.words == 0 {
+		return 0
+	}
+	return math.Round((s.lastWord-s.firstWord)*10) / 10
+}
+
+func (s alignStats) lowConfPct() int {
+	if s.words == 0 {
+		return 0
+	}
+	return int(math.Round(float64(s.lowConf) / float64(s.words) * 100))
+}
+
+func summarizeAlignment(res *align.Result) alignStats {
+	st := alignStats{firstWord: math.Inf(1)}
+	for _, ln := range res.Lines {
+		for _, w := range ln.Words {
+			st.words++
+			if w.Conf < 0.4 {
+				st.lowConf++
+			}
+			if w.Start < st.firstWord {
+				st.firstWord = w.Start
+			}
+			if w.End > st.lastWord {
+				st.lastWord = w.End
+			}
+		}
+	}
+	if st.words == 0 {
+		st.firstWord = 0
+	}
+	return st
 }
 
 func (h *songHandlers) failAlignment(songID, reason string) {

@@ -292,6 +292,32 @@ func TestDownload_baksSYLTWhenAligned(t *testing.T) {
 	}
 }
 
+func TestSummarizeAlignment(t *testing.T) {
+	res := &align.Result{Engine: "e", Lines: []align.Line{
+		{Words: []align.Word{{W: "a", Start: 20.0, End: 20.4, Conf: 0.9}, {W: "b", Start: 20.4, End: 21.0, Conf: 0.2}}},
+		{Words: []align.Word{{W: "c", Start: 50.0, End: 51.5, Conf: 0.8}}},
+	}}
+	st := summarizeAlignment(res)
+	if st.words != 3 {
+		t.Fatalf("words = %d, want 3", st.words)
+	}
+	if st.lowConf != 1 {
+		t.Fatalf("lowConf = %d, want 1", st.lowConf)
+	}
+	if got := st.spanSeconds(); got != 31.5 { // 51.5 - 20.0
+		t.Fatalf("span = %v, want 31.5", got)
+	}
+	if got := st.lowConfPct(); got != 33 { // 1/3
+		t.Fatalf("lowConfPct = %d, want 33", got)
+	}
+
+	// Empty result must not panic or produce NaN/Inf.
+	empty := summarizeAlignment(&align.Result{Engine: "e"})
+	if empty.words != 0 || empty.spanSeconds() != 0 || empty.lowConfPct() != 0 {
+		t.Fatalf("empty stats wrong: %+v span=%v pct=%d", empty, empty.spanSeconds(), empty.lowConfPct())
+	}
+}
+
 func TestAlignQueue_RunsOneAtATime(t *testing.T) {
 	spy := &serialSpyAligner{release: make(chan struct{})}
 	h, id0 := alignTestHandler(t, spy)

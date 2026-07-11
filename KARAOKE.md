@@ -69,8 +69,8 @@ karaoke "wipe" highlighting. Line-level falls out of the word timings for free.
 |-------|--------|---------|
 | **1 — Lyrics field** | ✅ Done (PR #48) | Lyrics box + Clean button in the tag editor; read/write ID3 `USLT`. |
 | **2 — Alignment engine** | ✅ Done (PR #52) | Generate + store word-level timings via the sidecar. Engine only, no UI. |
-| **2.5 — Quality evaluation** | ⏳ Deferred (do before Phase 3) | Prove the sidecar actually produces usable timings; fix the tokenizer cascade. |
-| **3 — Highlighting player** | 📋 Planned | Front-end karaoke view that highlights the active word/line; `.lrc` export. |
+| **2.5 — Quality evaluation** | ✅ Validated (spike) | Real container built + run; a real Suno song aligned **cleanly** (see results below). Two build bugs found + fixed. |
+| **3 — Highlighting player** | 🔜 Next | Front-end karaoke view that highlights the active word/line; `.lrc` export. |
 | **4 — Correction editor** | 📋 Planned | UI to hand-correct mis-timed words. |
 
 ---
@@ -137,10 +137,10 @@ sidecar); Python `grouping.py` unit tests. All ML-free and green.
 
 These are documented in-code and carried forward honestly:
 
-1. **Alignment *quality* is unverified.** Phase 2's plumbing is proven end-to-end, but
-   no real sidecar run has confirmed the timings are *usable*. The load-bearing
-   assumption — feeding the whole lyric to WhisperX as one `[0, duration]` segment —
-   is unproven on real songs.
+1. **Alignment *quality* is validated on one clean track, not broadly.** The Phase 2.5
+   spike confirmed the whole-track-single-segment approach produces good timings on a
+   slower, clear Suno vocal (see above). It has **not** been tested on busy mixes,
+   fast/rap vocals, or non-English — those may need lyric chunking or per-song tuning.
 2. **Tokenizer-mismatch cascade** in `sidecar/align/grouping.py`. Line word counts use
    naive `str.split()`, but the flat word list comes from WhisperX's own tokenization.
    A per-line count mismatch (apostrophes, hyphens, punctuation, dropped words) shifts
@@ -150,23 +150,42 @@ These are documented in-code and carried forward honestly:
 
 ---
 
-## Phase 2.5 — Quality evaluation (⏳ do this before Phase 3)
+## Phase 2.5 — Quality evaluation (✅ validated)
 
-**Why first:** building a player on top of unverified timings risks faithfully
-displaying bad data. De-risk the engine before investing in UI.
+De-risked the engine before investing in the player, by building + running the **real
+container** and aligning a real song end-to-end.
 
-Scope:
-- Build + run the sidecar container (`sidecar/align/Containerfile`) with models.
-- Run the smoke test: align a few real songs with known lyrics; assert per-word times
-  are monotonic, within `[0, duration]`, and every input word is present.
-- Evaluate the single-whole-track-segment approach vs. chunking the lyrics into a few
-  multi-line segments; pick whichever aligns better.
-- Fix the tokenizer cascade (limitation #2): map WhisperX tokens back to source words
-  instead of counting, so a mismatch can't silently shift later lines.
-- Record findings (accuracy, failure modes, per-song runtime CPU vs GPU) back into
-  this file.
+### Build bugs found + fixed
+1. **`Containerfile` name breaks Docker.** `docker build` / `docker compose build`
+   default to `Dockerfile`. Fixed `compose.yaml` to `build: {context, dockerfile:
+   Containerfile}` + `platform: linux/amd64`.
+2. **Unpinned deps + arch.** `demucs` pulls `sphn`, which has no arm64 wheel → Rust
+   source build fails on the slim image. Prod is amd64 (release.yaml), where wheels
+   exist. Fixed by building `linux/amd64` and **pinning** `requirements.txt` to the
+   validated versions (torch 2.8.0, whisperx 3.8.6, demucs 4.1.0, fastapi 0.139.0,
+   uvicorn 0.51.0, python-multipart 0.0.32).
 
-Deliverable: a documented, trustworthy engine — or a concrete list of what to change.
+### Runtime: validated, no `app.py` bugs
+Container builds (8.57 GB), `/health` 200, all heavy imports load. `/align` returns the
+exact JSON contract; Demucs + WhisperX + `grouping.py` all fire. First call downloads
+models (~360 MB align + Demucs); mount `-v music-align-cache:/root/.cache` so later runs
+skip it.
+
+### Quality: a real Suno track ("When the canopy…", 208 s) aligned cleanly
+- 190 words spanning **20.9 s → 204.3 s** — words fill the whole song; the instrumental
+  intro (0–21 s) correctly has none. The whole-track-single-segment approach (the main
+  risk) **did not collapse**.
+- Timings monotonic, non-overlapping. Confidence median **0.79** (max 0.98), only
+  ~9% below 0.4.
+- The 4 repeated chorus lines placed at **distinct** positions (51 / 70 / 125 / 180 s),
+  not smeared onto one — the hard repeated-block case worked.
+- Confirmed good on playback. **Verdict: the approach works; greenlight Phase 3.**
+
+### Still unproven (revisit if quality regresses)
+- Only one clean, slower vocal tested. Busier/faster/rap tracks may be harder.
+- The **tokenizer-mismatch cascade** (limitation #2 below) did not visibly manifest
+  here, but is not proven robust — watch for it on tougher songs. The spike driver +
+  self-contained HTML preview (`align_preview.py`) can re-check any song quickly.
 
 ---
 

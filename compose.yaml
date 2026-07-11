@@ -29,6 +29,11 @@ services:
       BACKEND_CHAT_API_KEY: "${BACKEND_CHAT_API_KEY:-}"
       BACKEND_TAVILY_URL: "${BACKEND_TAVILY_URL:-https://mcp.tavily.com/mcp/}"
       BACKEND_TAVILY_API_KEY: "${BACKEND_TAVILY_API_KEY:-}"
+      # Karaoke word-timing alignment (optional; leave empty to disable). To enable,
+      # start the sidecar with `docker compose --profile align up` and set this to
+      # http://align:8000.
+      BACKEND_ALIGN_URL: "${BACKEND_ALIGN_URL:-}"
+      BACKEND_ALIGN_TIMEOUT: "${BACKEND_ALIGN_TIMEOUT:-10m}"
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8080/api/health"]
       interval: 60s
@@ -50,6 +55,25 @@ services:
       traefik.http.routers.music.entrypoints: websecure
       traefik.http.routers.music.tls: "true"
       traefik.http.services.music.loadbalancer.server.port: "8080"
+
+  # Word-timing alignment sidecar (WhisperX + Demucs). Opt-in and heavy (GBs of ML
+  # deps + models), so it only starts under the "align" profile:
+  #   docker compose --profile align up -d
+  # Then set BACKEND_ALIGN_URL=http://align:8000 on the music service.
+  align:
+    build: ./sidecar/align       # or image: ghcr.io/trick77/music-align:latest once published
+    restart: unless-stopped
+    profiles: ["align"]
+    networks:
+      - traefik                  # shared network so `music` can resolve `align` by name
+    # GPU (optional, ~10x faster). Uncomment with the NVIDIA container toolkit installed:
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: 1
+    #           capabilities: [gpu]
 
 networks:
   traefik:

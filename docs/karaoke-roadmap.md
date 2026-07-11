@@ -7,7 +7,7 @@ and has (or will have) its own design spec under `docs/superpowers/specs/`.
 | Phase | Status | What it delivers |
 |-------|--------|------------------|
 | **1 — Lyrics field** | ✅ Done (PR #48) | A Lyrics box + Clean button in the tag editor. Reads/writes the ID3 `USLT` frame; auto-strips Suno `[Verse]`/`[Chorus]` directives on import. Stores the words — the prerequisite for everything below. |
-| **2 — Alignment engine** | 🔨 In design | Generate + store **word-level timings** (`{word, start, end}`) for a song from its stored lyrics + audio. Self-hosted alignment **sidecar** (WhisperX + Demucs vocal isolation); Go calls it submit→poll→store, fanart-style async status. No visible player yet. Spec: `docs/superpowers/specs/2026-07-11-karaoke-alignment-engine-design.md`. |
+| **2 — Alignment engine** | 🔨 Implemented (PR pending) | Generate + store **word-level timings** (`{word, start, end}`) for a song from its stored lyrics + audio. Self-hosted alignment **sidecar** (WhisperX + Demucs vocal isolation); Go calls it submit→poll→store, fanart-style async status. No visible player yet. Spec: `docs/superpowers/specs/2026-07-11-karaoke-alignment-engine-design.md`. |
 | **3 — Highlighting player** | 📋 Planned | Front-end karaoke view: on each audio tick, highlight the active word/line from the stored timings; optional per-word gradient "wipe." Enhanced-LRC (`.lrc`) export of the timings. |
 | **4 — Correction editor** | 📋 Planned | UI to hand-nudge mis-timed words (sung vocals never align perfectly). Tap-to-retime, shift a line, re-run a single stanza. |
 

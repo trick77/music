@@ -13,6 +13,7 @@ import (
 	"testing"
 	"time"
 
+	id3v2 "github.com/bogem/id3v2/v2"
 	"github.com/trick77/music/internal/align"
 	"github.com/trick77/music/internal/config"
 	"github.com/trick77/music/internal/library"
@@ -250,6 +251,44 @@ func TestSave_NoTriggerWhenUnchangedOrCleared(t *testing.T) {
 	time.Sleep(120 * time.Millisecond)
 	if a, _ := h.repo.GetAlignment(context.Background(), id); a.Status == "generating" {
 		t.Fatalf("clearing lyrics must not trigger alignment")
+	}
+}
+
+func TestDownload_baksSYLTWhenAligned(t *testing.T) {
+	h := newTriggerHandler(t, nil) // no aligner needed; we seed a ready row directly
+	ctx := context.Background()
+	data, _ := os.ReadFile("../metadata/testdata/sample.mp3")
+	id := uploadTo(t, h, "sample.mp3", data)
+
+	// Seed a ready alignment row (as the worker would).
+	if _, err := h.repo.StartAlignment(ctx, id); err != nil {
+		t.Fatal(err)
+	}
+	lines := `[{"text":"hi there","start":1,"end":2,"words":[{"w":"hi","start":1.0,"end":1.4,"conf":0.9},{"w":"there","start":1.4,"end":2.0,"conf":0.9}]}]`
+	if err := h.repo.MarkAlignmentReady(ctx, id, "stub", lines); err != nil {
+		t.Fatal(err)
+	}
+
+	req := httptest.NewRequest("GET", "/api/songs/"+id+"/download", nil)
+	req.SetPathValue("id", id)
+	rr := httptest.NewRecorder()
+	h.download(rr, req)
+	if rr.Code != http.StatusOK {
+		t.Fatalf("download = %d, body=%s", rr.Code, rr.Body.String())
+	}
+
+	// The downloaded copy must carry a SYLT frame.
+	out := t.TempDir() + "/dl.mp3"
+	if err := os.WriteFile(out, rr.Body.Bytes(), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	tag, err := id3v2.Open(out, id3v2.Options{Parse: true})
+	if err != nil {
+		t.Fatalf("downloaded file did not parse: %v", err)
+	}
+	defer tag.Close()
+	if frames := tag.GetFrames("SYLT"); len(frames) != 1 {
+		t.Fatalf("want 1 SYLT frame in download, got %d", len(frames))
 	}
 }
 

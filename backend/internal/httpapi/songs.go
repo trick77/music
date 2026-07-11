@@ -15,6 +15,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/trick77/music/internal/align"
 	"github.com/trick77/music/internal/config"
 	"github.com/trick77/music/internal/imagegen"
 	"github.com/trick77/music/internal/library"
@@ -357,6 +358,13 @@ func (h *songHandlers) songTags(ctx context.Context, s *library.Song) metadata.W
 		Genres:  s.Genres,
 		Lyrics:  s.Lyrics,
 	}
+	// Karaoke: bake word timings into a SYLT frame when the song is aligned. Best
+	// effort — any failure just omits SYLT so the download still succeeds.
+	if a, err := h.repo.GetAlignment(ctx, s.ID); err == nil && a != nil && a.Status == "ready" {
+		if words := syltWords(a.Data); len(words) > 0 {
+			t.Synced = words
+		}
+	}
 	if s.CoverArtID == "" {
 		return t
 	}
@@ -371,6 +379,27 @@ func (h *songHandlers) songTags(ctx context.Context, s *library.Song) metadata.W
 	t.CoverBytes = data
 	t.CoverMIME = imagegen.MIMEType(filepath.Ext(relPath))
 	return t
+}
+
+// syltWords flattens stored alignment line JSON into SYLT sync entries, one per
+// word, prefixing each line's first word with "\n" so players render line breaks
+// and every later word with a space so the line reads naturally.
+func syltWords(data string) []metadata.SyncedWord {
+	var lines []align.Line
+	if err := json.Unmarshal([]byte(data), &lines); err != nil {
+		return nil
+	}
+	var out []metadata.SyncedWord
+	for _, ln := range lines {
+		for i, wd := range ln.Words {
+			text := " " + wd.W
+			if i == 0 {
+				text = "\n" + wd.W
+			}
+			out = append(out, metadata.SyncedWord{Text: text, TimeMs: uint32(wd.Start * 1000)})
+		}
+	}
+	return out
 }
 
 func isMP3(filename, contentType string) bool {

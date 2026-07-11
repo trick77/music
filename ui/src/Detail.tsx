@@ -38,6 +38,8 @@ type Props = {
   onShare: (url: string) => void;
   onEditPlaylist: (pl: PD) => void;
   renderRowActions: (s: Song) => ReactNode;
+  /** Bump to force a re-fetch of this page's songs (e.g. after a tag edit). */
+  reloadKey?: number;
 };
 
 // Detail is the single immersive template for genre / artist / playlist pages:
@@ -45,7 +47,7 @@ type Props = {
 // edge. Per-kind data loads behind one shared layout so arrangements can change
 // without a rewrite. Existing edit flows (genre background editor, playlist
 // editor) are preserved behind the authenticated flag.
-export function Detail({ kind, id, authenticated, studioEnabled, imageGenEnabled, onPlay, onShare, onEditPlaylist, renderRowActions }: Props) {
+export function Detail({ kind, id, authenticated, studioEnabled, imageGenEnabled, onPlay, onShare, onEditPlaylist, renderRowActions, reloadKey }: Props) {
   const [genre, setGenre] = useState<GD | null>(null);
   const [playlist, setPlaylist] = useState<PD | null>(null);
   const [artist, setArtist] = useState<{ artist: { id: string; name: string; songCount: number }; songs: Song[] } | null>(null);
@@ -65,16 +67,23 @@ export function Detail({ kind, id, authenticated, studioEnabled, imageGenEnabled
     }
   };
 
+  // Clear stale content only when navigating to a different page. A reloadKey
+  // bump (e.g. after a tag edit) must NOT null the view — that would flash a
+  // "Loading…" over the current page; the fetch below swaps new data in place.
   useEffect(() => {
     setGenre(null);
     setPlaylist(null);
     setArtist(null);
     setNotFound(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [kind, id]);
+
+  useEffect(() => {
     if (kind === "genre") loadGenre();
     else if (kind === "playlist") getPlaylist(id).then(setPlaylist).catch(() => setNotFound(true));
     else getArtist(id).then(setArtist).catch(() => setNotFound(true));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [kind, id]);
+  }, [kind, id, reloadKey]);
 
   if (notFound) {
     return (

@@ -49,6 +49,44 @@ func uploadFixture(t *testing.T, h http.Handler) *httptest.ResponseRecorder {
 	return rr
 }
 
+func uploadBytes(t *testing.T, h http.Handler, filename string, data []byte) *httptest.ResponseRecorder {
+	t.Helper()
+	var body bytes.Buffer
+	mw := multipart.NewWriter(&body)
+	fw, _ := mw.CreateFormFile("file", filename)
+	fw.Write(data)
+	mw.Close()
+	req := httptest.NewRequest("POST", "/api/songs", &body)
+	req.Header.Set("Content-Type", mw.FormDataContentType())
+	rr := httptest.NewRecorder()
+	h.ServeHTTP(rr, req)
+	return rr
+}
+
+// A file that isn't a clean, tag-parseable MP3 (upload validation is loose) must
+// still download — the tag-stamping step must never turn a download into a 500.
+func TestDownload_nonParseableFileStillServes(t *testing.T) {
+	h := testServer(t, config.AuthModeDev)
+	junk := bytes.Repeat([]byte("not really an mp3\x00\xff"), 64)
+	up := uploadBytes(t, h, "junk.mp3", junk)
+	if up.Code != http.StatusCreated {
+		t.Fatalf("upload = %d, body=%s", up.Code, up.Body.String())
+	}
+	var song struct {
+		ID string `json:"id"`
+	}
+	json.Unmarshal(up.Body.Bytes(), &song)
+
+	rr := httptest.NewRecorder()
+	h.ServeHTTP(rr, httptest.NewRequest("GET", "/api/songs/"+song.ID+"/download", nil))
+	if rr.Code != http.StatusOK {
+		t.Fatalf("download of non-parseable file = %d, want 200", rr.Code)
+	}
+	if len(rr.Body.Bytes()) == 0 {
+		t.Fatal("download returned empty body")
+	}
+}
+
 func TestUpload_devParsesTagsAndLists(t *testing.T) {
 	h := testServer(t, config.AuthModeDev)
 	rr := uploadFixture(t, h)

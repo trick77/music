@@ -1,6 +1,8 @@
 package metadata
 
 import (
+	"io"
+	"os"
 	"strconv"
 	"strings"
 
@@ -50,4 +52,33 @@ func WriteTags(path string, t WriteableTags) error {
 	tag.SetGenre(strings.Join(t.Genres, "; "))
 
 	return tag.Save()
+}
+
+// StampTags copies the MP3 at srcPath to dstPath and writes the given tags into
+// the copy, leaving the source untouched. The DB is the source of truth for tags;
+// downloads use this to bake the current tags into a throwaway copy without ever
+// mutating the stored file. The caller owns dstPath's lifetime (typically a temp
+// file it deletes after serving).
+func StampTags(srcPath, dstPath string, t WriteableTags) error {
+	if err := copyFile(srcPath, dstPath); err != nil {
+		return err
+	}
+	return WriteTags(dstPath, t)
+}
+
+func copyFile(src, dst string) error {
+	in, err := os.Open(src)
+	if err != nil {
+		return err
+	}
+	defer in.Close()
+	out, err := os.Create(dst)
+	if err != nil {
+		return err
+	}
+	if _, err := io.Copy(out, in); err != nil {
+		out.Close()
+		return err
+	}
+	return out.Close()
 }

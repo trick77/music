@@ -4,10 +4,8 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
-	"os"
 
 	"github.com/trick77/music/internal/library"
-	"github.com/trick77/music/internal/metadata"
 )
 
 type editSongRequest struct {
@@ -43,30 +41,12 @@ func (h *songHandlers) patch(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Write to the FILE first (crash-safe rename inside WriteTags): if this fails
-	// the DB is untouched.
-	abs, err := h.media.Resolve(song.FilePath)
-	if err != nil {
-		serverError(w, "resolve file", err)
-		return
-	}
-	if err := metadata.WriteTags(abs, metadata.WriteableTags{
-		Title: req.Title, Artist: req.ArtistName, Album: req.Album,
-		Year: req.Year, TrackNo: req.TrackNo, Genres: req.Genres,
-	}); err != nil {
-		serverError(w, "write tags", err)
-		return
-	}
-	// Refresh the recorded size from the rewritten file; if Stat fails, keep the
-	// prior value rather than zeroing it.
-	size := song.FileSize
-	if info, err := os.Stat(abs); err == nil {
-		size = info.Size()
-	}
-
+	// The DB is the source of truth for tags: an edit only updates the row. The
+	// stored file is left untouched (so its size is unchanged); current tags are
+	// baked into the bytes on the fly at download time, not here.
 	updated, err := h.repo.Update(r.Context(), song.ID, library.UpdateSongParams{
 		Title: req.Title, ArtistName: req.ArtistName, Album: req.Album,
-		Year: req.Year, TrackNo: req.TrackNo, Genres: req.Genres, FileSize: size,
+		Year: req.Year, TrackNo: req.TrackNo, Genres: req.Genres, FileSize: song.FileSize,
 	})
 	if err != nil {
 		serverError(w, "update song", err)

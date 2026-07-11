@@ -1,6 +1,7 @@
 package metadata
 
 import (
+	"bytes"
 	"io"
 	"os"
 	"path/filepath"
@@ -70,6 +71,40 @@ func TestWriteTags_writesToFileAndPreservesAudio(t *testing.T) {
 	// Audio must survive the rewrite: duration unchanged (go-mp3 re-decode).
 	if before.DurationMS < 1850 || after.DurationMS < before.DurationMS-50 || after.DurationMS > before.DurationMS+50 {
 		t.Fatalf("duration changed by rewrite: before=%d after=%d", before.DurationMS, after.DurationMS)
+	}
+}
+
+func TestStampTags_writesCopyLeavesSourceUntouched(t *testing.T) {
+	src := copyFixture(t) // a throwaway copy of the committed fixture acts as the "stored" file
+	srcBefore, err := os.ReadFile(src)
+	if err != nil {
+		t.Fatalf("read source: %v", err)
+	}
+
+	dst := filepath.Join(t.TempDir(), "download.mp3")
+	if err := StampTags(src, dst, WriteableTags{
+		Title:  "Download Title",
+		Artist: "Download Artist",
+		Album:  "Download Album",
+		Year:   2001,
+		Genres: []string{"Ambient"},
+	}); err != nil {
+		t.Fatalf("StampTags: %v", err)
+	}
+
+	// The stamped copy carries the new tags.
+	after := parsePath(t, dst)
+	if after.Title != "Download Title" || after.Artist != "Download Artist" || after.Album != "Download Album" {
+		t.Fatalf("stamped copy missing tags: %+v", after)
+	}
+
+	// The source (source-of-truth-on-disk-is-bytes) is byte-for-byte unchanged.
+	srcAfter, err := os.ReadFile(src)
+	if err != nil {
+		t.Fatalf("re-read source: %v", err)
+	}
+	if !bytes.Equal(srcBefore, srcAfter) {
+		t.Fatal("StampTags mutated the source file; it must only write the destination copy")
 	}
 }
 

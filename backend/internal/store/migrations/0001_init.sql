@@ -27,10 +27,12 @@ CREATE TABLE songs (
     file_size    INTEGER NOT NULL DEFAULT 0,
     content_hash TEXT NOT NULL DEFAULT '',
     cover_art_id TEXT REFERENCES cover_art(id) ON DELETE SET NULL,
+    is_published INTEGER NOT NULL DEFAULT 0,   -- publish gate: uploads land unpublished, logged-in only
     created_at   TEXT NOT NULL DEFAULT (datetime('now'))
 );
 CREATE INDEX idx_songs_artist ON songs(artist_id);
 CREATE INDEX idx_songs_album ON songs(artist_id, album);
+CREATE INDEX idx_songs_published ON songs(is_published);
 
 CREATE TABLE genres (
     id           TEXT PRIMARY KEY,
@@ -51,8 +53,10 @@ CREATE TABLE playlists (
     name         TEXT NOT NULL,
     description  TEXT,
     cover_art_id TEXT REFERENCES cover_art(id) ON DELETE SET NULL,
+    is_published INTEGER NOT NULL DEFAULT 0,   -- publish gate: new playlists land unpublished, logged-in only
     created_at   TEXT NOT NULL DEFAULT (datetime('now'))
 );
+CREATE INDEX idx_playlists_published ON playlists(is_published);
 
 CREATE TABLE playlist_songs (
     playlist_id TEXT NOT NULL REFERENCES playlists(id) ON DELETE CASCADE,
@@ -124,3 +128,18 @@ CREATE TABLE album_covers (
 -- ORDER BY position for a playlist. position is NOT unique (ties are allowed
 -- and resolved by the reorder rewrite).
 CREATE INDEX idx_playlist_songs_order ON playlist_songs(playlist_id, position);
+
+-- ── Folded from former 0004 (per-user favorites) ───────────────────────────
+-- Per-user favorited songs, for logged-in users only. Anonymous users keep
+-- favorites in browser localStorage and never write here; logged-in users
+-- persist favorites keyed by session username (there is no users table, so the
+-- username string is the owner). Deleting a song cascades to its favorite rows.
+-- PRIMARY KEY (username, song_id) already indexes username as its leftmost
+-- prefix, which serves the only query shape (WHERE username = ?), so no
+-- separate index on username is needed.
+CREATE TABLE favorites (
+    username   TEXT NOT NULL,
+    song_id    TEXT NOT NULL REFERENCES songs(id) ON DELETE CASCADE,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    PRIMARY KEY (username, song_id)
+);

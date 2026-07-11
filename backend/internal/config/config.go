@@ -61,7 +61,6 @@ type Config struct {
 	ChatAPIKey   string
 	TavilyURL    string // Tavily search MCP server
 	TavilyAPIKey string
-	FetchMCPURL  string // web-fetch MCP server (optional; enhances research)
 }
 
 // ImageGenEnabled reports whether AI image generation is configured (a BFL key is set).
@@ -143,7 +142,6 @@ func Load() (Config, error) {
 	cfg.ChatAPIKey = env("BACKEND_CHAT_API_KEY", "")
 	cfg.TavilyURL = env("BACKEND_TAVILY_URL", "https://mcp.tavily.com/mcp/")
 	cfg.TavilyAPIKey = env("BACKEND_TAVILY_API_KEY", "")
-	cfg.FetchMCPURL = env("BACKEND_FETCH_MCP_URL", "")
 	if cfg.ChatAPIKey != "" && cfg.ChatBaseURL == "" {
 		return Config{}, fmt.Errorf("BACKEND_CHAT_BASE_URL is required when BACKEND_CHAT_API_KEY is set")
 	}

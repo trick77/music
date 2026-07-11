@@ -11,25 +11,13 @@ services:
       BACKEND_DB_PATH: /data/music.db
       BACKEND_MEDIA_DIR: /data/media
       # Studio (optional): set the chat + Tavily keys in your shell/.env to enable
-      # it. The fetch sidecar below is reached by Compose service DNS name.
+      # it. Page-fetch runs in-process (github.com/trick77/webfetch).
       BACKEND_CHAT_BASE_URL: "${BACKEND_CHAT_BASE_URL:-}"
       BACKEND_CHAT_API_KEY: "${BACKEND_CHAT_API_KEY:-}"
       BACKEND_TAVILY_URL: "${BACKEND_TAVILY_URL:-https://mcp.tavily.com/mcp/}"
       BACKEND_TAVILY_API_KEY: "${BACKEND_TAVILY_API_KEY:-}"
-      BACKEND_FETCH_MCP_URL: "http://fetch:8090/mcp"
-    depends_on:
-      fetch:
-        # One-shot MCP discovery on the first Studio request → wait for the bridge.
-        condition: service_healthy
     volumes:
       - music-data:/data
-
-  fetch:
-    # Lightweight URL/document fetch MCP, bridged to streamable-HTTP by
-    # supergateway. The backend reaches it via BACKEND_FETCH_MCP_URL.
-    build:
-      context: ./fetch
-      dockerfile: Containerfile
 
 volumes:
   music-data:

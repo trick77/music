@@ -49,7 +49,7 @@ export function Hero({
             position: "absolute",
             inset: 0,
             background: `url(${coverBg}) center/cover no-repeat`,
-            filter: "blur(38px) saturate(1.15)",
+            filter: "blur(24px) saturate(1.15)",
             transform: "scale(1.3)",
           }}
         />

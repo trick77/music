@@ -7,7 +7,7 @@ func (h *songHandlers) getSearch(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query().Get("q")
 	res, err := h.repo.Search(r.Context(), q, 20)
 	if err != nil {
-		httpError(w, http.StatusInternalServerError, "search")
+		serverError(w, "search", err)
 		return
 	}
 	writeJSON(w, res)

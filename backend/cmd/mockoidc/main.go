@@ -9,7 +9,7 @@
 package main
 
 import (
-	"log"
+	"log/slog"
 	"net/http"
 	"os"
 	"strings"
@@ -34,8 +34,9 @@ func main() {
 		srv.Groups = strings.Split(g, ",")
 	}
 
-	log.Printf("mockoidc issuer=%s listening on %s (user=%s groups=%v)", issuer, addr, srv.Username, srv.Groups)
+	slog.Info("mockoidc listening", "issuer", issuer, "addr", addr, "user", srv.Username, "groups", srv.Groups)
 	if err := http.ListenAndServe(addr, srv.Handler()); err != nil {
-		log.Fatalf("mockoidc: %v", err)
+		slog.Error("mockoidc failed", "err", err)
+		os.Exit(1)
 	}
 }

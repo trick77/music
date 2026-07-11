@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -35,7 +36,7 @@ type songHandlers struct {
 func (h *songHandlers) list(w http.ResponseWriter, r *http.Request) {
 	songs, err := h.repo.List(r.Context())
 	if err != nil {
-		httpError(w, http.StatusInternalServerError, "list songs")
+		serverError(w, "list songs", err)
 		return
 	}
 	writeJSON(w, map[string]any{"songs": songs})
@@ -44,7 +45,7 @@ func (h *songHandlers) list(w http.ResponseWriter, r *http.Request) {
 func (h *songHandlers) get(w http.ResponseWriter, r *http.Request) {
 	song, err := h.repo.Get(r.Context(), r.PathValue("id"))
 	if err != nil {
-		httpError(w, http.StatusInternalServerError, "get song")
+		serverError(w, "get song", err)
 		return
 	}
 	if song == nil {
@@ -85,7 +86,7 @@ func (h *songHandlers) upload(w http.ResponseWriter, r *http.Request) {
 
 	tmp, err := os.CreateTemp("", "music-upload-*.mp3")
 	if err != nil {
-		httpError(w, http.StatusInternalServerError, "temp file")
+		serverError(w, "temp file", err)
 		return
 	}
 	defer os.Remove(tmp.Name())
@@ -100,7 +101,7 @@ func (h *songHandlers) upload(w http.ResponseWriter, r *http.Request) {
 	hash := hex.EncodeToString(hasher.Sum(nil))
 
 	if existing, err := h.repo.FindByContentHash(r.Context(), hash); err != nil {
-		httpError(w, http.StatusInternalServerError, "dedupe check")
+		serverError(w, "dedupe check", err)
 		return
 	} else if existing != nil {
 		writeJSONStatus(w, http.StatusOK, existing)
@@ -108,7 +109,7 @@ func (h *songHandlers) upload(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if _, err := tmp.Seek(0, io.SeekStart); err != nil {
-		httpError(w, http.StatusInternalServerError, "seek")
+		serverError(w, "seek", err)
 		return
 	}
 	tags, _ := metadata.Parse(tmp) // tag/duration issues are non-fatal
@@ -117,7 +118,7 @@ func (h *songHandlers) upload(w http.ResponseWriter, r *http.Request) {
 	relPath := "songs/" + newID + ".mp3"
 	dst, err := h.media.Create(relPath)
 	if err != nil {
-		httpError(w, http.StatusInternalServerError, "store file")
+		serverError(w, "store file", err)
 		return
 	}
 	// Remove the freshly-created media file unless the whole import succeeds,
@@ -130,16 +131,16 @@ func (h *songHandlers) upload(w http.ResponseWriter, r *http.Request) {
 	}()
 	if _, err := tmp.Seek(0, io.SeekStart); err != nil {
 		dst.Close()
-		httpError(w, http.StatusInternalServerError, "seek")
+		serverError(w, "seek", err)
 		return
 	}
 	if _, err := io.Copy(dst, tmp); err != nil {
 		dst.Close()
-		httpError(w, http.StatusInternalServerError, "write file")
+		serverError(w, "write file", err)
 		return
 	}
 	if err := dst.Close(); err != nil {
-		httpError(w, http.StatusInternalServerError, "close file")
+		serverError(w, "close file", err)
 		return
 	}
 
@@ -167,7 +168,7 @@ func (h *songHandlers) upload(w http.ResponseWriter, r *http.Request) {
 			writeJSONStatus(w, http.StatusOK, existing)
 			return
 		}
-		httpError(w, http.StatusInternalServerError, "save song")
+		serverError(w, "save song", err)
 		return
 	}
 	stored = true
@@ -180,7 +181,7 @@ func (h *songHandlers) download(w http.ResponseWriter, r *http.Request) { h.serv
 func (h *songHandlers) serveFile(w http.ResponseWriter, r *http.Request, attach bool) {
 	song, err := h.repo.Get(r.Context(), r.PathValue("id"))
 	if err != nil {
-		httpError(w, http.StatusInternalServerError, "get song")
+		serverError(w, "get song", err)
 		return
 	}
 	if song == nil {
@@ -195,7 +196,7 @@ func (h *songHandlers) serveFile(w http.ResponseWriter, r *http.Request, attach 
 	defer f.Close()
 	info, err := f.Stat()
 	if err != nil {
-		httpError(w, http.StatusInternalServerError, "stat file")
+		serverError(w, "stat file", err)
 		return
 	}
 	w.Header().Set("Content-Type", "audio/mpeg")
@@ -233,6 +234,14 @@ func httpError(w http.ResponseWriter, code int, msg string) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(code)
 	json.NewEncoder(w).Encode(map[string]string{"error": msg})
+}
+
+// serverError logs the underlying cause and returns a 500 to the client with a
+// generic message. The cause is server-side only (never leaked to the client);
+// msg doubles as the log event name and the client-facing error string.
+func serverError(w http.ResponseWriter, msg string, err error) {
+	slog.Error(msg, "err", err)
+	httpError(w, http.StatusInternalServerError, msg)
 }
 
 func writeJSONStatus(w http.ResponseWriter, code int, v any) {

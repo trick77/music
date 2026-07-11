@@ -13,7 +13,7 @@ func (h *songHandlers) putCover(w http.ResponseWriter, r *http.Request) {
 	}
 	song, err := h.repo.Get(r.Context(), r.PathValue("id"))
 	if err != nil {
-		httpError(w, http.StatusInternalServerError, "get song")
+		serverError(w, "get song", err)
 		return
 	}
 	if song == nil {
@@ -25,12 +25,12 @@ func (h *songHandlers) putCover(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := h.repo.SetSongCover(r.Context(), song.ID, coverID); err != nil {
-		httpError(w, http.StatusInternalServerError, "assign cover")
+		serverError(w, "assign cover", err)
 		return
 	}
 	updated, err := h.repo.Get(r.Context(), song.ID)
 	if err != nil {
-		httpError(w, http.StatusInternalServerError, "reload song")
+		serverError(w, "reload song", err)
 		return
 	}
 	writeJSON(w, updated)
@@ -43,7 +43,7 @@ func (h *songHandlers) getCover(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err != nil {
-		httpError(w, http.StatusInternalServerError, "get cover")
+		serverError(w, "get cover", err)
 		return
 	}
 	serveSizedImage(w, r, h.media, path)

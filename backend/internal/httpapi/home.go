@@ -7,7 +7,7 @@ import "net/http"
 func (h *songHandlers) getHome(w http.ResponseWriter, r *http.Request) {
 	feed, err := h.repo.HomeFeed(r.Context(), 12, 8)
 	if err != nil {
-		httpError(w, http.StatusInternalServerError, "home feed")
+		serverError(w, "home feed", err)
 		return
 	}
 	writeJSON(w, feed)

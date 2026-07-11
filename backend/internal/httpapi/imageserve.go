@@ -52,7 +52,7 @@ func serveSizedImage(w http.ResponseWriter, r *http.Request, store *media.Store,
 	data, err := io.ReadAll(src)
 	src.Close()
 	if err != nil {
-		httpError(w, http.StatusInternalServerError, "read image")
+		serverError(w, "read image", err)
 		return
 	}
 	scaled, err := imagescale.Thumbnail(data, dim)
@@ -85,7 +85,7 @@ func serveStoreFile(w http.ResponseWriter, r *http.Request, store *media.Store, 
 	defer f.Close()
 	info, err := f.Stat()
 	if err != nil {
-		httpError(w, http.StatusInternalServerError, "stat image")
+		serverError(w, "stat image", err)
 		return
 	}
 	if ct := mime.TypeByExtension(filepath.Ext(relPath)); ct != "" {

@@ -61,7 +61,7 @@ func (h *songHandlers) postPlay(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 	song, err := h.repo.Get(r.Context(), id)
 	if err != nil {
-		httpError(w, http.StatusInternalServerError, "get song")
+		serverError(w, "get song", err)
 		return
 	}
 	if song == nil {
@@ -74,7 +74,7 @@ func (h *songHandlers) postPlay(w http.ResponseWriter, r *http.Request) {
 				httpError(w, http.StatusNotFound, "not found")
 				return
 			}
-			httpError(w, http.StatusInternalServerError, "record play")
+			serverError(w, "record play", err)
 			return
 		}
 	}
@@ -85,7 +85,7 @@ func (h *songHandlers) postPlay(w http.ResponseWriter, r *http.Request) {
 func (h *songHandlers) getTopTen(w http.ResponseWriter, r *http.Request) {
 	entries, err := h.repo.TopTen(r.Context())
 	if err != nil {
-		httpError(w, http.StatusInternalServerError, "top ten")
+		serverError(w, "top ten", err)
 		return
 	}
 	writeJSON(w, map[string]any{"songs": entries})

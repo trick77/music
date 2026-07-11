@@ -97,7 +97,15 @@ one intentional literal.
 
 - **MP3 tag editor = tabbed editor**: **Details / Cover / Lyrics** tabs, **centered modal on
   desktop, full-screen on mobile** (≤720px), over the blurred backdrop. Tabs keep each screen short
-  as the form grows (Lyrics is a new, long field). Replaces the old single-scroll `TagEditor.tsx`.
+  as the form grows. Replaces the old single-scroll `TagEditor.tsx`.
+  - **Lyrics tab** holds a tall textarea plus a **"Clean"** action that strips Suno bracketed
+    directives (`[Verse]`, `[Chorus]`, `[Guitar solo]`, …) via a `cleanLyrics` helper — kept in
+    sync with the server-side `cleanLyrics` in `backend/internal/metadata/mp3.go`. Leave `()`
+    ad-libs intact. The `lyrics` field is `Song.lyrics?` / `SongEdit.lyrics` in `api.ts`, persisted
+    to ID3 + the `song_lyrics` migration.
+  - **Coordinate with the in-flight `worktree-lyrics-editor` branch** (adds the lyrics field
+    end-to-end + the Clean button on the *old* modal). The tabbed redesign must **build on that
+    branch's work**, not discard it — land/merge lyrics first, then restructure into tabs.
 - **Queue control** (top chrome): icon-only 40px ghost button (list icon, tooltip "Queue").
 
 ## Copy — the ellipsis rule

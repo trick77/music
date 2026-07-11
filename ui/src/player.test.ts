@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { advance, back, qualifiesForPlay, shouldReport, type PlayerState } from "./player";
+import { advance, back, qualifiesForPlay, shouldReport, removeSong, type PlayerState } from "./player";
 import type { Song } from "./api";
 
 function song(id: string): Song {
@@ -72,5 +72,22 @@ describe("shouldReport", () => {
     const session = { reported: false };
     expect(shouldReport(session, false)).toBe(false);
     expect(session.reported).toBe(false);
+  });
+});
+
+describe("removeSong", () => {
+  it("drops the id from queue and history without touching current", () => {
+    const s = removeSong(base({ current: song("a"), queue: [song("b"), song("c")], history: [song("x")] }), "c");
+    expect(s.current?.id).toBe("a");
+    expect(s.queue.map((q) => q.id)).toEqual(["b"]);
+    expect(s.history.map((h) => h.id)).toEqual(["x"]);
+  });
+
+  it("clears current and stops when the removed id is the current track", () => {
+    const s = removeSong(base({ current: song("a"), queue: [song("b")], playing: true, positionMs: 5000 }), "a");
+    expect(s.current).toBeNull();
+    expect(s.playing).toBe(false);
+    expect(s.positionMs).toBe(0);
+    expect(s.queue.map((q) => q.id)).toEqual(["b"]);
   });
 });

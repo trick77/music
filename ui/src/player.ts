@@ -25,6 +25,18 @@ export function advance(state: PlayerState): PlayerState {
   return { ...state, current: next, queue: rest, history, positionMs: 0 };
 }
 
+// removeSong drops a song (e.g. one that was deleted) from the player. If it is
+// the current track, playback stops and current clears; otherwise it is just
+// filtered out of the queue and history.
+export function removeSong(state: PlayerState, id: string): PlayerState {
+  const queue = state.queue.filter((s) => s.id !== id);
+  const history = state.history.filter((s) => s.id !== id);
+  if (state.current?.id === id) {
+    return { ...state, current: null, queue, history, playing: false, positionMs: 0, durationMs: 0 };
+  }
+  return { ...state, queue, history };
+}
+
 // back pops history into current, pushing the outgoing current to the front of
 // the queue. With empty history it restarts the current track.
 export function back(state: PlayerState): PlayerState {
@@ -218,6 +230,12 @@ export const player = {
   setQueue(queue: Song[]) {
     set({ queue });
   },
+  remove(id: string) {
+    const wasCurrent = state.current?.id === id;
+    state = removeSong(state, id);
+    if (wasCurrent) getAudio().pause();
+    emit();
+  },
   toggle() {
     if (!state.current) return;
     const el = getAudio();
@@ -287,5 +305,6 @@ export function usePlayer() {
     seek: player.seek,
     setQueue: player.setQueue,
     restore: player.restore,
+    remove: player.remove,
   };
 }

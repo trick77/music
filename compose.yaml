@@ -58,7 +58,10 @@ services:
   # Word-timing alignment sidecar (WhisperX + Demucs). Starts by default so karaoke
   # works out of the box; it's heavy (GBs of ML deps + models) — to disable, set
   # BACKEND_ALIGN_URL="" on the music service and don't run this service.
+  # Pulls the prebuilt image by default (`docker compose pull`); the build block is a
+  # local fallback (`docker compose build align`) when the source is present.
   align:
+    image: ghcr.io/trick77/music-align:latest
     build:
       context: ./sidecar/align
       dockerfile: Containerfile   # Docker defaults to "Dockerfile"; ours is Containerfile

@@ -36,7 +36,7 @@ export function SongMenu(p: Props) {
         {p.authenticated && <MenuItem icon="plus" onClick={p.onAddToPlaylist}>Add to playlist…</MenuItem>}
         <MenuItem icon="download" href={`/api/songs/${p.song.id}/download`}>Download</MenuItem>
         <MenuItem icon="share" onClick={p.onShare}>Share</MenuItem>
-        {p.authenticated && <MenuItem icon="edit" onClick={p.onEdit}>Edit tags…</MenuItem>}
+        {p.authenticated && <MenuItem icon="edit" onClick={p.onEdit}>Edit…</MenuItem>}
         {/* Publish gate (spec): an unpublished song is visible only to logged-in
             users until published. Signed-in only. */}
         {p.authenticated && (

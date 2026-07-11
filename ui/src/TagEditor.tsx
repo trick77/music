@@ -3,6 +3,7 @@ import { updateSong, uploadCover, suggest, type Song, type Suggestion } from "./
 import { coverUrl, coverInitial } from "./cover";
 import { Icon } from "./Icon";
 import { Button, controlClass, fieldLabel, t } from "./ui";
+import { titleCase } from "./titleCase";
 
 type Props = { song: Song; onClose: () => void; onSaved: (s: Song) => void };
 type Tab = "details" | "cover" | "lyrics";
@@ -102,9 +103,9 @@ export function TagEditor({ song, onClose, onSaved }: Props) {
 
   return (
     <div className="ui-overlay" onClick={() => { if (!saving) onClose(); }}>
-      <div className="ui-modal" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-label="Edit tags">
+      <div className="ui-modal" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-label="Edit">
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "var(--space-4)", padding: "var(--space-4) var(--space-5)", borderBottom: "1px solid var(--color-border)" }}>
-          <h3 style={{ margin: 0, ...t.title }}>Edit tags</h3>
+          <h3 style={{ margin: 0, ...t.title }}>Edit</h3>
           <button onClick={onClose} aria-label="Close" style={{ display: "inline-flex", background: "none", border: "none", color: "var(--color-muted)", cursor: "pointer", padding: 2 }}>
             <Icon name="close" size="18px" />
           </button>
@@ -120,7 +121,12 @@ export function TagEditor({ song, onClose, onSaved }: Props) {
           {/* Details */}
           <div style={{ display: tab === "details" ? "grid" : "none", gap: "var(--space-4)" }}>
             <div>
-              <label style={fieldLabel}>Title</label>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+                <label style={{ ...fieldLabel, marginBottom: 0 }}>Title</label>
+                <Button variant="ghost" small onClick={() => setTitle(titleCase(title))} title="Capitalize as a title (auto-detects language)">
+                  Title case
+                </Button>
+              </div>
               <input className={controlClass} value={title} onChange={(e) => setTitle(e.target.value)} />
             </div>
             <div style={{ position: "relative" }}>
@@ -143,7 +149,12 @@ export function TagEditor({ song, onClose, onSaved }: Props) {
               )}
             </div>
             <div>
-              <label style={fieldLabel}>Album</label>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+                <label style={{ ...fieldLabel, marginBottom: 0 }}>Album</label>
+                <Button variant="ghost" small onClick={() => setAlbum(titleCase(album))} title="Capitalize as a title (auto-detects language)">
+                  Title case
+                </Button>
+              </div>
               <input className={controlClass} value={album} onChange={(e) => setAlbum(e.target.value)} />
             </div>
             <div>

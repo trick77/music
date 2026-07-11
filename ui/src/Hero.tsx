@@ -11,11 +11,14 @@ import type { HomeHero, Song } from "./api";
 export function Hero({
   hero,
   featured,
+  playing,
   onPlay,
   onShare,
 }: {
   hero: HomeHero | null;
   featured: Song | null;
+  /** True when the featured song is the current track AND actively playing. */
+  playing: boolean;
   onPlay: (s: Song) => void;
   onShare: (s: Song) => void;
 }) {
@@ -84,6 +87,7 @@ export function Hero({
           <div style={{ display: "flex", gap: "0.7rem", flexWrap: "wrap" }}>
             <button
               onClick={() => onPlay(featured)}
+              aria-label={playing ? `Pause ${featured.title}` : `Play ${featured.title}`}
               style={{
                 display: "inline-flex",
                 alignItems: "center",
@@ -98,7 +102,7 @@ export function Hero({
                 fontWeight: 600,
               }}
             >
-              <Glyph name="play" size={18} /> Play
+              <Glyph name={playing ? "pause" : "play"} size={18} /> {playing ? "Pause" : "Play"}
             </button>
             <a
               href={`/api/songs/${featured.id}/download`}

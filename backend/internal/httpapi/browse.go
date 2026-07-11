@@ -3,7 +3,7 @@ package httpapi
 import "net/http"
 
 func (h *songHandlers) listArtists(w http.ResponseWriter, r *http.Request) {
-	artists, err := h.repo.ListArtists(r.Context())
+	artists, err := h.repo.ListArtists(r.Context(), identify(h.cfg, r).Authenticated)
 	if err != nil {
 		serverError(w, "list artists", err)
 		return
@@ -25,7 +25,7 @@ func (h *songHandlers) getArtist(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *songHandlers) listGenres(w http.ResponseWriter, r *http.Request) {
-	genres, err := h.repo.ListGenres(r.Context())
+	genres, err := h.repo.ListGenres(r.Context(), identify(h.cfg, r).Authenticated)
 	if err != nil {
 		serverError(w, "list genres", err)
 		return

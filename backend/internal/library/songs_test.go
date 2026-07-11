@@ -118,7 +118,7 @@ func TestBrowse_artistsAndGenres(t *testing.T) {
 	makeSong(t, r, "A", "Album", "h1", "songs/a.mp3")
 	makeSong(t, r, "B", "Album", "h2", "songs/b.mp3")
 
-	artists, err := r.ListArtists(ctx)
+	artists, err := r.ListArtists(ctx, true)
 	if err != nil {
 		t.Fatalf("ListArtists: %v", err)
 	}
@@ -133,7 +133,7 @@ func TestBrowse_artistsAndGenres(t *testing.T) {
 		t.Fatalf("artist songs = %d, want 2", len(songs))
 	}
 
-	genres, err := r.ListGenres(ctx)
+	genres, err := r.ListGenres(ctx, true)
 	if err != nil {
 		t.Fatalf("ListGenres: %v", err)
 	}

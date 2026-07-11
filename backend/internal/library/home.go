@@ -137,7 +137,7 @@ func (r *Repo) HomeFeed(ctx context.Context, recentLimit, chapterSongLimit int, 
 		return nil, err
 	}
 
-	genres, err := r.ListGenres(ctx) // JOINs song_genres, so zero-song genres are already omitted
+	genres, err := r.ListGenres(ctx, includeUnpublished) // anonymous: also omits genres with no published songs
 	if err != nil {
 		return nil, err
 	}

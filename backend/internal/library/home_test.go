@@ -53,7 +53,7 @@ func TestHomeFeed_genreChaptersHaveBackgroundAndSongs(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create: %v", err)
 	}
-	genres, err := r.ListGenres(ctx)
+	genres, err := r.ListGenres(ctx, true)
 	if err != nil || len(genres) != 1 {
 		t.Fatalf("genres = %v (%v)", genres, err)
 	}
@@ -92,7 +92,7 @@ func TestHomeFeed_heroPopulatedFromStarredFanart(t *testing.T) {
 	}); err != nil {
 		t.Fatalf("create: %v", err)
 	}
-	genres, _ := r.ListGenres(ctx)
+	genres, _ := r.ListGenres(ctx, true)
 	gid := genres[0].ID
 	if err := r.SetGenreAccent(ctx, gid, "#123456"); err != nil {
 		t.Fatalf("accent: %v", err)

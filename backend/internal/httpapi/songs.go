@@ -33,6 +33,11 @@ type songHandlers struct {
 	bflModel      string
 	onGenComplete func(id string)
 
+	// aligner talks to the word-timing alignment sidecar (nil when unconfigured).
+	// onAlignComplete is a test hook fired after an alignment goroutine finishes.
+	aligner         aligner
+	onAlignComplete func(id string)
+
 	// genrePrompter authors an editable example prompt from a genre name (one-shot
 	// LLM, no research). Nil when the chat key is unset, which makes the
 	// suggest-prompt route answer 404.

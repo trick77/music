@@ -11,3 +11,7 @@ backend/web/dist/*
 # Claude Code local state and worktrees
 .claude/
 /backend/music
+
+# Python bytecode
+__pycache__/
+*.pyc

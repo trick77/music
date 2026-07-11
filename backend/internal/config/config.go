@@ -54,6 +54,12 @@ type Config struct {
 	BFLModel       string
 	BFLPollTimeout time.Duration
 
+	// Alignment (karaoke Phase 2): a self-hosted sidecar that force-aligns a song's
+	// known lyrics to its audio and returns word-level timings. Enabled when the URL
+	// is set; AlignTimeout bounds the whole (minutes-long) alignment request.
+	AlignURL     string
+	AlignTimeout time.Duration
+
 	// Studio (Phase 9): a MiMo chat model researches a named song on the web
 	// (Tavily search + fetch) and returns a Suno prompt. Env var names mirror
 	// loom's so the same keys can be reused verbatim.
@@ -65,6 +71,9 @@ type Config struct {
 
 // ImageGenEnabled reports whether AI image generation is configured (a BFL key is set).
 func (c Config) ImageGenEnabled() bool { return c.BFLAPIKey != "" }
+
+// AlignmentEnabled reports whether the word-timing alignment sidecar is configured.
+func (c Config) AlignmentEnabled() bool { return c.AlignURL != "" }
 
 // StudioEnabled reports whether the Studio Suno-prompt tool is configured. Both
 // the chat (LLM) and Tavily (web search) keys are required — research is core to
@@ -137,6 +146,13 @@ func Load() (Config, error) {
 	if cfg.BFLAPIKey != "" && cfg.BFLBaseURL == "" {
 		return Config{}, fmt.Errorf("BACKEND_BFL_BASE_URL is required when BACKEND_BFL_API_KEY is set")
 	}
+
+	cfg.AlignURL = env("BACKEND_ALIGN_URL", "")
+	alignTimeout, err := time.ParseDuration(env("BACKEND_ALIGN_TIMEOUT", "10m"))
+	if err != nil || alignTimeout <= 0 {
+		return Config{}, fmt.Errorf("BACKEND_ALIGN_TIMEOUT must be a duration greater than 0")
+	}
+	cfg.AlignTimeout = alignTimeout
 
 	cfg.ChatBaseURL = env("BACKEND_CHAT_BASE_URL", "")
 	cfg.ChatAPIKey = env("BACKEND_CHAT_API_KEY", "")

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 
+	"github.com/trick77/music/internal/align"
 	"github.com/trick77/music/internal/auth"
 	"github.com/trick77/music/internal/config"
 	"github.com/trick77/music/internal/imagegen"
@@ -61,11 +62,12 @@ func build(cfg config.Config, st *store.Store, spa http.Handler, gen imagegen.Pr
 	mux.HandleFunc("GET /api/auth/session", func(w http.ResponseWriter, r *http.Request) {
 		id := identify(cfg, r)
 		writeJSON(w, map[string]any{
-			"authenticated":   id.Authenticated,
-			"username":        id.Username,
-			"imageGenEnabled": cfg.ImageGenEnabled() && id.Authenticated,
-			"studioEnabled":   cfg.StudioEnabled() && id.Authenticated,
-			"chatEnabled":     cfg.ChatEnabled() && id.Authenticated,
+			"authenticated":    id.Authenticated,
+			"username":         id.Username,
+			"imageGenEnabled":  cfg.ImageGenEnabled() && id.Authenticated,
+			"studioEnabled":    cfg.StudioEnabled() && id.Authenticated,
+			"chatEnabled":      cfg.ChatEnabled() && id.Authenticated,
+			"alignmentEnabled": cfg.AlignmentEnabled() && id.Authenticated,
 			// Image models the picker may offer, with the env default (cfg.BFLModel)
 			// guaranteed present and preselected. Sent regardless of auth so the shape
 			// is stable; the generation routes still enforce auth + the allowlist.
@@ -131,10 +133,20 @@ func build(cfg config.Config, st *store.Store, spa http.Handler, gen imagegen.Pr
 				onGenComplete: onGenComplete,
 				genrePrompter: genrePrompter,
 				throttle:      newPlayThrottle(),
+				// Real alignment sidecar client when configured. The IIFE returns an
+				// untyped-nil interface when disabled so h.aligner == nil holds (a nil
+				// *align.Client stored in the interface would not compare equal to nil).
+				aligner: func() aligner {
+					if cfg.AlignmentEnabled() {
+						return align.New(cfg.AlignURL, cfg.AlignTimeout)
+					}
+					return nil
+				}(),
 			}
 			// Reap generation rows orphaned by a prior restart (their goroutines
 			// are gone) so they don't show a permanent spinner.
 			_, _ = h.repo.FailOrphanedGenerating(context.Background())
+			_, _ = h.repo.FailOrphanedAlignments(context.Background())
 			shareRepo = h.repo
 			mux.HandleFunc("GET /api/songs", h.list)
 			mux.HandleFunc("POST /api/songs", h.upload)
@@ -149,6 +161,8 @@ func build(cfg config.Config, st *store.Store, spa http.Handler, gen imagegen.Pr
 			mux.HandleFunc("GET /api/search", h.getSearch)
 			mux.HandleFunc("PATCH /api/songs/{id}", h.patch)
 			mux.HandleFunc("DELETE /api/songs/{id}", h.delete)
+			mux.HandleFunc("POST /api/songs/{id}/align", h.postAlign)
+			mux.HandleFunc("GET /api/songs/{id}/align", h.getAlign)
 			mux.HandleFunc("GET /api/suggest", h.suggest)
 			mux.HandleFunc("PUT /api/songs/{id}/cover", h.putCover)
 			mux.HandleFunc("GET /api/cover/{id}", h.getCover)

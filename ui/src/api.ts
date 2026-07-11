@@ -87,9 +87,18 @@ export type Playlist = {
   description: string;
   coverArtId: string;
   songCount: number;
+  published: boolean;
 };
 
 export type PlaylistDetail = Playlist & { songs: Song[] };
+
+// setPlaylistPublished flips a playlist's publish state. Playlists are created
+// unpublished (visible only to logged-in users) until published, like songs.
+export async function setPlaylistPublished(id: string, published: boolean): Promise<PlaylistDetail> {
+  const r = await fetch(`/api/playlists/${id}/${published ? "publish" : "unpublish"}`, { method: "POST" });
+  if (!r.ok) throw new Error(`playlist publish toggle failed (${r.status})`);
+  return r.json();
+}
 
 export async function listPlaylists(): Promise<Playlist[]> {
   const r = await fetch("/api/playlists");

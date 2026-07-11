@@ -172,7 +172,7 @@ func (r *Repo) HomeFeed(ctx context.Context, recentLimit, chapterSongLimit int, 
 		feed.Genres = append(feed.Genres, GenreChapter{GenreSummary: g, BackgroundFanartID: bg, Songs: songs})
 	}
 
-	if feed.Playlists, err = r.ListPlaylists(ctx); err != nil {
+	if feed.Playlists, err = r.ListPlaylists(ctx, includeUnpublished); err != nil {
 		return nil, err
 	}
 	return feed, nil

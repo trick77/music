@@ -26,12 +26,34 @@ func (h *playlistHandlers) requireAuth(w http.ResponseWriter, r *http.Request) b
 }
 
 func (h *playlistHandlers) list(w http.ResponseWriter, r *http.Request) {
-	pls, err := h.repo.ListPlaylists(r.Context())
+	pls, err := h.repo.ListPlaylists(r.Context(), identify(h.cfg, r).Authenticated)
 	if err != nil {
 		serverError(w, "list playlists", err)
 		return
 	}
 	writeJSON(w, map[string]any{"playlists": pls})
+}
+
+func (h *playlistHandlers) publish(w http.ResponseWriter, r *http.Request)   { h.setPublished(w, r, true) }
+func (h *playlistHandlers) unpublish(w http.ResponseWriter, r *http.Request) { h.setPublished(w, r, false) }
+
+// setPublished flips a playlist's publish state. Authenticated-only (mirrors the
+// other playlist writes); responds with the updated detail, or 404 if unknown.
+func (h *playlistHandlers) setPublished(w http.ResponseWriter, r *http.Request, published bool) {
+	if !h.requireAuth(w, r) {
+		return
+	}
+	id := r.PathValue("id")
+	found, err := h.repo.SetPlaylistPublished(r.Context(), id, published)
+	if err != nil {
+		serverError(w, "set playlist published", err)
+		return
+	}
+	if !found {
+		httpError(w, http.StatusNotFound, "not found")
+		return
+	}
+	h.respondDetail(w, r, id, http.StatusOK)
 }
 
 func (h *playlistHandlers) get(w http.ResponseWriter, r *http.Request) {

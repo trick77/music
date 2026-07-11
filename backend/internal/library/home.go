@@ -47,8 +47,13 @@ func (r *Repo) HeroFanart(ctx context.Context) (*Fanart, error) {
 
 // RecentSongs returns the newest songs, limited. includeUnpublished includes
 // unpublished songs (an authenticated viewer).
+//
+// The tie-break is s.rowid (insertion order), NOT s.id: id is a random hex
+// (NewID), so ordering by it is arbitrary — songs added within the same second
+// (created_at is 1-second resolution) would sort unpredictably. rowid strictly
+// increases with insertion, making "newest added first" deterministic.
 func (r *Repo) RecentSongs(ctx context.Context, limit int, includeUnpublished bool) ([]Song, error) {
-	rows, err := r.db.QueryContext(ctx, songSelect+publishedFilter(includeUnpublished, false)+` ORDER BY s.created_at DESC, s.id DESC LIMIT ?`, limit)
+	rows, err := r.db.QueryContext(ctx, songSelect+publishedFilter(includeUnpublished, false)+` ORDER BY s.created_at DESC, s.rowid DESC LIMIT ?`, limit)
 	if err != nil {
 		return nil, err
 	}
@@ -59,7 +64,7 @@ func (r *Repo) RecentSongs(ctx context.Context, limit int, includeUnpublished bo
 func (r *Repo) genreSongs(ctx context.Context, genreID string, limit int, includeUnpublished bool) ([]Song, error) {
 	rows, err := r.db.QueryContext(ctx,
 		songSelect+` WHERE s.id IN (SELECT song_id FROM song_genres WHERE genre_id = ?)`+publishedFilter(includeUnpublished, true)+`
-		ORDER BY s.created_at DESC, s.id DESC LIMIT ?`, genreID, limit)
+		ORDER BY s.created_at DESC, s.rowid DESC LIMIT ?`, genreID, limit)
 	if err != nil {
 		return nil, err
 	}

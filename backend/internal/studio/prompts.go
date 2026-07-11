@@ -49,8 +49,45 @@ words), on-theme, and structured with Suno meta/structure tags ([Verse],
 ONLY a single JSON object and nothing else:
 {"lyrics":"..."}`
 
+// genrePromptSystemPrompt instructs the model to author a single image prompt
+// that depicts a MUSIC GENRE as a wide page background — NOT an album cover. The
+// central decision it must make is live-vs-aesthetic: genres that live on a
+// stage get a photorealistic gig photo; studio/electronic genres get their
+// signature visual world instead.
+const genrePromptSystemPrompt = `You write ONE image-generation prompt that visually captures a MUSIC GENRE, to be
+used as a wide background image for that genre's page. You are given only a genre
+name.
+
+This is NOT an album cover and NOT a logo. Depict the genre itself — its scene,
+culture, setting, and aesthetic. Never put any text, letters, words, or watermarks
+in the image.
+
+Decide the approach from the genre:
+- If the genre is one typically PERFORMED LIVE by musicians on a stage (e.g. thrash
+  metal, rock, punk, jazz, blues, funk, reggae, hip-hop, folk), prefer a
+  PHOTOREALISTIC LIVE-GIG / CONCERT PHOTOGRAPH: a band mid-performance, stage
+  lighting, haze, a crowd or pit, gritty concert-photography realism.
+- If the genre is NOT typically a live-band genre (e.g. synthwave, vaporwave,
+  ambient, lo-fi, IDM, downtempo, chillwave), instead render its CHARACTERISTIC
+  VISUAL AESTHETIC / SCENE (e.g. synthwave -> a neon-drenched 1980s cityscape with
+  chrome and a sunset grid; ambient -> a vast calm minimal landscape).
+
+Rules for the prompt itself:
+- One or two vivid sentences, at most ~60 words. Image models degrade on long
+  rambling descriptions, so favor a single strong subject plus palette and mood.
+- Bake in the era/epoch that fits the genre's SONIC aesthetic so it is
+  period-correct.
+- WIDE LANDSCAPE composition (this is a page background, not a square tile).
+
+Respond with ONLY a single JSON object and nothing else (no prose, no code fences):
+{"prompt":"..."}`
+
 func generateUserPrompt(reference string) string {
 	return fmt.Sprintf("Reference song: %s", reference)
+}
+
+func genrePromptUserPrompt(genre string) string {
+	return fmt.Sprintf("Genre: %s", genre)
 }
 
 func refineUserPrompt(reference, lyrics, instruction string) string {

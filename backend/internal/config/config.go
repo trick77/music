@@ -72,6 +72,11 @@ func (c Config) ImageGenEnabled() bool { return c.BFLAPIKey != "" }
 // output quality, so there is no degraded no-search mode.
 func (c Config) StudioEnabled() bool { return c.ChatAPIKey != "" && c.TavilyAPIKey != "" }
 
+// ChatEnabled reports whether a bare chat model is configured (the chat key
+// alone). This gates the one-shot genre-prompt suggester, which — unlike Studio —
+// does no web research and so needs no Tavily key.
+func (c Config) ChatEnabled() bool { return c.ChatAPIKey != "" }
+
 func env(key, def string) string {
 	if v, ok := os.LookupEnv(key); ok && v != "" {
 		return v

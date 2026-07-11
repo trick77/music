@@ -18,6 +18,7 @@ import (
 	"github.com/trick77/music/internal/library"
 	"github.com/trick77/music/internal/media"
 	"github.com/trick77/music/internal/metadata"
+	"github.com/trick77/music/internal/studio"
 )
 
 type songHandlers struct {
@@ -29,6 +30,11 @@ type songHandlers struct {
 	imageGen      imagegen.Provider
 	bflModel      string
 	onGenComplete func(id string)
+
+	// genrePrompter authors an editable example prompt from a genre name (one-shot
+	// LLM, no research). Nil when the chat key is unset, which makes the
+	// suggest-prompt route answer 404.
+	genrePrompter studio.GenrePrompter
 
 	throttle *playThrottle
 }

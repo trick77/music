@@ -79,3 +79,36 @@ describe("StudioPage cover-art gating", () => {
     expect(html).not.toContain("Generate cover art");
   });
 });
+
+// Studio hosts two modes; the Genre → Fanart mode only exists when the image
+// generator is configured. Without it, Studio stays the single-purpose Suno tool.
+describe("StudioPage mode switch", () => {
+  it("offers no mode switch when image generation is off", () => {
+    const html = renderToStaticMarkup(<StudioPage />);
+    expect(html).not.toContain("Genre → Fanart");
+    expect(html).toContain("Turn a song into a Suno prompt");
+  });
+
+  it("offers a Song → Suno / Genre → Fanart switch when image generation is on", () => {
+    const html = renderToStaticMarkup(<StudioPage imageGenEnabled />);
+    expect(html).toContain("Song → Suno");
+    expect(html).toContain("Genre → Fanart");
+    // Defaults to the Suno tool; fanart controls appear only after switching.
+    expect(html).toContain("Turn a song into a Suno prompt");
+    expect(html).not.toContain("Generate fanart");
+  });
+
+  it("opens directly in fanart mode when a genre is passed in", () => {
+    const html = renderToStaticMarkup(<StudioPage imageGenEnabled initialGenreId="g1" />);
+    expect(html).toContain("Generate fanart");
+    expect(html).toContain('aria-label="Genre"');
+    // The Suno reference field is not rendered in fanart mode.
+    expect(html).not.toContain('aria-label="Song reference"');
+  });
+
+  it("ignores an incoming genre when image generation is off (stays Suno)", () => {
+    const html = renderToStaticMarkup(<StudioPage initialGenreId="g1" />);
+    expect(html).toContain("Turn a song into a Suno prompt");
+    expect(html).not.toContain("Generate fanart");
+  });
+});

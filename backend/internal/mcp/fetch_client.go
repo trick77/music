@@ -6,12 +6,13 @@ import (
 	"github.com/trick77/webfetch"
 )
 
-// fetchClientDescription is copied verbatim from the upstream mcp-server-fetch
-// tool so the model sees the identical tool description it did when fetch ran as
-// a sidecar.
-const fetchClientDescription = `Fetches a URL from the internet and optionally extracts its contents as markdown.
-
-Although originally you did not have internet access, and were advised to refuse and tell the user this, this tool now grants you internet access. Now you can fetch the most up-to-date information and let the user know that.`
+// fetchClientDescription is the fetch tool description shown to the model. The
+// first line is upstream mcp-server-fetch's. Upstream's trailing "Although
+// originally you did not have internet access…" paragraph is intentionally
+// dropped: it is legacy framing that carries no operational intent and only
+// costs tokens in every tool-list injection. This is a deliberate divergence
+// from byte-for-byte sidecar parity, kept minimal so tool dispatch is unchanged.
+const fetchClientDescription = `Fetches a URL from the internet and extracts its contents as markdown. Set 'raw' for the unsimplified HTML, 'extract_pdf' to extract text from PDF responses, or 'include_metadata' to prepend a title/author/date block. If the default extraction drops content you need, use 'full_page' (whole page) or 'selector' (a specific CSS region); 'exclude_selectors' strips unwanted elements.`
 
 // fetchClient is an in-process client that replaces the external web-fetch MCP
 // sidecar. It performs the fetch directly via the shared
@@ -33,7 +34,8 @@ func (c *fetchClient) listTools(context.Context) ([]Tool, error) {
 		OriginalName: fetchTool,
 		Description:  fetchClientDescription,
 		ServerName:   c.serverName,
-		// Schema matches the JSON Schema upstream's pydantic model emits.
+		// Schema mirrors the JSON Schema upstream's pydantic model emits, plus
+		// fields that surface webfetch options the sidecar never had.
 		InputSchema: map[string]any{
 			"type":  "object",
 			"title": "Fetch",
@@ -66,6 +68,36 @@ func (c *fetchClient) listTools(context.Context) ([]Tool, error) {
 					"title":       "Raw",
 					"type":        "boolean",
 				},
+				"extract_pdf": map[string]any{
+					"default":     false,
+					"description": "Extract the text of PDF responses instead of returning raw bytes. Ignored for non-PDF content.",
+					"title":       "Extract Pdf",
+					"type":        "boolean",
+				},
+				"include_metadata": map[string]any{
+					"default":     false,
+					"description": "Prepend a frontmatter block (title, author, published date, site, language) to extracted HTML content.",
+					"title":       "Include Metadata",
+					"type":        "boolean",
+				},
+				"full_page": map[string]any{
+					"default":     false,
+					"description": "Convert the whole page to markdown instead of extracting just the main article. Use when the default extraction drops content you need (tables, sidebars, docs pages). Ignored if 'selector' is set.",
+					"title":       "Full Page",
+					"type":        "boolean",
+				},
+				"selector": map[string]any{
+					"default":     "",
+					"description": "Convert only the element(s) matching this CSS selector, skipping main-article extraction. Takes precedence over 'full_page'.",
+					"title":       "Selector",
+					"type":        "string",
+				},
+				"exclude_selectors": map[string]any{
+					"description": "CSS selectors whose matching elements are removed before conversion (e.g. strip nav/cookie banners). Works with the default extraction and with full_page/selector.",
+					"title":       "Exclude Selectors",
+					"type":        "array",
+					"items":       map[string]any{"type": "string"},
+				},
 			},
 			"required": []any{"url"},
 		},
@@ -75,9 +107,14 @@ func (c *fetchClient) listTools(context.Context) ([]Tool, error) {
 func (c *fetchClient) callTool(ctx context.Context, name string, arguments map[string]any) (string, error) {
 	url, _ := arguments["url"].(string)
 	return webfetch.Fetch(ctx, url, webfetch.Options{
-		MaxLength:  argInt(arguments, "max_length"),
-		StartIndex: argInt(arguments, "start_index"),
-		Raw:        argBool(arguments, "raw"),
+		MaxLength:        argInt(arguments, "max_length"),
+		StartIndex:       argInt(arguments, "start_index"),
+		Raw:              argBool(arguments, "raw"),
+		ExtractPDF:       argBool(arguments, "extract_pdf"),
+		IncludeMetadata:  argBool(arguments, "include_metadata"),
+		FullPage:         argBool(arguments, "full_page"),
+		Selector:         argString(arguments, "selector"),
+		ExcludeSelectors: argStringSlice(arguments, "exclude_selectors"),
 	})
 }
 
@@ -99,4 +136,26 @@ func argInt(args map[string]any, key string) int {
 func argBool(args map[string]any, key string) bool {
 	b, _ := args[key].(bool)
 	return b
+}
+
+// argString coerces a JSON tool argument to a string; missing/non-string yields "".
+func argString(args map[string]any, key string) string {
+	s, _ := args[key].(string)
+	return s
+}
+
+// argStringSlice coerces a JSON tool argument (a []any of strings) to []string,
+// skipping non-string and empty entries. Missing/non-array yields nil.
+func argStringSlice(args map[string]any, key string) []string {
+	raw, ok := args[key].([]any)
+	if !ok {
+		return nil
+	}
+	out := make([]string, 0, len(raw))
+	for _, v := range raw {
+		if s, ok := v.(string); ok && s != "" {
+			out = append(out, s)
+		}
+	}
+	return out
 }

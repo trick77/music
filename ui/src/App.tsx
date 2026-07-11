@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { getSession, listSongs, uploadSong, setPublished, deleteSong, type Session, type Song, type PlaylistDetail } from "./api";
+import { getSession, listSongs, uploadSong, setPublished, deleteSong, postAlign, type Session, type Song, type PlaylistDetail } from "./api";
 import { TagEditor } from "./TagEditor";
 import { Library } from "./Library";
 import { PlaylistEditor } from "./PlaylistEditor";
@@ -71,6 +71,18 @@ export function App() {
   const fav = useFavorites(session === null ? null : session.authenticated);
 
   const refresh = () => listSongs().then(setSongs).catch(() => {});
+
+  // syncKaraoke fires a manual alignment (Generate/Re-sync) and refreshes so the
+  // "Syncing" indicator appears. Empty-lyrics is already gated in the menu; the
+  // backend also 400s it quietly, so this can never surface an error.
+  const syncKaraoke = async (song: Song) => {
+    setMenuFor(null);
+    const resync = song.alignmentStatus === "ready";
+    await postAlign(song.id);
+    flash(resync ? "Re-syncing karaoke…" : "Syncing karaoke…");
+    refresh();
+    setFeedVersion((v) => v + 1);
+  };
   useEffect(() => {
     getSession()
       .then(setSession)
@@ -217,6 +229,8 @@ export function App() {
           <SongMenu
             song={song}
             authenticated={authed}
+            alignmentEnabled={!!session?.alignmentEnabled}
+            onSync={() => syncKaraoke(song)}
             onPlayNext={() => { player.setQueue(playNext(player.queue, song)); setMenuFor(null); flash("Playing next"); }}
             onAddToQueue={() => { player.setQueue(addToQueue(player.queue, song)); setMenuFor(null); flash("Added to queue"); }}
             onAddToPlaylist={() => { setAddFor(song); setMenuFor(null); }}

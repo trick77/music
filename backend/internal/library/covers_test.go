@@ -162,6 +162,65 @@ func TestUpdate_renameIntoAlbumImposesCoverOnSiblings(t *testing.T) {
 	}
 }
 
+func TestRemoveSongCover_clearsAcrossArtistAlbum(t *testing.T) {
+	r := newRepo(t)
+	ctx := context.Background()
+	a := makeSong(t, r, "A", "Album One", "h1", "songs/a.mp3")
+	b := makeSong(t, r, "B", "Album One ", "h2", "songs/b.mp3") // trailing space
+	other := makeSong(t, r, "C", "Other Album", "h3", "songs/c.mp3")
+	cover := makeCover(t, r, "covhash")
+	otherCover := makeCover(t, r, "othhash")
+	if err := r.SetSongCover(ctx, a.ID, cover); err != nil {
+		t.Fatalf("SetSongCover album: %v", err)
+	}
+	if err := r.SetSongCover(ctx, other.ID, otherCover); err != nil {
+		t.Fatalf("SetSongCover other: %v", err)
+	}
+
+	// Removing via one track clears the whole artist+album (including the
+	// whitespace-padded sibling); the unrelated album keeps its cover.
+	if err := r.RemoveSongCover(ctx, b.ID); err != nil {
+		t.Fatalf("RemoveSongCover: %v", err)
+	}
+	for _, id := range []string{a.ID, b.ID} {
+		got, _ := r.Get(ctx, id)
+		if got.CoverArtID != "" {
+			t.Fatalf("song %s cover = %q, want cleared", id, got.CoverArtID)
+		}
+	}
+	if got, _ := r.Get(ctx, other.ID); got.CoverArtID != otherCover {
+		t.Fatalf("unrelated album cover = %q, want %q", got.CoverArtID, otherCover)
+	}
+
+	// The album mapping is gone: a future track of the album stays coverless.
+	future := makeSong(t, r, "Future", "Album One", "h9", "songs/future.mp3")
+	if future.CoverArtID != "" {
+		t.Fatalf("future song cover = %q, want cleared", future.CoverArtID)
+	}
+}
+
+func TestRemoveSongCover_singleIsPerSong(t *testing.T) {
+	r := newRepo(t)
+	ctx := context.Background()
+	p := sampleParams()
+	p.Album, p.ContentHash, p.FilePath = "", "h1", "songs/a.mp3" // no album
+	single, err := r.Create(ctx, NewID(), p)
+	if err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+	cover := makeCover(t, r, "covhash")
+	if err := r.SetSongCover(ctx, single.ID, cover); err != nil {
+		t.Fatalf("SetSongCover: %v", err)
+	}
+	if err := r.RemoveSongCover(ctx, single.ID); err != nil {
+		t.Fatalf("RemoveSongCover: %v", err)
+	}
+	got, _ := r.Get(ctx, single.ID)
+	if got.CoverArtID != "" {
+		t.Fatalf("single cover = %q, want cleared", got.CoverArtID)
+	}
+}
+
 func TestCreateCover_dedupesByHash(t *testing.T) {
 	r := newRepo(t)
 	id1 := makeCover(t, r, "same")

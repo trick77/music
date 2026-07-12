@@ -25,6 +25,10 @@ type Tags struct {
 	Genres     []string
 	Lyrics     string
 	DurationMS int64
+	// CoverBytes/CoverMIME hold the embedded front-cover attached picture (APIC),
+	// when the file carries one. Empty when the file has no embedded art.
+	CoverBytes []byte
+	CoverMIME  string
 }
 
 // Parse reads ID3 metadata from r and decodes its duration. Tag reading errors
@@ -45,6 +49,13 @@ func Parse(r io.ReadSeeker) (Tags, error) {
 	}
 	out.Genres = splitGenres(m.Genre())
 	out.Lyrics = cleanLyrics(m.Lyrics())
+	// Embedded cover art (APIC) is imported so a well-tagged file keeps its art
+	// instead of landing with a blank placeholder. Missing/blank pictures just
+	// leave the fields empty — non-fatal, like duration.
+	if pic := m.Picture(); pic != nil && len(pic.Data) > 0 {
+		out.CoverBytes = pic.Data
+		out.CoverMIME = pic.MIMEType
+	}
 
 	if _, err := r.Seek(0, io.SeekStart); err == nil {
 		out.DurationMS = decodeDurationMS(r)

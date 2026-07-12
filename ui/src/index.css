@@ -242,19 +242,28 @@ select.ui-control {
   backdrop-filter: blur(2px);
   -webkit-backdrop-filter: blur(2px);
 }
-/* Dialog surface: centered modal on desktop, full-screen on mobile (≤720px). */
+/* Dialog surface: centered modal on desktop, full-screen on mobile/tablet.
+   The cap uses dvh (dynamic viewport height), not vh: on iOS Safari vh measures
+   the largest viewport (chrome retracted), so a vh cap can run the footer below
+   the visible area. dvh tracks the actually-visible height, keeping the pinned
+   footer on screen. */
 .ui-modal {
   display: flex;
   flex-direction: column;
   width: min(560px, 100%);
-  max-height: 90vh;
+  max-height: 90dvh;
   background: var(--color-panel);
   border: 1px solid var(--color-border);
   border-radius: 14px;
   box-shadow: 0 24px 60px rgba(0, 0, 0, 0.5);
 }
 .ui-modal-body { flex: 1; overflow: auto; min-height: 0; }
-@media (max-width: 720px) {
+/* Go full-screen on phones (≤720px) and on touch tablets up to 1024px (iPad
+   portrait 768 / landscape 1024): those sit above the phone breakpoint, so a
+   centered modal there leaves the footer cramped against the viewport edge. A
+   large touchscreen desktop (>1024px) keeps the centered modal. */
+@media (max-width: 720px),
+       (min-width: 721px) and (max-width: 1024px) and (pointer: coarse) {
   .ui-overlay { padding: 0; }
   .ui-modal {
     width: 100%;

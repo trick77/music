@@ -8,9 +8,11 @@ import (
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"testing"
 
 	"github.com/trick77/music/internal/config"
+	"github.com/trick77/music/internal/metadata"
 )
 
 func uploadCover(t *testing.T, h http.Handler, songID string) *httptest.ResponseRecorder {
@@ -100,5 +102,141 @@ func TestPutCover_anonymousForbidden(t *testing.T) {
 	rr := uploadCover(t, h, "any")
 	if rr.Code != http.StatusForbidden {
 		t.Fatalf("anonymous cover PUT = %d, want 403", rr.Code)
+	}
+}
+
+// mp3WithTags copies the sample fixture, sets title/artist/album, and embeds the
+// given cover bytes/MIME as its front cover, returning the resulting file bytes.
+func mp3WithTags(t *testing.T, title, artist, album string, cover []byte, mime string) []byte {
+	t.Helper()
+	dst := t.TempDir() + "/tagged.mp3"
+	if err := metadata.StampTags("../metadata/testdata/sample.mp3", dst, metadata.WriteableTags{
+		Title: title, Artist: artist, Album: album,
+		CoverBytes: cover, CoverMIME: mime,
+	}); err != nil {
+		t.Fatalf("StampTags: %v", err)
+	}
+	data, err := os.ReadFile(dst)
+	if err != nil {
+		t.Fatalf("read stamped: %v", err)
+	}
+	return data
+}
+
+// jpegBytes encodes a solid NxN JPEG so each call with a distinct size yields
+// distinct bytes (and thus a distinct content hash / cover).
+func jpegBytes(t *testing.T, size int) []byte {
+	t.Helper()
+	var img bytes.Buffer
+	if err := jpeg.Encode(&img, image.NewRGBA(image.Rect(0, 0, size, size)), nil); err != nil {
+		t.Fatalf("encode cover: %v", err)
+	}
+	return img.Bytes()
+}
+
+// mp3WithCover copies the sample fixture and embeds a real JPEG as its front
+// cover, returning the resulting bytes — a file that carries embedded art.
+func mp3WithCover(t *testing.T) []byte {
+	t.Helper()
+	return mp3WithTags(t, "Cover Song", "Artist", "Album", jpegBytes(t, 240), "image/jpeg")
+}
+
+func coverArtIDOf(t *testing.T, rr *httptest.ResponseRecorder) string {
+	t.Helper()
+	var song struct {
+		CoverArtID string `json:"coverArtId"`
+	}
+	json.Unmarshal(rr.Body.Bytes(), &song)
+	return song.CoverArtID
+}
+
+func TestUpload_importsEmbeddedCover(t *testing.T) {
+	h := testServer(t, config.AuthModeDev)
+	up := uploadBytes(t, h, "withcover.mp3", mp3WithCover(t))
+	if up.Code != http.StatusCreated {
+		t.Fatalf("upload = %d, body=%s", up.Code, up.Body.String())
+	}
+	var song struct {
+		CoverArtID string `json:"coverArtId"`
+	}
+	json.Unmarshal(up.Body.Bytes(), &song)
+	if song.CoverArtID == "" {
+		t.Fatal("embedded cover was not imported on upload")
+	}
+	// The imported cover serves as an image.
+	cr := httptest.NewRecorder()
+	h.ServeHTTP(cr, httptest.NewRequest("GET", "/api/cover/"+song.CoverArtID, nil))
+	if cr.Code != http.StatusOK {
+		t.Fatalf("GET imported cover = %d", cr.Code)
+	}
+}
+
+// A second track of an album must NOT flip the album's existing cover to its own
+// embedded art: Create inherits the album cover, so import is skipped.
+func TestUpload_embeddedCoverDoesNotClobberAlbumCover(t *testing.T) {
+	h := testServer(t, config.AuthModeDev)
+	first := coverArtIDOf(t, uploadBytes(t, h, "a.mp3",
+		mp3WithTags(t, "A", "Band", "Shared", jpegBytes(t, 200), "image/jpeg")))
+	if first == "" {
+		t.Fatal("first track did not import its embedded cover")
+	}
+
+	// Second track, same artist+album, DIFFERENT embedded art (larger => distinct bytes).
+	up := uploadBytes(t, h, "b.mp3",
+		mp3WithTags(t, "B", "Band", "Shared", jpegBytes(t, 260), "image/jpeg"))
+	if up.Code != http.StatusCreated {
+		t.Fatalf("second upload = %d, body=%s", up.Code, up.Body.String())
+	}
+	if got := coverArtIDOf(t, up); got != first {
+		t.Fatalf("second track cover = %q, want unchanged album cover %q", got, first)
+	}
+}
+
+// An embedded picture the image probe cannot read (e.g. a GIF APIC) must not fail
+// the upload — it lands coverless with a 201.
+func TestUpload_unprobeableEmbeddedCoverIsNonFatal(t *testing.T) {
+	h := testServer(t, config.AuthModeDev)
+	// GIF magic + junk: valid enough for ID3 APIC storage, rejected by imageutil.Probe
+	// (JPEG/PNG only).
+	gif := append([]byte("GIF89a"), bytes.Repeat([]byte{0x00, 0x01}, 32)...)
+	up := uploadBytes(t, h, "gifcover.mp3",
+		mp3WithTags(t, "G", "Band", "GifAlbum", gif, "image/gif"))
+	if up.Code != http.StatusCreated {
+		t.Fatalf("upload = %d, body=%s", up.Code, up.Body.String())
+	}
+	if got := coverArtIDOf(t, up); got != "" {
+		t.Fatalf("coverArtId = %q, want empty (unprobeable art skipped)", got)
+	}
+}
+
+func TestDeleteCover_clears(t *testing.T) {
+	h := testServer(t, config.AuthModeDev)
+	up := uploadFixture(t, h)
+	var song struct {
+		ID string `json:"id"`
+	}
+	json.Unmarshal(up.Body.Bytes(), &song)
+	uploadCover(t, h, song.ID)
+
+	dr := httptest.NewRecorder()
+	h.ServeHTTP(dr, httptest.NewRequest("DELETE", "/api/songs/"+song.ID+"/cover", nil))
+	if dr.Code != http.StatusOK {
+		t.Fatalf("DELETE cover = %d, body=%s", dr.Code, dr.Body.String())
+	}
+	var updated struct {
+		CoverArtID string `json:"coverArtId"`
+	}
+	json.Unmarshal(dr.Body.Bytes(), &updated)
+	if updated.CoverArtID != "" {
+		t.Fatalf("coverArtId = %q after delete, want cleared", updated.CoverArtID)
+	}
+}
+
+func TestDeleteCover_anonymousForbidden(t *testing.T) {
+	h := testServer(t, config.AuthModeOIDC)
+	dr := httptest.NewRecorder()
+	h.ServeHTTP(dr, httptest.NewRequest("DELETE", "/api/songs/any/cover", nil))
+	if dr.Code != http.StatusForbidden {
+		t.Fatalf("anonymous cover DELETE = %d, want 403", dr.Code)
 	}
 }

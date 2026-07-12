@@ -114,16 +114,17 @@ export function PlayerBar({ fav, onShare, alignmentEnabled, openIntent = null, o
     // converges because same-status refetches don't change the dep.
   }, [full, lyricsMode, canKaraoke, song?.id, align?.status]);
 
-  // Apply a deep-link open-intent (?player=…) exactly once. Runs even before a
-  // track has loaded — full/lyricsMode persist, so the full player appears as soon
-  // as the song is in the player. The song-change effect above keeps lyricsMode
-  // only when the loaded track can actually do karaoke (graceful degradation).
+  // Apply a deep-link open-intent (?player=…) exactly once, and only once a track
+  // is actually loaded — so a bad/unknown song id (which never loads) can't leave
+  // `full` set and spring the next-played track open. lyricsMode is set
+  // declaratively from the intent; the song-change effect above still flips it back
+  // off when the loaded track can't do karaoke (graceful degradation).
   useEffect(() => {
-    if (!openIntent) return;
+    if (!openIntent || !p.current) return;
     setFull(true);
-    if (openIntent === "lyrics") setLyricsMode(true);
+    setLyricsMode(openIntent === "lyrics");
     onIntentConsumed?.();
-  }, [openIntent, onIntentConsumed]);
+  }, [openIntent, onIntentConsumed, p.current]);
 
   if (!p.current || !song) return null;
 

@@ -195,3 +195,24 @@ func refineUserPrompt(reference, lyrics, instruction string) string {
 	return fmt.Sprintf("Reference song: %s\n\nCurrent lyrics:\n%s\n\nRefinement instruction: %s",
 		reference, lyrics, instruction)
 }
+
+const playlistDescSystemPrompt = `You are a music editor writing short playlist descriptions.
+Given a playlist name and its songs, write THREE one-sentence descriptions in distinct tones.
+Return ONLY JSON: {"punchy":"...","evocative":"...","factual":"..."}.
+- punchy: energetic, imperative, <= 12 words.
+- evocative: mood and imagery, <= 22 words.
+- factual: plain summary of count/genres/energy, <= 22 words.
+No emojis. No quotes inside values.`
+
+func playlistDescUserPrompt(name string, songs []library.PlaylistTrackBrief) string {
+	var b strings.Builder
+	fmt.Fprintf(&b, "Playlist: %s\nSongs:\n", name)
+	for i, s := range songs {
+		if i >= 40 {
+			break
+		}
+		g := strings.Join(s.Genres, ", ")
+		fmt.Fprintf(&b, "- %s — %s (%s)\n", s.Title, s.Artist, g)
+	}
+	return b.String()
+}

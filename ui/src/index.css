@@ -237,6 +237,10 @@ body {
   outline-offset: 1px;
   border-color: var(--color-accent-fill);
 }
+.ui-control:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
 textarea.ui-control {
   min-height: 96px;
   padding: 10px 12px;

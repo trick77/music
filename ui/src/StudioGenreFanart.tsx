@@ -120,6 +120,7 @@ export function GenreFanartMode({ chatEnabled, imageModels, defaultImageModel, i
         className={controlClass}
         value={prompt}
         onChange={(e) => setPrompt(e.target.value)}
+        disabled={suggesting || refining}
         placeholder="Describe the scene for this genre's background…"
         rows={3}
         style={{ marginBottom: "var(--space-3)" }}

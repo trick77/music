@@ -2,6 +2,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { getHome, listGenres, type HomeFeed, type Song } from "./api";
 import { coverUrl, coverInitial } from "./cover";
 import { navigate } from "./router";
+import { genreLabel } from "./titleCase";
 import { Glyph } from "./Glyph";
 import { Hero, type GenreLink } from "./Hero";
 import { Chapter } from "./Chapter";
@@ -25,6 +26,10 @@ const sectionHead: React.CSSProperties = {
   justifyContent: "space-between",
   marginBottom: "0.9rem",
 };
+
+// How many genre pills a Top-ten row shows inline before collapsing the rest
+// into a "+N" count. Keeps the meta line from crowding out the artist name.
+const GENRE_CAP = 2;
 
 export function Home({ authenticated, onPlay, onShare, onUpload, renderRowActions, reloadKey }: Props) {
   const { current, playing } = usePlayer();
@@ -76,6 +81,36 @@ export function Home({ authenticated, onPlay, onShare, onUpload, renderRowAction
 
   const topTail = (i: number) => feed.topTen.slice(i + 1);
 
+  // The genre pills trailing a Top-ten row's artist. Each links to its genre page
+  // when the id resolved (plain pill otherwise, matching the Hero eyebrow), capped
+  // at GENRE_CAP with a "+N" for the rest. Renders nothing when the song has no genre.
+  const renderGenreChips = (song: Song) => {
+    if (song.genres.length === 0) return null;
+    const shown = song.genres.slice(0, GENRE_CAP);
+    const overflow = song.genres.length - shown.length;
+    return (
+      <>
+        <span aria-hidden="true" style={{ color: "var(--color-border)", flex: "none" }}>·</span>
+        {shown.map((name) => {
+          const id = genreIds.get(name.toLowerCase());
+          return id ? (
+            <a
+              key={name}
+              className="genre-chip"
+              href={`/genre/${id}`}
+              onClick={(e) => { e.preventDefault(); e.stopPropagation(); navigate(`/genre/${id}`); }}
+            >
+              {genreLabel(name)}
+            </a>
+          ) : (
+            <span key={name} className="genre-chip static">{genreLabel(name)}</span>
+          );
+        })}
+        {overflow > 0 && <span style={{ ...t.label, flex: "none" }}>+{overflow}</span>}
+      </>
+    );
+  };
+
   const featuredGenres: GenreLink[] = (featured?.genres ?? []).map((name) => ({
     name,
     id: genreIds.get(name.toLowerCase()) ?? null,
@@ -112,10 +147,16 @@ export function Home({ authenticated, onPlay, onShare, onUpload, renderRowAction
                 <button onClick={() => onPlay(s, topTail(i))} aria-label={`Play ${s.title}`} style={{ padding: 0, border: "none", background: "none", cursor: "pointer" }}>
                   <SongCover song={s} size={48} radius={8} imgSize="thumb" />
                 </button>
-                <button onClick={() => onPlay(s, topTail(i))} style={{ padding: 0, border: "none", background: "none", cursor: "pointer", textAlign: "left", minWidth: 0 }}>
-                  <div style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: current?.id === s.id ? "var(--color-accent-strong)" : undefined }}>{s.title}</div>
-                  <div style={{ ...t.label, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.artistName}</div>
-                </button>
+                <div style={{ minWidth: 0 }}>
+                  <button onClick={() => onPlay(s, topTail(i))} style={{ display: "block", width: "100%", padding: 0, border: "none", background: "none", cursor: "pointer", textAlign: "left", minWidth: 0 }}>
+                    <div style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: current?.id === s.id ? "var(--color-accent-strong)" : undefined }}>{s.title}</div>
+                  </button>
+                  {/* Meta line: artist (still a play target) trailed by the genre pills. */}
+                  <div style={{ display: "flex", alignItems: "center", gap: "0.4rem", minWidth: 0 }}>
+                    <button onClick={() => onPlay(s, topTail(i))} style={{ ...t.label, padding: 0, border: "none", background: "none", cursor: "pointer", textAlign: "left", minWidth: 0, flexShrink: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.artistName}</button>
+                    {renderGenreChips(s)}
+                  </div>
+                </div>
                 <span className="rank-num" style={{ ...t.label, whiteSpace: "nowrap" }}>
                   {s.plays.toLocaleString()} {s.plays === 1 ? "play" : "plays"}
                 </span>

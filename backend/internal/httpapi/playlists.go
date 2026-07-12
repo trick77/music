@@ -6,15 +6,20 @@ import (
 	"net/http"
 
 	"github.com/trick77/music/internal/config"
+	"github.com/trick77/music/internal/imagegen"
 	"github.com/trick77/music/internal/library"
 	"github.com/trick77/music/internal/media"
+	"github.com/trick77/music/internal/studio"
 )
 
 type playlistHandlers struct {
-	cfg      config.Config
-	repo     *library.Repo
-	media    *media.Store
-	maxBytes int64
+	cfg           config.Config
+	repo          *library.Repo
+	media         *media.Store
+	maxBytes      int64
+	genrePrompter studio.GenrePrompter
+	descriptions  studio.DescriptionWriter
+	imageGen      imagegen.Provider
 }
 
 func (h *playlistHandlers) requireAuth(w http.ResponseWriter, r *http.Request) bool {

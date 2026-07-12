@@ -21,37 +21,44 @@ import (
 // New builds the app handler with generation wired from cfg (a real BFL client
 // when a key is set) and no OIDC authenticator (dev mode / tests).
 func New(cfg config.Config, st *store.Store, spa http.Handler) http.Handler {
-	return build(cfg, st, spa, nil, nil, nil, nil, nil)
+	return build(cfg, st, spa, nil, nil, nil, nil, nil, nil)
 }
 
 // NewWithProvider builds the app handler, allowing an image-generation Provider
 // and a completion hook to be injected (used by tests). When gen is nil and
 // generation is configured, a real BFL client is built.
 func NewWithProvider(cfg config.Config, st *store.Store, spa http.Handler, gen imagegen.Provider, onGenComplete func(string)) http.Handler {
-	return build(cfg, st, spa, gen, onGenComplete, nil, nil, nil)
+	return build(cfg, st, spa, gen, onGenComplete, nil, nil, nil, nil)
 }
 
 // NewWithStudioProvider builds the app handler with a Studio Provider injected
 // (used by tests so no live LLM/MCP calls are made).
 func NewWithStudioProvider(cfg config.Config, st *store.Store, spa http.Handler, sp studio.Provider) http.Handler {
-	return build(cfg, st, spa, nil, nil, nil, sp, nil)
+	return build(cfg, st, spa, nil, nil, nil, sp, nil, nil)
 }
 
 // NewWithGenrePrompter builds the app handler with an image-generation Provider
 // and a genre-prompt suggester injected (used by tests so no live LLM call is
 // made). Mirrors NewWithProvider but also wires the suggest-prompt route.
 func NewWithGenrePrompter(cfg config.Config, st *store.Store, spa http.Handler, gen imagegen.Provider, onGenComplete func(string), gp studio.GenrePrompter) http.Handler {
-	return build(cfg, st, spa, gen, onGenComplete, nil, nil, gp)
+	return build(cfg, st, spa, gen, onGenComplete, nil, nil, gp, nil)
 }
 
 // NewWithAuth builds the app handler with an OIDC Authenticator wired in
 // (production oidc mode and the auth-flow tests). A nil authr registers no
 // login/callback/logout routes.
 func NewWithAuth(cfg config.Config, st *store.Store, spa http.Handler, authr *auth.Authenticator) http.Handler {
-	return build(cfg, st, spa, nil, nil, authr, nil, nil)
+	return build(cfg, st, spa, nil, nil, authr, nil, nil, nil)
 }
 
-func build(cfg config.Config, st *store.Store, spa http.Handler, gen imagegen.Provider, onGenComplete func(string), authr *auth.Authenticator, studioProvider studio.Provider, genrePrompter studio.GenrePrompter) http.Handler {
+// NewWithPlaylistAI builds the app handler with an image-generation Provider, a
+// genre-prompt suggester, and a playlist-description writer injected (used by
+// tests so no live LLM/image calls are made). Exercises the playlist AI routes.
+func NewWithPlaylistAI(cfg config.Config, st *store.Store, spa http.Handler, gen imagegen.Provider, gp studio.GenrePrompter, dw studio.DescriptionWriter) http.Handler {
+	return build(cfg, st, spa, gen, nil, nil, nil, gp, dw)
+}
+
+func build(cfg config.Config, st *store.Store, spa http.Handler, gen imagegen.Provider, onGenComplete func(string), authr *auth.Authenticator, studioProvider studio.Provider, genrePrompter studio.GenrePrompter, descriptionWriter studio.DescriptionWriter) http.Handler {
 	mux := http.NewServeMux()
 	var shareRepo *library.Repo
 
@@ -123,6 +130,13 @@ func build(cfg config.Config, st *store.Store, spa http.Handler, gen imagegen.Pr
 					&llm.Client{BaseURL: cfg.ChatBaseURL, APIKey: cfg.ChatAPIKey, Model: "mimo-v2.5-pro", ReasoningEffort: "high"},
 				)
 			}
+			// Real one-shot playlist-description writer when the chat key is set
+			// and none was injected (tests inject their own).
+			if descriptionWriter == nil && cfg.ChatEnabled() {
+				descriptionWriter = studio.NewDescriptionWriter(
+					&llm.Client{BaseURL: cfg.ChatBaseURL, APIKey: cfg.ChatAPIKey, Model: "mimo-v2.5-pro", ReasoningEffort: "high"},
+				)
+			}
 			h := &songHandlers{
 				cfg:           cfg,
 				repo:          library.NewRepo(st.DB()),
@@ -185,7 +199,10 @@ func build(cfg config.Config, st *store.Store, spa http.Handler, gen imagegen.Pr
 			mux.HandleFunc("POST /api/albums/refine-prompt", h.postAlbumRefinePrompt)
 			mux.HandleFunc("POST /api/albums/cover", h.postAlbumCover)
 
-			pl := &playlistHandlers{cfg: cfg, repo: h.repo, media: mstore, maxBytes: int64(cfg.MaxUploadMB) * 1024 * 1024}
+			pl := &playlistHandlers{
+				cfg: cfg, repo: h.repo, media: mstore, maxBytes: int64(cfg.MaxUploadMB) * 1024 * 1024,
+				genrePrompter: genrePrompter, descriptions: descriptionWriter, imageGen: gen,
+			}
 			mux.HandleFunc("GET /api/playlists", pl.list)
 			mux.HandleFunc("GET /api/playlists/{id}", pl.get)
 			mux.HandleFunc("POST /api/playlists", pl.create)
@@ -197,6 +214,10 @@ func build(cfg config.Config, st *store.Store, spa http.Handler, gen imagegen.Pr
 			mux.HandleFunc("DELETE /api/playlists/{id}/songs/{songId}", pl.removeSong)
 			mux.HandleFunc("PUT /api/playlists/{id}/reorder", pl.reorder)
 			mux.HandleFunc("PUT /api/playlists/{id}/cover", pl.putCover)
+			mux.HandleFunc("POST /api/playlists/{id}/suggest-prompt", pl.postSuggestPrompt)
+			mux.HandleFunc("POST /api/playlists/{id}/refine-prompt", pl.postRefinePrompt)
+			mux.HandleFunc("POST /api/playlists/{id}/cover", pl.postCover)
+			mux.HandleFunc("POST /api/playlists/{id}/suggest-description", pl.postSuggestDescription)
 
 			fav := &favoriteHandlers{cfg: cfg, repo: h.repo}
 			mux.HandleFunc("GET /api/favorites", fav.list)

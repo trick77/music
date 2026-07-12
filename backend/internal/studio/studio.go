@@ -12,14 +12,16 @@ type GenerateRequest struct {
 }
 
 // GenerateResult is the ephemeral output: the three Suno prompt parts, up to
-// three genre labels the model picks for the song, and up to three song-title
-// and album-name ideas (all shown in the Identity card in the dialog). Titles
-// and albums vary in directness, from an obvious pick to a more oblique one.
+// three genre labels the model picks for the song, and up to three band-name,
+// song-title and album-name ideas (all shown in the Identity card in the
+// dialog). Bands, titles and albums vary in directness, from an obvious pick to
+// a more oblique one.
 type GenerateResult struct {
 	StylePrompt    string   `json:"stylePrompt"`
 	Lyrics         string   `json:"lyrics"`
 	CoverArtPrompt string   `json:"coverArtPrompt"`
 	Genres         []string `json:"genres"`
+	Bands          []string `json:"bands"`
 	Titles         []string `json:"titles"`
 	Albums         []string `json:"albums"`
 }

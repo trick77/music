@@ -35,7 +35,7 @@ func (c *cannedChat) Chat(_ context.Context, messages []llm.Message, tools []llm
 
 func TestGenerate_parsesThreeFieldsFromFencedJSON(t *testing.T) {
 	chat := &cannedChat{reply: "Here you go:\n```json\n" +
-		`{"stylePrompt":"1990s,heavy metal,thrash","lyrics":"[Verse]\nfresh words","coverArtPrompt":"a dim bedroom, 1991 thrash aesthetic","genres":["heavy metal","thrash","heavy metal","groove metal","nu metal"],"titles":["Sleep Now","Sleep Now","Grey Between Dreams","The Sandman's Ledger","Fourth Title"],"albums":["Nightfall Sessions","Hush the World","Iron Lullaby"]}` +
+		`{"stylePrompt":"1990s,heavy metal,thrash","lyrics":"[Verse]\nfresh words","coverArtPrompt":"a dim bedroom, 1991 thrash aesthetic","genres":["heavy metal","thrash","heavy metal","groove metal","nu metal"],"titles":["Sleep Now","Sleep Now","Grey Between Dreams","The Sandman's Ledger","Fourth Title"],"albums":["Nightfall Sessions","Hush the World","Iron Lullaby"],"bands":["Ashen Verdict","Ashen Verdict","Grey Litany","Hollow Sabbath","Fourth Band"]}` +
 		"\n```\nHope that helps!"}
 	p := New(chat, &fakeTools{})
 
@@ -57,6 +57,10 @@ func TestGenerate_parsesThreeFieldsFromFencedJSON(t *testing.T) {
 	if len(res.Albums) != 3 || res.Albums[0] != "Nightfall Sessions" {
 		t.Fatalf("Albums = %#v, want 3 starting with Nightfall Sessions", res.Albums)
 	}
+	// Bands are likewise de-duplicated and capped at 3, preserving order.
+	if len(res.Bands) != 3 || res.Bands[0] != "Ashen Verdict" || res.Bands[1] != "Grey Litany" || res.Bands[2] != "Hollow Sabbath" {
+		t.Fatalf("Bands = %#v, want [Ashen Verdict, Grey Litany, Hollow Sabbath]", res.Bands)
+	}
 	if !strings.Contains(res.Lyrics, "[Verse]") {
 		t.Fatalf("Lyrics = %q", res.Lyrics)
 	}
@@ -73,17 +77,17 @@ func TestGenerate_parsesThreeFieldsFromFencedJSON(t *testing.T) {
 	}
 }
 
-// Titles and albums are best-effort: a reply that omits them must still yield a
-// usable result (the Identity card simply shows no name ideas), unlike the core
-// style/lyrics/cover fields which are required.
-func TestGenerate_toleratesMissingTitlesAndAlbums(t *testing.T) {
+// Bands, titles and albums are best-effort: a reply that omits them must still
+// yield a usable result (the Identity card simply shows no name ideas), unlike
+// the core style/lyrics/cover fields which are required.
+func TestGenerate_toleratesMissingBandsTitlesAndAlbums(t *testing.T) {
 	chat := &cannedChat{reply: `{"stylePrompt":"1990s,thrash","lyrics":"[Verse]\nwords","coverArtPrompt":"dim room","genres":["thrash"]}`}
 	res, err := New(chat, &fakeTools{}).Generate(context.Background(), GenerateRequest{Reference: "x"}, nil)
 	if err != nil {
-		t.Fatalf("Generate should tolerate missing titles/albums: %v", err)
+		t.Fatalf("Generate should tolerate missing bands/titles/albums: %v", err)
 	}
-	if len(res.Titles) != 0 || len(res.Albums) != 0 {
-		t.Fatalf("expected empty Titles/Albums, got %#v / %#v", res.Titles, res.Albums)
+	if len(res.Bands) != 0 || len(res.Titles) != 0 || len(res.Albums) != 0 {
+		t.Fatalf("expected empty Bands/Titles/Albums, got %#v / %#v / %#v", res.Bands, res.Titles, res.Albums)
 	}
 }
 

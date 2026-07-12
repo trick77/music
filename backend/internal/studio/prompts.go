@@ -17,7 +17,7 @@ available tools (web search, and page fetch when available). Also search for the
 CURRENT set of Suno prompt/meta tags — Suno's supported tags change over time —
 and prefer tags you can confirm are current.
 
-Using what you learn, produce SIX things:
+Using what you learn, produce SEVEN things:
 
 1. stylePrompt — a comma-separated list of style/genre descriptors for Suno's
    "Style" box. Rules: NO spaces after commas; lowercase except proper nouns;
@@ -66,9 +66,17 @@ Using what you learn, produce SIX things:
    from one another AND from the titles, and never the reference song's real
    album or title.
 
+7. bands — an array of EXACTLY 3 original band/artist-name ideas that could
+   plausibly have recorded this song, fitting the researched genre and era/epoch
+   and suiting the lyrics' mood. A band name names the ACT, not the song — do NOT
+   reuse or echo any of the titles or albums. Same varied spirit (obvious first,
+   oblique last): typically 1-3 words each, Title Case, no surrounding quotes, all
+   distinct from one another AND from the titles and albums, and NEVER the
+   reference song's real artist or band name.
+
 When you have finished researching, respond with ONLY a single JSON object and
 nothing else (no prose, no code fences):
-{"stylePrompt":"...","lyrics":"...","coverArtPrompt":"...","genres":["...","...","..."],"titles":["...","...","..."],"albums":["...","...","..."]}`
+{"stylePrompt":"...","lyrics":"...","coverArtPrompt":"...","genres":["...","...","..."],"titles":["...","...","..."],"albums":["...","...","..."],"bands":["...","...","..."]}`
 
 // refineSystemPrompt instructs MiMo to rewrite only the lyrics per an instruction.
 const refineSystemPrompt = `You revise Suno lyrics. You are given a reference song, the current ORIGINAL

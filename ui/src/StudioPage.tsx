@@ -72,10 +72,11 @@ export function ResultCard({ name, note, count, text, monospace = false, onChang
 }
 
 // IdentityCard groups everything that names and classifies the track: up to
-// three song-title ideas and three album-name ideas (each varying from an
+// three band-name, song-title and album-name ideas (each varying from an
 // obvious pick to a more oblique one, with a copy button), plus the model-picked
-// genres as a footer row. Any empty list is omitted; the whole card is hidden
-// when the model returned nothing to name or classify.
+// genres as a footer row. Columns wrap responsively (band first, then title,
+// then album). Any empty list is omitted; the whole card is hidden when the
+// model returned nothing to name or classify.
 function IdeaColumn({ label, options }: { label: string; options: string[] }) {
   return (
     <div>
@@ -94,8 +95,8 @@ function IdeaColumn({ label, options }: { label: string; options: string[] }) {
   );
 }
 
-function IdentityCard({ titles, albums, genres }: { titles: string[]; albums: string[]; genres: string[] }) {
-  if (!titles?.length && !albums?.length && !genres?.length) return null;
+function IdentityCard({ bands, titles, albums, genres }: { bands: string[]; titles: string[]; albums: string[]; genres: string[] }) {
+  if (!bands?.length && !titles?.length && !albums?.length && !genres?.length) return null;
   return (
     <div style={{ marginBottom: "1.6rem", padding: "16px 16px 4px", background: "color-mix(in srgb, var(--color-panel) 60%, transparent)",
       border: "1px solid var(--color-border)", borderRadius: "var(--radius-ui)" }}>
@@ -104,9 +105,10 @@ function IdentityCard({ titles, albums, genres }: { titles: string[]; albums: st
         <span style={{ fontWeight: 400, color: "var(--color-muted)", fontSize: "var(--text-label)", marginLeft: "0.4rem" }}>→ name it &amp; classify it · pick one, copy</span>
       </div>
       <p style={{ color: "var(--color-muted)", fontSize: "var(--text-label)", margin: "0 0 0.9rem" }}>
-        Title and album ideas run from the obvious pick to a more oblique one — never a lyric line verbatim.
+        Band, title and album ideas run from the obvious pick to a more oblique one — never a lyric line verbatim.
       </p>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1.2rem 1.6rem" }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: "1.2rem 1.6rem" }}>
+        {bands?.length > 0 && <IdeaColumn label="Band name" options={bands} />}
         {titles?.length > 0 && <IdeaColumn label="Song title" options={titles} />}
         {albums?.length > 0 && <IdeaColumn label="Album name" options={albums} />}
       </div>
@@ -312,7 +314,7 @@ export function StudioPage({ imageGenEnabled = false, chatEnabled = false, image
         </Button>
       </form>
       <p style={{ color: "var(--color-muted)", fontSize: "var(--text-label)", margin: "0.5rem 0 0" }}>
-        Studio researches the song on the web, captures its style, writes fresh original lyrics on the same theme (never the original words), suggests titles and album names, and sketches cover art. Results are shown once and not stored.
+        Studio researches the song on the web, captures its style, writes fresh original lyrics on the same theme (never the original words), suggests band, title and album names, and sketches cover art. Results are shown once and not stored.
       </p>
       {stale && (
         <p style={{ color: "var(--color-accent-strong)", fontSize: "var(--text-label)", margin: "0.5rem 0 0" }}>
@@ -344,7 +346,7 @@ export function StudioPage({ imageGenEnabled = false, chatEnabled = false, image
       {/* Results */}
       {result && !busy && (
         <div style={{ marginTop: "2rem" }}>
-          <IdentityCard titles={result.titles} albums={result.albums} genres={result.genres} />
+          <IdentityCard bands={result.bands} titles={result.titles} albums={result.albums} genres={result.genres} />
           <ResultCard
             name="Lyrics"
             note="→ Suno “Lyrics” · original, editable"

@@ -67,6 +67,14 @@ export function back(state: PlayerState): PlayerState {
   return { ...state, current: prev, history, queue, positionMs: 0 };
 }
 
+// shouldRestart decides the "previous" button behaviour: if we're more than a
+// few seconds into the current track, a press restarts it (returns true) rather
+// than stepping back to the previous song. Only a second press — now near the
+// start — actually goes back. Threshold in ms.
+export function shouldRestart(positionMs: number, thresholdMs = 3000): boolean {
+  return positionMs > thresholdMs;
+}
+
 // qualifiesForPlay decides when a listen counts: >=30s, OR >=50% of the track
 // for short songs (spec §9). Avoids skip-inflation.
 export function qualifiesForPlay(positionMs: number, durationMs: number): boolean {
@@ -298,6 +306,15 @@ export const player = {
     }
   },
   prev() {
+    // Standard media-player "back": more than a few seconds into the track, the
+    // first press restarts it; only a second press (now near the start) steps
+    // back to the previous song. Avoids losing your place on an accidental tap.
+    const el = getAudio();
+    if (state.current && shouldRestart(el.currentTime * 1000)) {
+      el.currentTime = 0;
+      set({ positionMs: 0 });
+      return;
+    }
     const before = state.current?.id;
     state = back(state);
     emit();

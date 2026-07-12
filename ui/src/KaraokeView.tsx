@@ -4,6 +4,7 @@ import type { AlignedLine } from "./api";
 
 const LEAD = 0.6;
 const MAX_SWEEP = 1.2;
+const HOLD = 4;
 
 type WordBox = { left: number; right: number; s: number; e: number };
 type LineRt = {
@@ -24,11 +25,13 @@ type LineRt = {
 export function KaraokeView({ lines }: { lines: AlignedLine[] }) {
   const stageRef = useRef<HTMLDivElement>(null);
   const innerRef = useRef<HTMLDivElement>(null);
+  const dotsRef = useRef<HTMLDivElement>(null);
   const lineRefs = useRef<LineRt[]>([]);
 
   useEffect(() => {
     const inner = innerRef.current;
     if (!inner) return;
+    const dots = dotsRef.current;
     const L = lineRefs.current;
 
     // activateAt[i]: when line i takes focus — LEAD before its first word, clamped
@@ -72,14 +75,22 @@ export function KaraokeView({ lines }: { lines: AlignedLine[] }) {
     let raf = 0;
     let cancelled = false;
     let lastActive = -2;
+    let dotsOn = false;
     function frame() {
       const audio = player.getAudioElement();
       const t = audio ? audio.currentTime : 0;
       let active = -1;
       for (let i = 0; i < lines.length; i++) if (t >= activateAt[i]) active = i;
+      const activeEndTime = active >= 0 ? (lines[active].end ?? activateAt[active]) : -Infinity;
+      const held = active >= 0 && t <= activeEndTime + HOLD;
+      const showDots = active < 0;
+      if (showDots !== dotsOn) {
+        dots?.classList.toggle("kv-visible", showDots);
+        dotsOn = showDots;
+      }
       L.forEach((l, i) => {
         if (!l) return;
-        const on = i === active;
+        const on = i === active && held;
         if (l.on !== on) {
           l.el.classList.toggle("kv-active", on);
           l.fill.classList.toggle("kv-sweeping", on);
@@ -136,6 +147,11 @@ export function KaraokeView({ lines }: { lines: AlignedLine[] }) {
     <>
       <style>{KV_CSS}</style>
       <div ref={stageRef} className="kv-stage">
+        <div ref={dotsRef} className="kv-intro-dots">
+          <span />
+          <span />
+          <span />
+        </div>
         <div ref={innerRef} className="kv-inner">
           {lines.map((ln, li) => (
             <LineRow key={li} line={ln} register={(rt) => (lineRefs.current[li] = rt)} />
@@ -204,4 +220,15 @@ const KV_CSS = `
 .kv-fill.kv-sweeping {
   -webkit-mask-image: linear-gradient(90deg,#000 calc(100% - 24px), rgba(0,0,0,.3) calc(100% - 7px), transparent);
   mask-image: linear-gradient(90deg,#000 calc(100% - 24px), rgba(0,0,0,.3) calc(100% - 7px), transparent); }
+.kv-intro-dots { position:absolute; top:40vh; left:max(24px, 8vw); display:flex; gap:8px;
+  opacity:0; pointer-events:none; transition: opacity .45s ease; }
+.kv-intro-dots.kv-visible { opacity:1; }
+.kv-intro-dots span { width:9px; height:9px; border-radius:50%; background: rgba(250,249,245,.5);
+  animation: kv-dot-bounce 1.2s ease-in-out infinite; }
+.kv-intro-dots span:nth-child(2) { animation-delay: .15s; }
+.kv-intro-dots span:nth-child(3) { animation-delay: .3s; }
+@keyframes kv-dot-bounce {
+  0%, 60%, 100% { transform: translateY(0); opacity:.5; }
+  30% { transform: translateY(-6px); opacity:1; }
+}
 `;

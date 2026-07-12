@@ -26,4 +26,11 @@ describe("KaraokeView", () => {
     const html = renderToStaticMarkup(<KaraokeView lines={[{ text: "instrumental", start: 0, end: 1, words: [] }]} />);
     expect(html).toContain("instrumental");
   });
+
+  it("renders an intro loading-dots indicator", () => {
+    const html = renderToStaticMarkup(
+      <KaraokeView lines={[{ text: "hello", start: 1, end: 2, words: [] }]} />
+    );
+    expect(html).toContain("kv-intro-dots");
+  });
 });

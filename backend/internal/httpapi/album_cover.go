@@ -65,7 +65,7 @@ func (h *songHandlers) postAlbumSuggestPrompt(w http.ResponseWriter, r *http.Req
 	}
 	ctx, cancel := context.WithTimeout(r.Context(), suggestPromptTimeout)
 	defer cancel()
-	prompt, err := h.genrePrompter.AlbumCoverPrompt(ctx, actx.ArtistName, strings.TrimSpace(req.Album), actx.Genres)
+	prompt, err := h.genrePrompter.AlbumCoverPrompt(ctx, actx.ArtistName, strings.TrimSpace(req.Album), actx.Genres, actx.Lyrics)
 	if err != nil {
 		serverError(w, "suggest album prompt", err)
 		return

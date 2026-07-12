@@ -3,6 +3,8 @@ package studio
 import (
 	"fmt"
 	"strings"
+
+	"github.com/trick77/music/internal/library"
 )
 
 // generateSystemPrompt instructs MiMo to research a named song and emit a Suno
@@ -33,11 +35,13 @@ Using what you learn, produce FOUR things:
    Use tags you confirmed are current; the list above is a floor, not a ceiling.
 
 3. coverArtPrompt — a CONCISE prompt for a downstream image generator: one or two
-   vivid sentences, at most ~60 words. Image models degrade on long rambling
-   descriptions, so favor a single strong central subject, palette, and mood over
-   exhaustive detail. It MUST bake in the researched genre and era/epoch so the
-   aesthetic is period-correct (e.g. a 1991 thrash-metal cover, not a modern one).
-   No text in the image; square album composition.
+   vivid sentences, at most ~60 words. Ground the imagery in the THEMES, STORY, and
+   KEY IMAGES of the lyrics you wrote in step 2 above — not just the genre and era.
+   Image models degrade on long rambling descriptions, so favor a single strong
+   central subject, palette, and mood over exhaustive detail. It MUST also bake in
+   the researched genre and era/epoch so the aesthetic is period-correct (e.g. a
+   1991 thrash-metal cover, not a modern one). No text in the image; square album
+   composition.
 
 4. genres — an array of UP TO 3 concise genre names that best classify the song
    (1-3 words each, e.g. "synthwave", "dream pop", "drum and bass"). Lowercase,
@@ -100,12 +104,18 @@ Respond with ONLY a single JSON object and nothing else (no prose, no code fence
 // the genre background (wide, depicts a scene), this is a tight single-subject
 // album composition, period-correct to the genre's sonic aesthetic.
 const albumCoverPromptSystemPrompt = `You write ONE image-generation prompt for a SQUARE album cover. You are given an
-artist name, an album title, and its genre(s).
+artist name, an album title, its genre(s), and — when available — lyric excerpts
+from the album's songs.
 
 Depict a strong, single central subject or motif that fits the album — its genre,
 mood, and era. This is an album cover, not a movie poster and not a page banner.
 Never put any text, letters, words, logos, or watermarks in the image (the title
 and artist are added separately).
+
+If lyric excerpts are provided, ground the subject and imagery in their THEMES and
+STORY rather than genre/era alone — the lyrics are the strongest signal for what
+the cover should actually depict. If no lyrics are provided, fall back to genre,
+mood, and era.
 
 Rules for the prompt itself:
 - One or two vivid sentences, at most ~60 words. Image models degrade on long
@@ -138,12 +148,22 @@ func genrePromptUserPrompt(genre string) string {
 	return fmt.Sprintf("Genre: %s", genre)
 }
 
-func albumCoverPromptUserPrompt(artist, album string, genres []string) string {
+func albumCoverPromptUserPrompt(artist, album string, genres []string, lyrics []library.SongLyric) string {
 	genre := strings.Join(genres, ", ")
 	if strings.TrimSpace(genre) == "" {
 		genre = "(unknown)"
 	}
-	return fmt.Sprintf("Artist: %s\nAlbum: %s\nGenre(s): %s", artist, album, genre)
+	base := fmt.Sprintf("Artist: %s\nAlbum: %s\nGenre(s): %s", artist, album, genre)
+	if len(lyrics) == 0 {
+		return base
+	}
+	var b strings.Builder
+	b.WriteString(base)
+	b.WriteString("\nLyrics:")
+	for _, sl := range lyrics {
+		fmt.Fprintf(&b, "\n- %q: %s", sl.Title, sl.Lyrics)
+	}
+	return b.String()
 }
 
 func refinePromptUserPrompt(current, instruction, context string) string {

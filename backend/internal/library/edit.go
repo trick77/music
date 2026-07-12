@@ -2,6 +2,7 @@ package library
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"strings"
 )
@@ -19,9 +20,11 @@ type UpdateSongParams struct {
 }
 
 // Update edits a song's metadata: title/artist(upsert)/album/year/track, replaces
-// its genres, refreshes file_size, and re-resolves the album cover for the new
-// artist+album (adopting that album's mapped cover when one exists). content_hash
-// is deliberately left unchanged — it is the import identity, not a live checksum.
+// its genres, refreshes file_size, and keeps the album cover in sync for the new
+// artist+album. If that album already has a mapped cover the song adopts it;
+// otherwise the song's own cover (if any) is registered as the album's cover so
+// every song sharing that artist+album stays on the same art. content_hash is
+// deliberately left unchanged — it is the import identity, not a live checksum.
 func (r *Repo) Update(ctx context.Context, id string, p UpdateSongParams) (*Song, error) {
 	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
@@ -33,26 +36,40 @@ func (r *Repo) Update(ctx context.Context, id string, p UpdateSongParams) (*Song
 	if err != nil {
 		return nil, err
 	}
-	coverID, err := albumCoverIDTx(ctx, tx, artistID, p.Album)
-	if err != nil {
+
+	// Remember the song's current cover before the edit so it can seed a new
+	// album mapping when we move it into an album that has none yet.
+	var curCover sql.NullString
+	if err := tx.QueryRowContext(ctx, `SELECT cover_art_id FROM songs WHERE id=?`, id).Scan(&curCover); err != nil {
 		return nil, err
 	}
 
-	if coverID != "" {
-		if _, err := tx.ExecContext(ctx,
-			`UPDATE songs SET title=?, artist_id=?, album=?, year=?, track_no=?, lyrics=?, file_size=?, cover_art_id=?
-			 WHERE id=?`,
-			p.Title, artistID, nullStr(p.Album), nullInt(p.Year), nullInt(p.TrackNo), nullStr(p.Lyrics), p.FileSize, coverID, id,
-		); err != nil {
+	// The main row edit deliberately leaves cover_art_id untouched; the album
+	// cover reconciliation below is the single owner of that column.
+	if _, err := tx.ExecContext(ctx,
+		`UPDATE songs SET title=?, artist_id=?, album=?, year=?, track_no=?, lyrics=?, file_size=?
+		 WHERE id=?`,
+		p.Title, artistID, nullStr(p.Album), nullInt(p.Year), nullInt(p.TrackNo), nullStr(p.Lyrics), p.FileSize, id,
+	); err != nil {
+		return nil, err
+	}
+
+	// Reconcile the album cover for the new artist+album. Albums keep a single
+	// shared cover (album_covers); singles keep their per-song cover as-is.
+	if key := albumKey(p.Album); key != "" {
+		cover, err := albumCoverIDTx(ctx, tx, artistID, p.Album)
+		if err != nil {
 			return nil, err
 		}
-	} else {
-		if _, err := tx.ExecContext(ctx,
-			`UPDATE songs SET title=?, artist_id=?, album=?, year=?, track_no=?, lyrics=?, file_size=?
-			 WHERE id=?`,
-			p.Title, artistID, nullStr(p.Album), nullInt(p.Year), nullInt(p.TrackNo), nullStr(p.Lyrics), p.FileSize, id,
-		); err != nil {
-			return nil, err
+		if cover == "" {
+			cover = curCover.String // no album cover yet: adopt this song's own
+		}
+		if cover != "" {
+			// Upserts the mapping and applies it to every song of the album,
+			// including this one (its album/artist were just updated above).
+			if err := setAlbumCoverTx(ctx, tx, artistID, key, cover); err != nil {
+				return nil, err
+			}
 		}
 	}
 

@@ -6,15 +6,20 @@ import (
 	"net/http"
 
 	"github.com/trick77/music/internal/config"
+	"github.com/trick77/music/internal/imagegen"
 	"github.com/trick77/music/internal/library"
 	"github.com/trick77/music/internal/media"
+	"github.com/trick77/music/internal/studio"
 )
 
 type playlistHandlers struct {
-	cfg      config.Config
-	repo     *library.Repo
-	media    *media.Store
-	maxBytes int64
+	cfg           config.Config
+	repo          *library.Repo
+	media         *media.Store
+	maxBytes      int64
+	genrePrompter studio.GenrePrompter
+	descriptions  studio.DescriptionWriter
+	imageGen      imagegen.Provider
 }
 
 func (h *playlistHandlers) requireAuth(w http.ResponseWriter, r *http.Request) bool {
@@ -74,6 +79,13 @@ type playlistBody struct {
 	Description string `json:"description"`
 }
 
+// playlistPatchBody distinguishes an omitted field from an empty one, so
+// PATCH can update only the description without resending the name.
+type playlistPatchBody struct {
+	Name        *string `json:"name"`
+	Description *string `json:"description"`
+}
+
 func (h *playlistHandlers) create(w http.ResponseWriter, r *http.Request) {
 	if !h.requireAuth(w, r) {
 		return
@@ -99,19 +111,30 @@ func (h *playlistHandlers) patch(w http.ResponseWriter, r *http.Request) {
 	if !h.requireAuth(w, r) {
 		return
 	}
-	var body playlistBody
+	var body playlistPatchBody
 	if err := decodeJSON(w, r, &body); err != nil {
 		httpError(w, http.StatusBadRequest, "invalid JSON")
 		return
 	}
-	if body.Name == "" {
+	if body.Name != nil && *body.Name == "" {
 		httpError(w, http.StatusBadRequest, "name is required")
 		return
 	}
 	id := r.PathValue("id")
-	if err := h.repo.UpdatePlaylist(r.Context(), id, body.Name, body.Description); err != nil {
-		serverError(w, "update playlist", err)
-		return
+	description := ""
+	if body.Description != nil {
+		description = *body.Description
+	}
+	if body.Name == nil {
+		if err := h.repo.UpdatePlaylistDescription(r.Context(), id, description); err != nil {
+			serverError(w, "update playlist", err)
+			return
+		}
+	} else {
+		if err := h.repo.UpdatePlaylist(r.Context(), id, *body.Name, description); err != nil {
+			serverError(w, "update playlist", err)
+			return
+		}
 	}
 	h.respondDetail(w, r, id, http.StatusOK)
 }

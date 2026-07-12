@@ -184,6 +184,45 @@ func TestListPlaylists_newestFirst(t *testing.T) {
 	}
 }
 
+func TestPlaylistContext_returnsNameAndBriefs(t *testing.T) {
+	r := newRepo(t)
+	ctx := context.Background()
+	pid, err := r.CreatePlaylist(ctx, "Late Night Drive", "City lights, low volume")
+	if err != nil {
+		t.Fatalf("CreatePlaylist: %v", err)
+	}
+	a := plSong(t, r, "A", "h1", "songs/a.mp3")
+	b := plSong(t, r, "B", "h2", "songs/b.mp3")
+	if err := r.AddSong(ctx, pid, a); err != nil {
+		t.Fatalf("AddSong a: %v", err)
+	}
+	if err := r.AddSong(ctx, pid, b); err != nil {
+		t.Fatalf("AddSong b: %v", err)
+	}
+
+	name, songs, err := r.PlaylistContext(ctx, pid)
+	if err != nil {
+		t.Fatalf("PlaylistContext: %v", err)
+	}
+	if name != "Late Night Drive" {
+		t.Fatalf("name = %q, want %q", name, "Late Night Drive")
+	}
+	if len(songs) != 2 {
+		t.Fatalf("want 2 briefs, got %d: %+v", len(songs), songs)
+	}
+	if songs[0].Title != "A" || songs[1].Title != "B" {
+		t.Fatalf("wrong order: %+v", songs)
+	}
+	for _, s := range songs {
+		if s.Artist == "" {
+			t.Fatalf("Artist empty in brief: %+v", s)
+		}
+		if len(s.Genres) != 2 || s.Genres[0] != "synthwave" || s.Genres[1] != "dream pop" {
+			t.Fatalf("Genres = %#v, want [synthwave dream pop]", s.Genres)
+		}
+	}
+}
+
 func TestSetPlaylistCover(t *testing.T) {
 	r := newRepo(t)
 	ctx := context.Background()

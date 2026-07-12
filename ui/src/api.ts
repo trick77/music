@@ -232,6 +232,51 @@ export async function uploadPlaylistCover(id: string, file: File): Promise<Playl
   return r.json();
 }
 
+export async function suggestPlaylistPrompt(id: string): Promise<{ prompt: string }> {
+  const r = await fetch(`/api/playlists/${id}/suggest-prompt`, { method: "POST" });
+  if (!r.ok) throw new Error(`suggest failed (${r.status})`);
+  return r.json();
+}
+
+export async function refinePlaylistPrompt(id: string, current: string, instruction: string): Promise<{ prompt: string }> {
+  const r = await fetch(`/api/playlists/${id}/refine-prompt`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ current, instruction }),
+  });
+  if (!r.ok) throw new Error(`refine failed (${r.status})`);
+  return r.json();
+}
+
+// applyPlaylistCover maps a previously generated Studio cover-art image to a
+// playlist. Mirrors setAlbumCover: the backend just stores/dedupes the cover
+// and returns its id, not the full playlist detail.
+export async function applyPlaylistCover(id: string, studioCoverArtId: string): Promise<{ coverArtId: string }> {
+  const r = await fetch(`/api/playlists/${id}/cover`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ studioCoverArtId }),
+  });
+  if (!r.ok) throw new Error(`apply cover failed (${r.status})`);
+  return r.json();
+}
+
+export async function suggestPlaylistDescriptions(id: string): Promise<{ punchy: string; evocative: string; factual: string }> {
+  const r = await fetch(`/api/playlists/${id}/suggest-description`, { method: "POST" });
+  if (!r.ok) throw new Error(`suggest failed (${r.status})`);
+  return r.json();
+}
+
+export async function updatePlaylistDescription(id: string, description: string): Promise<PlaylistDetail> {
+  const r = await fetch(`/api/playlists/${id}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ description }),
+  });
+  if (!r.ok) throw new Error(`save failed (${r.status})`);
+  return r.json();
+}
+
 export type Fanart = {
   id: string;
   kind: "genre" | "hero";

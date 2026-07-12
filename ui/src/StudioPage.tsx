@@ -71,6 +71,59 @@ export function ResultCard({ name, note, count, text, monospace = false, onChang
   );
 }
 
+// IdentityCard groups everything that names and classifies the track: up to
+// three song-title ideas and three album-name ideas (each varying from an
+// obvious pick to a more oblique one, with a copy button), plus the model-picked
+// genres as a footer row. Any empty list is omitted; the whole card is hidden
+// when the model returned nothing to name or classify.
+function IdeaColumn({ label, options }: { label: string; options: string[] }) {
+  return (
+    <div>
+      <div style={{ ...t.label, marginBottom: "0.5rem" }}>{label}</div>
+      <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "flex", flexDirection: "column", gap: "0.35rem" }}>
+        {options.map((text) => (
+          <li key={text} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "0.6rem",
+            background: "color-mix(in srgb, var(--color-bg) 70%, #000)", border: "1px solid var(--color-border)",
+            borderRadius: "var(--radius-ui)", padding: "6px 6px 6px 12px" }}>
+            <span style={{ fontSize: "var(--text-ui)" }}>{text}</span>
+            <CopyButton text={text} />
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+function IdentityCard({ titles, albums, genres }: { titles: string[]; albums: string[]; genres: string[] }) {
+  if (!titles?.length && !albums?.length && !genres?.length) return null;
+  return (
+    <div style={{ marginBottom: "1.6rem", padding: "16px 16px 4px", background: "color-mix(in srgb, var(--color-panel) 60%, transparent)",
+      border: "1px solid var(--color-border)", borderRadius: "var(--radius-ui)" }}>
+      <div style={{ fontWeight: 600, fontSize: "var(--text-ui)", marginBottom: "0.25rem" }}>
+        Identity
+        <span style={{ fontWeight: 400, color: "var(--color-muted)", fontSize: "var(--text-label)", marginLeft: "0.4rem" }}>→ name it &amp; classify it · pick one, copy</span>
+      </div>
+      <p style={{ color: "var(--color-muted)", fontSize: "var(--text-label)", margin: "0 0 0.9rem" }}>
+        Title and album ideas run from the obvious pick to a more oblique one — never a lyric line verbatim.
+      </p>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1.2rem 1.6rem" }}>
+        {titles?.length > 0 && <IdeaColumn label="Song title" options={titles} />}
+        {albums?.length > 0 && <IdeaColumn label="Album name" options={albums} />}
+      </div>
+      {genres?.length > 0 && (
+        <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: "0.4rem", marginTop: "0.9rem", paddingTop: "0.9rem", borderTop: "1px solid var(--color-border)" }}>
+          <span style={{ ...t.label, marginRight: "0.15rem" }}>Genres</span>
+          {genres.map((g) => (
+            <span key={g} style={{ background: "var(--color-active)", borderRadius: 999, padding: "3px 10px", fontSize: "var(--text-label)", color: "var(--color-ink)" }}>
+              {genreLabel(g)}
+            </span>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // CoverArtCard generates a real album cover from the (editable) cover-art prompt
 // using the configured image generator. It picks a model, shows the image inline,
 // and offers a download. Ephemeral in the UI: state resets when a new song is
@@ -259,7 +312,7 @@ export function StudioPage({ imageGenEnabled = false, chatEnabled = false, image
         </Button>
       </form>
       <p style={{ color: "var(--color-muted)", fontSize: "var(--text-label)", margin: "0.5rem 0 0" }}>
-        MiMo researches the song on the web, captures its style, writes fresh original lyrics on the same theme (never the original words), and sketches cover art. Results are shown once and not stored.
+        Studio researches the song on the web, captures its style, writes fresh original lyrics on the same theme (never the original words), suggests titles and album names, and sketches cover art. Results are shown once and not stored.
       </p>
       {stale && (
         <p style={{ color: "var(--color-accent-strong)", fontSize: "var(--text-label)", margin: "0.5rem 0 0" }}>
@@ -291,6 +344,7 @@ export function StudioPage({ imageGenEnabled = false, chatEnabled = false, image
       {/* Results */}
       {result && !busy && (
         <div style={{ marginTop: "2rem" }}>
+          <IdentityCard titles={result.titles} albums={result.albums} genres={result.genres} />
           <ResultCard
             name="Lyrics"
             note="→ Suno “Lyrics” · original, editable"
@@ -326,19 +380,6 @@ export function StudioPage({ imageGenEnabled = false, chatEnabled = false, image
             text={result.stylePrompt}
             monospace
           />
-
-          {/* Up to 3 genres the model picked for the song, shown automatically
-              alongside the style prompt. */}
-          {result.genres?.length > 0 && (
-            <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: "0.4rem", margin: "-0.9rem 0 1.6rem" }}>
-              <span style={{ ...t.label, marginRight: "0.15rem" }}>Genres</span>
-              {result.genres.map((g) => (
-                <span key={g} style={{ background: "var(--color-active)", borderRadius: 999, padding: "3px 10px", fontSize: "var(--text-label)", color: "var(--color-ink)" }}>
-                  {genreLabel(g)}
-                </span>
-              ))}
-            </div>
-          )}
 
           <ResultCard
             name="Cover-art prompt"

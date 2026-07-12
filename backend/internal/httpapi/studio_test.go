@@ -44,6 +44,7 @@ func studioSPA() http.Handler {
 func TestStudioGenerate_streamsProgressThenResult(t *testing.T) {
 	fake := fakeStudio{result: studio.GenerateResult{
 		StylePrompt: "1990s,heavy metal", Lyrics: "[Verse]\nfresh", CoverArtPrompt: "1991 thrash cover",
+		Titles: []string{"Sleep Now", "Iron Lullaby"}, Albums: []string{"Nightfall Sessions"},
 	}}
 	cfg := config.Config{AuthMode: config.AuthModeDev, DevUser: config.DevUserConfig{Username: "dev"}}
 	h := NewWithStudioProvider(cfg, nil, studioSPA(), fake)
@@ -64,6 +65,10 @@ func TestStudioGenerate_streamsProgressThenResult(t *testing.T) {
 	}
 	if !strings.Contains(body, "event: result") || !strings.Contains(body, "1990s,heavy metal") || !strings.Contains(body, "1991 thrash cover") {
 		t.Fatalf("missing result event: %s", body)
+	}
+	// Title/album ideas ride along in the same result event.
+	if !strings.Contains(body, "Sleep Now") || !strings.Contains(body, "Nightfall Sessions") {
+		t.Fatalf("result event missing title/album ideas: %s", body)
 	}
 }
 

@@ -12,6 +12,12 @@ describe("genreLabel", () => {
   it("keeps small words lowercase mid-title", () => {
     expect(genreLabel("drum and bass")).toBe("Drum and Bass");
   });
+  it("capitalizes after '&' and '-' separators", () => {
+    expect(genreLabel("r&b")).toBe("R&B");
+    expect(genreLabel("indie-rock")).toBe("Indie-Rock");
+    expect(genreLabel("trip-hop")).toBe("Trip-Hop");
+    expect(genreLabel("lo-fi")).toBe("Lo-Fi");
+  });
   it("forces English rules even for a French-looking genre", () => {
     // With auto-detection this would sentence-case; the override keeps it title-cased.
     expect(genreLabel("musique concrète")).toBe("Musique Concrète");

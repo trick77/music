@@ -5,8 +5,10 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"testing"
 
+	id3v2 "github.com/bogem/id3v2/v2"
 	"github.com/trick77/music/internal/config"
 )
 
@@ -17,6 +19,54 @@ func patch(t *testing.T, h http.Handler, id string, body string) *httptest.Respo
 	rr := httptest.NewRecorder()
 	h.ServeHTTP(rr, req)
 	return rr
+}
+
+// TestPatchSong_renamePreservesCoverInDownload exercises the full path: a covered
+// song renamed into a different album must keep its cover, and the download must
+// bake that cover into the served bytes as an APIC front-cover frame.
+func TestPatchSong_renamePreservesCoverInDownload(t *testing.T) {
+	h := testServer(t, config.AuthModeDev)
+	up := uploadFixture(t, h)
+	var song struct {
+		ID string `json:"id"`
+	}
+	json.Unmarshal(up.Body.Bytes(), &song)
+
+	// Attach a cover, then rename the song into a brand-new album.
+	if rr := uploadCover(t, h, song.ID); rr.Code != http.StatusOK {
+		t.Fatalf("PUT cover = %d, body=%s", rr.Code, rr.Body.String())
+	}
+	if rr := patch(t, h, song.ID, `{"title":"Moved","artistName":"Test Artist","album":"Fresh Album","genres":["r&b"]}`); rr.Code != http.StatusOK {
+		t.Fatalf("PATCH status = %d, body=%s", rr.Code, rr.Body.String())
+	}
+
+	// Download and confirm the served copy carries a front-cover APIC frame.
+	dl := httptest.NewRecorder()
+	h.ServeHTTP(dl, httptest.NewRequest("GET", "/api/songs/"+song.ID+"/download", nil))
+	if dl.Code != http.StatusOK {
+		t.Fatalf("download status = %d", dl.Code)
+	}
+	tmp := t.TempDir() + "/dl.mp3"
+	if err := os.WriteFile(tmp, dl.Body.Bytes(), 0o644); err != nil {
+		t.Fatalf("write downloaded bytes: %v", err)
+	}
+	tag, err := id3v2.Open(tmp, id3v2.Options{Parse: true})
+	if err != nil {
+		t.Fatalf("parse downloaded mp3: %v", err)
+	}
+	defer tag.Close()
+	pf, ok := tag.GetLastFrame(tag.CommonID("Attached picture")).(id3v2.PictureFrame)
+	if !ok {
+		t.Fatal("downloaded file has no attached picture after rename")
+	}
+	if pf.PictureType != id3v2.PTFrontCover || len(pf.Picture) == 0 {
+		t.Fatalf("attached picture = type %d, %d bytes; want front cover with data", pf.PictureType, len(pf.Picture))
+	}
+
+	// The genre is stored lowercase but must be title-cased in the exported tag.
+	if g := tag.GetTextFrame(tag.CommonID("Content type")).Text; g != "R&B" {
+		t.Fatalf("downloaded genre = %q, want %q", g, "R&B")
+	}
 }
 
 func TestPatchSong_editReflectedInDownload(t *testing.T) {

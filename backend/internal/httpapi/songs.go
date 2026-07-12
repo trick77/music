@@ -355,7 +355,7 @@ func (h *songHandlers) songTags(ctx context.Context, s *library.Song) metadata.W
 		Album:   s.Album,
 		Year:    s.Year,
 		TrackNo: s.TrackNo,
-		Genres:  s.Genres,
+		Genres:  displayGenres(s.Genres),
 		Lyrics:  s.Lyrics,
 	}
 	// Karaoke: bake word timings into a SYLT frame when the song is aligned. Best
@@ -379,6 +379,20 @@ func (h *songHandlers) songTags(ctx context.Context, s *library.Song) metadata.W
 	t.CoverBytes = data
 	t.CoverMIME = imagegen.MIMEType(filepath.Ext(relPath))
 	return t
+}
+
+// displayGenres title-cases the stored (lowercase) genres so a downloaded file's
+// ID3 tag reads the same as the UI ("r&b" → "R&B"), rather than the raw canonical
+// form. Returns a fresh slice so the song's own genres are never mutated.
+func displayGenres(genres []string) []string {
+	if len(genres) == 0 {
+		return genres
+	}
+	out := make([]string, len(genres))
+	for i, g := range genres {
+		out[i] = library.GenreDisplay(g)
+	}
+	return out
 }
 
 // syltWords flattens stored alignment line JSON into SYLT sync entries, one per

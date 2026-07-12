@@ -98,4 +98,8 @@ export function titleCase(input: string, langOverride?: Lang): string {
 // genreLabel title-cases a genre name for display. Genres are stored lowercase;
 // this is the single place that turns "dream pop" into "Dream Pop". Fixed English
 // rules (no language auto-detection) so a genre never sentence-cases by accident.
-export const genreLabel = (name: string): string => titleCase(name, "en");
+// Genres also capitalize across '&', '-' and '/' joins ("r&b" → "R&B",
+// "indie-rock" → "Indie-Rock"), which plain title case leaves lowercase; this is
+// genre-specific and intentionally not applied to song/album titles.
+export const genreLabel = (name: string): string =>
+  titleCase(name, "en").replace(/([&/-])(\p{L})/gu, (_, sep, ch) => sep + ch.toLocaleUpperCase());

@@ -85,6 +85,60 @@ func TestSetSongCover_singleIsPerSong(t *testing.T) {
 	}
 }
 
+func TestUpdate_renameIntoNewAlbumRegistersMapping(t *testing.T) {
+	r := newRepo(t)
+	ctx := context.Background()
+	// A song in "Alpha" gets a cover -> album_covers(Alpha) is mapped.
+	a := makeSong(t, r, "A", "Alpha", "h1", "songs/a.mp3")
+	cover := makeCover(t, r, "covhash")
+	if err := r.SetSongCover(ctx, a.ID, cover); err != nil {
+		t.Fatalf("SetSongCover: %v", err)
+	}
+
+	// Rename it into a brand-new album "Beta". The (artist, Beta) combination
+	// must now map to the same cover so siblings/future songs share it.
+	got, _ := r.Get(ctx, a.ID)
+	if _, err := r.Update(ctx, a.ID, UpdateSongParams{
+		Title: "A", ArtistName: got.ArtistName, Album: "Beta", FileSize: 1,
+	}); err != nil {
+		t.Fatalf("Update: %v", err)
+	}
+
+	// A future song in Beta must inherit the cover via the album mapping.
+	future := makeSong(t, r, "Future", "Beta", "h9", "songs/future.mp3")
+	if future.CoverArtID != cover {
+		t.Fatalf("future Beta song cover = %q, want %q", future.CoverArtID, cover)
+	}
+}
+
+func TestUpdate_renameIntoAlbumImposesCoverOnSiblings(t *testing.T) {
+	r := newRepo(t)
+	ctx := context.Background()
+	// Destination album "Dest" already has a song with no cover.
+	d := makeSong(t, r, "D", "Dest", "h1", "songs/d.mp3")
+	// Source song carries a cover.
+	s := makeSong(t, r, "S", "Src", "h2", "songs/s.mp3")
+	cover := makeCover(t, r, "covhash")
+	if err := r.SetSongCover(ctx, s.ID, cover); err != nil {
+		t.Fatalf("SetSongCover: %v", err)
+	}
+
+	// Rename S into Dest. The album+artist invariant means Dest adopts S's cover.
+	got, _ := r.Get(ctx, s.ID)
+	if _, err := r.Update(ctx, s.ID, UpdateSongParams{
+		Title: "S", ArtistName: got.ArtistName, Album: "Dest", FileSize: 1,
+	}); err != nil {
+		t.Fatalf("Update: %v", err)
+	}
+
+	for _, id := range []string{s.ID, d.ID} {
+		g, _ := r.Get(ctx, id)
+		if g.CoverArtID != cover {
+			t.Fatalf("Dest song %s cover = %q, want %q", id, g.CoverArtID, cover)
+		}
+	}
+}
+
 func TestCreateCover_dedupesByHash(t *testing.T) {
 	r := newRepo(t)
 	id1 := makeCover(t, r, "same")

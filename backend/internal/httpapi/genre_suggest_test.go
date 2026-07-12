@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/trick77/music/internal/config"
+	"github.com/trick77/music/internal/library"
 	"github.com/trick77/music/internal/store"
 )
 
@@ -20,7 +21,7 @@ func (f fakeGenrePrompter) GenrePrompt(_ context.Context, _ string) (string, err
 	return f.prompt, f.err
 }
 
-func (f fakeGenrePrompter) AlbumCoverPrompt(_ context.Context, _, _ string, _ []string) (string, error) {
+func (f fakeGenrePrompter) AlbumCoverPrompt(_ context.Context, _, _ string, _ []string, _ []library.SongLyric) (string, error) {
 	return f.prompt, f.err
 }
 

@@ -7,14 +7,31 @@ import (
 )
 
 // AlbumPromptContext carries what the album-cover prompt author needs about an
-// album: the artist's display name and the distinct genre names across the
-// album's songs. Exists reports whether any song matched (so a bad artist/album
-// pair is a 404, not an empty prompt).
+// album: the artist's display name, the distinct genre names across the
+// album's songs, and lyric excerpts from songs that have them. Exists reports
+// whether any song matched (so a bad artist/album pair is a 404, not an empty
+// prompt).
 type AlbumPromptContext struct {
 	ArtistName string
 	Genres     []string
+	Lyrics     []SongLyric
 	Exists     bool
 }
+
+// SongLyric is a lyric excerpt from one song, used to ground an album-cover
+// prompt in the album's actual imagery and themes.
+type SongLyric struct {
+	Title  string
+	Lyrics string
+}
+
+// maxAlbumCoverLyricSongs caps how many lyric-bearing songs feed an album-cover
+// prompt, and maxAlbumCoverLyricChars caps each excerpt's length — enough for
+// thematic grounding without bloating the completion.
+const (
+	maxAlbumCoverLyricSongs = 5
+	maxAlbumCoverLyricChars = 1200
+)
 
 // AlbumContext resolves the artist name and distinct genres for an artist+album,
 // grouped case-insensitively by lower(album) to match album_covers. Authed-only
@@ -56,5 +73,28 @@ func (r *Repo) AlbumContext(ctx context.Context, artistID, album string) (AlbumP
 		}
 		out.Genres = append(out.Genres, name)
 	}
-	return out, rows.Err()
+	if err := rows.Err(); err != nil {
+		return AlbumPromptContext{}, err
+	}
+
+	lyricRows, err := r.db.QueryContext(ctx,
+		`SELECT s.title, s.lyrics FROM songs s
+		 WHERE s.artist_id = ? AND lower(s.album) = ? AND s.lyrics != ''
+		 ORDER BY s.track_no LIMIT ?`,
+		artistID, key, maxAlbumCoverLyricSongs)
+	if err != nil {
+		return AlbumPromptContext{}, err
+	}
+	defer lyricRows.Close()
+	for lyricRows.Next() {
+		var sl SongLyric
+		if err := lyricRows.Scan(&sl.Title, &sl.Lyrics); err != nil {
+			return AlbumPromptContext{}, err
+		}
+		if len(sl.Lyrics) > maxAlbumCoverLyricChars {
+			sl.Lyrics = sl.Lyrics[:maxAlbumCoverLyricChars]
+		}
+		out.Lyrics = append(out.Lyrics, sl)
+	}
+	return out, lyricRows.Err()
 }

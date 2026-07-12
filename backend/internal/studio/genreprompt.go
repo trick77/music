@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/trick77/music/internal/library"
 	"github.com/trick77/music/internal/llm"
 )
 
@@ -16,8 +17,9 @@ import (
 // one-shot flows: genre backgrounds, album covers, and prompt refinement.
 type GenrePrompter interface {
 	GenrePrompt(ctx context.Context, genre string) (string, error)
-	// AlbumCoverPrompt authors a square album-cover prompt from artist/album/genre.
-	AlbumCoverPrompt(ctx context.Context, artist, album string, genres []string) (string, error)
+	// AlbumCoverPrompt authors a square album-cover prompt from artist/album/genre,
+	// grounded in lyric excerpts when available.
+	AlbumCoverPrompt(ctx context.Context, artist, album string, genres []string, lyrics []library.SongLyric) (string, error)
 	// RefinePrompt rewrites an existing image prompt per an instruction. context is
 	// optional extra grounding (e.g. the genre name or "Artist — Album").
 	RefinePrompt(ctx context.Context, current, instruction, context string) (string, error)
@@ -34,8 +36,8 @@ func (p *genrePrompter) GenrePrompt(ctx context.Context, genre string) (string, 
 	return p.completePrompt(ctx, genrePromptSystemPrompt, genrePromptUserPrompt(genre), "genre prompt")
 }
 
-func (p *genrePrompter) AlbumCoverPrompt(ctx context.Context, artist, album string, genres []string) (string, error) {
-	return p.completePrompt(ctx, albumCoverPromptSystemPrompt, albumCoverPromptUserPrompt(artist, album, genres), "album cover prompt")
+func (p *genrePrompter) AlbumCoverPrompt(ctx context.Context, artist, album string, genres []string, lyrics []library.SongLyric) (string, error) {
+	return p.completePrompt(ctx, albumCoverPromptSystemPrompt, albumCoverPromptUserPrompt(artist, album, genres, lyrics), "album cover prompt")
 }
 
 func (p *genrePrompter) RefinePrompt(ctx context.Context, current, instruction, context string) (string, error) {

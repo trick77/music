@@ -2,6 +2,7 @@ package library
 
 import (
 	"context"
+	"strings"
 	"testing"
 )
 
@@ -66,7 +67,7 @@ func TestHomeFeed_genreChaptersHaveBackgroundAndSongs(t *testing.T) {
 	if err := r.SetActiveBackground(ctx, gid, faID); err != nil {
 		t.Fatalf("set active: %v", err)
 	}
-	// Genre chapters are limited to genres played in the Top Ten.
+	// Genre chapters are limited to genres in the Top Ten or Recently Added.
 	if err := r.RecordPlay(ctx, s.ID); err != nil {
 		t.Fatalf("record play: %v", err)
 	}
@@ -87,27 +88,94 @@ func TestHomeFeed_genreChaptersHaveBackgroundAndSongs(t *testing.T) {
 	}
 }
 
-func TestHomeFeed_genreChaptersFallBackToAllWhenTopTenEmpty(t *testing.T) {
+func TestHomeFeed_genreChaptersFallBackToAllWhenNoFeaturedGenres(t *testing.T) {
 	r := newRepo(t)
 	ctx := context.Background()
-	// A fresh library has genre-tagged songs but no play history yet — Top Ten
-	// is empty, so chapters must fall back to showing every genre rather than
-	// disappearing entirely.
+	// Genre-tagged songs exist, but neither section surfaces them: no play
+	// history (Top Ten empty) and recentLimit 0 (Recently Added empty). Chapters
+	// must fall back to showing every genre rather than disappearing entirely.
 	if _, err := r.Create(ctx, NewID(), CreateSongParams{
 		Title: "Chrome", ArtistName: "V", FilePath: "songs/c.mp3", ContentHash: "hc",
 		Genres: []string{"Synthwave"},
 	}); err != nil {
 		t.Fatalf("create: %v", err)
 	}
+	feed, err := r.HomeFeed(ctx, 0, 8, true)
+	if err != nil {
+		t.Fatalf("HomeFeed: %v", err)
+	}
+	if len(feed.TopTen) != 0 || len(feed.RecentlyAdded) != 0 {
+		t.Fatalf("TopTen=%v RecentlyAdded=%v, want both empty", feed.TopTen, feed.RecentlyAdded)
+	}
+	if len(feed.Genres) != 1 {
+		t.Fatalf("chapters = %d, want 1 (fallback to all genres)", len(feed.Genres))
+	}
+}
+
+func TestHomeFeed_genreChaptersIncludeRecentlyAddedNotJustTopTen(t *testing.T) {
+	r := newRepo(t)
+	ctx := context.Background()
+	// Song A: played, so its genre "Played" is in the Top Ten.
+	a, err := r.Create(ctx, NewID(), CreateSongParams{
+		Title: "A", ArtistName: "V", FilePath: "songs/a.mp3", ContentHash: "ha", Genres: []string{"Played"},
+	})
+	if err != nil {
+		t.Fatalf("create A: %v", err)
+	}
+	// Song B: recently added, never played — genre "FreshOnly" is in Recently
+	// Added but NOT the Top Ten.
+	if _, err := r.Create(ctx, NewID(), CreateSongParams{
+		Title: "B", ArtistName: "V", FilePath: "songs/b.mp3", ContentHash: "hb", Genres: []string{"FreshOnly"},
+	}); err != nil {
+		t.Fatalf("create B: %v", err)
+	}
+	if err := r.RecordPlay(ctx, a.ID); err != nil {
+		t.Fatalf("record play: %v", err)
+	}
+
 	feed, err := r.HomeFeed(ctx, 12, 8, true)
 	if err != nil {
 		t.Fatalf("HomeFeed: %v", err)
 	}
-	if len(feed.TopTen) != 0 {
-		t.Fatalf("TopTen = %v, want empty (no plays recorded)", feed.TopTen)
+	names := map[string]bool{}
+	for _, ch := range feed.Genres {
+		names[strings.ToLower(ch.Name)] = true
 	}
-	if len(feed.Genres) != 1 {
-		t.Fatalf("chapters = %d, want 1 (fallback to all genres)", len(feed.Genres))
+	if !names["played"] || !names["freshonly"] {
+		t.Errorf("chapters = %v, want both Played and FreshOnly", names)
+	}
+}
+
+func TestHomeFeed_genreChaptersExcludeGenresInNeitherSection(t *testing.T) {
+	r := newRepo(t)
+	ctx := context.Background()
+	// "Buried": oldest song, never played and pushed out of the Recently Added
+	// window (recentLimit 1) — its genre must not get a chapter.
+	if _, err := r.Create(ctx, NewID(), CreateSongParams{
+		Title: "Buried", ArtistName: "V", FilePath: "songs/buried.mp3", ContentHash: "hbu", Genres: []string{"Buried"},
+	}); err != nil {
+		t.Fatalf("create Buried: %v", err)
+	}
+	// "Fresh": newest song, occupies the single Recently Added slot.
+	if _, err := r.Create(ctx, NewID(), CreateSongParams{
+		Title: "Fresh", ArtistName: "V", FilePath: "songs/fresh.mp3", ContentHash: "hfr", Genres: []string{"Fresh"},
+	}); err != nil {
+		t.Fatalf("create Fresh: %v", err)
+	}
+
+	feed, err := r.HomeFeed(ctx, 1, 8, true)
+	if err != nil {
+		t.Fatalf("HomeFeed: %v", err)
+	}
+	names := map[string]bool{}
+	for _, ch := range feed.Genres {
+		names[strings.ToLower(ch.Name)] = true
+	}
+	if names["buried"] {
+		t.Errorf("chapters = %v, Buried should be excluded (in neither section)", names)
+	}
+	if !names["fresh"] {
+		t.Errorf("chapters = %v, want Fresh (in Recently Added)", names)
 	}
 }
 

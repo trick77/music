@@ -1,17 +1,16 @@
 import { useEffect, useState } from "react";
-import { listPlaylists, listGenres, type Playlist, type GenreSummary, type Song } from "./api";
+import { listGenres, type GenreSummary, type Song } from "./api";
 import { coverUrl, coverInitial } from "./cover";
 import { formatDuration } from "./format";
 import { navigate } from "./router";
 import { Glyph } from "./Glyph";
 import { SyncingBadge } from "./SyncingBadge";
-import { Icon } from "./Icon";
 import { t } from "./ui";
 import { genreLabel } from "./titleCase";
 import { usePlayer } from "./player";
 import { NowPlayingBars } from "./NowPlayingBars";
 
-type Tab = "all" | "favorites" | "unpublished" | "playlists" | "genres";
+type Tab = "all" | "favorites" | "unpublished" | "genres";
 
 type Props = {
   songs: Song[];
@@ -22,16 +21,13 @@ type Props = {
   initialTab: Tab;
   onPlay: (song: Song) => void;
   renderRowActions: (song: Song) => React.ReactNode;
-  onNewPlaylist: () => void;
 };
 
-export function Library({ songs, favoriteIds, authenticated, studioEnabled = false, imageGenEnabled = false, initialTab, onPlay, renderRowActions, onNewPlaylist }: Props) {
+export function Library({ songs, favoriteIds, authenticated, studioEnabled = false, imageGenEnabled = false, initialTab, onPlay, renderRowActions }: Props) {
   const { current, playing } = usePlayer();
   const [tab, setTab] = useState<Tab>(initialTab);
-  const [playlists, setPlaylists] = useState<Playlist[]>([]);
   const [genres, setGenres] = useState<GenreSummary[]>([]);
   const [needsArtworkOnly, setNeedsArtworkOnly] = useState(false);
-  useEffect(() => { if (tab === "playlists") listPlaylists().then(setPlaylists).catch(() => setPlaylists([])); }, [tab]);
   useEffect(() => { if (tab === "genres") listGenres().then(setGenres).catch(() => setGenres([])); }, [tab]);
 
   const shown =
@@ -41,7 +37,7 @@ export function Library({ songs, favoriteIds, authenticated, studioEnabled = fal
 
   // The Unpublished pill only makes sense for logged-in users — anonymous
   // viewers never receive unpublished songs.
-  const tabs: Tab[] = ["all", "favorites", ...(authenticated ? (["unpublished"] as Tab[]) : []), "playlists", "genres"];
+  const tabs: Tab[] = ["all", "favorites", ...(authenticated ? (["unpublished"] as Tab[]) : []), "genres"];
 
   return (
     <div>
@@ -52,7 +48,7 @@ export function Library({ songs, favoriteIds, authenticated, studioEnabled = fal
               border: "1px solid transparent",
               background: tab === t ? "var(--color-accent-fill)" : "transparent",
               color: tab === t ? "var(--color-ink)" : "var(--color-muted)" }}>
-            {t === "all" ? "All songs" : t === "favorites" ? "Favorites" : t === "unpublished" ? "Unpublished" : t === "playlists" ? "Playlists" : "Genres"}
+            {t === "all" ? "All songs" : t === "favorites" ? "Favorites" : t === "unpublished" ? "Unpublished" : "Genres"}
           </button>
         ))}
       </div>
@@ -125,26 +121,7 @@ export function Library({ songs, favoriteIds, authenticated, studioEnabled = fal
           </div>
         </div>
         );
-      })() : tab === "playlists" ? (
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))", gap: "1rem" }}>
-          {authenticated && (
-            <button onClick={onNewPlaylist} style={{ aspectRatio: "1", borderRadius: 10, border: "1px dashed var(--color-border)", background: "transparent", color: "var(--color-muted)", cursor: "pointer" }}>+ New playlist…</button>
-          )}
-          {playlists.map((pl) => (
-            <button key={pl.id} onClick={() => navigate(`/playlist/${pl.id}`)} style={{ textAlign: "left", background: "none", border: "none", cursor: "pointer", padding: 0 }}>
-              <div style={{ position: "relative", aspectRatio: "1", borderRadius: 10, overflow: "hidden", background: "var(--color-active)", border: "1px solid var(--color-border)", display: "grid", placeItems: "center" }}>
-                {pl.coverArtId ? <img src={coverUrl(pl.coverArtId)} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <Icon name="music" size="24px" style={{ color: "var(--color-muted)" }} />}
-                {authenticated && !pl.published && (
-                  <span style={{ position: "absolute", top: 6, left: 6, background: "rgba(0,0,0,0.55)", borderRadius: 999, padding: "2px 8px", ...t.micro, color: "#fff" }}>Unpublished</span>
-                )}
-              </div>
-              <div style={{ marginTop: 6, color: "var(--color-ink)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{pl.name}</div>
-              <div style={t.label}>{pl.songCount} songs</div>
-            </button>
-          ))}
-          {playlists.length === 0 && !authenticated && <p style={{ color: "var(--color-muted)" }}>No playlists yet.</p>}
-        </div>
-      ) : (
+      })() : (
         <ul style={{ listStyle: "none", margin: 0, padding: 0 }}>
           {shown.length === 0 && <p style={{ color: "var(--color-muted)" }}>{tab === "favorites" ? "No favorites yet — tap the star on a song." : tab === "unpublished" ? "Nothing unpublished — every song is live." : "Nothing here yet."}</p>}
           {shown.map((song) => {

@@ -10,6 +10,7 @@ import { Home } from "./Home";
 import { Detail } from "./Detail";
 import { Search } from "./Search";
 import { StudioPage } from "./StudioPage";
+import { PlaylistsPage } from "./PlaylistsPage";
 import { Rail } from "./Rail";
 import { PlayerBar } from "./PlayerBar";
 import { ConfirmDialog } from "./ConfirmDialog";
@@ -297,6 +298,8 @@ export function App() {
           authed && session?.studioEnabled ? <StudioPage key={route.genreId ?? "studio"} imageGenEnabled={!!session?.imageGenEnabled} chatEnabled={!!session?.chatEnabled} imageModels={session?.imageModels ?? []} defaultImageModel={session?.defaultImageModel ?? ""} initialGenreId={route.genreId} /> : <Home authenticated={authed} onPlay={onPlay} onShare={shareSong} onUpload={triggerUpload} renderRowActions={rowActions} reloadKey={feedVersion} />
         ) : route.name === "playlist" ? (
           <Detail kind="playlist" id={route.id} authenticated={authed} studioEnabled={!!session?.studioEnabled} imageGenEnabled={!!session?.imageGenEnabled} onPlay={onPlay} onShare={shareUrl} onEditPlaylist={(pl) => setEditingPlaylist(pl)} renderRowActions={rowActions} reloadKey={feedVersion} />
+        ) : route.name === "playlists" ? (
+          <PlaylistsPage authenticated={authed} onPlay={onPlay} />
         ) : route.name === "genre" ? (
           <Detail kind="genre" id={route.id} authenticated={authed} studioEnabled={!!session?.studioEnabled} imageGenEnabled={!!session?.imageGenEnabled} onPlay={onPlay} onShare={shareUrl} onEditPlaylist={(pl) => setEditingPlaylist(pl)} renderRowActions={rowActions} reloadKey={feedVersion} />
         ) : route.name === "artist" ? (
@@ -310,10 +313,9 @@ export function App() {
             authenticated={authed}
             studioEnabled={!!session?.studioEnabled}
             imageGenEnabled={!!session?.imageGenEnabled}
-            initialTab={route.name === "favorites" ? "favorites" : route.name === "playlists" ? "playlists" : route.name === "genres" ? "genres" : "all"}
+            initialTab={route.name === "favorites" ? "favorites" : route.name === "genres" ? "genres" : "all"}
             onPlay={(s) => onPlay(s)}
             renderRowActions={rowActions}
-            onNewPlaylist={() => setEditingPlaylist("new")}
           />
         )}
       </div>

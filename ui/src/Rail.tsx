@@ -7,7 +7,8 @@ const ITEMS: Item[] = [
   { key: "home", icon: "home", label: "Home", path: "/", match: (r) => r.name === "home" },
   { key: "search", icon: "search", label: "Search", path: "/search", match: (r) => r.name === "search" },
   { key: "genres", icon: "disc", label: "Genres", path: "/genres", match: (r) => r.name === "genres" || r.name === "genre" },
-  { key: "library", icon: "library", label: "Library", path: "/library", match: (r) => r.name === "library" || r.name === "favorites" || r.name === "playlists" },
+  { key: "library", icon: "library", label: "Library", path: "/library", match: (r) => r.name === "library" || r.name === "favorites" },
+  { key: "playlists", icon: "playlist", label: "Playlists", path: "/playlists", match: (r) => r.name === "playlists" },
 ];
 
 // AccountSlot is the unobtrusive owner affordance in the rail's top avatar

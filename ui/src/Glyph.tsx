@@ -1,7 +1,7 @@
 import type { CSSProperties } from "react";
 import {
   House, Search, Disc3, Library, Upload, Sparkles,
-  Play, Pause, SkipForward, SkipBack, Plus, ListMusic,
+  Play, Pause, SkipForward, SkipBack, Plus, ListMusic, ListVideo,
   type LucideIcon,
 } from "lucide-react";
 
@@ -25,6 +25,7 @@ const COMPONENTS = {
   prev: SkipBack,
   plus: Plus,
   queue: ListMusic,
+  playlist: ListVideo,
 } satisfies Record<string, LucideIcon>;
 
 export type GlyphName = keyof typeof COMPONENTS;

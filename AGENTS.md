@@ -19,6 +19,8 @@ Self-hosted, song-first music player: Go backend serving a JSON API + an embedde
 - HTTP: stdlib `net/http` (Go 1.22 method routing), no framework.
 - Frontend: Vite + React 19 + TS + Tailwind v4, built into `backend/web/dist` and embedded by Go.
 - Design tokens = loom's `--*` CSS variables + self-hosted Anthropic fonts. Accent = clay #c6613f / #d97757.
+- **Karaoke alignment: follow `docs/ALIGN.md`** for how the sidecar/backend/frontend pipeline works
+  before touching alignment code.
 - **UI/UX: follow `docs/design-system.md`** (single source; visual ref `docs/mockups/design-system.html`).
   Non-negotiables: lucide icons only (strokeWidth 1.9, no unicode/icon font); 40px form controls +
   13px labels; six-step type scale; three accent roles — fill `#c25f34`, text `#d97757`, danger

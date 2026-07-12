@@ -19,7 +19,7 @@ Studio does that for them: you name a song, MiMo 2.5 Pro **researches it on the 
 not reliably know a given song's details or lyrics), and returns three things you paste into Suno:
 
 1. a **Style prompt** (comma-separated style/genre tags),
-2. **original theme-matched lyrics** (never the real words → no copyright), and
+2. **original theme-matched lyrics** (a new song on the theme, no verbatim lines → no copyright), and
 3. an **epoch-correct cover-art prompt** (text only; for a future image-gen hookup).
 
 This is **prompt generation only**. Actual Suno audio generation and wiring the cover-art prompt into

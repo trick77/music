@@ -1,6 +1,51 @@
 package studio
 
-import "strings"
+import (
+	"regexp"
+	"strings"
+)
+
+// bracketTag matches a Suno meta/structure tag like "[Verse]" or "[Guitar Solo]"
+// anywhere in a string, so it can be stripped out of the style prompt.
+var bracketTag = regexp.MustCompile(`\[[^\]]*\]`)
+
+// sanitizeStylePrompt forces the style prompt into the single flat comma-joined
+// line Suno's "Style" box expects, since a prompt can't guarantee the model obeys
+// (mirrors formatLyrics/sanitizeList). It strips any Suno meta/structure tags that
+// leaked in (those belong only in the lyrics), collapses newlines, de-duplicates
+// descriptors case-insensitively, joins with "," (no space after commas), and caps
+// the result at 500 characters.
+func sanitizeStylePrompt(s string) string {
+	s = bracketTag.ReplaceAllString(s, "")
+	s = strings.ReplaceAll(s, "\r\n", "\n")
+	s = strings.ReplaceAll(s, "\n", ",")
+
+	seen := map[string]bool{}
+	out := make([]string, 0)
+	length := 0
+	for _, part := range strings.Split(s, ",") {
+		part = strings.TrimSpace(part)
+		if part == "" {
+			continue
+		}
+		key := strings.ToLower(part)
+		if seen[key] {
+			continue
+		}
+		// Cap at 500 chars by dropping whole descriptors, never cutting mid-word.
+		next := len(part)
+		if len(out) > 0 {
+			next++ // the joining comma
+		}
+		if length+next > 500 {
+			break
+		}
+		seen[key] = true
+		out = append(out, part)
+		length += next
+	}
+	return strings.Join(out, ",")
+}
 
 // formatLyrics normalizes line endings and inserts a blank line before each Suno
 // structure/meta tag section (a line that is exactly "[...]"), except a leading

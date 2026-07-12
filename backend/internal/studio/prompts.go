@@ -27,11 +27,17 @@ Using what you learn, produce SEVEN things:
    e.g. raspy/smooth/powerful/breathy) but NEVER state or imply whether the
    voice is male or female — Suno has a dedicated setting for that. NEVER
    mention real artist, band, or song names — describe only musical
-   characteristics.
+   characteristics. This is a SINGLE flat line of descriptors: NO line breaks,
+   and NO Suno meta/structure/section tags (e.g. [Verse], [Chorus], [Intro]) —
+   song structure belongs ONLY in the lyrics field, never here.
 
-2. lyrics — ORIGINAL lyrics you write yourself that match the researched THEME,
-   mood and imagery of the song, but NEVER reuse the song's actual words (this is
-   for copyright reasons). Structure them with Suno meta/structure tags such as
+2. lyrics — ORIGINAL lyrics that YOU compose as a brand-new song on the researched
+   THEME, mood and imagery — inspired by the reference, NOT a line-by-line rewrite of
+   it. Write them to be natural and singable; do not paraphrase the original line for
+   line or swap out single words, which produces awkward, unusable phrasing. For
+   copyright, what matters is that you do NOT reproduce the reference song's
+   distinctive lines, its hook, or its chorus verbatim — ordinary words, common
+   images, and the shared theme are free to use. Structure them with Suno meta/structure tags such as
    [Intro], [Verse], [Pre-Chorus], [Chorus], [Post-Chorus], [Bridge], [Hook],
    [Instrumental], [Guitar Solo], [Break], [Build], [Drop], [Outro], [Fade Out],
    and performance cues like [Whispered], [Spoken Word], [Belted], [Big Finish].
@@ -81,10 +87,12 @@ nothing else (no prose, no code fences):
 // refineSystemPrompt instructs MiMo to rewrite only the lyrics per an instruction.
 const refineSystemPrompt = `You revise Suno lyrics. You are given a reference song, the current ORIGINAL
 lyrics, and a refinement instruction. Rewrite the lyrics to satisfy the
-instruction while keeping them original (never the reference song's actual
-words), on-theme, and structured with Suno meta/structure tags ([Verse],
-[Chorus], [Bridge], etc.). Do not research; rewrite only the lyrics you are
-given. Respond with ONLY a single JSON object and nothing else:
+instruction while keeping them natural, singable, on-theme, and structured with
+Suno meta/structure tags ([Verse], [Chorus], [Bridge], etc.). Keep them original:
+do not reproduce the reference song's distinctive lines, hook, or chorus verbatim,
+but do not word-swap or paraphrase the original into awkward phrasing either —
+ordinary words and the shared theme are fine. Do not research; rewrite only the
+lyrics you are given. Respond with ONLY a single JSON object and nothing else:
 {"lyrics":"..."}`
 
 // genrePromptSystemPrompt instructs the model to author a single image prompt

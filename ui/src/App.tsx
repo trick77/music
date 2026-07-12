@@ -65,6 +65,10 @@ export function App() {
   // Bumped after uploads / publish toggles to re-fetch views that load their own
   // data (Home), which otherwise wouldn't reflect the change until navigation.
   const [feedVersion, setFeedVersion] = useState(0);
+  // Bumped after an upload jump so the Library re-applies its route-derived tab even
+  // when the URL is already /unpublished (navigate no-ops on the same path) — e.g. the
+  // user had switched to the "All songs" pill while sitting on /unpublished.
+  const [tabResetKey, setTabResetKey] = useState(0);
   const [openIntent, setOpenIntent] = useState<PlayerParam | null>(null);
   const uploadRef = useRef<HTMLInputElement>(null);
   const restored = useRef(false);
@@ -158,6 +162,13 @@ export function App() {
       setFeedVersion((v) => v + 1);
       // New uploads land unpublished — say so, so the user knows where it went.
       flash(song.published ? `Added “${song.title}”` : `Uploaded “${song.title}” — unpublished`);
+      // Land on the Unpublished list — the review-and-publish surface — so the freshly
+      // uploaded song is right there with its Publish/Edit menu. A dedupe upload that
+      // returns an already-published song wouldn't appear there, so only jump when new.
+      if (!song.published) {
+        navigate("/unpublished");
+        setTabResetKey((k) => k + 1);
+      }
     } catch {
       flash("Upload failed");
     } finally {
@@ -312,7 +323,8 @@ export function App() {
             authenticated={authed}
             studioEnabled={!!session?.studioEnabled}
             imageGenEnabled={!!session?.imageGenEnabled}
-            initialTab={route.name === "favorites" ? "favorites" : route.name === "genres" ? "genres" : "all"}
+            initialTab={route.name === "favorites" ? "favorites" : route.name === "unpublished" ? (authed ? "unpublished" : "all") : route.name === "genres" ? "genres" : "all"}
+            tabResetKey={tabResetKey}
             onPlay={(s) => onPlay(s)}
             renderRowActions={rowActions}
           />

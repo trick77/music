@@ -5,9 +5,10 @@ describe("parsePath", () => {
   it("maps root to home", () => {
     expect(parsePath("/")).toEqual({ name: "home" });
   });
-  it("maps /library, /favorites and /playlists", () => {
+  it("maps /library, /favorites, /unpublished and /playlists", () => {
     expect(parsePath("/library")).toEqual({ name: "library" });
     expect(parsePath("/favorites")).toEqual({ name: "favorites" });
+    expect(parsePath("/unpublished")).toEqual({ name: "unpublished" });
     expect(parsePath("/playlists")).toEqual({ name: "playlists" });
   });
   it("extracts song id", () => {

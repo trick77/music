@@ -179,12 +179,13 @@ export function PlayerBar({ fav, onShare, alignmentEnabled, openIntent = null, o
               <span style={{ display: "block", color: "var(--color-muted)", fontSize: "var(--text-label)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{song.artistName}</span>
             </span>
           </button>
-          <StarButton song={song} fav={fav} />
           <Transport playing={p.playing} onPrev={p.prev} onToggle={p.toggle} onNext={p.next} size={20} />
-          <AirplayButton available={p.airplayAvailable} active={p.airplayActive} onClick={p.showAirplayPicker} />
+          <StarButton song={song} fav={fav} />
           {canKaraoke && (
-            <button aria-label="Show lyrics" onClick={() => { setLyricsMode(true); setFull(true); }} style={iconBtn}><Icon name="music" size="20px" /></button>
+            <button aria-label="Show lyrics" onClick={() => { setLyricsMode(true); setFull(true); }} style={iconBtn}><Icon name="captions" size="23px" /></button>
           )}
+          <AirplayButton available={p.airplayAvailable} active={p.airplayActive} onClick={p.showAirplayPicker} />
+          <button aria-label="Share" onClick={() => onShare(song)} style={iconBtn}><Icon name="share" size="20px" /></button>
           <button aria-label="Expand" onClick={() => setFull(true)} style={iconBtn}><Icon name="chevronUp" size="20px" /></button>
         </div>
       </div>
@@ -234,8 +235,8 @@ export function PlayerBar({ fav, onShare, alignmentEnabled, openIntent = null, o
                 <Scrubber positionMs={p.positionMs} durationMs={p.durationMs} onSeek={p.seek} />
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "1.5rem", marginTop: "0.75rem" }}>
                   <StarButton song={song} fav={fav} size={24} />
+                  <button aria-label="Show artwork" aria-pressed onClick={() => setLyricsMode(false)} style={{ ...iconBtn, color: "var(--color-accent-strong)" }}><Icon name="captions" size="25px" /></button>
                   <Transport playing={p.playing} onPrev={p.prev} onToggle={p.toggle} onNext={p.next} size={26} />
-                  <button aria-label="Show artwork" aria-pressed onClick={() => setLyricsMode(false)} style={{ ...iconBtn, color: "var(--color-accent-strong)" }}><Icon name="music" size="22px" /></button>
                   <AirplayButton available={p.airplayAvailable} active={p.airplayActive} onClick={p.showAirplayPicker} size={22} color="#fff" />
                   <button aria-label="Share" onClick={() => onShare(song)} style={{ ...iconBtn, color: "#fff" }}><Icon name="share" size="22px" /></button>
                 </div>
@@ -253,10 +254,10 @@ export function PlayerBar({ fav, onShare, alignmentEnabled, openIntent = null, o
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: "1.5rem", marginTop: "1.25rem" }}>
                 <StarButton song={song} fav={fav} size={24} />
-                <Transport playing={p.playing} onPrev={p.prev} onToggle={p.toggle} onNext={p.next} size={26} />
                 {canKaraoke && (
-                  <button aria-label="Show lyrics" aria-pressed={false} onClick={() => setLyricsMode(true)} style={{ ...iconBtn, color: "#fff" }}><Icon name="music" size="22px" /></button>
+                  <button aria-label="Show lyrics" aria-pressed={false} onClick={() => setLyricsMode(true)} style={{ ...iconBtn, color: "#fff" }}><Icon name="captions" size="25px" /></button>
                 )}
+                <Transport playing={p.playing} onPrev={p.prev} onToggle={p.toggle} onNext={p.next} size={26} />
                 <AirplayButton available={p.airplayAvailable} active={p.airplayActive} onClick={p.showAirplayPicker} size={22} color="#fff" />
                 <button aria-label="Share" onClick={() => onShare(song)} style={{ ...iconBtn, color: "#fff" }}><Icon name="share" size="22px" /></button>
               </div>

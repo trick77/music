@@ -5,7 +5,8 @@ describe("parsePath", () => {
   it("maps root to home", () => {
     expect(parsePath("/")).toEqual({ name: "home" });
   });
-  it("maps /favorites and /playlists", () => {
+  it("maps /library, /favorites and /playlists", () => {
+    expect(parsePath("/library")).toEqual({ name: "library" });
     expect(parsePath("/favorites")).toEqual({ name: "favorites" });
     expect(parsePath("/playlists")).toEqual({ name: "playlists" });
   });

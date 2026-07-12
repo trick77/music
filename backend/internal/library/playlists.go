@@ -57,6 +57,15 @@ func (r *Repo) UpdatePlaylist(ctx context.Context, id, name, description string)
 	return err
 }
 
+// UpdatePlaylistDescription edits only a playlist's description, leaving its
+// name untouched. Used by description-only PATCH requests.
+func (r *Repo) UpdatePlaylistDescription(ctx context.Context, id, description string) error {
+	_, err := r.db.ExecContext(ctx,
+		`UPDATE playlists SET description=? WHERE id=?`,
+		nullStr(description), id)
+	return err
+}
+
 // SetPlaylistPublished flips a playlist's publish state. Returns false if the id
 // is unknown. Playlists are created unpublished; this is the only way to publish
 // (or later unpublish) one, mirroring song publishing.

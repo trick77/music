@@ -128,6 +128,44 @@ func TestPlaylistCRUDFlow(t *testing.T) {
 	}
 }
 
+func TestPatchPlaylist_descriptionOnlyKeepsName(t *testing.T) {
+	h := testServer(t, config.AuthModeDev)
+	pid := createPlaylist(t, h, "Late Night Drive", "low volume")
+
+	// PATCH with description only (no name) -> 200, name unchanged, description updated.
+	pr := doJSON(t, h, "PATCH", "/api/playlists/"+pid, `{"description":"new description"}`)
+	if pr.Code != http.StatusOK {
+		t.Fatalf("description-only patch = %d, body=%s", pr.Code, pr.Body.String())
+	}
+
+	rr := doJSON(t, h, "GET", "/api/playlists/"+pid, "")
+	if rr.Code != http.StatusOK {
+		t.Fatalf("get playlist = %d", rr.Code)
+	}
+	var detail struct {
+		Name        string `json:"name"`
+		Description string `json:"description"`
+	}
+	json.Unmarshal(rr.Body.Bytes(), &detail)
+	if detail.Name != "Late Night Drive" {
+		t.Fatalf("name changed after description-only patch: %+v", detail)
+	}
+	if detail.Description != "new description" {
+		t.Fatalf("description not updated: %+v", detail)
+	}
+
+	// PATCH with name included still works (existing behavior unchanged).
+	pr2 := doJSON(t, h, "PATCH", "/api/playlists/"+pid, `{"name":"Renamed","description":"y"}`)
+	if pr2.Code != http.StatusOK {
+		t.Fatalf("name+description patch = %d, body=%s", pr2.Code, pr2.Body.String())
+	}
+	rr2 := doJSON(t, h, "GET", "/api/playlists/"+pid, "")
+	json.Unmarshal(rr2.Body.Bytes(), &detail)
+	if detail.Name != "Renamed" || detail.Description != "y" {
+		t.Fatalf("name+description patch not applied: %+v", detail)
+	}
+}
+
 func TestReorderEndpoint_mismatchIs400(t *testing.T) {
 	h := testServer(t, config.AuthModeDev)
 	pid := createPlaylist(t, h, "P", "")

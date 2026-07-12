@@ -1,8 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { getSession, listSongs, uploadSong, setPublished, deleteSong, postAlign, type Session, type Song, type PlaylistDetail } from "./api";
+import { getSession, listSongs, uploadSong, setPublished, deleteSong, postAlign, type Session, type Song } from "./api";
 import { TagEditor } from "./TagEditor";
 import { Library } from "./Library";
-import { PlaylistEditor } from "./PlaylistEditor";
 import { QueueDrawer } from "./QueueDrawer";
 import { SongMenu } from "./SongMenu";
 import { AddToPlaylist } from "./AddToPlaylist";
@@ -11,6 +10,7 @@ import { Detail } from "./Detail";
 import { Search } from "./Search";
 import { StudioPage } from "./StudioPage";
 import { PlaylistsPage } from "./PlaylistsPage";
+import { PlaylistPage } from "./PlaylistPage";
 import { Rail } from "./Rail";
 import { PlayerBar } from "./PlayerBar";
 import { ConfirmDialog } from "./ConfirmDialog";
@@ -61,7 +61,6 @@ export function App() {
   const [deleteErr, setDeleteErr] = useState("");
   const [addFor, setAddFor] = useState<Song | null>(null);
   const [showQueue, setShowQueue] = useState(false);
-  const [editingPlaylist, setEditingPlaylist] = useState<PlaylistDetail | null | "new">(null);
   const [toast, setToast] = useState<string | null>(null);
   // Bumped after uploads / publish toggles to re-fetch views that load their own
   // data (Home), which otherwise wouldn't reflect the change until navigation.
@@ -297,13 +296,13 @@ export function App() {
         ) : route.name === "studio" ? (
           authed && session?.studioEnabled ? <StudioPage key={route.genreId ?? "studio"} imageGenEnabled={!!session?.imageGenEnabled} chatEnabled={!!session?.chatEnabled} imageModels={session?.imageModels ?? []} defaultImageModel={session?.defaultImageModel ?? ""} initialGenreId={route.genreId} /> : <Home authenticated={authed} onPlay={onPlay} onShare={shareSong} onUpload={triggerUpload} renderRowActions={rowActions} reloadKey={feedVersion} />
         ) : route.name === "playlist" ? (
-          <Detail kind="playlist" id={route.id} authenticated={authed} studioEnabled={!!session?.studioEnabled} imageGenEnabled={!!session?.imageGenEnabled} onPlay={onPlay} onShare={shareUrl} onEditPlaylist={(pl) => setEditingPlaylist(pl)} renderRowActions={rowActions} reloadKey={feedVersion} />
+          <PlaylistPage id={route.id} authenticated={authed} onPlay={onPlay} onShare={shareUrl} renderRowActions={rowActions} reloadKey={feedVersion} />
         ) : route.name === "playlists" ? (
           <PlaylistsPage authenticated={authed} onPlay={onPlay} />
         ) : route.name === "genre" ? (
-          <Detail kind="genre" id={route.id} authenticated={authed} studioEnabled={!!session?.studioEnabled} imageGenEnabled={!!session?.imageGenEnabled} onPlay={onPlay} onShare={shareUrl} onEditPlaylist={(pl) => setEditingPlaylist(pl)} renderRowActions={rowActions} reloadKey={feedVersion} />
+          <Detail kind="genre" id={route.id} authenticated={authed} studioEnabled={!!session?.studioEnabled} imageGenEnabled={!!session?.imageGenEnabled} onPlay={onPlay} onShare={shareUrl} renderRowActions={rowActions} reloadKey={feedVersion} />
         ) : route.name === "artist" ? (
-          <Detail kind="artist" id={route.id} authenticated={authed} studioEnabled={!!session?.studioEnabled} imageGenEnabled={!!session?.imageGenEnabled} onPlay={onPlay} onShare={shareUrl} onEditPlaylist={(pl) => setEditingPlaylist(pl)} renderRowActions={rowActions} reloadKey={feedVersion} />
+          <Detail kind="artist" id={route.id} authenticated={authed} studioEnabled={!!session?.studioEnabled} imageGenEnabled={!!session?.imageGenEnabled} onPlay={onPlay} onShare={shareUrl} renderRowActions={rowActions} reloadKey={feedVersion} />
         ) : route.name === "song" ? (
           <SongPage id={route.id} songs={songs} onPlay={(s) => onPlay(s)} />
         ) : (
@@ -347,7 +346,6 @@ export function App() {
         />
       )}
       {addFor && <AddToPlaylist song={addFor} authenticated={authed} onClose={() => setAddFor(null)} onDone={(name) => { setAddFor(null); flash(`Added to ${name}`); }} />}
-      {editingPlaylist !== null && <PlaylistEditor existing={editingPlaylist === "new" ? null : editingPlaylist} onClose={() => setEditingPlaylist(null)} onSaved={(pl) => { setEditingPlaylist(null); navigate(`/playlist/${pl.id}`); }} />}
       {toast && <UploadToast message={toast} uploading={uploading} pct={uploadPct} bottom={player.current ? 120 : 80} />}
       <style>{`.iconbtn, .iconbtn-sm { display: grid; place-items: center; background: transparent; border: none; cursor: pointer; color: var(--color-muted); border-radius: var(--radius-ui); } .iconbtn { width: 40px; height: 40px; } .iconbtn-sm { width: 32px; height: 32px; border-radius: 8px; } .iconbtn:hover, .iconbtn-sm:hover { background: var(--color-active); color: var(--color-ink); } @keyframes app-spin { to { transform: rotate(360deg); } } @keyframes app-upload-indef { 0% { transform: translateX(-110%); } 100% { transform: translateX(310%); } } @media (prefers-reduced-motion: reduce) { [style*="app-upload-indef"] { animation: none !important; } }`}</style>
     </div>

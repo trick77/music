@@ -120,7 +120,9 @@ func setAlbumCoverTx(ctx context.Context, tx *sql.Tx, artistID, key, coverID str
 		return err
 	}
 	if _, err := tx.ExecContext(ctx,
-		`UPDATE songs SET cover_art_id = ? WHERE artist_id = ? AND lower(album) = ?`,
+		// lower(trim(album)) mirrors albumKey so siblings whose stored album carries
+		// leading/trailing whitespace (common in ID3 tags) still receive the cover.
+		`UPDATE songs SET cover_art_id = ? WHERE artist_id = ? AND lower(trim(album)) = ?`,
 		coverID, artistID, key); err != nil {
 		return err
 	}

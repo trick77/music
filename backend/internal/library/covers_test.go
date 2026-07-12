@@ -51,6 +51,29 @@ func TestSetSongCover_propagatesAcrossArtistAlbum(t *testing.T) {
 	}
 }
 
+func TestSetSongCover_propagatesDespiteAlbumWhitespace(t *testing.T) {
+	r := newRepo(t)
+	ctx := context.Background()
+	// Siblings of the same album whose stored album strings carry invisible
+	// padding (leading/trailing whitespace) — common in real ID3 tags. They are
+	// the same album to the user and must share one cover.
+	a := makeSong(t, r, "A", "Album One", "h1", "songs/a.mp3")
+	b := makeSong(t, r, "B", "Album One ", "h2", "songs/b.mp3") // trailing space
+	c := makeSong(t, r, "C", " Album One", "h3", "songs/c.mp3") // leading space
+	cover := makeCover(t, r, "covhash")
+
+	if err := r.SetSongCover(ctx, a.ID, cover); err != nil {
+		t.Fatalf("SetSongCover: %v", err)
+	}
+
+	for _, id := range []string{a.ID, b.ID, c.ID} {
+		got, _ := r.Get(ctx, id)
+		if got.CoverArtID != cover {
+			t.Fatalf("song %s cover = %q, want %q", id, got.CoverArtID, cover)
+		}
+	}
+}
+
 func TestCreate_futureSongInheritsAlbumCover(t *testing.T) {
 	r := newRepo(t)
 	ctx := context.Background()

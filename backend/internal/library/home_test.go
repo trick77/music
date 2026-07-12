@@ -66,6 +66,10 @@ func TestHomeFeed_genreChaptersHaveBackgroundAndSongs(t *testing.T) {
 	if err := r.SetActiveBackground(ctx, gid, faID); err != nil {
 		t.Fatalf("set active: %v", err)
 	}
+	// Genre chapters are limited to genres played in the Top Ten.
+	if err := r.RecordPlay(ctx, s.ID); err != nil {
+		t.Fatalf("record play: %v", err)
+	}
 
 	feed, err := r.HomeFeed(ctx, 12, 8, true)
 	if err != nil {

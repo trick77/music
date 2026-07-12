@@ -146,6 +146,35 @@ func TestHomeFeed_genreChaptersIncludeRecentlyAddedNotJustTopTen(t *testing.T) {
 	}
 }
 
+func TestHomeFeed_genreChaptersUseOnlyPrimaryGenre(t *testing.T) {
+	r := newRepo(t)
+	ctx := context.Background()
+	// One recently-added song with two genres. Create flags the first as
+	// is_primary, so only "Primary" should chapter the song — "Secondary" must
+	// not get its own chapter off this song alone.
+	if _, err := r.Create(ctx, NewID(), CreateSongParams{
+		Title: "Multi", ArtistName: "V", FilePath: "songs/multi.mp3", ContentHash: "hm",
+		Genres: []string{"Primary", "Secondary"},
+	}); err != nil {
+		t.Fatalf("create Multi: %v", err)
+	}
+
+	feed, err := r.HomeFeed(ctx, 12, 8, true)
+	if err != nil {
+		t.Fatalf("HomeFeed: %v", err)
+	}
+	names := map[string]bool{}
+	for _, ch := range feed.Genres {
+		names[strings.ToLower(ch.Name)] = true
+	}
+	if !names["primary"] {
+		t.Errorf("chapters = %v, want Primary (the song's primary genre)", names)
+	}
+	if names["secondary"] {
+		t.Errorf("chapters = %v, Secondary must not chapter (only primary genre counts)", names)
+	}
+}
+
 func TestHomeFeed_genreChaptersExcludeGenresInNeitherSection(t *testing.T) {
 	r := newRepo(t)
 	ctx := context.Background()

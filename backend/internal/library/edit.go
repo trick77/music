@@ -57,17 +57,20 @@ func (r *Repo) Update(ctx context.Context, id string, p UpdateSongParams) (*Song
 	// Reconcile the album cover for the new artist+album. Albums keep a single
 	// shared cover (album_covers); singles keep their per-song cover as-is.
 	if key := albumKey(p.Album); key != "" {
-		cover, err := albumCoverIDTx(ctx, tx, artistID, p.Album)
+		mapped, err := albumCoverIDTx(ctx, tx, artistID, key)
 		if err != nil {
 			return nil, err
 		}
-		if cover == "" {
-			cover = curCover.String // no album cover yet: adopt this song's own
-		}
-		if cover != "" {
-			// Upserts the mapping and applies it to every song of the album,
-			// including this one (its album/artist were just updated above).
-			if err := setAlbumCoverTx(ctx, tx, artistID, key, cover); err != nil {
+		switch {
+		case mapped != "":
+			// The album already has a shared cover: this song just adopts it.
+			if _, err := tx.ExecContext(ctx, `UPDATE songs SET cover_art_id=? WHERE id=?`, mapped, id); err != nil {
+				return nil, err
+			}
+		case curCover.Valid && curCover.String != "":
+			// The album has no cover yet but this song carries one: register it
+			// for the whole artist+album so siblings and future songs share it.
+			if err := setAlbumCoverTx(ctx, tx, artistID, key, curCover.String); err != nil {
 				return nil, err
 			}
 		}

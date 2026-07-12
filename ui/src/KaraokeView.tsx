@@ -6,6 +6,7 @@ const LEAD = 0.6;
 const MAX_SWEEP = 1.2;
 const HOLD = 4;
 const INTRO_MIN = 2; // only animate the intro for lead-ins at least this long (s)
+const SWEEP_LEAD = 0.2; // s — advance the sweep clock to compensate for perceived lyric-sync lag
 
 type WordBox = { left: number; right: number; s: number; e: number };
 type LineRt = {
@@ -89,7 +90,7 @@ export function KaraokeView({ lines }: { lines: AlignedLine[] }) {
     let notesOn = false;
     function frame() {
       const audio = player.getAudioElement();
-      const t = audio ? audio.currentTime : 0;
+      const t = (audio ? audio.currentTime : 0) + SWEEP_LEAD;
       let active = -1;
       for (let i = 0; i < lines.length; i++) if (t >= activateAt[i]) active = i;
       const activeEndTime = active >= 0 ? (lines[active].end ?? activateAt[active]) : -Infinity;

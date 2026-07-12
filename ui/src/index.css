@@ -111,6 +111,34 @@ html {
   text-decoration: underline;
 }
 
+/* Genre pill on a list row (e.g. the Top-ten meta line). Terracotta-tinted;
+   a static variant drops the affordance when the genre id didn't resolve. */
+.genre-chip {
+  display: inline-block;
+  flex: none;
+  font-size: var(--text-micro);
+  line-height: 1.5;
+  padding: 0 8px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--color-accent) 38%, var(--color-border));
+  background: color-mix(in srgb, var(--color-accent) 12%, transparent);
+  color: var(--color-accent-strong);
+  text-decoration: none;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.genre-chip:hover,
+.genre-chip:focus-visible {
+  background: color-mix(in srgb, var(--color-accent) 22%, transparent);
+}
+.genre-chip.static {
+  cursor: default;
+}
+.genre-chip.static:hover,
+.genre-chip.static:focus-visible {
+  background: color-mix(in srgb, var(--color-accent) 12%, transparent);
+}
+
 /* Play affordance that fades in on hover of a cover tile. */
 .playfab {
   opacity: 0;

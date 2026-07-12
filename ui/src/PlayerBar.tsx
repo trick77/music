@@ -7,6 +7,7 @@ import { Icon } from "./Icon";
 import { KaraokeView } from "./KaraokeView";
 import { KaraokeCard } from "./KaraokeCard";
 import { getAlign, postAlign, type AlignmentData, type Song } from "./api";
+import { type PlayerParam } from "./router";
 
 type Fav = { has: (id: string) => boolean; toggle: (id: string) => void };
 
@@ -75,7 +76,7 @@ const iconBtn: React.CSSProperties = {
 // PlayerBar renders the docked mini-player (whenever a track is loaded) and,
 // when expanded, the full-screen player. Both are driven entirely by the
 // player store via usePlayer().
-export function PlayerBar({ fav, onShare, alignmentEnabled }: { fav: Fav; onShare: (s: Song) => void; alignmentEnabled: boolean }) {
+export function PlayerBar({ fav, onShare, alignmentEnabled, openIntent = null, onIntentConsumed }: { fav: Fav; onShare: (s: Song) => void; alignmentEnabled: boolean; openIntent?: PlayerParam | null; onIntentConsumed?: () => void }) {
   const p = usePlayer();
   const [full, setFull] = useState(false);
   const [lyricsMode, setLyricsMode] = useState(false);
@@ -112,6 +113,17 @@ export function PlayerBar({ fav, onShare, alignmentEnabled }: { fav: Fav; onShar
     // status to "generating" without changing any other dep) re-arm the poll; it
     // converges because same-status refetches don't change the dep.
   }, [full, lyricsMode, canKaraoke, song?.id, align?.status]);
+
+  // Apply a deep-link open-intent (?player=…) exactly once. Runs even before a
+  // track has loaded — full/lyricsMode persist, so the full player appears as soon
+  // as the song is in the player. The song-change effect above keeps lyricsMode
+  // only when the loaded track can actually do karaoke (graceful degradation).
+  useEffect(() => {
+    if (!openIntent) return;
+    setFull(true);
+    if (openIntent === "lyrics") setLyricsMode(true);
+    onIntentConsumed?.();
+  }, [openIntent, onIntentConsumed]);
 
   if (!p.current || !song) return null;
 

@@ -38,18 +38,20 @@ func (p *mimoProvider) Generate(ctx context.Context, req GenerateRequest, onProg
 		return GenerateResult{}, fmt.Errorf("studio: generate result missing a field")
 	}
 	res.Lyrics = formatLyrics(res.Lyrics)
-	// Genres, titles and albums are best-effort: a prompt can't guarantee the
-	// model returns at most 3 clean, unique entries, so enforce it here rather
-	// than trusting the reply. Titles/albums missing entirely is tolerated — the
+	// Genres, bands, titles and albums are best-effort: a prompt can't guarantee
+	// the model returns at most 3 clean, unique entries, so enforce it here rather
+	// than trusting the reply. Any of them missing entirely is tolerated — the
 	// Identity card just shows fewer options — so they are not required fields.
 	res.Genres = sanitizeList(res.Genres, 3)
+	res.Bands = sanitizeList(res.Bands, 3)
 	res.Titles = sanitizeList(res.Titles, 3)
 	res.Albums = sanitizeList(res.Albums, 3)
 	return res, nil
 }
 
 // sanitizeList trims, drops blanks, de-duplicates case-insensitively, and caps
-// the list at max — the ceiling the dialog shows for genres, titles and albums.
+// the list at max — the ceiling the dialog shows for genres, bands, titles and
+// albums.
 func sanitizeList(in []string, max int) []string {
 	seen := map[string]bool{}
 	out := make([]string, 0, max)

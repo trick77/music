@@ -296,7 +296,7 @@ export function App() {
         ) : route.name === "studio" ? (
           authed && session?.studioEnabled ? <StudioPage key={route.genreId ?? "studio"} imageGenEnabled={!!session?.imageGenEnabled} chatEnabled={!!session?.chatEnabled} imageModels={session?.imageModels ?? []} defaultImageModel={session?.defaultImageModel ?? ""} initialGenreId={route.genreId} /> : <Home authenticated={authed} onPlay={onPlay} onShare={shareSong} onUpload={triggerUpload} renderRowActions={rowActions} reloadKey={feedVersion} />
         ) : route.name === "playlist" ? (
-          <PlaylistPage id={route.id} authenticated={authed} onPlay={onPlay} onShare={shareUrl} renderRowActions={rowActions} reloadKey={feedVersion} imageGenEnabled={!!session?.imageGenEnabled} chatEnabled={!!session?.chatEnabled} />
+          <PlaylistPage key={route.id} id={route.id} authenticated={authed} onPlay={onPlay} onShare={shareUrl} renderRowActions={rowActions} reloadKey={feedVersion} imageGenEnabled={!!session?.imageGenEnabled} chatEnabled={!!session?.chatEnabled} />
         ) : route.name === "playlists" ? (
           <PlaylistsPage authenticated={authed} onPlay={onPlay} />
         ) : route.name === "genre" ? (

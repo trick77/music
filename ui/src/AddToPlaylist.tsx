@@ -34,6 +34,8 @@ export function AddToPlaylist({ song, authenticated, onClose, onDone }: Props) {
     try {
       const pl = await createPlaylist(name, "");
       await add(pl.id, pl.name);
+      setCreating(false);
+      setNewName("");
     } catch {
       onClose();
     }

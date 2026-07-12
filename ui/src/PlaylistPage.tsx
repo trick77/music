@@ -510,7 +510,7 @@ export function PlaylistPageView({ playlist, authenticated, onPlay, onShare, ren
               draggable
               onDragStart={() => setDrag(i)}
               onDragOver={(e) => e.preventDefault()}
-              onDrop={() => onRowDrop(i)}
+              onDrop={(e) => { e.preventDefault(); onRowDrop(i); }}
               style={{ display: "grid", gridTemplateColumns: "24px 40px 1fr auto", alignItems: "center", gap: "0.75rem", padding: "0.5rem 0", borderBottom: i < songs.length - 1 ? "1px solid var(--color-border)" : "none", cursor: "grab" }}
             >
               <span aria-hidden="true" style={{ color: "var(--color-muted)", fontSize: "1.1rem", textAlign: "center" }}>⠿</span>

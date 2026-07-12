@@ -45,7 +45,7 @@ export function PlaylistsPageView({ playlists, authenticated, onPlay, onNewPlayl
     e.stopPropagation();
     getPlaylist(id).then((detail) => {
       if (detail.songs.length > 0) onPlay(detail.songs[0], detail.songs.slice(1));
-    });
+    }).catch(() => {});
   };
 
   return (

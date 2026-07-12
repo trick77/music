@@ -120,6 +120,7 @@ describe("PlaylistPageView", () => {
     );
     expect(html).toContain("No songs yet");
     expect(html).toContain("0 songs");
+    expect(html).not.toContain("Shuffle");
   });
 
   it("shows the delete button and add-songs input only in edit mode", () => {

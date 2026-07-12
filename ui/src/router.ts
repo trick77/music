@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 export type Route =
   | { name: "home" }
   | { name: "search" }
+  | { name: "library" }
   | { name: "favorites" }
   | { name: "playlists" }
   | { name: "genres" }
@@ -16,6 +17,7 @@ export function parsePath(pathname: string): Route {
   const parts = pathname.split("/").filter(Boolean);
   if (parts.length === 0) return { name: "home" };
   if (parts.length === 1 && parts[0] === "search") return { name: "search" };
+  if (parts.length === 1 && parts[0] === "library") return { name: "library" };
   if (parts.length === 1 && parts[0] === "favorites") return { name: "favorites" };
   if (parts.length === 1 && parts[0] === "playlists") return { name: "playlists" };
   if (parts.length === 1 && parts[0] === "genres") return { name: "genres" };

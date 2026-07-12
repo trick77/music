@@ -3,6 +3,8 @@ import { search, type SearchResults, type Song } from "./api";
 import { coverUrl, coverInitial } from "./cover";
 import { navigate } from "./router";
 import { Glyph } from "./Glyph";
+import { NowPlayingBars } from "./NowPlayingBars";
+import { usePlayer } from "./player";
 import { t } from "./ui";
 import { genreLabel } from "./titleCase";
 
@@ -11,6 +13,7 @@ import { genreLabel } from "./titleCase";
 export function Search({ onPlay }: { onPlay: (s: Song, tail: Song[]) => void }) {
   const [q, setQ] = useState("");
   const [res, setRes] = useState<SearchResults | null>(null);
+  const { current, playing } = usePlayer();
 
   useEffect(() => {
     if (!q.trim()) {
@@ -51,35 +54,52 @@ export function Search({ onPlay }: { onPlay: (s: Song, tail: Song[]) => void }) 
 
       {res && (
         <div style={{ display: "flex", flexDirection: "column", gap: "1.75rem" }}>
-          {res.top && (
+          {res.top && (() => {
+            const topCover = topCoverArtId(res);
+            const topPlaying = res.top.type === "song" && current?.id === res.top.id && playing;
+            return (
             <section>
               <h3 style={head}>Top result</h3>
               <button onClick={openTop} style={{ display: "flex", alignItems: "center", gap: "0.9rem", background: "var(--color-panel)", border: "1px solid var(--color-border)", borderRadius: 12, padding: "0.9rem", cursor: "pointer", textAlign: "left", width: "100%" }}>
-                <span style={{ width: 56, height: 56, borderRadius: 8, background: "var(--color-active)", display: "grid", placeItems: "center", overflow: "hidden" }}>
-                  <Glyph name={res.top.type === "song" ? "play" : res.top.type === "genre" ? "disc" : res.top.type === "playlist" ? "library" : "search"} size={22} style={{ color: "var(--color-muted)" }} />
+                <span style={{ position: "relative", width: 56, height: 56, borderRadius: 8, background: "var(--color-active)", display: "grid", placeItems: "center", overflow: "hidden" }}>
+                  {topCover ? <img src={coverUrl(topCover, "thumb")} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <Glyph name={res.top.type === "song" ? "play" : res.top.type === "genre" ? "disc" : res.top.type === "playlist" ? "library" : "search"} size={22} style={{ color: "var(--color-muted)" }} />}
+                  {topPlaying && (
+                    <span style={{ position: "absolute", inset: 0, display: "grid", placeItems: "center", background: "rgba(0,0,0,0.5)" }}>
+                      <NowPlayingBars />
+                    </span>
+                  )}
                 </span>
                 <span>
-                  <div style={{ color: "var(--color-ink)" }}>{topLabel(res)}</div>
+                  <div style={{ color: topPlaying ? "var(--color-accent-strong)" : "var(--color-ink)" }}>{topLabel(res)}</div>
                   <div style={{ ...t.label, textTransform: "capitalize" }}>{res.top.type}</div>
                 </span>
               </button>
             </section>
-          )}
+            );
+          })()}
 
           {res.songs.length > 0 && (
             <section>
               <h3 style={head}>Songs</h3>
-              {res.songs.map((s, i) => (
+              {res.songs.map((s, i) => {
+                const isPlaying = current?.id === s.id && playing;
+                return (
                 <button key={s.id} onClick={() => onPlay(s, res.songs.slice(i + 1))} style={rowBtn}>
-                  <span style={{ width: 40, height: 40, borderRadius: 6, background: "var(--color-active)", display: "grid", placeItems: "center", overflow: "hidden" }}>
+                  <span style={{ position: "relative", width: 40, height: 40, borderRadius: 6, background: "var(--color-active)", display: "grid", placeItems: "center", overflow: "hidden" }}>
                     {s.coverArtId ? <img src={coverUrl(s.coverArtId, "thumb")} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <span style={{ fontFamily: "var(--font-serif)", color: "var(--color-muted)", fontSize: "0.9rem" }}>{coverInitial(s.title)}</span>}
+                    {isPlaying && (
+                      <span style={{ position: "absolute", inset: 0, display: "grid", placeItems: "center", background: "rgba(0,0,0,0.5)" }}>
+                        <NowPlayingBars />
+                      </span>
+                    )}
                   </span>
                   <span style={{ minWidth: 0 }}>
-                    <span style={{ display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.title}</span>
+                    <span style={{ display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: isPlaying ? "var(--color-accent-strong)" : undefined }}>{s.title}</span>
                     <span style={{ display: "block", ...t.label, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.artistName}</span>
                   </span>
                 </button>
-              ))}
+                );
+              })}
             </section>
           )}
 
@@ -140,6 +160,16 @@ function topLabel(res: SearchResults): string {
   if (type === "artist") return res.artists.find((x) => x.id === id)?.name ?? "";
   if (type === "genre") { const n = res.genres.find((x) => x.id === id)?.name; return n ? genreLabel(n) : ""; }
   return res.playlists.find((x) => x.id === id)?.name ?? "";
+}
+
+// topCoverArtId resolves the cover art for the Top result by cross-looking-up the
+// matched song/playlist (Top itself carries only {type,id}). Artists/genres have none.
+function topCoverArtId(res: SearchResults): string {
+  if (!res.top) return "";
+  const { type, id } = res.top;
+  if (type === "song") return res.songs.find((x) => x.id === id)?.coverArtId ?? "";
+  if (type === "playlist") return res.playlists.find((x) => x.id === id)?.coverArtId ?? "";
+  return "";
 }
 
 const head: React.CSSProperties = { margin: "0 0 0.6rem", ...t.title };

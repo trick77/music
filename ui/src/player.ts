@@ -10,6 +10,11 @@ export type PlayerState = {
   playing: boolean;
   positionMs: number;
   durationMs: number;
+  // AirPlay (Safari on Apple devices only). airplayAvailable flips true when a
+  // target appears on the network; airplayActive tracks whether audio is
+  // currently routed to a wireless device. Both stay false everywhere else.
+  airplayAvailable: boolean;
+  airplayActive: boolean;
 };
 
 // ── Pure transitions (unit-tested) ─────────────────────────────────────────
@@ -90,6 +95,8 @@ let state: PlayerState = {
   playing: false,
   positionMs: 0,
   durationMs: 0,
+  airplayAvailable: false,
+  airplayActive: false,
 };
 const listeners = new Set<Listener>();
 let audio: HTMLAudioElement | null = null;
@@ -198,6 +205,17 @@ function getAudio(): HTMLAudioElement {
     set({ playing: false });
     setPlaybackState("paused");
   });
+  // AirPlay wiring, Safari-only. Feature-detect the picker; if it exists we can
+  // trust the companion events fire, so we listen for target availability (to
+  // show/hide the button) and for the active wireless route (to highlight it).
+  if (typeof el.webkitShowPlaybackTargetPicker === "function") {
+    el.addEventListener("webkitplaybacktargetavailabilitychanged", (e) => {
+      set({ airplayAvailable: e.availability === "available" });
+    });
+    el.addEventListener("webkitcurrentplaybacktargetiswirelesschanged", () => {
+      set({ airplayActive: el.webkitCurrentPlaybackTargetIsWireless === true });
+    });
+  }
   setupMediaHandlers();
   audio = el;
   return el;
@@ -293,6 +311,11 @@ export const player = {
       set({ positionMs: el.currentTime * 1000 });
     }
   },
+  // showAirplayPicker opens Safari's native AirPlay device chooser. No-op where
+  // the WebKit API is absent (non-Safari); the button is hidden there anyway.
+  showAirplayPicker() {
+    getAudio().webkitShowPlaybackTargetPicker?.();
+  },
   // restore seeds the last track + position WITHOUT autoplay (spec §15a: no
   // surprise autoplay). Playback resumes from the restored position on the next
   // explicit play/toggle.
@@ -334,5 +357,6 @@ export function usePlayer() {
     restore: player.restore,
     remove: player.remove,
     patchSong: player.patchSong,
+    showAirplayPicker: player.showAirplayPicker,
   };
 }

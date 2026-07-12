@@ -89,6 +89,7 @@ func logging(next http.Handler) http.Handler {
 		slog.LogAttrs(r.Context(), level, "request",
 			slog.String("method", r.Method),
 			slog.String("path", r.URL.Path),
+			slog.String("ip", clientIP(r)),
 			slog.Int("status", rec.status),
 			slog.String("dur", time.Since(start).String()),
 		)

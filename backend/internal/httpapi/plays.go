@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net"
 	"net/http"
+	"strings"
 	"sync"
 	"time"
 )
@@ -41,13 +42,18 @@ func (p *playThrottle) allow(key string, now time.Time) bool {
 	return true
 }
 
-// clientIP is the throttle key's client component. NOTE: behind a reverse proxy
-// r.RemoteAddr is the proxy's address, so anonymous listeners would share one
-// key (the throttle then errs toward UNDER-counting — safe for the
-// anti-inflation invariant, but chart-inaccurate). If a trusted proxy is
-// introduced, parse X-Forwarded-For here. For v1's "light throttle" this is an
-// accepted tradeoff, not a bug.
+// clientIP is the throttle key's client component. The deploy always sits
+// behind Traefik (compose.yaml), which sets X-Forwarded-For to the real
+// client address, so that header is trusted here; its leftmost entry is the
+// original client, added by the hop closest to them. Falls back to
+// r.RemoteAddr (the proxy's own address) when the header is absent, e.g. in
+// tests or a direct connection.
 func clientIP(r *http.Request) string {
+	if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
+		if ip := strings.TrimSpace(strings.SplitN(xff, ",", 2)[0]); ip != "" {
+			return ip
+		}
+	}
 	if host, _, err := net.SplitHostPort(r.RemoteAddr); err == nil {
 		return host
 	}

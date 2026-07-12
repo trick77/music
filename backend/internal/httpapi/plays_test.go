@@ -56,6 +56,18 @@ func postPlayFrom(t *testing.T, h http.Handler, id, remoteAddr string) *httptest
 	return rr
 }
 
+// postPlayFromProxy posts a play as Traefik would forward it: RemoteAddr is
+// the proxy's own address, and X-Forwarded-For carries the real client IP.
+func postPlayFromProxy(t *testing.T, h http.Handler, id, proxyAddr, forwardedFor string) *httptest.ResponseRecorder {
+	t.Helper()
+	req := httptest.NewRequest("POST", "/api/songs/"+id+"/play", nil)
+	req.RemoteAddr = proxyAddr
+	req.Header.Set("X-Forwarded-For", forwardedFor)
+	rr := httptest.NewRecorder()
+	h.ServeHTTP(rr, req)
+	return rr
+}
+
 func topTenCount(t *testing.T, h http.Handler) map[string]int {
 	t.Helper()
 	rr := httptest.NewRecorder()
@@ -121,6 +133,35 @@ func TestPlay_throttlesReplayPerClient(t *testing.T) {
 	postPlayFrom(t, h, id, "6.6.6.6:1")
 	if got := topTenCount(t, h)[id]; got != 2 {
 		t.Fatalf("count after second client = %d, want 2", got)
+	}
+}
+
+func TestPlay_throttlesPerForwardedClientBehindProxy(t *testing.T) {
+	h := testServer(t, config.AuthModeDev)
+	id := uploadedSongID(t, h)
+	// Same proxy RemoteAddr for every request (as Traefik would present), but
+	// distinct X-Forwarded-For clients must still be throttled independently.
+	const proxyAddr = "10.0.0.1:443"
+	postPlayFromProxy(t, h, id, proxyAddr, "1.2.3.4")
+	postPlayFromProxy(t, h, id, proxyAddr, "1.2.3.4") // same forwarded client, replay => throttled
+	if got := topTenCount(t, h)[id]; got != 1 {
+		t.Fatalf("same-forwarded-client replay count = %d, want 1 (throttled)", got)
+	}
+	postPlayFromProxy(t, h, id, proxyAddr, "5.6.7.8") // distinct forwarded client
+	if got := topTenCount(t, h)[id]; got != 2 {
+		t.Fatalf("count after second forwarded client = %d, want 2", got)
+	}
+}
+
+func TestPlay_forwardedForUsesLeftmostHopAsClient(t *testing.T) {
+	h := testServer(t, config.AuthModeDev)
+	id := uploadedSongID(t, h)
+	const proxyAddr = "10.0.0.1:443"
+	// A multi-hop chain: leftmost entry is the original client.
+	postPlayFromProxy(t, h, id, proxyAddr, "1.2.3.4, 10.0.0.9")
+	postPlayFromProxy(t, h, id, proxyAddr, "1.2.3.4,10.0.0.9") // same client, no space => still throttled
+	if got := topTenCount(t, h)[id]; got != 1 {
+		t.Fatalf("play count = %d, want 1 (throttled on leftmost XFF entry)", got)
 	}
 }
 

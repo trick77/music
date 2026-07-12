@@ -110,6 +110,7 @@ export function AlbumCoverMode({ chatEnabled, imageModels, defaultImageModel }: 
         className={controlClass}
         value={prompt}
         onChange={(e) => setPrompt(e.target.value)}
+        disabled={suggesting || refining}
         placeholder="Describe the album cover — a single strong subject, palette, mood…"
         rows={3}
         style={{ marginBottom: "var(--space-3)" }}

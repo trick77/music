@@ -208,6 +208,55 @@ func TestHomeFeed_genreChaptersExcludeGenresInNeitherSection(t *testing.T) {
 	}
 }
 
+func TestHomeFeed_genreChaptersOrderedByPopularity(t *testing.T) {
+	r := newRepo(t)
+	ctx := context.Background()
+	// Three genres. Play counts make Beta the most-played, then Alpha, then Gamma
+	// — the reverse of alphabetical, so this fails if chapters stay alphabetical.
+	mk := func(title, genre string) string {
+		s, err := r.Create(ctx, NewID(), CreateSongParams{
+			Title: title, ArtistName: "V", FilePath: "songs/" + title + ".mp3",
+			ContentHash: "h" + title, Genres: []string{genre},
+		})
+		if err != nil {
+			t.Fatalf("create %q: %v", title, err)
+		}
+		return s.ID
+	}
+	alpha := mk("Asong", "Alpha")
+	beta := mk("Bsong", "Beta")
+	gamma := mk("Csong", "Gamma")
+	play := func(id string, n int) {
+		for i := 0; i < n; i++ {
+			if err := r.RecordPlay(ctx, id); err != nil {
+				t.Fatalf("record play: %v", err)
+			}
+		}
+	}
+	play(beta, 3)
+	play(alpha, 2)
+	play(gamma, 1)
+
+	feed, err := r.HomeFeed(ctx, 12, 8, true)
+	if err != nil {
+		t.Fatalf("HomeFeed: %v", err)
+	}
+	var got []string
+	for _, ch := range feed.Genres {
+		got = append(got, ch.Name)
+	}
+	// Genre names are stored lowercase. Order follows Top Ten play ranking.
+	want := []string{"beta", "alpha", "gamma"}
+	if len(got) != len(want) {
+		t.Fatalf("chapter order = %v, want %v", got, want)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("chapter order = %v, want %v (popularity, not alphabetical)", got, want)
+		}
+	}
+}
+
 func TestHomeFeed_heroPopulatedFromStarredFanart(t *testing.T) {
 	r := newRepo(t)
 	ctx := context.Background()

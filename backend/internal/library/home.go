@@ -165,22 +165,52 @@ func (r *Repo) HomeFeed(ctx context.Context, recentLimit, chapterSongLimit int, 
 	// library grew. On a fresh library both sections are empty; fall back to
 	// showing every genre so the section isn't just blank.
 	//
+	// Chapters are ordered by song popularity: the genre of the most-played song
+	// leads, following the Top Ten's play-count ranking. Genres surfaced only via
+	// Recently Added (no plays, so unrankable by popularity) follow in
+	// recently-added order. Both source orders are deterministic, so ties never
+	// depend on row insertion order.
+	//
 	// Each song contributes only its primary (first) genre — genresFor orders
 	// is_primary DESC, so Genres[0] is the main genre. A multi-genre song surfaces
 	// under its main genre rather than fanning out a chapter for every secondary tag.
-	featuredGenreNames := map[string]bool{}
+	orderedNames := []string{}
+	seen := map[string]bool{}
+	add := func(name string) {
+		if name == "" || seen[name] {
+			return
+		}
+		seen[name] = true
+		orderedNames = append(orderedNames, name)
+	}
 	for _, s := range feed.TopTen {
 		if len(s.Genres) > 0 {
-			featuredGenreNames[s.Genres[0]] = true
+			add(s.Genres[0])
 		}
 	}
 	for _, s := range feed.RecentlyAdded {
 		if len(s.Genres) > 0 {
-			featuredGenreNames[s.Genres[0]] = true
+			add(s.Genres[0])
 		}
 	}
+
+	// Index the fetched genres by name so the ordered walk can look each one up.
+	byName := make(map[string]GenreSummary, len(genres))
 	for _, g := range genres {
-		if len(featuredGenreNames) > 0 && !featuredGenreNames[g.Name] {
+		byName[g.Name] = g
+	}
+	// Fresh library (nothing in either section): show every genre in ListGenres'
+	// alphabetical order so the section isn't just blank.
+	if len(orderedNames) == 0 {
+		for _, g := range genres {
+			orderedNames = append(orderedNames, g.Name)
+		}
+	}
+
+	for _, name := range orderedNames {
+		g, ok := byName[name]
+		if !ok {
+			// e.g. an anonymous viewer's ListGenres omits genres with no published songs.
 			continue
 		}
 		bg, err := r.activeBackgroundID(ctx, g.ID)

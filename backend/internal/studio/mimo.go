@@ -38,6 +38,10 @@ func (p *mimoProvider) Generate(ctx context.Context, req GenerateRequest, onProg
 		return GenerateResult{}, fmt.Errorf("studio: generate result missing a field")
 	}
 	res.Lyrics = formatLyrics(res.Lyrics)
+	// The style prompt has no guaranteed shape either: the model sometimes leaks
+	// song-structure tags or newlines into it, so normalize to the flat comma line
+	// Suno's Style box expects rather than trusting the reply.
+	res.StylePrompt = sanitizeStylePrompt(res.StylePrompt)
 	// Genres, bands, titles and albums are best-effort: a prompt can't guarantee
 	// the model returns at most 3 clean, unique entries, so enforce it here rather
 	// than trusting the reply. Any of them missing entirely is tolerated — the

@@ -35,7 +35,7 @@ func (c *cannedChat) Chat(_ context.Context, messages []llm.Message, tools []llm
 
 func TestGenerate_parsesThreeFieldsFromFencedJSON(t *testing.T) {
 	chat := &cannedChat{reply: "Here you go:\n```json\n" +
-		`{"stylePrompt":"1990s,heavy metal,thrash","lyrics":"[Verse]\nfresh words","coverArtPrompt":"a dim bedroom, 1991 thrash aesthetic","genres":["heavy metal","thrash","heavy metal","groove metal","nu metal"]}` +
+		`{"stylePrompt":"1990s,heavy metal,thrash","lyrics":"[Verse]\nfresh words","coverArtPrompt":"a dim bedroom, 1991 thrash aesthetic","genres":["heavy metal","thrash","heavy metal","groove metal","nu metal"],"titles":["Sleep Now","Sleep Now","Grey Between Dreams","The Sandman's Ledger","Fourth Title"],"albums":["Nightfall Sessions","Hush the World","Iron Lullaby"]}` +
 		"\n```\nHope that helps!"}
 	p := New(chat, &fakeTools{})
 
@@ -50,6 +50,13 @@ func TestGenerate_parsesThreeFieldsFromFencedJSON(t *testing.T) {
 	if len(res.Genres) != 3 || res.Genres[0] != "heavy metal" || res.Genres[1] != "thrash" || res.Genres[2] != "groove metal" {
 		t.Fatalf("Genres = %#v, want [heavy metal, thrash, groove metal]", res.Genres)
 	}
+	// Titles are likewise de-duplicated and capped at 3, preserving order.
+	if len(res.Titles) != 3 || res.Titles[0] != "Sleep Now" || res.Titles[1] != "Grey Between Dreams" || res.Titles[2] != "The Sandman's Ledger" {
+		t.Fatalf("Titles = %#v, want [Sleep Now, Grey Between Dreams, The Sandman's Ledger]", res.Titles)
+	}
+	if len(res.Albums) != 3 || res.Albums[0] != "Nightfall Sessions" {
+		t.Fatalf("Albums = %#v, want 3 starting with Nightfall Sessions", res.Albums)
+	}
 	if !strings.Contains(res.Lyrics, "[Verse]") {
 		t.Fatalf("Lyrics = %q", res.Lyrics)
 	}
@@ -63,6 +70,20 @@ func TestGenerate_parsesThreeFieldsFromFencedJSON(t *testing.T) {
 	// The system prompt must teach Suno tags.
 	if !strings.Contains(chat.lastSystem, "[Verse]") {
 		t.Fatalf("system prompt should mention Suno tags")
+	}
+}
+
+// Titles and albums are best-effort: a reply that omits them must still yield a
+// usable result (the Identity card simply shows no name ideas), unlike the core
+// style/lyrics/cover fields which are required.
+func TestGenerate_toleratesMissingTitlesAndAlbums(t *testing.T) {
+	chat := &cannedChat{reply: `{"stylePrompt":"1990s,thrash","lyrics":"[Verse]\nwords","coverArtPrompt":"dim room","genres":["thrash"]}`}
+	res, err := New(chat, &fakeTools{}).Generate(context.Background(), GenerateRequest{Reference: "x"}, nil)
+	if err != nil {
+		t.Fatalf("Generate should tolerate missing titles/albums: %v", err)
+	}
+	if len(res.Titles) != 0 || len(res.Albums) != 0 {
+		t.Fatalf("expected empty Titles/Albums, got %#v / %#v", res.Titles, res.Albums)
 	}
 }
 

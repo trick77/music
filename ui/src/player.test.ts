@@ -7,7 +7,7 @@ function song(id: string): Song {
 }
 
 function base(overrides: Partial<PlayerState> = {}): PlayerState {
-  return { current: null, queue: [], history: [], playing: false, positionMs: 0, durationMs: 0, ...overrides };
+  return { current: null, queue: [], history: [], playing: false, positionMs: 0, durationMs: 0, airplayAvailable: false, airplayActive: false, ...overrides };
 }
 
 describe("advance", () => {

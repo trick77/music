@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, beforeAll } from "vitest";
-import { songShareUrl, playlistShareUrl } from "./share";
+import { songShareUrl, playlistShareUrl, lyricsShareUrl } from "./share";
 
 // Vitest runs in a node environment (no DOM); stub location for the URL helpers.
 beforeAll(() => {
@@ -12,5 +12,8 @@ describe("share urls", () => {
   });
   it("builds an absolute playlist url", () => {
     expect(playlistShareUrl("xyz")).toBe("https://music.example.com/playlist/xyz");
+  });
+  it("builds an absolute lyrics deep-link url", () => {
+    expect(lyricsShareUrl("abc")).toBe("https://music.example.com/song/abc?player=lyrics");
   });
 });

@@ -69,6 +69,17 @@ export function qualifiesForPlay(positionMs: number, durationMs: number): boolea
   return durationMs > 0 && positionMs >= durationMs / 2;
 }
 
+// shuffle returns a new array with items in random order (Fisher–Yates) without
+// mutating the input. Pure function suitable for unit testing.
+export function shuffle<T>(items: T[]): T[] {
+  const result = [...items];
+  for (let i = result.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [result[i], result[j]] = [result[j], result[i]];
+  }
+  return result;
+}
+
 // shouldReport fires at most once per play session. It flips session.reported so
 // a single listen can never inflate the chart, even across many timeupdate ticks.
 export function shouldReport(session: { reported: boolean }, qualifies: boolean): boolean {

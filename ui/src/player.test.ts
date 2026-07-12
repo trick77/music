@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { advance, back, qualifiesForPlay, shouldReport, removeSong, replaceSong, type PlayerState } from "./player";
+import { advance, back, qualifiesForPlay, shouldReport, removeSong, replaceSong, shuffle, type PlayerState } from "./player";
 import type { Song } from "./api";
 
 function song(id: string): Song {
@@ -112,5 +112,14 @@ describe("replaceSong", () => {
     const s = replaceSong(base({ current: song("a"), queue: [song("b")] }), { ...song("z"), title: "Z" });
     expect(s.current?.id).toBe("a");
     expect(s.queue.map((q) => q.id)).toEqual(["b"]);
+  });
+});
+
+describe("shuffle", () => {
+  it("returns a permutation without mutating input", () => {
+    const src = [1, 2, 3, 4, 5];
+    const out = shuffle(src);
+    expect(out.slice().sort()).toEqual([1, 2, 3, 4, 5]);
+    expect(src).toEqual([1, 2, 3, 4, 5]); // unchanged
   });
 });

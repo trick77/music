@@ -1,17 +1,12 @@
 package httpapi
 
 import (
-	"bytes"
 	"context"
-	"crypto/sha256"
-	"encoding/hex"
 	"encoding/json"
 	"io"
 	"net/http"
 	"strings"
 
-	"github.com/trick77/music/internal/imageutil"
-	"github.com/trick77/music/internal/library"
 	"github.com/trick77/music/internal/media"
 )
 
@@ -126,30 +121,7 @@ func (h *songHandlers) postAlbumCover(w http.ResponseWriter, r *http.Request) {
 		serverError(w, "read generated cover", err)
 		return
 	}
-	sum := sha256.Sum256(data)
-	hash := hex.EncodeToString(sum[:])
-
-	width, height := art.Width, art.Height
-	ext := "png"
-	if pw, ph, pext, perr := imageutil.Probe(bytes.NewReader(data)); perr == nil {
-		width, height, ext = pw, ph, pext
-	}
-
-	// Store the bytes under covers/<hash>.<ext> only if this content is new
-	// (CreateCover dedupes by hash, but the file must exist for a fresh hash).
-	relPath := "covers/" + hash + "." + ext
-	if existingID, _, herr := h.repo.FindCoverByHash(r.Context(), hash); herr != nil {
-		serverError(w, "cover lookup", herr)
-		return
-	} else if existingID == "" {
-		if werr := writeBytes(h.media, relPath, data); werr != nil {
-			serverError(w, "store cover", werr)
-			return
-		}
-	}
-	coverID, err := h.repo.CreateCover(r.Context(), library.CoverParams{
-		ImagePath: relPath, Width: width, Height: height, ContentHash: hash,
-	})
+	coverID, err := storeCoverBytes(r.Context(), h.media, h.repo, data)
 	if err != nil {
 		serverError(w, "save cover", err)
 		return

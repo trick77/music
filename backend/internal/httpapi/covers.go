@@ -36,6 +36,34 @@ func (h *songHandlers) putCover(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, updated)
 }
 
+// deleteCover clears a song's cover. Album-wide, mirroring putCover: an album
+// track clears the whole artist+album, a single clears itself. Auth-gated.
+func (h *songHandlers) deleteCover(w http.ResponseWriter, r *http.Request) {
+	if !identify(h.cfg, r).Authenticated {
+		httpError(w, http.StatusForbidden, "authentication required")
+		return
+	}
+	song, err := h.repo.Get(r.Context(), r.PathValue("id"))
+	if err != nil {
+		serverError(w, "get song", err)
+		return
+	}
+	if song == nil {
+		httpError(w, http.StatusNotFound, "not found")
+		return
+	}
+	if err := h.repo.RemoveSongCover(r.Context(), song.ID); err != nil {
+		serverError(w, "remove cover", err)
+		return
+	}
+	updated, err := h.repo.Get(r.Context(), song.ID)
+	if err != nil {
+		serverError(w, "reload song", err)
+		return
+	}
+	writeJSON(w, updated)
+}
+
 func (h *songHandlers) getCover(w http.ResponseWriter, r *http.Request) {
 	path, err := h.repo.GetCoverPath(r.Context(), r.PathValue("id"))
 	if errors.Is(err, sql.ErrNoRows) {

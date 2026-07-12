@@ -223,6 +223,21 @@ func (h *songHandlers) upload(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	stored = true
+	// Import embedded cover art (APIC) so a well-tagged file keeps its own art
+	// instead of a blank placeholder. Best-effort — any failure (unsupported image,
+	// storage error) logs and leaves the song coverless; never fail the upload.
+	// Only import when the track has no cover yet: Create already inherits the
+	// album's existing cover (album_covers), so this must not clobber a cover the
+	// user set manually or an earlier track established — first-with-art wins.
+	if len(tags.CoverBytes) > 0 && song.CoverArtID == "" {
+		if coverID, cerr := storeCoverBytes(r.Context(), h.media, h.repo, tags.CoverBytes); cerr != nil {
+			slog.Warn("cover: embedded art import failed", "song", song.ID, "err", cerr)
+		} else if err := h.repo.SetSongCover(r.Context(), song.ID, coverID); err != nil {
+			slog.Warn("cover: embedded art assign failed", "song", song.ID, "err", err)
+		} else {
+			song.CoverArtID = coverID
+		}
+	}
 	// Karaoke: a freshly imported file that already carries lyrics gets aligned in
 	// the background (best-effort; never fail the upload). Files without embedded
 	// lyrics are not aligned — alignment is meaningless without words.

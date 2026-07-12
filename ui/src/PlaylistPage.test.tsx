@@ -115,4 +115,36 @@ describe("PlaylistPageView", () => {
     expect(html).toContain("No songs yet");
     expect(html).toContain("0 songs");
   });
+
+  it("shows the delete button and add-songs input only in edit mode", () => {
+    const editingHtml = renderToStaticMarkup(
+      <PlaylistPageView
+        playlist={playlistDetail({})}
+        authenticated={true}
+        onPlay={() => {}}
+        onShare={() => {}}
+        renderRowActions={() => null}
+        onTogglePublish={() => {}}
+        initialEditing={true}
+      />,
+    );
+    expect(editingHtml).toContain("Delete playlist");
+    expect(editingHtml).toContain("Search by title or artist…");
+    expect(editingHtml).toContain("Done");
+
+    const viewHtml = renderToStaticMarkup(
+      <PlaylistPageView
+        playlist={playlistDetail({})}
+        authenticated={true}
+        onPlay={() => {}}
+        onShare={() => {}}
+        renderRowActions={() => null}
+        onTogglePublish={() => {}}
+        initialEditing={false}
+      />,
+    );
+    expect(viewHtml).not.toContain("Delete playlist");
+    expect(viewHtml).not.toContain("Search by title or artist…");
+    expect(viewHtml).toContain("Edit");
+  });
 });

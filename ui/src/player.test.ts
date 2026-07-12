@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { advance, back, qualifiesForPlay, shouldReport, removeSong, replaceSong, type PlayerState } from "./player";
+import { advance, back, shouldRestart, qualifiesForPlay, shouldReport, removeSong, replaceSong, type PlayerState } from "./player";
 import type { Song } from "./api";
 
 function song(id: string): Song {
@@ -38,6 +38,17 @@ describe("back", () => {
     const s = back(base({ current: song("a"), positionMs: 50000, history: [] }));
     expect(s.current?.id).toBe("a");
     expect(s.positionMs).toBe(0);
+  });
+});
+
+describe("shouldRestart", () => {
+  it("restarts when well into the track (past the threshold)", () => {
+    expect(shouldRestart(5000)).toBe(true);
+  });
+  it("steps back at or below the threshold", () => {
+    expect(shouldRestart(3000)).toBe(false);
+    expect(shouldRestart(1000)).toBe(false);
+    expect(shouldRestart(0)).toBe(false);
   });
 });
 

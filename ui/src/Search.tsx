@@ -4,6 +4,7 @@ import { coverUrl, coverInitial } from "./cover";
 import { navigate } from "./router";
 import { Glyph } from "./Glyph";
 import { NowPlayingBars } from "./NowPlayingBars";
+import { SongCover } from "./SongCover";
 import { usePlayer } from "./player";
 import { t } from "./ui";
 import { genreLabel } from "./titleCase";
@@ -85,14 +86,7 @@ export function Search({ onPlay }: { onPlay: (s: Song, tail: Song[]) => void }) 
                 const isPlaying = current?.id === s.id && playing;
                 return (
                 <button key={s.id} onClick={() => onPlay(s, res.songs.slice(i + 1))} style={rowBtn}>
-                  <span style={{ position: "relative", width: 40, height: 40, borderRadius: 6, background: "var(--color-active)", display: "grid", placeItems: "center", overflow: "hidden" }}>
-                    {s.coverArtId ? <img src={coverUrl(s.coverArtId, "thumb")} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <span style={{ fontFamily: "var(--font-serif)", color: "var(--color-muted)", fontSize: "0.9rem" }}>{coverInitial(s.title)}</span>}
-                    {isPlaying && (
-                      <span style={{ position: "absolute", inset: 0, display: "grid", placeItems: "center", background: "rgba(0,0,0,0.5)" }}>
-                        <NowPlayingBars />
-                      </span>
-                    )}
-                  </span>
+                  <SongCover song={s} size={40} radius={6} imgSize="thumb" fallbackFontSize="0.9rem" />
                   <span style={{ minWidth: 0 }}>
                     <span style={{ display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: isPlaying ? "var(--color-accent-strong)" : undefined }}>{s.title}</span>
                     <span style={{ display: "block", ...t.label, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.artistName}</span>

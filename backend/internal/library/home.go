@@ -160,7 +160,20 @@ func (r *Repo) HomeFeed(ctx context.Context, recentLimit, chapterSongLimit int, 
 	if err != nil {
 		return nil, err
 	}
+	// Only chapter the genres represented in the Top Ten — an unbounded chapter
+	// per library genre made the feed scroll forever as the library grew. Before
+	// any plays are recorded (fresh library), Top Ten is empty; fall back to
+	// showing every genre so the section isn't just blank.
+	topGenreNames := map[string]bool{}
+	for _, s := range feed.TopTen {
+		for _, name := range s.Genres {
+			topGenreNames[name] = true
+		}
+	}
 	for _, g := range genres {
+		if len(feed.TopTen) > 0 && !topGenreNames[g.Name] {
+			continue
+		}
 		bg, err := r.activeBackgroundID(ctx, g.ID)
 		if err != nil {
 			return nil, err

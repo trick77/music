@@ -66,6 +66,10 @@ func TestHomeFeed_genreChaptersHaveBackgroundAndSongs(t *testing.T) {
 	if err := r.SetActiveBackground(ctx, gid, faID); err != nil {
 		t.Fatalf("set active: %v", err)
 	}
+	// Genre chapters are limited to genres played in the Top Ten.
+	if err := r.RecordPlay(ctx, s.ID); err != nil {
+		t.Fatalf("record play: %v", err)
+	}
 
 	feed, err := r.HomeFeed(ctx, 12, 8, true)
 	if err != nil {
@@ -80,6 +84,30 @@ func TestHomeFeed_genreChaptersHaveBackgroundAndSongs(t *testing.T) {
 	}
 	if len(ch.Songs) != 1 || ch.Songs[0].ID != s.ID {
 		t.Errorf("chapter songs = %+v, want the one seeded song", ch.Songs)
+	}
+}
+
+func TestHomeFeed_genreChaptersFallBackToAllWhenTopTenEmpty(t *testing.T) {
+	r := newRepo(t)
+	ctx := context.Background()
+	// A fresh library has genre-tagged songs but no play history yet — Top Ten
+	// is empty, so chapters must fall back to showing every genre rather than
+	// disappearing entirely.
+	if _, err := r.Create(ctx, NewID(), CreateSongParams{
+		Title: "Chrome", ArtistName: "V", FilePath: "songs/c.mp3", ContentHash: "hc",
+		Genres: []string{"Synthwave"},
+	}); err != nil {
+		t.Fatalf("create: %v", err)
+	}
+	feed, err := r.HomeFeed(ctx, 12, 8, true)
+	if err != nil {
+		t.Fatalf("HomeFeed: %v", err)
+	}
+	if len(feed.TopTen) != 0 {
+		t.Fatalf("TopTen = %v, want empty (no plays recorded)", feed.TopTen)
+	}
+	if len(feed.Genres) != 1 {
+		t.Fatalf("chapters = %d, want 1 (fallback to all genres)", len(feed.Genres))
 	}
 }
 

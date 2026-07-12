@@ -17,7 +17,7 @@ import { usePlayer } from "./player";
 import { useRoute, navigate, parsePlayerParam, clearPlayerParam, type PlayerParam } from "./router";
 import { useFavorites } from "./favorites";
 import { addToQueue, playNext } from "./queue";
-import { songShareUrl, copyText } from "./share";
+import { songShareUrl, lyricsShareUrl, copyText } from "./share";
 import { Icon } from "./Icon";
 import { t } from "./ui";
 
@@ -197,6 +197,11 @@ export function App() {
     setMenuFor(null);
   };
 
+  const shareLyricsLink = async (song: Song) => {
+    const url = lyricsShareUrl(song.id);
+    if (!(await copyText(url))) window.prompt("Copy this link", url);
+  };
+
   const shareUrl = async (url: string) => {
     if (!(await copyText(url))) window.prompt("Copy this link", url);
     else flash("Link copied");
@@ -248,6 +253,7 @@ export function App() {
             onAddToQueue={() => { player.setQueue(addToQueue(player.queue, song)); setMenuFor(null); flash("Added to queue"); }}
             onAddToPlaylist={() => { setAddFor(song); setMenuFor(null); }}
             onShare={() => shareSong(song)}
+            onCopyLyricsLink={() => { setMenuFor(null); shareLyricsLink(song); }}
             onEdit={() => { setEditing(song); setMenuFor(null); }}
             onPublish={() => togglePublish(song)}
             onDelete={() => { setMenuFor(null); setDeleteErr(""); setDeleteFor(song); }}

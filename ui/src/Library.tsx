@@ -97,7 +97,9 @@ export function Library({ songs, favoriteIds, authenticated, studioEnabled = fal
                   style={{ position: "absolute", inset: 0, border: "none", background: "transparent", cursor: "pointer", padding: 0 }} />
                 {!g.hasBackground && (
                   <span style={{ position: "absolute", top: 8, right: 8, display: "inline-flex", alignItems: "center", gap: 4, pointerEvents: "none",
-                    background: "rgba(0,0,0,0.45)", borderRadius: 999, padding: "2px 8px", ...t.micro, color: "#fff" }}>
+                    background: "color-mix(in srgb, var(--color-accent-strong) 30%, var(--color-bg))",
+                    border: "1px solid color-mix(in srgb, var(--color-accent-strong) 55%, transparent)",
+                    borderRadius: 999, padding: "2px 8px", ...t.micro, fontWeight: 600, color: "#fff" }}>
                     <span style={{ width: 5, height: 5, borderRadius: "50%", background: "var(--color-accent-strong)" }} />
                     Needs artwork
                   </span>

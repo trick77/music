@@ -106,6 +106,32 @@ block in `compose.yaml` — requires the NVIDIA container toolkit on the host.
 To disable karaoke entirely: set `BACKEND_ALIGN_URL=""` on the `music` service
 and don't run the `align` service at all.
 
+### Building & publishing the sidecar image
+
+Unlike the main `music` image, **the `music-align` image is not built or
+published by CI.** `release.yaml` only builds `backend/Containerfile` (the
+`music` image) on every push to `master`; none of the three workflows
+(`ci.yaml`, `release.yaml`, `cleanup-images.yaml`) reference `music-align` or
+`sidecar/align` at all. There's no versioned tagging for it either — `compose.yaml`
+pins a single `:latest` tag.
+
+That means whenever `sidecar/align/` changes, someone has to build and push the
+image by hand:
+
+```sh
+docker buildx build --platform linux/amd64 \
+  -t ghcr.io/trick77/music-align:latest \
+  --push ./sidecar/align
+```
+
+(`--platform linux/amd64` matters — several ML deps ship no arm64 wheel, so a
+locally-built arm64 image, e.g. on Apple Silicon, would silently be a
+different, unvalidated image than what production actually pulls.)
+
+For local iteration without touching the registry, `docker compose build
+align` uses the `build:` block in `compose.yaml` (context `./sidecar/align`)
+instead of pulling `:latest`.
+
 ## Go backend (`backend/internal/align/`, `backend/internal/httpapi/alignment.go`)
 
 `internal/align` is a thin HTTP client with no ML of its own: `align.New(baseURL,

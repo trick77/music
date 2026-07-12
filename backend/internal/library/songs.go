@@ -71,7 +71,7 @@ func (r *Repo) Create(ctx context.Context, id string, p CreateSongParams) (*Song
 	if _, err := tx.ExecContext(ctx,
 		`INSERT INTO songs(id, title, artist_id, album, year, track_no, duration_ms, file_path, file_size, content_hash, cover_art_id, lyrics)
 		 VALUES(?,?,?,?,?,?,?,?,?,?,?,?)`,
-		id, p.Title, artistID, nullStr(p.Album), nullInt(p.Year), nullInt(p.TrackNo),
+		id, p.Title, artistID, normalizeAlbum(p.Album), nullInt(p.Year), nullInt(p.TrackNo),
 		p.DurationMS, p.FilePath, p.FileSize, p.ContentHash, nullStr(coverID), nullStr(p.Lyrics),
 	); err != nil {
 		return nil, err
@@ -300,6 +300,19 @@ func nullStr(s string) any {
 		return nil
 	}
 	return s
+}
+
+// normalizeAlbum trims surrounding whitespace before storing an album so the
+// persisted songs.album matches albumKey and every album grouping/propagation
+// query. Real ID3 tags routinely carry trailing spaces or null padding; storing
+// them raw silently splits an album so a shared cover never reaches siblings.
+// Empty (after trim) becomes SQL NULL, matching nullStr.
+func normalizeAlbum(s string) any {
+	t := strings.TrimSpace(s)
+	if t == "" {
+		return nil
+	}
+	return t
 }
 
 func nullInt(n int) any {

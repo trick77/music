@@ -49,7 +49,7 @@ func (r *Repo) Update(ctx context.Context, id string, p UpdateSongParams) (*Song
 	if _, err := tx.ExecContext(ctx,
 		`UPDATE songs SET title=?, artist_id=?, album=?, year=?, track_no=?, lyrics=?, file_size=?
 		 WHERE id=?`,
-		p.Title, artistID, nullStr(p.Album), nullInt(p.Year), nullInt(p.TrackNo), nullStr(p.Lyrics), p.FileSize, id,
+		p.Title, artistID, normalizeAlbum(p.Album), nullInt(p.Year), nullInt(p.TrackNo), nullStr(p.Lyrics), p.FileSize, id,
 	); err != nil {
 		return nil, err
 	}
@@ -145,8 +145,8 @@ func (r *Repo) Suggest(ctx context.Context, field, q string) ([]Suggestion, erro
 			WHERE a.name_key LIKE ? GROUP BY a.id ORDER BY c DESC, a.name LIMIT 10`
 	case "album":
 		query = `SELECT s.album, COUNT(*) c FROM songs s
-			WHERE s.album IS NOT NULL AND s.album != '' AND lower(s.album) LIKE ?
-			GROUP BY lower(s.album) ORDER BY c DESC, s.album LIMIT 10`
+			WHERE s.album IS NOT NULL AND trim(s.album) != '' AND lower(trim(s.album)) LIKE ?
+			GROUP BY lower(trim(s.album)) ORDER BY c DESC, s.album LIMIT 10`
 	case "genre":
 		query = `SELECT g.name, COUNT(sg.song_id) c FROM genres g JOIN song_genres sg ON sg.genre_id = g.id
 			WHERE lower(g.name) LIKE ? GROUP BY g.id ORDER BY c DESC, g.name LIMIT 10`

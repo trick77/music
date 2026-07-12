@@ -158,8 +158,25 @@ export function App() {
   // (via feedVersion), and the player store (now-playing bar/queue/history). Used
   // by both tag edits and the publish toggle so an edit shows up everywhere at
   // once without a page reload.
+  //
+  // Album tracks share one cover (backend invariant: album_covers applies a cover
+  // to every song of the artist+album). So when the updated song carries a cover
+  // for a non-empty album, mirror it onto its cached siblings too — otherwise
+  // setting a cover on one track would leave the others stale until a reload.
+  // Mirror the backend's albumKey/artist name_key: trim + lower-case.
+  const norm = (s: string) => s.trim().toLowerCase();
   const propagateSong = (updated: Song) => {
-    setSongs((prev) => prev.map((s) => (s.id === updated.id ? updated : s)));
+    const key = norm(updated.album);
+    const shareCover = key !== "" && updated.coverArtId !== "";
+    setSongs((prev) =>
+      prev.map((s) => {
+        if (s.id === updated.id) return updated;
+        if (shareCover && norm(s.artistName) === norm(updated.artistName) && norm(s.album) === key) {
+          return s.coverArtId === updated.coverArtId ? s : { ...s, coverArtId: updated.coverArtId };
+        }
+        return s;
+      }),
+    );
     setFeedVersion((v) => v + 1);
     player.patchSong(updated);
   };

@@ -34,7 +34,7 @@ const (
 )
 
 // AlbumContext resolves the artist name and distinct genres for an artist+album,
-// grouped case-insensitively by lower(album) to match album_covers. Authed-only
+// grouped case-insensitively by lower(trim(album)) to match album_covers. Authed-only
 // surface, so it considers all songs regardless of publish state.
 func (r *Repo) AlbumContext(ctx context.Context, artistID, album string) (AlbumPromptContext, error) {
 	key := albumKey(album)
@@ -45,7 +45,7 @@ func (r *Repo) AlbumContext(ctx context.Context, artistID, album string) (AlbumP
 	err := r.db.QueryRowContext(ctx,
 		`SELECT a.name FROM artists a
 		 WHERE a.id = ? AND EXISTS(
-		   SELECT 1 FROM songs s WHERE s.artist_id = a.id AND lower(s.album) = ?)`,
+		   SELECT 1 FROM songs s WHERE s.artist_id = a.id AND lower(trim(s.album)) = ?)`,
 		artistID, key).Scan(&out.ArtistName)
 	if errors.Is(err, sql.ErrNoRows) {
 		return AlbumPromptContext{}, nil
@@ -59,7 +59,7 @@ func (r *Repo) AlbumContext(ctx context.Context, artistID, album string) (AlbumP
 		`SELECT DISTINCT g.name FROM genres g
 		 JOIN song_genres sg ON sg.genre_id = g.id
 		 JOIN songs s ON s.id = sg.song_id
-		 WHERE s.artist_id = ? AND lower(s.album) = ?
+		 WHERE s.artist_id = ? AND lower(trim(s.album)) = ?
 		 ORDER BY g.name`,
 		artistID, key)
 	if err != nil {
@@ -79,7 +79,7 @@ func (r *Repo) AlbumContext(ctx context.Context, artistID, album string) (AlbumP
 
 	lyricRows, err := r.db.QueryContext(ctx,
 		`SELECT s.title, s.lyrics FROM songs s
-		 WHERE s.artist_id = ? AND lower(s.album) = ? AND s.lyrics != ''
+		 WHERE s.artist_id = ? AND lower(trim(s.album)) = ? AND s.lyrics != ''
 		 ORDER BY s.track_no LIMIT ?`,
 		artistID, key, maxAlbumCoverLyricSongs)
 	if err != nil {

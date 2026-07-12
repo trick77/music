@@ -286,16 +286,9 @@ export function App() {
 
   return (
     <div className="app-shell" style={{ minHeight: "100vh" }}>
-      <Rail route={route} authenticated={authed} studioEnabled={!!session?.studioEnabled} authMode={session?.authMode} username={session?.username ?? ""} onUpload={triggerUpload} />
+      <Rail route={route} authenticated={authed} studioEnabled={!!session?.studioEnabled} authMode={session?.authMode} username={session?.username ?? ""} onUpload={triggerUpload} onQueue={() => setShowQueue(true)} />
 
       <div style={{ maxWidth: 1080, margin: "0 auto", padding: "1.5rem 1.25rem 9rem" }}>
-        {/* Minimal top chrome: Queue access, no wordmark. */}
-        <div style={{ display: "flex", justifyContent: "flex-end", gap: "1rem", marginBottom: "1rem" }}>
-          <button className="iconbtn" aria-label="Queue" title="Queue" onClick={() => setShowQueue(true)}>
-            <Icon name="allThreads" size="20px" />
-          </button>
-        </div>
-
         {route.name === "home" ? (
           <Home authenticated={authed} onPlay={onPlay} onShare={shareSong} onUpload={triggerUpload} renderRowActions={rowActions} reloadKey={feedVersion} />
         ) : route.name === "search" ? (

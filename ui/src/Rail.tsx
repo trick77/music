@@ -39,7 +39,7 @@ function AccountSlot({ authMode, authenticated, username }: { authMode?: string;
 // the Studio slot appears only when authenticated AND Studio is configured
 // (studioEnabled) — a key-less instance shows nothing there (spec §2, presence
 // vs absence). The rail intentionally stays on the SVG <Glyph> set (Phase 8).
-export function Rail({ route, authenticated, studioEnabled = false, authMode, username = "", onUpload }: { route: Route; authenticated: boolean; studioEnabled?: boolean; authMode?: string; username?: string; onUpload: () => void }) {
+export function Rail({ route, authenticated, studioEnabled = false, authMode, username = "", onUpload, onQueue }: { route: Route; authenticated: boolean; studioEnabled?: boolean; authMode?: string; username?: string; onUpload: () => void; onQueue: () => void }) {
   const nav = (path: string) => navigate(path);
 
   const desktopItem = (it: Item) => {
@@ -103,6 +103,9 @@ export function Rail({ route, authenticated, studioEnabled = false, authMode, us
       >
         <AccountSlot authMode={authMode} authenticated={authenticated} username={username} />
         {ITEMS.map(desktopItem)}
+        <button aria-label="Queue" title="Queue" onClick={onQueue} style={{ display: "grid", placeItems: "center", width: 44, height: 44, borderRadius: 12, background: "none", border: "none", color: "var(--color-muted)", cursor: "pointer" }}>
+          <Glyph name="queue" size={22} />
+        </button>
         {authenticated && (
           <button aria-label="Upload" onClick={onUpload} style={{ display: "grid", placeItems: "center", width: 44, height: 44, borderRadius: 12, background: "none", border: "none", color: "var(--color-muted)", cursor: "pointer" }}>
             <Glyph name="upload" size={22} />
@@ -127,6 +130,15 @@ export function Rail({ route, authenticated, studioEnabled = false, authMode, us
         }}
       >
         {ITEMS.map(tabItem)}
+        <button
+          key="queue"
+          aria-label="Queue"
+          onClick={onQueue}
+          style={{ flex: 1, display: "grid", placeItems: "center", gap: 2, background: "none", border: "none", color: "var(--color-muted)", cursor: "pointer", padding: "0.5rem 0" }}
+        >
+          <Glyph name="queue" size={22} />
+          <span style={{ fontSize: "var(--text-micro)" }}>Queue</span>
+        </button>
         {authenticated && studioEnabled && tabItem({ key: "studio", icon: "spark", label: "Studio", path: "/studio", match: (r) => r.name === "studio" })}
         {authenticated && tabItem({ key: "upload", icon: "upload", label: "Upload", path: "__upload", match: () => false })}
       </nav>

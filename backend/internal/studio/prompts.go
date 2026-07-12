@@ -17,7 +17,7 @@ available tools (web search, and page fetch when available). Also search for the
 CURRENT set of Suno prompt/meta tags — Suno's supported tags change over time —
 and prefer tags you can confirm are current.
 
-Using what you learn, produce FOUR things:
+Using what you learn, produce SIX things:
 
 1. stylePrompt — a comma-separated list of style/genre descriptors for Suno's
    "Style" box. Rules: NO spaces after commas; lowercase except proper nouns;
@@ -52,9 +52,23 @@ Using what you learn, produce FOUR things:
    from the fuller comma-separated stylePrompt above. Return fewer than 3 if the
    song does not warrant three; never more than 3.
 
+5. titles — an array of EXACTLY 3 original song-title ideas for the lyrics you
+   wrote in step 2. They must VARY IN DIRECTNESS: the FIRST is the most obvious
+   pick (e.g. built from the hook/chorus or the central phrase), and the LAST is
+   more oblique and evocative (an image, symbol, or metaphor drawn from the
+   lyrics — NOT a lyric line copied verbatim). 1-6 words each, Title Case, no
+   surrounding quotes, all distinct from one another, and NEVER the reference
+   song's real title.
+
+6. albums — an array of EXACTLY 3 album-name ideas in the same varied spirit
+   (obvious first, oblique last), evoking the overall mood and era rather than a
+   single line. Same rules: 1-6 words each, Title Case, no quotes, all distinct
+   from one another AND from the titles, and never the reference song's real
+   album or title.
+
 When you have finished researching, respond with ONLY a single JSON object and
 nothing else (no prose, no code fences):
-{"stylePrompt":"...","lyrics":"...","coverArtPrompt":"...","genres":["...","...","..."]}`
+{"stylePrompt":"...","lyrics":"...","coverArtPrompt":"...","genres":["...","...","..."],"titles":["...","...","..."],"albums":["...","...","..."]}`
 
 // refineSystemPrompt instructs MiMo to rewrite only the lyrics per an instruction.
 const refineSystemPrompt = `You revise Suno lyrics. You are given a reference song, the current ORIGINAL

@@ -1,5 +1,5 @@
-import { describe, expect, it } from "vitest";
-import { parsePath, parsePlayerParam } from "./router";
+import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
+import { parsePath, parsePlayerParam, clearPlayerParam } from "./router";
 
 describe("parsePath", () => {
   it("maps root to home", () => {
@@ -47,5 +47,56 @@ describe("parsePlayerParam", () => {
   });
   it("returns null for an unknown player value", () => {
     expect(parsePlayerParam("?player=wat")).toBeNull();
+  });
+});
+
+describe("clearPlayerParam", () => {
+  let mockReplaceState: ReturnType<typeof vi.fn>;
+
+  beforeEach(() => {
+    // Stub window for node environment with location and history
+    mockReplaceState = vi.fn();
+    vi.stubGlobal("window", {
+      location: { href: "https://example.com/song/abc?player=lyrics&foo=bar#section" },
+      history: { replaceState: mockReplaceState },
+    });
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("removes the player key from the current URL", () => {
+    clearPlayerParam();
+    expect(mockReplaceState).toHaveBeenCalledWith({}, "", "/song/abc?foo=bar#section");
+  });
+
+  it("preserves other query keys", () => {
+    (window.location as any).href = "https://example.com/song/abc?player=lyrics&foo=bar&baz=qux";
+    clearPlayerParam();
+    expect(mockReplaceState).toHaveBeenCalledWith({}, "", "/song/abc?foo=bar&baz=qux");
+  });
+
+  it("preserves the pathname", () => {
+    (window.location as any).href = "https://example.com/playlist/xyz?player=full";
+    clearPlayerParam();
+    expect(mockReplaceState).toHaveBeenCalledWith({}, "", "/playlist/xyz");
+  });
+
+  it("preserves hash fragment", () => {
+    (window.location as any).href = "https://example.com/song/abc?player=lyrics#top";
+    clearPlayerParam();
+    expect(mockReplaceState).toHaveBeenCalledWith({}, "", "/song/abc#top");
+  });
+
+  it("handles URL with only player param", () => {
+    (window.location as any).href = "https://example.com/song/abc?player=lyrics";
+    clearPlayerParam();
+    expect(mockReplaceState).toHaveBeenCalledWith({}, "", "/song/abc");
+  });
+
+  it("calls replaceState (does not push history)", () => {
+    clearPlayerParam();
+    expect(mockReplaceState).toHaveBeenCalledTimes(1);
   });
 });

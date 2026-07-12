@@ -88,6 +88,46 @@ func (r *Repo) SetSongCover(ctx context.Context, songID, coverID string) error {
 	return tx.Commit()
 }
 
+// RemoveSongCover clears a song's cover. Mirroring SetSongCover, a song that
+// belongs to an album is cleared album-wide: the album_covers mapping is dropped
+// and cover_art_id is set NULL for every track of that artist+album. A song with
+// no album gets its own cover cleared only. The cover_art rows are left in place —
+// they are content-addressed and may still be referenced by other songs.
+func (r *Repo) RemoveSongCover(ctx context.Context, songID string) error {
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	var artistID string
+	var album sql.NullString
+	err = tx.QueryRowContext(ctx, `SELECT artist_id, album FROM songs WHERE id = ?`, songID).Scan(&artistID, &album)
+	if err != nil {
+		return err
+	}
+
+	if key := albumKey(album.String); key != "" {
+		if _, err := tx.ExecContext(ctx,
+			`DELETE FROM album_covers WHERE artist_id = ? AND album_key = ?`, artistID, key); err != nil {
+			return err
+		}
+		if _, err := tx.ExecContext(ctx,
+			// lower(trim(album)) mirrors albumKey / setAlbumCoverTx so siblings whose
+			// stored album carries leading/trailing whitespace are cleared too.
+			`UPDATE songs SET cover_art_id = NULL WHERE artist_id = ? AND lower(trim(album)) = ?`,
+			artistID, key); err != nil {
+			return err
+		}
+	} else {
+		if _, err := tx.ExecContext(ctx,
+			`UPDATE songs SET cover_art_id = NULL WHERE id = ?`, songID); err != nil {
+			return err
+		}
+	}
+	return tx.Commit()
+}
+
 // SetAlbumCover maps a cover to an artist+album directly (no representative song
 // needed) and applies it to every existing song of that album; future songs pick
 // it up via the album_covers mapping. Used by the Studio album-cover flow, which

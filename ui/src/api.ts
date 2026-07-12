@@ -130,6 +130,12 @@ export async function uploadCover(id: string, file: File): Promise<Song> {
   return r.json();
 }
 
+export async function removeCover(id: string): Promise<Song> {
+  const r = await fetch(`/api/songs/${id}/cover`, { method: "DELETE" });
+  if (!r.ok) throw new Error(`cover removal failed (${r.status})`);
+  return r.json();
+}
+
 export type Playlist = {
   id: string;
   name: string;

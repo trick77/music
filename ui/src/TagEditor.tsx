@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { updateSong, uploadCover, suggest, type Song, type Suggestion } from "./api";
+import { updateSong, uploadCover, removeCover, suggest, type Song, type Suggestion } from "./api";
 import { coverUrl, coverInitial } from "./cover";
 import { Icon } from "./Icon";
 import { Button, controlClass, fieldLabel, t } from "./ui";
@@ -19,7 +19,7 @@ const cleanLyrics = (raw: string) =>
     .trim();
 
 // TagEditor is a tabbed editor (Details / Cover / Lyrics) — a centered modal on
-// desktop, full-screen on mobile. Tabs keep each screen short as the form grows
+// desktop, full-screen on mobile and touch tablets. Tabs keep each screen short as the form grows
 // (docs/design-system.md). All three tabs stay mounted so unsaved edits survive
 // tab switches; only their visibility toggles.
 export function TagEditor({ song, onClose, onSaved }: Props) {
@@ -83,6 +83,16 @@ export function TagEditor({ song, onClose, onSaved }: Props) {
       setErr("Cover upload failed");
     }
     e.target.value = "";
+  };
+
+  const onRemoveCover = async () => {
+    try {
+      const saved = await removeCover(song.id);
+      setCover(saved.coverArtId);
+      onSaved(saved);
+    } catch {
+      setErr("Could not remove cover");
+    }
   };
 
   const tabButton = (id: Tab, label: string) => (
@@ -206,9 +216,14 @@ export function TagEditor({ song, onClose, onSaved }: Props) {
                 )}
               </div>
               <label style={{ display: "block", marginTop: 8, textAlign: "center", fontSize: "var(--text-label)", color: "var(--color-accent-strong)", cursor: "pointer" }}>
-                Replace cover…
+                {cover ? "Replace cover…" : "Add cover…"}
                 <input type="file" accept="image/jpeg,image/png" onChange={onCover} style={{ display: "none" }} />
               </label>
+              {cover && (
+                <div style={{ textAlign: "center", marginTop: 4 }}>
+                  <Button variant="ghost" small onClick={onRemoveCover}>Remove cover</Button>
+                </div>
+              )}
               <p style={{ fontSize: "var(--text-label)", color: "var(--color-muted)", textAlign: "center", marginTop: 6 }}>
                 Applies to every track on this artist + album.
               </p>

@@ -7,7 +7,7 @@ import { Hero, type GenreLink } from "./Hero";
 import { Chapter } from "./Chapter";
 import { Button, t } from "./ui";
 import { usePlayer } from "./player";
-import { NowPlayingBars } from "./NowPlayingBars";
+import { SongCover } from "./SongCover";
 
 type Props = {
   authenticated: boolean;
@@ -110,18 +110,7 @@ export function Home({ authenticated, onPlay, onShare, onUpload, renderRowAction
                   {String(i + 1)}
                 </span>
                 <button onClick={() => onPlay(s, topTail(i))} aria-label={`Play ${s.title}`} style={{ padding: 0, border: "none", background: "none", cursor: "pointer" }}>
-                  <span style={{ position: "relative", display: "grid", placeItems: "center", width: 48, height: 48, borderRadius: 8, overflow: "hidden", background: "var(--color-active)" }}>
-                    {s.coverArtId ? (
-                      <img src={coverUrl(s.coverArtId, "thumb")} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-                    ) : (
-                      <span style={{ fontFamily: "var(--font-serif)", color: "var(--color-muted)" }}>{coverInitial(s.title)}</span>
-                    )}
-                    {current?.id === s.id && playing && (
-                      <span style={{ position: "absolute", inset: 0, display: "grid", placeItems: "center", background: "rgba(0,0,0,0.5)" }}>
-                        <NowPlayingBars />
-                      </span>
-                    )}
-                  </span>
+                  <SongCover song={s} size={48} radius={8} imgSize="thumb" />
                 </button>
                 <button onClick={() => onPlay(s, topTail(i))} style={{ padding: 0, border: "none", background: "none", cursor: "pointer", textAlign: "left", minWidth: 0 }}>
                   <div style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: current?.id === s.id ? "var(--color-accent-strong)" : undefined }}>{s.title}</div>
@@ -151,16 +140,11 @@ export function Home({ authenticated, onPlay, onShare, onUpload, renderRowAction
                 onClick={() => onPlay(s, feed.recentlyAdded.slice(i + 1))}
                 style={{ background: "none", border: "none", padding: 0, cursor: "pointer", width: 150, flexShrink: 0, textAlign: "left" }}
               >
-                <div style={{ position: "relative", width: 150, height: 150, borderRadius: 12, overflow: "hidden", background: "var(--color-active)", display: "grid", placeItems: "center" }}>
-                  {s.coverArtId ? (
-                    <img src={coverUrl(s.coverArtId, "card")} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-                  ) : (
-                    <span style={{ fontFamily: "var(--font-serif)", fontSize: "2.2rem", color: "var(--color-muted)" }}>{coverInitial(s.title)}</span>
-                  )}
+                <SongCover song={s} size={150} radius={12} imgSize="card" fallbackFontSize="2.2rem" barsScale={2}>
                   <span className="playfab" style={{ position: "absolute", right: 10, bottom: 10, width: 38, height: 38, borderRadius: 999, background: "var(--color-accent-strong)", color: "var(--color-ink)", display: "grid", placeItems: "center" }}>
                     <Glyph name="play" size={18} />
                   </span>
-                </div>
+                </SongCover>
                 <div style={{ marginTop: "0.5rem", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.title}</div>
                 <div style={{ ...t.label, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.artistName}</div>
               </button>

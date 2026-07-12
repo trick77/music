@@ -26,6 +26,11 @@ type Props = {
 export function Library({ songs, favoriteIds, authenticated, studioEnabled = false, imageGenEnabled = false, initialTab, onPlay, renderRowActions }: Props) {
   const { current, playing } = usePlayer();
   const [tab, setTab] = useState<Tab>(initialTab);
+  // Follow route-driven tab changes (e.g. jumping to /unpublished after an upload)
+  // even when Library is already mounted — useState above only seeds the first mount.
+  // Pill clicks change `tab` locally without touching `initialTab`, so they aren't
+  // clobbered by this effect.
+  useEffect(() => { setTab(initialTab); }, [initialTab]);
   const [genres, setGenres] = useState<GenreSummary[]>([]);
   const [needsArtworkOnly, setNeedsArtworkOnly] = useState(false);
   useEffect(() => { if (tab === "genres") listGenres().then(setGenres).catch(() => setGenres([])); }, [tab]);

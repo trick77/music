@@ -5,6 +5,7 @@ export type Route =
   | { name: "search" }
   | { name: "library" }
   | { name: "favorites" }
+  | { name: "unpublished" }
   | { name: "playlists" }
   | { name: "genres" }
   | { name: "studio"; genreId?: string }
@@ -19,6 +20,7 @@ export function parsePath(pathname: string): Route {
   if (parts.length === 1 && parts[0] === "search") return { name: "search" };
   if (parts.length === 1 && parts[0] === "library") return { name: "library" };
   if (parts.length === 1 && parts[0] === "favorites") return { name: "favorites" };
+  if (parts.length === 1 && parts[0] === "unpublished") return { name: "unpublished" };
   if (parts.length === 1 && parts[0] === "playlists") return { name: "playlists" };
   if (parts.length === 1 && parts[0] === "genres") return { name: "genres" };
   if (parts.length === 1 && parts[0] === "studio") return { name: "studio" };

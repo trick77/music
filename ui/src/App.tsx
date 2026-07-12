@@ -158,6 +158,10 @@ export function App() {
       setFeedVersion((v) => v + 1);
       // New uploads land unpublished — say so, so the user knows where it went.
       flash(song.published ? `Added “${song.title}”` : `Uploaded “${song.title}” — unpublished`);
+      // Land on the Unpublished list — the review-and-publish surface — so the freshly
+      // uploaded song is right there with its Publish/Edit menu. A dedupe upload that
+      // returns an already-published song wouldn't appear there, so only jump when new.
+      if (!song.published) navigate("/unpublished");
     } catch {
       flash("Upload failed");
     } finally {
@@ -312,7 +316,7 @@ export function App() {
             authenticated={authed}
             studioEnabled={!!session?.studioEnabled}
             imageGenEnabled={!!session?.imageGenEnabled}
-            initialTab={route.name === "favorites" ? "favorites" : route.name === "genres" ? "genres" : "all"}
+            initialTab={route.name === "favorites" ? "favorites" : route.name === "unpublished" ? (authed ? "unpublished" : "all") : route.name === "genres" ? "genres" : "all"}
             onPlay={(s) => onPlay(s)}
             renderRowActions={rowActions}
           />

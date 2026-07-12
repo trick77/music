@@ -27,10 +27,10 @@ describe("KaraokeView", () => {
     expect(html).toContain("instrumental");
   });
 
-  it("renders an intro loading-dots indicator", () => {
+  it("renders the intro floating-notes indicator", () => {
     const html = renderToStaticMarkup(
       <KaraokeView lines={[{ text: "hello", start: 1, end: 2, words: [] }]} />
     );
-    expect(html).toContain("kv-intro-dots");
+    expect(html).toContain("kv-intro-notes");
   });
 });

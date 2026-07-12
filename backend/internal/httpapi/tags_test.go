@@ -36,7 +36,7 @@ func TestPatchSong_renamePreservesCoverInDownload(t *testing.T) {
 	if rr := uploadCover(t, h, song.ID); rr.Code != http.StatusOK {
 		t.Fatalf("PUT cover = %d, body=%s", rr.Code, rr.Body.String())
 	}
-	if rr := patch(t, h, song.ID, `{"title":"Moved","artistName":"Test Artist","album":"Fresh Album","genres":[]}`); rr.Code != http.StatusOK {
+	if rr := patch(t, h, song.ID, `{"title":"Moved","artistName":"Test Artist","album":"Fresh Album","genres":["r&b"]}`); rr.Code != http.StatusOK {
 		t.Fatalf("PATCH status = %d, body=%s", rr.Code, rr.Body.String())
 	}
 
@@ -61,6 +61,11 @@ func TestPatchSong_renamePreservesCoverInDownload(t *testing.T) {
 	}
 	if pf.PictureType != id3v2.PTFrontCover || len(pf.Picture) == 0 {
 		t.Fatalf("attached picture = type %d, %d bytes; want front cover with data", pf.PictureType, len(pf.Picture))
+	}
+
+	// The genre is stored lowercase but must be title-cased in the exported tag.
+	if g := tag.GetTextFrame(tag.CommonID("Content type")).Text; g != "R&B" {
+		t.Fatalf("downloaded genre = %q, want %q", g, "R&B")
 	}
 }
 

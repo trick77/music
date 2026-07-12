@@ -14,10 +14,10 @@ import { Rail } from "./Rail";
 import { PlayerBar } from "./PlayerBar";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { usePlayer } from "./player";
-import { useRoute, navigate } from "./router";
+import { useRoute, navigate, parsePlayerParam, clearPlayerParam, type PlayerParam } from "./router";
 import { useFavorites } from "./favorites";
 import { addToQueue, playNext } from "./queue";
-import { songShareUrl, copyText } from "./share";
+import { songShareUrl, lyricsShareUrl, copyText } from "./share";
 import { Icon } from "./Icon";
 import { t } from "./ui";
 
@@ -65,6 +65,7 @@ export function App() {
   // Bumped after uploads / publish toggles to re-fetch views that load their own
   // data (Home), which otherwise wouldn't reflect the change until navigation.
   const [feedVersion, setFeedVersion] = useState(0);
+  const [openIntent, setOpenIntent] = useState<PlayerParam | null>(null);
   const uploadRef = useRef<HTMLInputElement>(null);
   const restored = useRef(false);
   const authed = !!session?.authenticated;
@@ -98,6 +99,18 @@ export function App() {
       player.restore(songs);
     }
   }, [songs, player]);
+
+  // Deep-link entry point: when a /song/:id URL carries ?player=…, capture the
+  // intent for the player and strip the param so it fires once and the URL settles
+  // to a clean /song/:id (entry-point-only, no history pollution).
+  useEffect(() => {
+    if (route.name !== "song") return;
+    const mode = parsePlayerParam(window.location.search);
+    if (mode) {
+      setOpenIntent(mode);
+      clearPlayerParam();
+    }
+  }, [route]);
 
   const flash = (msg: string) => {
     setToast(msg);
@@ -201,6 +214,12 @@ export function App() {
     setMenuFor(null);
   };
 
+  const shareLyricsLink = async (song: Song) => {
+    const url = lyricsShareUrl(song.id);
+    if (!(await copyText(url))) window.prompt("Copy this link", url);
+    else flash("Link copied");
+  };
+
   const shareUrl = async (url: string) => {
     if (!(await copyText(url))) window.prompt("Copy this link", url);
     else flash("Link copied");
@@ -252,6 +271,7 @@ export function App() {
             onAddToQueue={() => { player.setQueue(addToQueue(player.queue, song)); setMenuFor(null); flash("Added to queue"); }}
             onAddToPlaylist={() => { setAddFor(song); setMenuFor(null); }}
             onShare={() => shareSong(song)}
+            onCopyLyricsLink={() => { setMenuFor(null); shareLyricsLink(song); }}
             onEdit={() => { setEditing(song); setMenuFor(null); }}
             onPublish={() => togglePublish(song)}
             onDelete={() => { setMenuFor(null); setDeleteErr(""); setDeleteFor(song); }}
@@ -307,7 +327,7 @@ export function App() {
 
       <input ref={uploadRef} type="file" accept=".mp3,audio/mpeg" onChange={onUpload} style={{ display: "none" }} disabled={uploading} />
 
-      <PlayerBar fav={fav} onShare={shareSong} alignmentEnabled={!!session?.alignmentEnabled} />
+      <PlayerBar fav={fav} onShare={shareSong} alignmentEnabled={!!session?.alignmentEnabled} openIntent={openIntent} onIntentConsumed={() => setOpenIntent(null)} />
 
       {showQueue && (
         <QueueDrawer

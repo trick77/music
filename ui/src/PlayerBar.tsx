@@ -7,6 +7,7 @@ import { Icon } from "./Icon";
 import { KaraokeView } from "./KaraokeView";
 import { KaraokeCard } from "./KaraokeCard";
 import { getAlign, postAlign, type AlignmentData, type Song } from "./api";
+import { type PlayerParam } from "./router";
 
 type Fav = { has: (id: string) => boolean; toggle: (id: string) => void };
 
@@ -75,7 +76,7 @@ const iconBtn: React.CSSProperties = {
 // PlayerBar renders the docked mini-player (whenever a track is loaded) and,
 // when expanded, the full-screen player. Both are driven entirely by the
 // player store via usePlayer().
-export function PlayerBar({ fav, onShare, alignmentEnabled }: { fav: Fav; onShare: (s: Song) => void; alignmentEnabled: boolean }) {
+export function PlayerBar({ fav, onShare, alignmentEnabled, openIntent = null, onIntentConsumed }: { fav: Fav; onShare: (s: Song) => void; alignmentEnabled: boolean; openIntent?: PlayerParam | null; onIntentConsumed?: () => void }) {
   const p = usePlayer();
   const [full, setFull] = useState(false);
   const [lyricsMode, setLyricsMode] = useState(false);
@@ -112,6 +113,18 @@ export function PlayerBar({ fav, onShare, alignmentEnabled }: { fav: Fav; onShar
     // status to "generating" without changing any other dep) re-arm the poll; it
     // converges because same-status refetches don't change the dep.
   }, [full, lyricsMode, canKaraoke, song?.id, align?.status]);
+
+  // Apply a deep-link open-intent (?player=…) exactly once, and only once a track
+  // is actually loaded — so a bad/unknown song id (which never loads) can't leave
+  // `full` set and spring the next-played track open. lyricsMode is set
+  // declaratively from the intent; the song-change effect above still flips it back
+  // off when the loaded track can't do karaoke (graceful degradation).
+  useEffect(() => {
+    if (!openIntent || !p.current) return;
+    setFull(true);
+    setLyricsMode(openIntent === "lyrics");
+    onIntentConsumed?.();
+  }, [openIntent, onIntentConsumed, p.current]);
 
   if (!p.current || !song) return null;
 

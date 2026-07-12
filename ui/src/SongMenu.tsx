@@ -9,6 +9,7 @@ type Props = {
   onAddToQueue: () => void;
   onAddToPlaylist: () => void;
   onShare: () => void;
+  onCopyLyricsLink: () => void;
   onEdit: () => void;
   onPublish: () => void;
   onSync: () => void;
@@ -38,6 +39,9 @@ export function SongMenu(p: Props) {
         {p.authenticated && <MenuItem icon="plus" onClick={p.onAddToPlaylist}>Add to playlist…</MenuItem>}
         <MenuItem icon="download" href={`/api/songs/${p.song.id}/download`}>Download</MenuItem>
         <MenuItem icon="share" onClick={p.onShare}>Share</MenuItem>
+        {!!p.song.lyrics && p.song.lyrics.trim() !== "" && (
+          <MenuItem icon="music" onClick={p.onCopyLyricsLink}>Copy lyrics link</MenuItem>
+        )}
         {p.authenticated && <MenuItem icon="edit" onClick={p.onEdit}>Edit…</MenuItem>}
         {/* Karaoke: only when enabled AND the song has lyrics — empty lyrics can
             never trigger alignment. Re-sync when already synced. */}

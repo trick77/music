@@ -6,7 +6,7 @@ import {
   ChevronDown, ChevronLeft, ChevronRight, ChevronUp, X, CircleX, MessageSquare,
   CirclePlus, Eye, Globe, Clock, EllipsisVertical, Plus, Upload, Download, Share2,
   ExternalLink, Volume2, ArrowUpNarrowWide, ArrowDownWideNarrow, List, ListEnd,
-  Music, Shuffle, Airplay,
+  Music, Shuffle, Airplay, Captions,
   type LucideIcon,
 } from "lucide-react";
 
@@ -75,6 +75,7 @@ const COMPONENTS = {
   allThreads: List,
   openItems: ListEnd,
   music: Music,
+  captions: Captions,
   shuffle: Shuffle,
   airplay: Airplay,
 } satisfies Record<string, LucideIcon>;

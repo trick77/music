@@ -1,5 +1,5 @@
 import { fanartUrl, genreInitial } from "./fanart";
-import { coverUrl, coverInitial } from "./cover";
+import { SongCover } from "./SongCover";
 import { Glyph } from "./Glyph";
 import { navigate } from "./router";
 import { genreLabel } from "./titleCase";
@@ -47,16 +47,11 @@ export function Chapter({ chapter, onPlay }: { chapter: GenreChapter; onPlay: (s
               onClick={() => onPlay(s, chapter.songs.slice(i + 1))}
               style={{ background: "none", border: "none", padding: 0, cursor: "pointer", width: 128, flexShrink: 0, textAlign: "left" }}
             >
-              <div style={{ position: "relative", width: 128, height: 128, borderRadius: 12, overflow: "hidden", background: s.coverArtId ? undefined : "rgba(0,0,0,0.35)", display: "grid", placeItems: "center" }}>
-                {s.coverArtId ? (
-                  <img src={coverUrl(s.coverArtId, "card")} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-                ) : (
-                  <span style={{ fontFamily: "var(--font-serif)", fontSize: "2rem", color: "rgba(255,255,255,0.7)" }}>{coverInitial(s.title)}</span>
-                )}
+              <SongCover song={s} size={128} radius={12} imgSize="card" background="rgba(0,0,0,0.35)" fallbackFontSize="2rem" fallbackColor="rgba(255,255,255,0.7)" barsScale={2}>
                 <span className="playfab" style={{ position: "absolute", right: 8, bottom: 8, width: 34, height: 34, borderRadius: 999, background: "var(--color-accent-fill)", color: "var(--color-ink)", display: "grid", placeItems: "center" }}>
                   <Glyph name="play" size={16} />
                 </span>
-              </div>
+              </SongCover>
               <div style={{ color: "#fff", fontSize: "var(--text-ui)", marginTop: "0.4rem", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.title}</div>
               <div style={{ color: "rgba(255,255,255,0.72)", fontSize: "var(--text-label)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.artistName}</div>
             </button>

@@ -24,6 +24,23 @@ function StarButton({ song, fav, size = 20 }: { song: Song; fav: Fav; size?: num
   );
 }
 
+// AirplayButton renders only when Safari reports an AirPlay target on the network
+// (available); it opens the native picker and highlights while audio is routed to
+// a device (active). Absent in non-Safari browsers, where available stays false.
+function AirplayButton({ available, active, onClick, size = 20, color = "var(--color-ink)" }: { available: boolean; active: boolean; onClick: () => void; size?: number; color?: string }) {
+  if (!available) return null;
+  return (
+    <button
+      aria-label="AirPlay"
+      aria-pressed={active}
+      onClick={onClick}
+      style={{ ...iconBtn, color: active ? "var(--color-accent-strong)" : color }}
+    >
+      <Icon name="airplay" size={`${size}px`} />
+    </button>
+  );
+}
+
 function Scrubber({ positionMs, durationMs, onSeek, accent = "var(--color-accent-fill)" }: { positionMs: number; durationMs: number; onSeek: (ms: number) => void; accent?: string }) {
   const max = durationMs || 0;
   const pct = max > 0 ? Math.min(100, (positionMs / max) * 100) : 0;
@@ -164,6 +181,7 @@ export function PlayerBar({ fav, onShare, alignmentEnabled, openIntent = null, o
           </button>
           <StarButton song={song} fav={fav} />
           <Transport playing={p.playing} onPrev={p.prev} onToggle={p.toggle} onNext={p.next} size={20} />
+          <AirplayButton available={p.airplayAvailable} active={p.airplayActive} onClick={p.showAirplayPicker} />
           {canKaraoke && (
             <button aria-label="Show lyrics" onClick={() => { setLyricsMode(true); setFull(true); }} style={iconBtn}><Icon name="music" size="20px" /></button>
           )}
@@ -218,6 +236,7 @@ export function PlayerBar({ fav, onShare, alignmentEnabled, openIntent = null, o
                   <StarButton song={song} fav={fav} size={24} />
                   <Transport playing={p.playing} onPrev={p.prev} onToggle={p.toggle} onNext={p.next} size={26} />
                   <button aria-label="Show artwork" aria-pressed onClick={() => setLyricsMode(false)} style={{ ...iconBtn, color: "var(--color-accent-strong)" }}><Icon name="music" size="22px" /></button>
+                  <AirplayButton available={p.airplayAvailable} active={p.airplayActive} onClick={p.showAirplayPicker} size={22} color="#fff" />
                   <button aria-label="Share" onClick={() => onShare(song)} style={{ ...iconBtn, color: "#fff" }}><Icon name="share" size="22px" /></button>
                 </div>
               </div>
@@ -238,6 +257,7 @@ export function PlayerBar({ fav, onShare, alignmentEnabled, openIntent = null, o
                 {canKaraoke && (
                   <button aria-label="Show lyrics" aria-pressed={false} onClick={() => setLyricsMode(true)} style={{ ...iconBtn, color: "#fff" }}><Icon name="music" size="22px" /></button>
                 )}
+                <AirplayButton available={p.airplayAvailable} active={p.airplayActive} onClick={p.showAirplayPicker} size={22} color="#fff" />
                 <button aria-label="Share" onClick={() => onShare(song)} style={{ ...iconBtn, color: "#fff" }}><Icon name="share" size="22px" /></button>
               </div>
             </>

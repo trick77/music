@@ -1,6 +1,8 @@
 package httpapi
 
 import (
+	"bytes"
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
@@ -114,4 +116,36 @@ func storeUploadedCover(w http.ResponseWriter, r *http.Request, store *media.Sto
 		return "", false
 	}
 	return coverID, true
+}
+
+// storeCoverBytes validates image bytes, dedupes by content hash, stores new
+// bytes under covers/, and returns the cover_art id. Unlike storeUploadedCover
+// it writes no HTTP response, so non-HTTP callers (embedded-cover import on
+// upload) can reuse it. Rejects bytes that aren't a supported image.
+func storeCoverBytes(ctx context.Context, store *media.Store, repo *library.Repo, data []byte) (string, error) {
+	width, height, ext, err := imageutil.Probe(bytes.NewReader(data))
+	if err != nil {
+		return "", err
+	}
+	sum := sha256.Sum256(data)
+	hash := hex.EncodeToString(sum[:])
+
+	// Store the bytes only if this content is new (CreateCover dedupes by hash,
+	// but the file must exist on disk for a fresh hash).
+	relPath := "covers/" + hash + "." + ext
+	if existingID, _, herr := repo.FindCoverByHash(ctx, hash); herr != nil {
+		return "", herr
+	} else if existingID == "" {
+		if werr := writeBytes(store, relPath, data); werr != nil {
+			return "", werr
+		}
+	}
+	coverID, err := repo.CreateCover(ctx, library.CoverParams{
+		ImagePath: relPath, Width: width, Height: height, ContentHash: hash,
+	})
+	if err != nil {
+		_ = store.Remove(relPath)
+		return "", err
+	}
+	return coverID, nil
 }

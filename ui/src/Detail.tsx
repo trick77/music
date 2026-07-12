@@ -6,8 +6,10 @@ import {
   type Song,
 } from "./api";
 import { fanartUrl } from "./fanart";
-import { coverUrl, coverInitial } from "./cover";
+import { coverUrl } from "./cover";
 import { navigate } from "./router";
+import { usePlayer } from "./player";
+import { SongCover } from "./SongCover";
 import { genreLabel } from "./titleCase";
 import { Glyph } from "./Glyph";
 import { Icon } from "./Icon";
@@ -45,6 +47,7 @@ type Props = {
 // without a rewrite. The genre background editor is preserved behind the
 // authenticated flag. (Playlists have their own dedicated PlaylistPage.)
 export function Detail({ kind, id, authenticated, studioEnabled, imageGenEnabled, onPlay, onShare, renderRowActions, reloadKey }: Props) {
+  const { current } = usePlayer();
   const [genre, setGenre] = useState<GD | null>(null);
   const [artist, setArtist] = useState<{ artist: { id: string; name: string; songCount: number }; songs: Song[] } | null>(null);
   const [editingGenre, setEditingGenre] = useState(false);
@@ -149,11 +152,11 @@ export function Detail({ kind, id, authenticated, studioEnabled, imageGenEnabled
         ) : (
           songs.map((s, i) => (
             <div key={s.id} style={{ display: "grid", gridTemplateColumns: "40px 1fr auto", alignItems: "center", gap: "0.75rem", padding: "0.5rem 0", borderBottom: i < songs.length - 1 ? "1px solid var(--color-border)" : "none" }}>
-              <button onClick={() => onPlay(s, songs.slice(i + 1))} aria-label={`Play ${s.title}`} style={{ ...linkBtn, width: 40, height: 40, borderRadius: 6, overflow: "hidden", background: "var(--color-active)", display: "grid", placeItems: "center" }}>
-                {s.coverArtId ? <img src={coverUrl(s.coverArtId, "thumb")} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <span style={{ fontFamily: "var(--font-serif)", color: "var(--color-muted)", fontSize: "0.9rem" }}>{coverInitial(s.title)}</span>}
+              <button onClick={() => onPlay(s, songs.slice(i + 1))} aria-label={`Play ${s.title}`} style={linkBtn}>
+                <SongCover song={s} size={40} radius={6} imgSize="thumb" fallbackFontSize="0.9rem" />
               </button>
               <button onClick={() => onPlay(s, songs.slice(i + 1))} style={{ ...linkBtn, textAlign: "left", minWidth: 0 }}>
-                <div style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.title}</div>
+                <div style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: current?.id === s.id ? "var(--color-accent-strong)" : undefined }}>{s.title}</div>
                 <div style={{ display: "flex", alignItems: "center", gap: "0.6rem", color: "var(--color-muted)", fontSize: "var(--text-label)" }}>
                   <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.artistName}</span>
                   <SyncingBadge status={s.alignmentStatus} />

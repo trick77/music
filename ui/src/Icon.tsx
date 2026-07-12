@@ -6,7 +6,7 @@ import {
   ChevronDown, ChevronLeft, ChevronRight, ChevronUp, X, CircleX, MessageSquare,
   CirclePlus, Eye, Globe, Clock, EllipsisVertical, Plus, Upload, Download, Share2,
   ExternalLink, Volume2, ArrowUpNarrowWide, ArrowDownWideNarrow, List, ListEnd,
-  Music, Shuffle,
+  Music, Shuffle, Airplay,
   type LucideIcon,
 } from "lucide-react";
 
@@ -76,6 +76,7 @@ const COMPONENTS = {
   openItems: ListEnd,
   music: Music,
   shuffle: Shuffle,
+  airplay: Airplay,
 } satisfies Record<string, LucideIcon>;
 
 export type IconName = keyof typeof COMPONENTS;

@@ -8,7 +8,7 @@ import { SyncingBadge } from "./SyncingBadge";
 import { t } from "./ui";
 import { genreLabel } from "./titleCase";
 import { usePlayer } from "./player";
-import { NowPlayingBars } from "./NowPlayingBars";
+import { SongCover } from "./SongCover";
 
 type Tab = "all" | "favorites" | "unpublished" | "genres";
 
@@ -93,7 +93,9 @@ export function Library({ songs, favoriteIds, authenticated, studioEnabled = fal
                   style={{ position: "absolute", inset: 0, border: "none", background: "transparent", cursor: "pointer", padding: 0 }} />
                 {!g.hasBackground && (
                   <span style={{ position: "absolute", top: 8, right: 8, display: "inline-flex", alignItems: "center", gap: 4, pointerEvents: "none",
-                    background: "rgba(0,0,0,0.45)", borderRadius: 999, padding: "2px 8px", ...t.micro, color: "#fff" }}>
+                    background: "color-mix(in srgb, var(--color-accent-strong) 30%, var(--color-bg))",
+                    border: "1px solid color-mix(in srgb, var(--color-accent-strong) 55%, transparent)",
+                    borderRadius: 999, padding: "2px 8px", ...t.micro, fontWeight: 600, color: "#fff" }}>
                     <span style={{ width: 5, height: 5, borderRadius: "50%", background: "var(--color-accent-strong)" }} />
                     Needs artwork
                   </span>
@@ -128,14 +130,8 @@ export function Library({ songs, favoriteIds, authenticated, studioEnabled = fal
             const isPlaying = current?.id === song.id && playing;
             return (
             <li key={song.id} onClick={() => onPlay(song)} style={{ display: "flex", alignItems: "center", gap: "0.85rem", padding: "0.6rem 0.85rem", borderRadius: "var(--radius-ui, 10px)", cursor: "pointer" }}>
-              <span style={{ position: "relative", width: 44, height: 44, flexShrink: 0, borderRadius: 8, overflow: "hidden", background: "var(--color-active)", display: "grid", placeItems: "center", border: "1px solid var(--color-border)" }}>
-                {song.coverArtId ? <img src={coverUrl(song.coverArtId)} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <span style={{ fontFamily: "var(--font-serif)", color: "var(--color-muted)" }}>{coverInitial(song.artistName)}</span>}
-                {isPlaying && (
-                  <span style={{ position: "absolute", inset: 0, display: "grid", placeItems: "center", background: "rgba(0,0,0,0.5)" }}>
-                    <NowPlayingBars />
-                  </span>
-                )}
-              </span>
+              <SongCover song={song} size={44} radius={8} border="1px solid var(--color-border)" fallbackText={coverInitial(song.artistName)} />
+
               <span style={{ minWidth: 0, flex: 1 }}>
                 <span style={{ display: "block", color: isPlaying ? "var(--color-accent-strong)" : "var(--color-ink)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{song.title}</span>
                 <span style={{ display: "flex", alignItems: "center", gap: "0.6rem", ...t.label }}>

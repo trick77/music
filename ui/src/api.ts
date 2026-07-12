@@ -130,6 +130,12 @@ export async function uploadCover(id: string, file: File): Promise<Song> {
   return r.json();
 }
 
+export async function removeCover(id: string): Promise<Song> {
+  const r = await fetch(`/api/songs/${id}/cover`, { method: "DELETE" });
+  if (!r.ok) throw new Error(`cover removal failed (${r.status})`);
+  return r.json();
+}
+
 export type Playlist = {
   id: string;
   name: string;
@@ -445,7 +451,7 @@ export async function removeFavorite(id: string): Promise<void> {
 // then a final `result` (or `error`). onProgress is called per progress event.
 
 export type StudioProgress = { phase: string; detail: string };
-export type StudioResult = { stylePrompt: string; lyrics: string; coverArtPrompt: string; genres: string[]; titles: string[]; albums: string[] };
+export type StudioResult = { stylePrompt: string; lyrics: string; coverArtPrompt: string; genres: string[]; bands: string[]; titles: string[]; albums: string[] };
 
 // streamStudio POSTs a JSON body and reads an SSE response, dispatching progress
 // events and returning the final result (or throwing on error).

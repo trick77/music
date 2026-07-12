@@ -21,7 +21,12 @@ func (s *Store) DB() *sql.DB  { return s.db }
 func (s *Store) Close() error { return s.db.Close() }
 
 func Open(dbPath string) (*Store, error) {
-	db, err := sql.Open("sqlite3", "file:"+dbPath+"?_pragma=foreign_keys(1)&_pragma=journal_mode(WAL)")
+	// busy_timeout must come first: the ncruces driver only applies its default
+	// 1-minute busy timeout when NO _pragma is given, so specifying any pragma opts
+	// out of it. Without a timeout, a writer that loses the single-writer race (WAL
+	// allows one writer at a time) fails immediately with "database is locked"
+	// instead of waiting — retry for up to 10s instead.
+	db, err := sql.Open("sqlite3", "file:"+dbPath+"?_pragma=busy_timeout(10000)&_pragma=foreign_keys(1)&_pragma=journal_mode(WAL)")
 	if err != nil {
 		return nil, fmt.Errorf("open sqlite: %w", err)
 	}

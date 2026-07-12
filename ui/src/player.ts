@@ -10,6 +10,11 @@ export type PlayerState = {
   playing: boolean;
   positionMs: number;
   durationMs: number;
+  // AirPlay (Safari on Apple devices only). airplayAvailable flips true when a
+  // target appears on the network; airplayActive tracks whether audio is
+  // currently routed to a wireless device. Both stay false everywhere else.
+  airplayAvailable: boolean;
+  airplayActive: boolean;
 };
 
 // ── Pure transitions (unit-tested) ─────────────────────────────────────────
@@ -62,6 +67,14 @@ export function back(state: PlayerState): PlayerState {
   return { ...state, current: prev, history, queue, positionMs: 0 };
 }
 
+// shouldRestart decides the "previous" button behaviour: if we're more than a
+// few seconds into the current track, a press restarts it (returns true) rather
+// than stepping back to the previous song. Only a second press — now near the
+// start — actually goes back. Threshold in ms.
+export function shouldRestart(positionMs: number, thresholdMs = 3000): boolean {
+  return positionMs > thresholdMs;
+}
+
 // qualifiesForPlay decides when a listen counts: >=30s, OR >=50% of the track
 // for short songs (spec §9). Avoids skip-inflation.
 export function qualifiesForPlay(positionMs: number, durationMs: number): boolean {
@@ -101,6 +114,8 @@ let state: PlayerState = {
   playing: false,
   positionMs: 0,
   durationMs: 0,
+  airplayAvailable: false,
+  airplayActive: false,
 };
 const listeners = new Set<Listener>();
 let audio: HTMLAudioElement | null = null;
@@ -209,6 +224,17 @@ function getAudio(): HTMLAudioElement {
     set({ playing: false });
     setPlaybackState("paused");
   });
+  // AirPlay wiring, Safari-only. Feature-detect the picker; if it exists we can
+  // trust the companion events fire, so we listen for target availability (to
+  // show/hide the button) and for the active wireless route (to highlight it).
+  if (typeof el.webkitShowPlaybackTargetPicker === "function") {
+    el.addEventListener("webkitplaybacktargetavailabilitychanged", (e) => {
+      set({ airplayAvailable: e.availability === "available" });
+    });
+    el.addEventListener("webkitcurrentplaybacktargetiswirelesschanged", () => {
+      set({ airplayActive: el.webkitCurrentPlaybackTargetIsWireless === true });
+    });
+  }
   setupMediaHandlers();
   audio = el;
   return el;
@@ -291,6 +317,15 @@ export const player = {
     }
   },
   prev() {
+    // Standard media-player "back": more than a few seconds into the track, the
+    // first press restarts it; only a second press (now near the start) steps
+    // back to the previous song. Avoids losing your place on an accidental tap.
+    const el = getAudio();
+    if (state.current && shouldRestart(el.currentTime * 1000)) {
+      el.currentTime = 0;
+      set({ positionMs: 0 });
+      return;
+    }
     const before = state.current?.id;
     state = back(state);
     emit();
@@ -303,6 +338,11 @@ export const player = {
       el.currentTime = Math.max(0, Math.min(ms, el.duration * 1000)) / 1000;
       set({ positionMs: el.currentTime * 1000 });
     }
+  },
+  // showAirplayPicker opens Safari's native AirPlay device chooser. No-op where
+  // the WebKit API is absent (non-Safari); the button is hidden there anyway.
+  showAirplayPicker() {
+    getAudio().webkitShowPlaybackTargetPicker?.();
   },
   // restore seeds the last track + position WITHOUT autoplay (spec §15a: no
   // surprise autoplay). Playback resumes from the restored position on the next
@@ -345,5 +385,6 @@ export function usePlayer() {
     restore: player.restore,
     remove: player.remove,
     patchSong: player.patchSong,
+    showAirplayPicker: player.showAirplayPicker,
   };
 }

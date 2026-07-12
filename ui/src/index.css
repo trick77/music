@@ -111,6 +111,34 @@ html {
   text-decoration: underline;
 }
 
+/* Genre pill on a list row (e.g. the Top-ten meta line). Terracotta-tinted;
+   a static variant drops the affordance when the genre id didn't resolve. */
+.genre-chip {
+  display: inline-block;
+  flex: none;
+  font-size: var(--text-micro);
+  line-height: 1.5;
+  padding: 0 8px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--color-accent) 38%, var(--color-border));
+  background: color-mix(in srgb, var(--color-accent) 12%, transparent);
+  color: var(--color-accent-strong);
+  text-decoration: none;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.genre-chip:hover,
+.genre-chip:focus-visible {
+  background: color-mix(in srgb, var(--color-accent) 22%, transparent);
+}
+.genre-chip.static {
+  cursor: default;
+}
+.genre-chip.static:hover,
+.genre-chip.static:focus-visible {
+  background: color-mix(in srgb, var(--color-accent) 12%, transparent);
+}
+
 /* Play affordance that fades in on hover of a cover tile. */
 .playfab {
   opacity: 0;
@@ -242,19 +270,28 @@ select.ui-control {
   backdrop-filter: blur(2px);
   -webkit-backdrop-filter: blur(2px);
 }
-/* Dialog surface: centered modal on desktop, full-screen on mobile (≤720px). */
+/* Dialog surface: centered modal on desktop, full-screen on mobile/tablet.
+   The cap uses dvh (dynamic viewport height), not vh: on iOS Safari vh measures
+   the largest viewport (chrome retracted), so a vh cap can run the footer below
+   the visible area. dvh tracks the actually-visible height, keeping the pinned
+   footer on screen. */
 .ui-modal {
   display: flex;
   flex-direction: column;
   width: min(560px, 100%);
-  max-height: 90vh;
+  max-height: 90dvh;
   background: var(--color-panel);
   border: 1px solid var(--color-border);
   border-radius: 14px;
   box-shadow: 0 24px 60px rgba(0, 0, 0, 0.5);
 }
 .ui-modal-body { flex: 1; overflow: auto; min-height: 0; }
-@media (max-width: 720px) {
+/* Go full-screen on phones (≤720px) and on touch tablets up to 1024px (iPad
+   portrait 768 / landscape 1024): those sit above the phone breakpoint, so a
+   centered modal there leaves the footer cramped against the viewport edge. A
+   large touchscreen desktop (>1024px) keeps the centered modal. */
+@media (max-width: 720px),
+       (min-width: 721px) and (max-width: 1024px) and (pointer: coarse) {
   .ui-overlay { padding: 0; }
   .ui-modal {
     width: 100%;

@@ -164,15 +164,19 @@ func (r *Repo) HomeFeed(ctx context.Context, recentLimit, chapterSongLimit int, 
 	// unbounded chapter per library genre made the feed scroll forever as the
 	// library grew. On a fresh library both sections are empty; fall back to
 	// showing every genre so the section isn't just blank.
+	//
+	// Each song contributes only its primary (first) genre — genresFor orders
+	// is_primary DESC, so Genres[0] is the main genre. A multi-genre song surfaces
+	// under its main genre rather than fanning out a chapter for every secondary tag.
 	featuredGenreNames := map[string]bool{}
 	for _, s := range feed.TopTen {
-		for _, name := range s.Genres {
-			featuredGenreNames[name] = true
+		if len(s.Genres) > 0 {
+			featuredGenreNames[s.Genres[0]] = true
 		}
 	}
 	for _, s := range feed.RecentlyAdded {
-		for _, name := range s.Genres {
-			featuredGenreNames[name] = true
+		if len(s.Genres) > 0 {
+			featuredGenreNames[s.Genres[0]] = true
 		}
 	}
 	for _, g := range genres {

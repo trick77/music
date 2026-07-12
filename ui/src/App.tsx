@@ -200,6 +200,7 @@ export function App() {
   const shareLyricsLink = async (song: Song) => {
     const url = lyricsShareUrl(song.id);
     if (!(await copyText(url))) window.prompt("Copy this link", url);
+    else flash("Link copied");
   };
 
   const shareUrl = async (url: string) => {

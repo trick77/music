@@ -152,6 +152,53 @@ func (r *Repo) playlistSongs(ctx context.Context, playlistID string, includeUnpu
 	return songs, rows.Err()
 }
 
+// PlaylistTrackBrief is a minimal per-song view for grounding AI prompts (e.g.
+// playlist description/cover generation) that don't need the full Song shape.
+type PlaylistTrackBrief struct {
+	Title  string
+	Artist string
+	Genres []string
+}
+
+// PlaylistContext returns a playlist's name and a brief, prompt-friendly view
+// of its songs (title, artist, genres) in playlist position order, for
+// grounding AI prompts. Returns sql.ErrNoRows if the playlist does not exist.
+func (r *Repo) PlaylistContext(ctx context.Context, playlistID string) (string, []PlaylistTrackBrief, error) {
+	var name string
+	if err := r.db.QueryRowContext(ctx, `SELECT name FROM playlists WHERE id = ?`, playlistID).Scan(&name); err != nil {
+		return "", nil, err
+	}
+
+	rows, err := r.db.QueryContext(ctx,
+		`SELECT s.id, s.title, a.name
+		 FROM songs s
+		 JOIN artists a ON a.id = s.artist_id
+		 JOIN playlist_songs ps ON ps.song_id = s.id
+		 WHERE ps.playlist_id = ?
+		 ORDER BY ps.position, s.id`, playlistID)
+	if err != nil {
+		return "", nil, err
+	}
+	defer rows.Close()
+
+	briefs := []PlaylistTrackBrief{}
+	for rows.Next() {
+		var id, title, artist string
+		if err := rows.Scan(&id, &title, &artist); err != nil {
+			return "", nil, err
+		}
+		genres, err := r.genresFor(ctx, id)
+		if err != nil {
+			return "", nil, err
+		}
+		briefs = append(briefs, PlaylistTrackBrief{Title: title, Artist: artist, Genres: genres})
+	}
+	if err := rows.Err(); err != nil {
+		return "", nil, err
+	}
+	return name, briefs, nil
+}
+
 // AddSong appends a song to a playlist at the next position. Re-adding a song
 // already in the playlist is a no-op (idempotent) so double-clicks are safe.
 func (r *Repo) AddSong(ctx context.Context, playlistID, songID string) error {

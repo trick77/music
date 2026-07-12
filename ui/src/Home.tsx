@@ -141,7 +141,7 @@ export function Home({ authenticated, onPlay, onShare, onUpload, renderRowAction
         <section>
           <div style={sectionHead}>
             <h3 style={{ margin: 0, ...t.title }}>Recently added</h3>
-            <a onClick={() => navigate("/")} style={{ color: "var(--color-muted)", fontSize: "var(--text-ui)", cursor: "pointer" }}>Your library →</a>
+            <a onClick={() => navigate("/library")} style={{ color: "var(--color-muted)", fontSize: "var(--text-ui)", cursor: "pointer" }}>Your library →</a>
           </div>
           <div className="hscroll" style={{ display: "flex", gap: "1rem" }}>
             {feed.recentlyAdded.map((s, i) => (

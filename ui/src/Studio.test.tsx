@@ -8,7 +8,7 @@ import { StudioPage, ResultCard, CoverArtCard } from "./StudioPage";
 describe("Rail Studio slot", () => {
   const render = (authenticated: boolean, studioEnabled: boolean) =>
     renderToStaticMarkup(
-      <Rail route={{ name: "home" }} authenticated={authenticated} studioEnabled={studioEnabled} onUpload={() => {}} />,
+      <Rail route={{ name: "home" }} authenticated={authenticated} studioEnabled={studioEnabled} onUpload={() => {}} onQueue={() => {}} />,
     );
 
   it("shows the Studio nav when authenticated and enabled", () => {

@@ -5,6 +5,7 @@ import type { AlignedLine } from "./api";
 const LEAD = 0.6;
 const MAX_SWEEP = 1.2;
 const HOLD = 4;
+const INTRO_MIN = 2; // only animate the intro for lead-ins at least this long (s)
 
 type WordBox = { left: number; right: number; s: number; e: number };
 type LineRt = {
@@ -25,13 +26,13 @@ type LineRt = {
 export function KaraokeView({ lines }: { lines: AlignedLine[] }) {
   const stageRef = useRef<HTMLDivElement>(null);
   const innerRef = useRef<HTMLDivElement>(null);
-  const dotsRef = useRef<HTMLDivElement>(null);
+  const notesRef = useRef<HTMLDivElement>(null);
   const lineRefs = useRef<LineRt[]>([]);
 
   useEffect(() => {
     const inner = innerRef.current;
     if (!inner) return;
-    const dots = dotsRef.current;
+    const notes = notesRef.current;
     const L = lineRefs.current;
 
     // activateAt[i]: when line i takes focus — LEAD before its first word, clamped
@@ -42,6 +43,16 @@ export function KaraokeView({ lines }: { lines: AlignedLine[] }) {
       const pe = lines[i - 1]?.end != null ? lines[i - 1].end : ln.start - LEAD;
       return Math.max(ln.start - LEAD, pe);
     });
+
+    // Intro window: the instrumental lead-in before the first sung word. We key
+    // off the real first-word start (activateAt[0] is pinned to 0 for the sweep,
+    // so it can't tell us when the intro ends). Only show the intro animation for
+    // a meaningful lead-in, and clear it LEAD seconds before the first word so the
+    // first line takes focus cleanly.
+    const firstStart = lines[0]?.words?.[0] != null ? +lines[0].words[0].start
+      : lines[0]?.start != null ? lines[0].start : 0;
+    const introEndsAt = firstStart - LEAD;
+    const hasIntro = firstStart >= INTRO_MIN;
 
     function measure() {
       for (const l of L) {
@@ -75,7 +86,7 @@ export function KaraokeView({ lines }: { lines: AlignedLine[] }) {
     let raf = 0;
     let cancelled = false;
     let lastActive = -2;
-    let dotsOn = false;
+    let notesOn = false;
     function frame() {
       const audio = player.getAudioElement();
       const t = audio ? audio.currentTime : 0;
@@ -83,10 +94,10 @@ export function KaraokeView({ lines }: { lines: AlignedLine[] }) {
       for (let i = 0; i < lines.length; i++) if (t >= activateAt[i]) active = i;
       const activeEndTime = active >= 0 ? (lines[active].end ?? activateAt[active]) : -Infinity;
       const held = active >= 0 && t <= activeEndTime + HOLD;
-      const showDots = active < 0;
-      if (showDots !== dotsOn) {
-        dots?.classList.toggle("kv-visible", showDots);
-        dotsOn = showDots;
+      const showNotes = hasIntro && t < introEndsAt;
+      if (showNotes !== notesOn) {
+        notes?.classList.toggle("kv-visible", showNotes);
+        notesOn = showNotes;
       }
       L.forEach((l, i) => {
         if (!l) return;
@@ -147,10 +158,10 @@ export function KaraokeView({ lines }: { lines: AlignedLine[] }) {
     <>
       <style>{KV_CSS}</style>
       <div ref={stageRef} className="kv-stage">
-        <div ref={dotsRef} className="kv-intro-dots">
-          <span />
-          <span />
-          <span />
+        <div ref={notesRef} className="kv-intro-notes" aria-hidden="true">
+          <span>♪</span>
+          <span>♫</span>
+          <span>♩</span>
         </div>
         <div ref={innerRef} className="kv-inner">
           {lines.map((ln, li) => (
@@ -220,15 +231,26 @@ const KV_CSS = `
 .kv-fill.kv-sweeping {
   -webkit-mask-image: linear-gradient(90deg,#000 calc(100% - 24px), rgba(0,0,0,.3) calc(100% - 7px), transparent);
   mask-image: linear-gradient(90deg,#000 calc(100% - 24px), rgba(0,0,0,.3) calc(100% - 7px), transparent); }
-.kv-intro-dots { position:absolute; top:40vh; left:max(24px, 8vw); display:flex; gap:8px;
+/* Intro "get ready" flourish: music notes drift up and fade just ABOVE where the
+   first lyric lands (the first line auto-scrolls to 40vh). Shown via .kv-visible
+   during the instrumental lead-in. */
+.kv-intro-notes { position:absolute; top:40vh; left:max(24px, 8vw); margin-top:-40px;
+  width:120px; height:66px; transform:translateY(-100%);
   opacity:0; pointer-events:none; transition: opacity .45s ease; }
-.kv-intro-dots.kv-visible { opacity:1; }
-.kv-intro-dots span { width:9px; height:9px; border-radius:50%; background: rgba(250,249,245,.5);
-  animation: kv-dot-bounce 1.2s ease-in-out infinite; }
-.kv-intro-dots span:nth-child(2) { animation-delay: .15s; }
-.kv-intro-dots span:nth-child(3) { animation-delay: .3s; }
-@keyframes kv-dot-bounce {
-  0%, 60%, 100% { transform: translateY(0); opacity:.5; }
-  30% { transform: translateY(-6px); opacity:1; }
+.kv-intro-notes.kv-visible { opacity:1; }
+.kv-intro-notes span { position:absolute; bottom:0; color: var(--color-accent-strong);
+  text-shadow: 0 0 10px rgba(217,119,87,.5); opacity:0;
+  animation: kv-note-float 3.2s ease-in infinite; }
+.kv-intro-notes span:nth-child(1) { left:2px;  font-size:22px; animation-delay:0s; }
+.kv-intro-notes span:nth-child(2) { left:42px; font-size:30px; animation-delay:1.05s; }
+.kv-intro-notes span:nth-child(3) { left:82px; font-size:18px; animation-delay:2.1s; }
+@keyframes kv-note-float {
+  0%   { transform: translateY(0) rotate(-6deg); opacity:0; }
+  20%  { opacity:.95; }
+  100% { transform: translateY(-52px) rotate(8deg); opacity:0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .kv-intro-notes span { animation-name: kv-note-fade; }
+  @keyframes kv-note-fade { 0%,100% { transform:none; opacity:.3; } 50% { transform:none; opacity:.85; } }
 }
 `;

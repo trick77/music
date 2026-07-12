@@ -3,7 +3,6 @@ package httpapi
 import (
 	"database/sql"
 	"errors"
-	"log/slog"
 	"net"
 	"net/http"
 	"strings"
@@ -75,8 +74,7 @@ func (h *songHandlers) postPlay(w http.ResponseWriter, r *http.Request) {
 		httpError(w, http.StatusNotFound, "not found")
 		return
 	}
-	ip := clientIP(r)
-	if h.throttle.allow(ip+"|"+id, time.Now()) {
+	if h.throttle.allow(clientIP(r)+"|"+id, time.Now()) {
 		if err := h.repo.RecordPlay(r.Context(), id); err != nil {
 			if errors.Is(err, sql.ErrNoRows) {
 				httpError(w, http.StatusNotFound, "not found")
@@ -85,9 +83,6 @@ func (h *songHandlers) postPlay(w http.ResponseWriter, r *http.Request) {
 			serverError(w, "record play", err)
 			return
 		}
-		slog.Debug("play recorded", "song", id, "ip", ip)
-	} else {
-		slog.Debug("play throttled", "song", id, "ip", ip)
 	}
 	w.WriteHeader(http.StatusNoContent)
 }

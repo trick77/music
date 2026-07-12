@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parsePath } from "./router";
+import { parsePath, parsePlayerParam } from "./router";
 
 describe("parsePath", () => {
   it("maps root to home", () => {
@@ -28,5 +28,24 @@ describe("parsePath", () => {
   });
   it("falls back to home for unknown paths", () => {
     expect(parsePath("/nope/deep/path")).toEqual({ name: "home" });
+  });
+});
+
+describe("parsePlayerParam", () => {
+  it("reads player=lyrics", () => {
+    expect(parsePlayerParam("?player=lyrics")).toBe("lyrics");
+  });
+  it("reads player=full", () => {
+    expect(parsePlayerParam("?player=full")).toBe("full");
+  });
+  it("tolerates a missing leading question mark", () => {
+    expect(parsePlayerParam("player=lyrics")).toBe("lyrics");
+  });
+  it("returns null when the param is absent", () => {
+    expect(parsePlayerParam("?foo=bar")).toBeNull();
+    expect(parsePlayerParam("")).toBeNull();
+  });
+  it("returns null for an unknown player value", () => {
+    expect(parsePlayerParam("?player=wat")).toBeNull();
   });
 });

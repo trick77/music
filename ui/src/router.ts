@@ -47,3 +47,21 @@ export function useRoute(): Route {
   }, []);
   return route;
 }
+
+export type PlayerParam = "lyrics" | "full";
+
+// parsePlayerParam reads the deep-link ?player=<state> value from a query string.
+// Routing (parsePath) ignores the query string; this is the only reader of it.
+export function parsePlayerParam(search: string): PlayerParam | null {
+  const v = new URLSearchParams(search.startsWith("?") ? search.slice(1) : search).get("player");
+  return v === "lyrics" || v === "full" ? v : null;
+}
+
+// clearPlayerParam strips ?player= from the current URL without navigating, so the
+// deep-link intent fires exactly once and later manual toggles aren't fought by a
+// stale URL. Entry-point-only semantics.
+export function clearPlayerParam(): void {
+  const url = new URL(window.location.href);
+  url.searchParams.delete("player");
+  window.history.replaceState({}, "", url.pathname + url.search + url.hash);
+}

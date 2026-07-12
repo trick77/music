@@ -5,8 +5,8 @@ import * as api from "./api";
 import type { PlaylistDetail, Song } from "./api";
 
 describe("defaultTone", () => {
-  it("returns the evocative string", () => {
-    expect(defaultTone({ punchy: "Punchy!", evocative: "Evocative…", factual: "Factual." })).toBe("Evocative…");
+  it("returns the evocative key", () => {
+    expect(defaultTone()).toBe("evocative");
   });
 });
 

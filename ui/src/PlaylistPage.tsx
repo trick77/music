@@ -32,8 +32,8 @@ type Props = {
 // defaultTone picks which suggested description tone is pre-selected when the
 // chips first render. Evocative reads best as a default playlist blurb — punchy
 // can feel like ad copy and factual can feel dry — so it wins ties.
-export function defaultTone(tones: { punchy: string; evocative: string; factual: string }): string {
-  return tones.evocative;
+export function defaultTone(): "punchy" | "evocative" | "factual" {
+  return "evocative";
 }
 
 // PlaylistPage is the dedicated single-playlist destination (mockup Decision
@@ -132,7 +132,7 @@ export function PlaylistPageView({ playlist, authenticated, onPlay, onShare, ren
 
   // AI description tone chips state.
   const [tones, setTones] = useState<{ punchy: string; evocative: string; factual: string } | null>(null);
-  const [selectedTone, setSelectedTone] = useState<"punchy" | "evocative" | "factual">("evocative");
+  const [selectedTone, setSelectedTone] = useState<"punchy" | "evocative" | "factual">(defaultTone());
   const [suggestingTones, setSuggestingTones] = useState(false);
   const [toneErr, setToneErr] = useState<string | null>(null);
 
@@ -236,7 +236,7 @@ export function PlaylistPageView({ playlist, authenticated, onPlay, onShare, ren
     try {
       const result = await suggestPlaylistDescriptions(playlist.id);
       setTones(result);
-      setSelectedTone("evocative");
+      setSelectedTone(defaultTone());
     } catch {
       setToneErr("Could not suggest descriptions");
     } finally {

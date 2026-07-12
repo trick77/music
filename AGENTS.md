@@ -4,7 +4,8 @@ Self-hosted, song-first music player: Go backend serving a JSON API + an embedde
 
 ## Working conventions
 - English only in docs/code/comments. TDD: failing test first, then minimal impl.
-- One feature branch per phase (`feat/phase-N-...`); never commit to `master`. Conventional commits.
+- One branch per change, descriptive name (`fix-...`, `feat-...`, `feat/...`); never commit to
+  `master`. Conventional commits.
 - Keep files focused — one responsibility each. `.yaml`, never `.yml`.
 - No AI branding or wordmark in any UI copy.
 - **Validate every runnable change with Playwright** (Playwright MCP browser tools) against the
@@ -14,7 +15,7 @@ Self-hosted, song-first music player: Go backend serving a JSON API + an embedde
 
 ## Locked technical choices
 - Module `github.com/trick77/music`, Go 1.25, `CGO_ENABLED=0`.
-- Pure-Go SQLite `ncruces/go-sqlite3` v0.23.3 (never `mattn/go-sqlite3`). One SQLite file.
+- Pure-Go SQLite `ncruces/go-sqlite3` v0.35.2 (never `mattn/go-sqlite3`). One SQLite file.
 - HTTP: stdlib `net/http` (Go 1.22 method routing), no framework.
 - Frontend: Vite + React 19 + TS + Tailwind v4, built into `backend/web/dist` and embedded by Go.
 - Design tokens = loom's `--*` CSS variables + self-hosted Anthropic fonts. Accent = clay #c6613f / #d97757.

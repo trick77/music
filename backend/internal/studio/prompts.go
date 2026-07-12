@@ -21,8 +21,11 @@ Using what you learn, produce FOUR things:
    "Style" box. Rules: NO spaces after commas; lowercase except proper nouns;
    at most 500 characters; describe era/epoch (inferred from the song's SONIC
    aesthetic, not its release date), genre/subgenre, tempo/energy,
-   instrumentation, atmosphere/mood, and vocal character. NEVER mention real
-   artist, band, or song names — describe only musical characteristics.
+   instrumentation, atmosphere/mood, and vocal character (timbre, delivery,
+   e.g. raspy/smooth/powerful/breathy) but NEVER state or imply whether the
+   voice is male or female — Suno has a dedicated setting for that. NEVER
+   mention real artist, band, or song names — describe only musical
+   characteristics.
 
 2. lyrics — ORIGINAL lyrics you write yourself that match the researched THEME,
    mood and imagery of the song, but NEVER reuse the song's actual words (this is

@@ -84,11 +84,13 @@ export function PlayerBar({ fav, onShare, alignmentEnabled }: { fav: Fav; onShar
   const hasLyrics = !!song?.lyrics && song.lyrics.trim() !== "";
   const canKaraoke = alignmentEnabled && hasLyrics;
 
-  // Each new track starts on the artwork view with fresh alignment state.
+  // Each new track gets fresh alignment state. Lyrics mode itself only resets
+  // when the new track can't do karaoke — skipping while in lyrics mode should
+  // stay there, not bounce back to artwork.
   useEffect(() => {
-    setLyricsMode(false);
     setAlign(null);
-  }, [song?.id]);
+    if (!canKaraoke) setLyricsMode(false);
+  }, [song?.id, canKaraoke]);
 
   // In lyrics mode, fetch the alignment and poll while it is still generating.
   useEffect(() => {
@@ -149,6 +151,9 @@ export function PlayerBar({ fav, onShare, alignmentEnabled }: { fav: Fav; onShar
           </button>
           <StarButton song={song} fav={fav} />
           <Transport playing={p.playing} onPrev={p.prev} onToggle={p.toggle} onNext={p.next} size={20} />
+          {canKaraoke && (
+            <button aria-label="Show lyrics" onClick={() => { setLyricsMode(true); setFull(true); }} style={iconBtn}><Icon name="music" size="20px" /></button>
+          )}
           <button aria-label="Expand" onClick={() => setFull(true)} style={iconBtn}><Icon name="chevronUp" size="20px" /></button>
         </div>
       </div>
@@ -169,7 +174,7 @@ export function PlayerBar({ fav, onShare, alignmentEnabled }: { fav: Fav; onShar
             padding: "2rem",
           }}
         >
-          <button aria-label="Close player" onClick={() => setFull(false)} style={{ ...iconBtn, position: "absolute", top: 16, right: 16, color: "#fff", zIndex: 5 }}>
+          <button aria-label="Close player" onClick={() => { setFull(false); setLyricsMode(false); }} style={{ ...iconBtn, position: "absolute", top: 16, right: 16, color: "#fff", zIndex: 5 }}>
             <Icon name="close" size="24px" />
           </button>
 

@@ -1,8 +1,14 @@
 import { describe, it, expect, vi } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
-import { PlaylistPage, PlaylistPageView } from "./PlaylistPage";
+import { PlaylistPage, PlaylistPageView, defaultTone } from "./PlaylistPage";
 import * as api from "./api";
 import type { PlaylistDetail, Song } from "./api";
+
+describe("defaultTone", () => {
+  it("returns the evocative string", () => {
+    expect(defaultTone({ punchy: "Punchy!", evocative: "Evocative…", factual: "Factual." })).toBe("Evocative…");
+  });
+});
 
 // PlaylistPage owns the getPlaylist() fetch (useEffect never runs under
 // react-dom/server's synchronous renderToStaticMarkup, so its own render is
@@ -146,5 +152,41 @@ describe("PlaylistPageView", () => {
     expect(viewHtml).not.toContain("Delete playlist");
     expect(viewHtml).not.toContain("Search by title or artist…");
     expect(viewHtml).toContain("Edit");
+  });
+
+  it("shows the AI cover panel and description chips only when their flags are enabled in edit mode", () => {
+    const both = renderToStaticMarkup(
+      <PlaylistPageView
+        playlist={playlistDetail({})}
+        authenticated={true}
+        onPlay={() => {}}
+        onShare={() => {}}
+        renderRowActions={() => null}
+        onTogglePublish={() => {}}
+        initialEditing={true}
+        imageGenEnabled={true}
+        chatEnabled={true}
+      />,
+    );
+    expect(both).toContain("AI cover art");
+    expect(both).toContain("AI description");
+    expect(both).toContain("Suggest from songs");
+    expect(both).toContain("Suggest descriptions");
+
+    const neither = renderToStaticMarkup(
+      <PlaylistPageView
+        playlist={playlistDetail({})}
+        authenticated={true}
+        onPlay={() => {}}
+        onShare={() => {}}
+        renderRowActions={() => null}
+        onTogglePublish={() => {}}
+        initialEditing={true}
+        imageGenEnabled={false}
+        chatEnabled={false}
+      />,
+    );
+    expect(neither).not.toContain("AI cover art");
+    expect(neither).not.toContain("AI description");
   });
 });

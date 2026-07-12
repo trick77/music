@@ -1,7 +1,8 @@
 import { useEffect, useState, type ReactNode } from "react";
 import {
-  addSongToPlaylist, deletePlaylist, getPlaylist, listSongs, removeSongFromPlaylist,
-  reorderPlaylist, setPlaylistPublished, updatePlaylist, updatePlaylistDescription,
+  addSongToPlaylist, applyPlaylistCover, deletePlaylist, generateStudioCoverArt, getPlaylist, listSongs,
+  refinePlaylistPrompt, removeSongFromPlaylist, reorderPlaylist, setPlaylistPublished, studioCoverArtUrl,
+  suggestPlaylistDescriptions, suggestPlaylistPrompt, updatePlaylist, updatePlaylistDescription,
   type PlaylistDetail, type Song,
 } from "./api";
 import { coverUrl, coverInitial } from "./cover";
@@ -11,7 +12,8 @@ import { shuffle } from "./player";
 import { Glyph } from "./Glyph";
 import { Icon } from "./Icon";
 import { SyncingBadge } from "./SyncingBadge";
-import { controlClass, fieldLabel } from "./ui";
+import { RefineRow } from "./StudioShared";
+import { Button, Spinner, controlClass, fieldLabel, t } from "./ui";
 
 type Props = {
   id: string;
@@ -21,14 +23,25 @@ type Props = {
   renderRowActions: (s: Song) => ReactNode;
   /** Bump to force a re-fetch of this page's songs (e.g. after a tag edit). */
   reloadKey?: number;
+  /** Whether image generation is configured (gates the AI cover-art panel). */
+  imageGenEnabled?: boolean;
+  /** Whether a chat model is configured (gates AI prompt/description suggestions). */
+  chatEnabled?: boolean;
 };
+
+// defaultTone picks which suggested description tone is pre-selected when the
+// chips first render. Evocative reads best as a default playlist blurb — punchy
+// can feel like ad copy and factual can feel dry — so it wins ties.
+export function defaultTone(tones: { punchy: string; evocative: string; factual: string }): string {
+  return tones.evocative;
+}
 
 // PlaylistPage is the dedicated single-playlist destination (mockup Decision
 // 2B): a square cover sits beside the metadata rather than behind a
 // full-bleed hero, closer to a "product" page than the genre/artist
 // immersive template. It owns the getPlaylist fetch; PlaylistPageView below
 // is the pure body, split out for testing the same way PlaylistsPage is.
-export function PlaylistPage({ id, authenticated, onPlay, onShare, renderRowActions, reloadKey }: Props) {
+export function PlaylistPage({ id, authenticated, onPlay, onShare, renderRowActions, reloadKey, imageGenEnabled = false, chatEnabled = false }: Props) {
   const [playlist, setPlaylist] = useState<PlaylistDetail | null>(null);
   const [notFound, setNotFound] = useState(false);
 
@@ -75,6 +88,8 @@ export function PlaylistPage({ id, authenticated, onPlay, onShare, renderRowActi
       renderRowActions={renderRowActions}
       onTogglePublish={togglePublish}
       onPlaylistUpdate={setPlaylist}
+      imageGenEnabled={imageGenEnabled}
+      chatEnabled={chatEnabled}
     />
   );
 }
@@ -90,9 +105,11 @@ type ViewProps = {
   onPlaylistUpdate?: (p: PlaylistDetail) => void;
   /** Test-only override for the initial edit-mode state (bypasses the `?edit=1` URL check). */
   initialEditing?: boolean;
+  imageGenEnabled?: boolean;
+  chatEnabled?: boolean;
 };
 
-export function PlaylistPageView({ playlist, authenticated, onPlay, onShare, renderRowActions, onTogglePublish, onPlaylistUpdate, initialEditing }: ViewProps) {
+export function PlaylistPageView({ playlist, authenticated, onPlay, onShare, renderRowActions, onTogglePublish, onPlaylistUpdate, initialEditing, imageGenEnabled = false, chatEnabled = false }: ViewProps) {
   const [editing, setEditing] = useState(
     () => initialEditing ?? (typeof window !== "undefined" && new URLSearchParams(window.location.search).get("edit") === "1"),
   );
@@ -103,6 +120,21 @@ export function PlaylistPageView({ playlist, authenticated, onPlay, onShare, ren
   const [allSongs, setAllSongs] = useState<Song[]>([]);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
+
+  // AI cover art panel state.
+  const [coverPrompt, setCoverPrompt] = useState("");
+  const [suggestingCover, setSuggestingCover] = useState(false);
+  const [refiningCover, setRefiningCover] = useState(false);
+  const [generatingCover, setGeneratingCover] = useState(false);
+  const [applyingCover, setApplyingCover] = useState(false);
+  const [generatedCoverId, setGeneratedCoverId] = useState<string | null>(null);
+  const [coverErr, setCoverErr] = useState<string | null>(null);
+
+  // AI description tone chips state.
+  const [tones, setTones] = useState<{ punchy: string; evocative: string; factual: string } | null>(null);
+  const [selectedTone, setSelectedTone] = useState<"punchy" | "evocative" | "factual">("evocative");
+  const [suggestingTones, setSuggestingTones] = useState(false);
+  const [toneErr, setToneErr] = useState<string | null>(null);
 
   // Re-seed the local name/description drafts only when a different playlist
   // loads — not on every playlist prop update — so an in-progress edit isn't
@@ -129,13 +161,93 @@ export function PlaylistPageView({ playlist, authenticated, onPlay, onShare, ren
     }
   };
 
-  const commitDescription = async () => {
-    if (description === playlist.description) return;
+  const commitDescriptionText = async (text: string) => {
+    if (text === playlist.description) return;
     try {
-      onPlaylistUpdate?.(await updatePlaylistDescription(playlist.id, description));
+      onPlaylistUpdate?.(await updatePlaylistDescription(playlist.id, text));
     } catch {
       setDescription(playlist.description);
     }
+  };
+
+  const commitDescription = () => commitDescriptionText(description);
+
+  // pickTone fills the description field with a suggested tone's text and saves
+  // it immediately (a chip click doesn't blur the textarea, so onBlur won't fire).
+  const pickTone = (text: string) => {
+    setDescription(text);
+    commitDescriptionText(text);
+  };
+
+  const onSuggestCoverPrompt = async () => {
+    setSuggestingCover(true); setCoverErr(null);
+    try {
+      const { prompt } = await suggestPlaylistPrompt(playlist.id);
+      setCoverPrompt(prompt);
+    } catch {
+      setCoverErr("Could not suggest a prompt");
+    } finally {
+      setSuggestingCover(false);
+    }
+  };
+
+  const onRefineCoverPrompt = async (instruction: string) => {
+    if (!coverPrompt.trim()) return;
+    setRefiningCover(true); setCoverErr(null);
+    try {
+      const { prompt } = await refinePlaylistPrompt(playlist.id, coverPrompt.trim(), instruction);
+      setCoverPrompt(prompt);
+    } catch {
+      setCoverErr("Could not refine the prompt");
+    } finally {
+      setRefiningCover(false);
+    }
+  };
+
+  const onGenerateCover = async () => {
+    if (!coverPrompt.trim() || songs.length === 0) return;
+    setGeneratingCover(true); setCoverErr(null); setGeneratedCoverId(null);
+    try {
+      const res = await generateStudioCoverArt(coverPrompt.trim(), "");
+      setGeneratedCoverId(res.id);
+    } catch (e) {
+      setCoverErr((e as Error).message || "Cover art generation failed");
+    } finally {
+      setGeneratingCover(false);
+    }
+  };
+
+  const onApplyCover = async () => {
+    if (!generatedCoverId) return;
+    setApplyingCover(true); setCoverErr(null);
+    try {
+      await applyPlaylistCover(playlist.id, generatedCoverId);
+      onPlaylistUpdate?.(await getPlaylist(playlist.id));
+      setGeneratedCoverId(null);
+    } catch {
+      setCoverErr("Could not apply the cover");
+    } finally {
+      setApplyingCover(false);
+    }
+  };
+
+  const onSuggestTones = async () => {
+    setSuggestingTones(true); setToneErr(null);
+    try {
+      const result = await suggestPlaylistDescriptions(playlist.id);
+      setTones(result);
+      setSelectedTone("evocative");
+    } catch {
+      setToneErr("Could not suggest descriptions");
+    } finally {
+      setSuggestingTones(false);
+    }
+  };
+
+  const selectTone = (key: "punchy" | "evocative" | "factual") => {
+    if (!tones) return;
+    setSelectedTone(key);
+    pickTone(tones[key]);
   };
 
   const onAddFocus = async () => {
@@ -270,6 +382,91 @@ export function PlaylistPageView({ playlist, authenticated, onPlay, onShare, ren
             rows={2}
             className={controlClass}
           />
+
+          {chatEnabled && (
+            <div style={{ marginTop: "0.9rem", paddingTop: "0.9rem", borderTop: "1px solid var(--color-border)" }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+                <label style={{ ...fieldLabel, marginBottom: 0 }}>AI description</label>
+                <Button variant="ghost" small busy={suggestingTones} onClick={onSuggestTones}>
+                  {!suggestingTones && <Icon name="feather" size="14px" />}Suggest descriptions
+                </Button>
+              </div>
+              {toneErr && <p role="alert" style={{ color: "var(--color-accent-strong)", fontSize: "var(--text-label)", margin: "0.35rem 0" }}>{toneErr}</p>}
+              {tones && (
+                <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
+                  {(["punchy", "evocative", "factual"] as const).map((key) => (
+                    <button
+                      key={key}
+                      onClick={() => selectTone(key)}
+                      title={tones[key]}
+                      style={{
+                        ...pillGhost,
+                        padding: "0.4rem 0.85rem",
+                        fontSize: "var(--text-label)",
+                        borderColor: selectedTone === key ? "var(--color-accent-strong)" : "var(--color-border)",
+                        background: selectedTone === key ? "var(--color-accent-fill)" : "var(--color-active)",
+                      }}
+                    >
+                      {key === "punchy" ? "Punchy" : key === "evocative" ? "Evocative" : "Factual"}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {imageGenEnabled && (
+            <div style={{ marginTop: "0.9rem", paddingTop: "0.9rem", borderTop: "1px solid var(--color-border)" }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+                <label style={{ ...fieldLabel, marginBottom: 0 }}>AI cover art</label>
+                {chatEnabled && (
+                  <Button variant="ghost" small busy={suggestingCover} onClick={onSuggestCoverPrompt}>
+                    {!suggestingCover && <Icon name="feather" size="14px" />}Suggest from songs
+                  </Button>
+                )}
+              </div>
+              <textarea
+                aria-label="Cover art prompt"
+                value={coverPrompt}
+                onChange={(e) => setCoverPrompt(e.target.value)}
+                placeholder="Describe the cover — a single strong subject, palette, mood…"
+                rows={3}
+                className={controlClass}
+                style={{ marginBottom: "0.6rem" }}
+              />
+              {chatEnabled && (
+                <RefineRow
+                  onRefine={onRefineCoverPrompt}
+                  busy={refiningCover}
+                  disabled={generatingCover || coverPrompt.trim() === ""}
+                />
+              )}
+              <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", flexWrap: "wrap" }}>
+                <Button busy={generatingCover} disabled={generatingCover || coverPrompt.trim() === "" || songs.length === 0} onClick={onGenerateCover}>
+                  {generatingCover ? "Generating" : generatedCoverId ? "Regenerate" : "Generate"}
+                </Button>
+                {songs.length === 0 && <span style={t.label}>Add songs before generating a cover.</span>}
+              </div>
+              {generatingCover && (
+                <div aria-live="polite" aria-busy="true" style={{ display: "flex", alignItems: "center", gap: "0.5rem", color: "var(--color-muted)", marginTop: "0.6rem" }}>
+                  <Spinner size="18px" /><span>Generating cover</span>
+                </div>
+              )}
+              {coverErr && <p role="alert" style={{ color: "var(--color-accent-strong)", fontSize: "var(--text-label)", margin: "0.6rem 0 0" }}>{coverErr}</p>}
+              {generatedCoverId && !generatingCover && (
+                <div style={{ marginTop: "0.75rem" }}>
+                  <img
+                    src={studioCoverArtUrl(generatedCoverId)}
+                    alt="Generated playlist cover"
+                    style={{ width: 160, height: 160, objectFit: "cover", borderRadius: "var(--radius-ui)", border: "1px solid var(--color-border)", display: "block" }}
+                  />
+                  <Button variant="secondary" small busy={applyingCover} onClick={onApplyCover} style={{ marginTop: "0.6rem" }}>
+                    Apply
+                  </Button>
+                </div>
+              )}
+            </div>
+          )}
 
           <label style={{ ...fieldLabel, marginTop: "0.9rem" }}>Add songs</label>
           <input

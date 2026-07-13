@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { saveResume, loadResume, clearResume, type ResumeState } from "./resume";
+import { saveResume, loadResume, clearResume, isResumeFresh, RESUME_WINDOW_MS, type ResumeState } from "./resume";
 
 function memStore(initial: Record<string, string> = {}) {
   const m = new Map(Object.entries(initial));
@@ -40,10 +40,40 @@ describe("resume", () => {
     expect(loadResume(memStore({ "music.resume": JSON.stringify({ songId: 5 }) }))).toBeNull();
   });
 
+  it("round-trips savedAt", () => {
+    const store = memStore();
+    saveResume(store, { songId: "abc", positionMs: 42000, savedAt: 1700000000000 });
+    expect(loadResume(store)).toEqual({ songId: "abc", positionMs: 42000, savedAt: 1700000000000 });
+  });
+
+  it("omits savedAt when absent (backward compatible)", () => {
+    expect(loadResume(memStore({ "music.resume": JSON.stringify({ songId: "a", positionMs: 1 }) }))).toEqual({ songId: "a", positionMs: 1 });
+  });
+
   it("clears stored state", () => {
     const store = memStore();
     saveResume(store, { songId: "x", positionMs: 1 });
     clearResume(store);
     expect(loadResume(store)).toBeNull();
+  });
+});
+
+describe("isResumeFresh", () => {
+  const now = 1700000000000;
+
+  it("is fresh just inside the window", () => {
+    expect(isResumeFresh({ songId: "a", positionMs: 1, savedAt: now - RESUME_WINDOW_MS + 1 }, now)).toBe(true);
+  });
+
+  it("is fresh right at the window boundary", () => {
+    expect(isResumeFresh({ songId: "a", positionMs: 1, savedAt: now - RESUME_WINDOW_MS }, now)).toBe(true);
+  });
+
+  it("is stale just outside the window", () => {
+    expect(isResumeFresh({ songId: "a", positionMs: 1, savedAt: now - RESUME_WINDOW_MS - 1 }, now)).toBe(false);
+  });
+
+  it("is stale when savedAt is missing (older saved state)", () => {
+    expect(isResumeFresh({ songId: "a", positionMs: 1 }, now)).toBe(false);
   });
 });

@@ -19,7 +19,7 @@ export function Chapter({ chapter, onPlay }: { chapter: GenreChapter; onPlay: (s
         borderRadius: 18,
         overflow: "hidden",
         background: bg
-          ? `linear-gradient(180deg, rgba(20,20,18,0.45), rgba(20,20,18,0.9)), url(${bg}) center/cover no-repeat`
+          ? `linear-gradient(180deg, rgba(20,20,18,0.22), rgba(20,20,18,0.66)), url(${bg}) center/cover no-repeat`
           : `linear-gradient(135deg, ${accent}, var(--color-panel))`,
       }}
     >

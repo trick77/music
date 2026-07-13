@@ -100,7 +100,7 @@ export function Library({ songs, favoriteIds, authenticated, studioEnabled = fal
                 style={{ position: "relative", borderRadius: 14, overflow: "hidden",
                   minHeight: "clamp(150px, 15vw, 190px)", display: "flex", flexDirection: "column", justifyContent: "flex-end",
                   background: bg
-                    ? `linear-gradient(180deg, rgba(20,20,18,0.45), rgba(20,20,18,0.9)), url(${bg}) center/cover no-repeat`
+                    ? `linear-gradient(180deg, rgba(20,20,18,0.22), rgba(20,20,18,0.66)), url(${bg}) center/cover no-repeat`
                     : g.accentColor ? `linear-gradient(135deg, ${g.accentColor}, var(--color-panel))` : "var(--color-active)",
                   border: g.hasBackground ? "1px solid var(--color-border)" : "1px dashed var(--color-border)",
                   color: g.hasBackground ? "#fff" : "var(--color-ink)" }}>

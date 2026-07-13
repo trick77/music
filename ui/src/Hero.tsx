@@ -155,9 +155,16 @@ export function Hero({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [multi, n]);
 
+  // The action row is stationary (it does not slide with the carousel) and acts
+  // on whichever slide is current, so it tracks `active` rather than a slide.
+  const activeSong = items[active]?.song ?? null;
+  const activePlaying = !!activeSong && currentId === activeSong.id && playing;
+
   return (
     <header
-      style={{ position: "relative", borderRadius: 20, overflow: "hidden" }}
+      // The panel is focusable only so ← → work; suppress the browser's default
+      // focus ring (it reads as a stray frame around the whole hero).
+      style={{ position: "relative", borderRadius: 20, overflow: "hidden", outline: "none" }}
       tabIndex={multi ? 0 : undefined}
       onKeyDown={(e) => {
         if (!multi) return;
@@ -205,7 +212,6 @@ export function Hero({
             const title = song?.title ?? hero?.title ?? "Your library";
             const subtitle = song ? song.artistName : hero?.subtitle || "Songs, playlists, and the sounds you keep coming back to.";
             const eyebrow = item?.ranked ? `#${realIdx + 1} most played` : song ? "Featured song" : "Featured";
-            const isPlaying = !!song && currentId === song.id && playing;
 
             return (
               <div
@@ -225,7 +231,10 @@ export function Hero({
                   />
                 ) : null}
                 <div className="scrim" />
-                <div style={{ position: "relative", padding: "clamp(1.25rem, 3vw, 2.5rem)", paddingBottom: "clamp(2.75rem, 4vw, 3.75rem)", maxWidth: 640 }}>
+                {/* .hero-copy reserves bottom room for the stationary action row +
+                    pills that sit below this sliding text (more on phones, where
+                    the action row wraps to two lines). */}
+                <div className="hero-copy">
                   <div
                     style={{
                       fontSize: "var(--text-micro)",
@@ -267,76 +276,76 @@ export function Hero({
                   >
                     {title}
                   </h1>
-                  <p style={{ color: "rgba(255,255,255,0.86)", margin: "0.5rem 0 1.1rem", fontSize: "var(--text-body)" }}>{subtitle}</p>
-                  {song && (
-                    <div style={{ display: "flex", gap: "0.7rem", flexWrap: "wrap" }}>
-                      <button
-                        onClick={() => { onPlay(song); bumpDwell(); }}
-                        aria-label={isPlaying ? `Pause ${song.title}` : `Play ${song.title}`}
-                        style={{
-                          display: "inline-flex",
-                          alignItems: "center",
-                          gap: "0.5rem",
-                          background: "var(--color-accent-fill)",
-                          color: "var(--color-ink)",
-                          border: "none",
-                          borderRadius: 999,
-                          padding: "0.65rem 1.4rem",
-                          fontSize: "var(--text-ui)",
-                          cursor: "pointer",
-                          fontWeight: 600,
-                        }}
-                      >
-                        <Glyph name={isPlaying ? "pause" : "play"} size={18} />
-                        {/* Reserve the width of the longer label ("Pause") so toggling
-                            Play↔Pause never resizes the button and shifts its siblings. */}
-                        <span style={{ display: "inline-grid", justifyItems: "start" }}>
-                          <span style={{ gridArea: "1 / 1", visibility: "hidden" }} aria-hidden="true">Pause</span>
-                          <span style={{ gridArea: "1 / 1" }}>{isPlaying ? "Pause" : "Play"}</span>
-                        </span>
-                      </button>
-                      <a
-                        href={`/api/songs/${song.id}/download`}
-                        style={{
-                          display: "inline-flex",
-                          alignItems: "center",
-                          gap: "0.5rem",
-                          background: "rgba(0,0,0,0.35)",
-                          color: "#fff",
-                          border: "1px solid rgba(255,255,255,0.35)",
-                          borderRadius: 999,
-                          padding: "0.65rem 1.2rem",
-                          fontSize: "var(--text-ui)",
-                          textDecoration: "none",
-                        }}
-                      >
-                        <Icon name="download" size="18px" /> Download
-                      </a>
-                      <button
-                        onClick={() => onShare(song)}
-                        style={{
-                          display: "inline-flex",
-                          alignItems: "center",
-                          gap: "0.5rem",
-                          background: "rgba(0,0,0,0.35)",
-                          color: "#fff",
-                          border: "1px solid rgba(255,255,255,0.35)",
-                          borderRadius: 999,
-                          padding: "0.65rem 1.2rem",
-                          fontSize: "var(--text-ui)",
-                          cursor: "pointer",
-                        }}
-                      >
-                        <Icon name="share" size="18px" /> Share
-                      </button>
-                    </div>
-                  )}
+                  <p style={{ color: "rgba(255,255,255,0.86)", margin: "0.5rem 0 0", fontSize: "var(--text-body)" }}>{subtitle}</p>
                 </div>
               </div>
             );
           })}
         </div>
       </div>
+      {activeSong && (
+        <div className="hero-actions">
+          <button
+            onClick={() => { onPlay(activeSong); bumpDwell(); }}
+            aria-label={activePlaying ? `Pause ${activeSong.title}` : `Play ${activeSong.title}`}
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "0.5rem",
+              background: "var(--color-accent-fill)",
+              color: "var(--color-ink)",
+              border: "none",
+              borderRadius: 999,
+              padding: "0.65rem 1.4rem",
+              fontSize: "var(--text-ui)",
+              cursor: "pointer",
+              fontWeight: 600,
+            }}
+          >
+            <Glyph name={activePlaying ? "pause" : "play"} size={18} />
+            {/* Reserve the width of the longer label ("Pause") so toggling
+                Play↔Pause never resizes the button and shifts its siblings. */}
+            <span style={{ display: "inline-grid", justifyItems: "start" }}>
+              <span style={{ gridArea: "1 / 1", visibility: "hidden" }} aria-hidden="true">Pause</span>
+              <span style={{ gridArea: "1 / 1" }}>{activePlaying ? "Pause" : "Play"}</span>
+            </span>
+          </button>
+          <a
+            href={`/api/songs/${activeSong.id}/download`}
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "0.5rem",
+              background: "rgba(0,0,0,0.35)",
+              color: "#fff",
+              border: "1px solid rgba(255,255,255,0.35)",
+              borderRadius: 999,
+              padding: "0.65rem 1.2rem",
+              fontSize: "var(--text-ui)",
+              textDecoration: "none",
+            }}
+          >
+            <Icon name="download" size="18px" /> Download
+          </a>
+          <button
+            onClick={() => onShare(activeSong)}
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "0.5rem",
+              background: "rgba(0,0,0,0.35)",
+              color: "#fff",
+              border: "1px solid rgba(255,255,255,0.35)",
+              borderRadius: 999,
+              padding: "0.65rem 1.2rem",
+              fontSize: "var(--text-ui)",
+              cursor: "pointer",
+            }}
+          >
+            <Icon name="share" size="18px" /> Share
+          </button>
+        </div>
+      )}
       {multi && (
         <div className="hero-dots">
           {items.map((_, i) => (

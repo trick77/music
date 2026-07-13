@@ -106,6 +106,32 @@ html {
   align-items: flex-end;
   min-height: clamp(320px, 52vh, 560px);
 }
+/* Sliding copy (eyebrow/title/artist). Its bottom padding clears the stationary
+   action row + pills below; phones need more since the actions wrap to two rows. */
+.hero-copy {
+  position: relative;
+  max-width: 640px;
+  padding: clamp(1.25rem, 3vw, 2.5rem);
+  padding-bottom: 6.5rem;
+}
+@media (max-width: 720px) {
+  .hero-copy {
+    padding-bottom: 9.5rem;
+  }
+}
+/* Stationary action row — pinned to the panel (bottom-left, above the pills) so
+   it stays put while the slides move under it; it acts on the current slide. */
+.hero-actions {
+  position: absolute;
+  left: clamp(1.25rem, 3vw, 2.5rem);
+  right: clamp(1.25rem, 3vw, 2.5rem);
+  bottom: clamp(2.75rem, 3.5vw, 3.25rem);
+  display: flex;
+  gap: 0.7rem;
+  flex-wrap: wrap;
+  z-index: 2;
+  max-width: 640px;
+}
 .hero-dots {
   position: absolute;
   left: 0;

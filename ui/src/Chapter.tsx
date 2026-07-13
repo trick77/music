@@ -1,5 +1,6 @@
 import { fanartUrl, genreInitial } from "./fanart";
 import { SongCover } from "./SongCover";
+import { HScrollRail } from "./HScrollRail";
 import { Glyph } from "./Glyph";
 import { navigate } from "./router";
 import { genreLabel } from "./titleCase";
@@ -39,7 +40,7 @@ export function Chapter({ chapter, onPlay }: { chapter: GenreChapter; onPlay: (s
         <div style={{ color: "rgba(255,255,255,0.82)", fontSize: "var(--text-label)", marginBottom: "0.9rem" }}>
           {chapter.songCount} {chapter.songCount === 1 ? "track" : "tracks"}
         </div>
-        <div className="hscroll" style={{ display: "flex", gap: "0.9rem", paddingBottom: "0.25rem" }}>
+        <HScrollRail innerStyle={{ gap: "0.9rem", paddingBottom: "0.25rem" }}>
           {chapter.songs.map((s, i) => (
             <button
               key={s.id}
@@ -61,7 +62,7 @@ export function Chapter({ chapter, onPlay }: { chapter: GenreChapter; onPlay: (s
               {genreInitial(chapter.name)} — no tracks yet
             </span>
           )}
-        </div>
+        </HScrollRail>
       </div>
     </section>
   );

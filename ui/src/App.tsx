@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { getSession, listSongs, uploadSong, setPublished, deleteSong, postAlign, type Session, type Song } from "./api";
 import { TagEditor } from "./TagEditor";
 import { Library } from "./Library";
@@ -15,7 +15,7 @@ import { Rail } from "./Rail";
 import { PlayerBar } from "./PlayerBar";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { usePlayer } from "./player";
-import { useRoute, navigate, parsePlayerParam, clearPlayerParam, type PlayerParam } from "./router";
+import { useRoute, navigate, parsePlayerParam, pushPlayer, replacePlayer, closePlayer, type PlayerParam } from "./router";
 import { useFavorites } from "./favorites";
 import { addToQueue, playNext } from "./queue";
 import { songShareUrl, lyricsShareUrl, copyText } from "./share";
@@ -69,9 +69,16 @@ export function App() {
   // when the URL is already /unpublished (navigate no-ops on the same path) — e.g. the
   // user had switched to the "All songs" pill while sitting on /unpublished.
   const [tabResetKey, setTabResetKey] = useState(0);
-  const [openIntent, setOpenIntent] = useState<PlayerParam | null>(null);
   const uploadRef = useRef<HTMLInputElement>(null);
   const restored = useRef(false);
+  // Tracks whether we pushed the history entry that opened the player, so closing
+  // it knows whether to pop that entry (in-app open) or strip the param in place
+  // (arrived via a fresh deep link with nothing to pop).
+  const pushedPlayer = useRef(false);
+  // The player overlay's state lives in the URL (source of truth). Re-read on every
+  // render — useRoute re-renders on popstate, which our push/replace/close helpers
+  // dispatch — so this stays in sync with the address bar.
+  const playerParam = parsePlayerParam(window.location.search);
   const authed = !!session?.authenticated;
   const fav = useFavorites(session === null ? null : session.authenticated);
 
@@ -96,25 +103,47 @@ export function App() {
   }, []);
 
   // Restore the last track + position once songs are available — WITHOUT
-  // autoplay (spec §15a). Runs once.
+  // autoplay (spec §15a). Runs once. Skipped on a /song/:id landing: that page
+  // plays its own song, and seeding the resumed track first would briefly make it
+  // the now-playing song and let the deep-link resync hijack the URL to it.
   useEffect(() => {
-    if (!restored.current && songs.length > 0) {
-      restored.current = true;
-      player.restore(songs);
-    }
-  }, [songs, player]);
+    if (restored.current || songs.length === 0) return;
+    restored.current = true;
+    if (route.name === "song") return;
+    player.restore(songs);
+  }, [songs, player, route.name]);
 
-  // Deep-link entry point: when a /song/:id URL carries ?player=…, capture the
-  // intent for the player and strip the param so it fires once and the URL settles
-  // to a clean /song/:id (entry-point-only, no history pollution).
+  // Reset the pushed-entry flag whenever the player closes (by our button, the back
+  // button, or a plain navigation), so the next open re-decides how to close.
   useEffect(() => {
-    if (route.name !== "song") return;
-    const mode = parsePlayerParam(window.location.search);
-    if (mode) {
-      setOpenIntent(mode);
-      clearPlayerParam();
-    }
-  }, [route]);
+    if (playerParam === null) pushedPlayer.current = false;
+  }, [playerParam]);
+
+  // While the player is open, keep the URL's song id pointed at the now-playing
+  // track so the deep link follows next/prev/queue advances. replace (never push)
+  // so skipping tracks doesn't stack the back button.
+  useEffect(() => {
+    if (playerParam === null || !player.current) return;
+    if (route.name === "song" && route.id === player.current.id) return;
+    replacePlayer(player.current.id, playerParam);
+  }, [playerParam, player.current?.id, route]);
+
+  // Open / switch-mode / close write the overlay state into the URL. Keyed on the
+  // now-playing id so the callbacks stay stable across unrelated re-renders (the
+  // downgrade effect in PlayerBar depends on onSetMode's identity).
+  const curId = player.current?.id;
+  const expandPlayer = useCallback((mode: PlayerParam) => {
+    if (!curId) return;
+    pushedPlayer.current = true;
+    pushPlayer(curId, mode);
+  }, [curId]);
+  const setPlayerMode = useCallback((mode: PlayerParam) => {
+    if (!curId) return;
+    replacePlayer(curId, mode);
+  }, [curId]);
+  const closePlayerView = useCallback(() => {
+    closePlayer(pushedPlayer.current);
+  }, []);
 
   const flash = (msg: string) => {
     setToast(msg);
@@ -231,6 +260,14 @@ export function App() {
     else flash("Link copied");
   };
 
+  // copyPlayerLink shares the live deep link — while the overlay is open the URL
+  // already encodes the song + player state, so the current address is the link.
+  const copyPlayerLink = async () => {
+    const url = window.location.href;
+    if (!(await copyText(url))) window.prompt("Copy this link", url);
+    else flash("Link copied");
+  };
+
   const shareUrl = async (url: string) => {
     if (!(await copyText(url))) window.prompt("Copy this link", url);
     else flash("Link copied");
@@ -315,7 +352,7 @@ export function App() {
         ) : route.name === "artist" ? (
           <Detail kind="artist" id={route.id} authenticated={authed} studioEnabled={!!session?.studioEnabled} imageGenEnabled={!!session?.imageGenEnabled} onPlay={onPlay} onShare={shareUrl} renderRowActions={rowActions} reloadKey={feedVersion} />
         ) : route.name === "song" ? (
-          <SongPage id={route.id} songs={songs} onPlay={(s) => onPlay(s)} />
+          <SongPage id={route.id} songs={songs} playingId={player.current?.id} onPlay={(s) => onPlay(s)} />
         ) : (
           <Library
             songs={songs}
@@ -333,7 +370,7 @@ export function App() {
 
       <input ref={uploadRef} type="file" accept=".mp3,audio/mpeg" onChange={onUpload} style={{ display: "none" }} disabled={uploading} />
 
-      <PlayerBar fav={fav} onShare={shareSong} alignmentEnabled={!!session?.alignmentEnabled} openIntent={openIntent} onIntentConsumed={() => setOpenIntent(null)} />
+      <PlayerBar fav={fav} onShare={shareSong} alignmentEnabled={!!session?.alignmentEnabled} sessionReady={session !== null} open={playerParam !== null} lyrics={playerParam === "lyrics"} onExpand={expandPlayer} onSetMode={setPlayerMode} onClose={closePlayerView} onCopyLink={copyPlayerLink} />
 
       {showQueue && (
         <QueueDrawer
@@ -367,10 +404,13 @@ export function App() {
 // SongPage is the public share landing for a single song: it plays and resolves
 // the song from the loaded list (falling back to a message before the list is
 // ready).
-function SongPage({ id, songs, onPlay }: { id: string; songs: Song[]; onPlay: (s: Song) => void }) {
+function SongPage({ id, songs, playingId, onPlay }: { id: string; songs: Song[]; playingId?: string; onPlay: (s: Song) => void }) {
   const song = songs.find((s) => s.id === id);
   useEffect(() => {
-    if (song) onPlay(song);
+    // Play only when this song isn't already the now-playing track — otherwise
+    // opening the full player (which routes to /song/:nowPlayingId) would re-enter
+    // here and toggle playback to a pause.
+    if (song && song.id !== playingId) onPlay(song);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [song?.id]);
   if (!song)

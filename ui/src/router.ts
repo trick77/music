@@ -59,11 +59,40 @@ export function parsePlayerParam(search: string): PlayerParam | null {
   return v === "lyrics" || v === "full" ? v : null;
 }
 
-// clearPlayerParam strips ?player= from the current URL without navigating, so the
-// deep-link intent fires exactly once and later manual toggles aren't fought by a
-// stale URL. Entry-point-only semantics.
-export function clearPlayerParam(): void {
-  const url = new URL(window.location.href);
-  url.searchParams.delete("player");
-  window.history.replaceState({}, "", url.pathname + url.search + url.hash);
+// playerHref builds the deep-link URL for a player state on a song.
+function playerHref(id: string, param: PlayerParam): string {
+  return `/song/${id}?player=${param}`;
+}
+
+// The player overlay mirrors its state into the URL live (source of truth), so the
+// address bar is always a shareable deep link. These helpers mutate history and
+// dispatch a synthetic popstate because pushState/replaceState do not fire one —
+// useRoute listens for it and re-renders, re-reading location.search.
+
+// pushPlayer opens the player at a state, adding ONE history entry so the back
+// button (and the close button) return to where the user was.
+export function pushPlayer(id: string, param: PlayerParam): void {
+  window.history.pushState({}, "", playerHref(id, param));
+  window.dispatchEvent(new PopStateEvent("popstate"));
+}
+
+// replacePlayer swaps the player state in place (no new history entry) — used for
+// artwork↔lyrics toggles and for following the now-playing song as the queue
+// advances, neither of which should stack the back stack.
+export function replacePlayer(id: string, param: PlayerParam): void {
+  window.history.replaceState({}, "", playerHref(id, param));
+  window.dispatchEvent(new PopStateEvent("popstate"));
+}
+
+// closePlayer dismisses the overlay. When we pushed the entry (opened in-app) we
+// pop it so back-stack and history stay clean; when we arrived via a fresh deep
+// link there is nothing to pop, so we strip the param in place and stay on the
+// song page.
+export function closePlayer(pushed: boolean): void {
+  if (pushed) {
+    window.history.back();
+    return;
+  }
+  window.history.replaceState({}, "", window.location.pathname);
+  window.dispatchEvent(new PopStateEvent("popstate"));
 }

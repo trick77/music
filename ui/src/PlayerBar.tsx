@@ -93,26 +93,35 @@ const iconBtn: React.CSSProperties = {
 // PlayerBar renders the docked mini-player (whenever a track is loaded) and,
 // when expanded, the full-screen player. Both are driven entirely by the
 // player store via usePlayer().
-export function PlayerBar({ fav, onShare, alignmentEnabled, openIntent = null, onIntentConsumed }: { fav: Fav; onShare: (s: Song) => void; alignmentEnabled: boolean; openIntent?: PlayerParam | null; onIntentConsumed?: () => void }) {
+// open/lyrics are derived from the URL (the source of truth for player-overlay
+// state) and passed in by App; the overlay writes changes back through onExpand
+// (push a history entry) / onSetMode (replace in place) / onClose. onCopyLink
+// copies the current deep link (the address bar itself while the overlay is open).
+export function PlayerBar({ fav, onShare, alignmentEnabled, sessionReady, open, lyrics, onExpand, onSetMode, onClose, onCopyLink }: { fav: Fav; onShare: (s: Song) => void; alignmentEnabled: boolean; sessionReady: boolean; open: boolean; lyrics: boolean; onExpand: (mode: PlayerParam) => void; onSetMode: (mode: PlayerParam) => void; onClose: () => void; onCopyLink: () => void }) {
   const p = usePlayer();
-  const [full, setFull] = useState(false);
-  const [lyricsMode, setLyricsMode] = useState(false);
   const [align, setAlign] = useState<AlignmentData | null>(null);
   const song = p.current;
   const hasLyrics = !!song?.lyrics && song.lyrics.trim() !== "";
   const canKaraoke = alignmentEnabled && hasLyrics;
 
-  // Each new track gets fresh alignment state. Lyrics mode itself only resets
-  // when the new track can't do karaoke — skipping while in lyrics mode should
-  // stay there, not bounce back to artwork.
+  // Each new track gets fresh alignment state.
   useEffect(() => {
     setAlign(null);
-    if (!canKaraoke) setLyricsMode(false);
-  }, [song?.id, canKaraoke]);
+  }, [song?.id]);
+
+  // Graceful degradation: if the URL asks for lyrics but the loaded track can't do
+  // karaoke (no lyrics / alignment off), downgrade the URL to artwork so the deep
+  // link stays honest. Gated on both a loaded song AND a resolved session — the
+  // session (which carries alignmentEnabled) is fetched in parallel with the song
+  // list, so acting before it resolves could wrongly downgrade a valid karaoke deep
+  // link when the song list happens to win the race.
+  useEffect(() => {
+    if (open && lyrics && song && sessionReady && !canKaraoke) onSetMode("full");
+  }, [open, lyrics, song, sessionReady, canKaraoke, onSetMode]);
 
   // In lyrics mode, fetch the alignment and poll while it is still generating.
   useEffect(() => {
-    if (!full || !lyricsMode || !canKaraoke || !song) return;
+    if (!open || !lyrics || !canKaraoke || !song) return;
     let alive = true;
     let timer: ReturnType<typeof setTimeout> | undefined;
     const tick = async () => {
@@ -129,19 +138,7 @@ export function PlayerBar({ fav, onShare, alignmentEnabled, openIntent = null, o
     // align?.status is a dep so the in-view Generate/Try-again buttons (which set
     // status to "generating" without changing any other dep) re-arm the poll; it
     // converges because same-status refetches don't change the dep.
-  }, [full, lyricsMode, canKaraoke, song?.id, align?.status]);
-
-  // Apply a deep-link open-intent (?player=…) exactly once, and only once a track
-  // is actually loaded — so a bad/unknown song id (which never loads) can't leave
-  // `full` set and spring the next-played track open. lyricsMode is set
-  // declaratively from the intent; the song-change effect above still flips it back
-  // off when the loaded track can't do karaoke (graceful degradation).
-  useEffect(() => {
-    if (!openIntent || !p.current) return;
-    setFull(true);
-    setLyricsMode(openIntent === "lyrics");
-    onIntentConsumed?.();
-  }, [openIntent, onIntentConsumed, p.current]);
+  }, [open, lyrics, canKaraoke, song?.id, align?.status]);
 
   if (!p.current || !song) return null;
 
@@ -170,7 +167,7 @@ export function PlayerBar({ fav, onShare, alignmentEnabled, openIntent = null, o
       >
         <Scrubber positionMs={p.positionMs} durationMs={p.durationMs} onSeek={p.seek} />
         <div style={{ display: "flex", alignItems: "center", gap: "0.85rem", padding: "0.5rem 1rem 0.7rem", maxWidth: 1100, margin: "0 auto" }}>
-          <button onClick={() => setFull(true)} aria-label="Expand player" style={{ display: "flex", alignItems: "center", gap: "0.7rem", background: "none", border: "none", cursor: "pointer", minWidth: 0, flex: 1, textAlign: "left" }}>
+          <button onClick={() => onExpand("full")} aria-label="Expand player" style={{ display: "flex", alignItems: "center", gap: "0.7rem", background: "none", border: "none", cursor: "pointer", minWidth: 0, flex: 1, textAlign: "left" }}>
             <span style={{ width: 44, height: 44, borderRadius: 8, overflow: "hidden", background: "var(--color-active)", display: "grid", placeItems: "center", flexShrink: 0 }}>
               {song.coverArtId ? <img src={coverUrl(song.coverArtId, "thumb")} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <span style={{ fontFamily: "var(--font-serif)", color: "var(--color-muted)" }}>{coverInitial(song.title)}</span>}
             </span>
@@ -182,15 +179,15 @@ export function PlayerBar({ fav, onShare, alignmentEnabled, openIntent = null, o
           <Transport playing={p.playing} onPrev={p.prev} onToggle={p.toggle} onNext={p.next} size={20} />
           <StarButton song={song} fav={fav} />
           {canKaraoke && (
-            <button aria-label="Show lyrics" onClick={() => { setLyricsMode(true); setFull(true); }} style={iconBtn}><Icon name="captions" size="23px" /></button>
+            <button aria-label="Show lyrics" onClick={() => onExpand("lyrics")} style={iconBtn}><Icon name="captions" size="23px" /></button>
           )}
           <AirplayButton available={p.airplayAvailable} active={p.airplayActive} onClick={p.showAirplayPicker} />
           <button aria-label="Share" onClick={() => onShare(song)} style={iconBtn}><Icon name="share" size="20px" /></button>
-          <button aria-label="Expand" onClick={() => setFull(true)} style={iconBtn}><Icon name="chevronUp" size="20px" /></button>
+          <button aria-label="Expand" onClick={() => onExpand("full")} style={iconBtn}><Icon name="chevronUp" size="20px" /></button>
         </div>
       </div>
 
-      {full && (
+      {open && (
         <div
           style={{
             position: "fixed",
@@ -206,11 +203,11 @@ export function PlayerBar({ fav, onShare, alignmentEnabled, openIntent = null, o
             padding: "2rem",
           }}
         >
-          <button aria-label="Close player" onClick={() => { setFull(false); setLyricsMode(false); }} style={{ ...iconBtn, position: "absolute", top: 16, right: 16, color: "#fff", zIndex: 5 }}>
+          <button aria-label="Close player" onClick={onClose} style={{ ...iconBtn, position: "absolute", top: 16, right: 16, color: "#fff", zIndex: 5 }}>
             <Icon name="close" size="24px" />
           </button>
 
-          {lyricsMode && canKaraoke ? (
+          {lyrics && canKaraoke ? (
             <>
               {/* Now-playing chip: artwork shrinks up-top in lyrics mode (Apple-style). */}
               <div style={{ position: "absolute", top: 16, left: 20, right: 64, display: "flex", alignItems: "center", gap: 12, minWidth: 0 }}>
@@ -235,10 +232,10 @@ export function PlayerBar({ fav, onShare, alignmentEnabled, openIntent = null, o
                 <Scrubber positionMs={p.positionMs} durationMs={p.durationMs} onSeek={p.seek} />
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "1.5rem", marginTop: "0.75rem" }}>
                   <StarButton song={song} fav={fav} size={24} />
-                  <button aria-label="Show artwork" aria-pressed onClick={() => setLyricsMode(false)} style={{ ...iconBtn, color: "var(--color-accent-strong)" }}><Icon name="captions" size="25px" /></button>
+                  <button aria-label="Show artwork" aria-pressed onClick={() => onSetMode("full")} style={{ ...iconBtn, color: "var(--color-accent-strong)" }}><Icon name="captions" size="25px" /></button>
                   <Transport playing={p.playing} onPrev={p.prev} onToggle={p.toggle} onNext={p.next} size={26} />
                   <AirplayButton available={p.airplayAvailable} active={p.airplayActive} onClick={p.showAirplayPicker} size={22} color="#fff" />
-                  <button aria-label="Share" onClick={() => onShare(song)} style={{ ...iconBtn, color: "#fff" }}><Icon name="share" size="22px" /></button>
+                  <button aria-label="Share" onClick={onCopyLink} style={{ ...iconBtn, color: "#fff" }}><Icon name="share" size="22px" /></button>
                 </div>
               </div>
             </>
@@ -255,11 +252,11 @@ export function PlayerBar({ fav, onShare, alignmentEnabled, openIntent = null, o
               <div style={{ display: "flex", alignItems: "center", gap: "1.5rem", marginTop: "1.25rem" }}>
                 <StarButton song={song} fav={fav} size={24} />
                 {canKaraoke && (
-                  <button aria-label="Show lyrics" aria-pressed={false} onClick={() => setLyricsMode(true)} style={{ ...iconBtn, color: "#fff" }}><Icon name="captions" size="25px" /></button>
+                  <button aria-label="Show lyrics" aria-pressed={false} onClick={() => onSetMode("lyrics")} style={{ ...iconBtn, color: "#fff" }}><Icon name="captions" size="25px" /></button>
                 )}
                 <Transport playing={p.playing} onPrev={p.prev} onToggle={p.toggle} onNext={p.next} size={26} />
                 <AirplayButton available={p.airplayAvailable} active={p.airplayActive} onClick={p.showAirplayPicker} size={22} color="#fff" />
-                <button aria-label="Share" onClick={() => onShare(song)} style={{ ...iconBtn, color: "#fff" }}><Icon name="share" size="22px" /></button>
+                <button aria-label="Share" onClick={onCopyLink} style={{ ...iconBtn, color: "#fff" }}><Icon name="share" size="22px" /></button>
               </div>
             </>
           )}

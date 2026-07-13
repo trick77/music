@@ -38,7 +38,7 @@ function AccountSlot({ authMode, authenticated, username }: { authMode?: string;
       href="/api/auth/logout"
       aria-label="Log out"
       title="Log out"
-      style={{ ...ring, position: "relative", display: "grid", placeItems: "center", background: "var(--color-accent)", color: "var(--color-ink)", textDecoration: "none", fontFamily: "var(--font-serif)", fontSize: "var(--text-label)", fontWeight: 600 }}
+      style={{ ...ring, position: "relative", display: "grid", placeItems: "center", background: "var(--color-accent)", color: "var(--color-ink)", textDecoration: "none", fontFamily: "var(--font-sans)", fontSize: "var(--text-label)", fontWeight: 600 }}
     >
       {username ? username.charAt(0).toUpperCase() : <Glyph name="user" size={16} />}
       <span aria-hidden style={{ position: "absolute", right: -1, bottom: -1, width: 9, height: 9, borderRadius: 999, background: "var(--color-online)", border: "2px solid var(--color-panel)" }} />

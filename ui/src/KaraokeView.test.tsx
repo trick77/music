@@ -3,7 +3,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { KaraokeView } from "./KaraokeView";
 
 describe("KaraokeView", () => {
-  it("renders each line's words as base + fill text", () => {
+  it("renders each line's words as per-word sweep spans", () => {
     const lines = [
       {
         text: "hello world",
@@ -18,7 +18,7 @@ describe("KaraokeView", () => {
     const html = renderToStaticMarkup(<KaraokeView lines={lines} />);
     expect(html).toContain("hello");
     expect(html).toContain("world");
-    expect(html).toContain("kv-fill");
+    expect(html).toContain("kv-word");
     expect(html).toContain("kv-stage");
   });
 

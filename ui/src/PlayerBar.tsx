@@ -159,6 +159,7 @@ export function PlayerBar({ fav, onShare, renderMenu, alignmentEnabled, sessionR
   return (
     <>
       <div
+        className="player-dock"
         style={{
           position: "fixed",
           left: 0,
@@ -166,11 +167,15 @@ export function PlayerBar({ fav, onShare, renderMenu, alignmentEnabled, sessionR
           bottom: 0,
           background: "color-mix(in srgb, var(--color-panel) 92%, transparent)",
           backdropFilter: "blur(14px)",
-          borderTop: "1px solid var(--color-border)",
           zIndex: 60,
         }}
       >
-        <Scrubber positionMs={p.positionMs} durationMs={p.durationMs} onSeek={p.seek} />
+        {/* Scrubber gets top breathing room so the position knob doesn't kiss the
+            page above; the soft fade (.player-dock::before) replaces the old hard
+            border between the scrolling page and the dock. */}
+        <div style={{ paddingTop: "0.7rem" }}>
+          <Scrubber positionMs={p.positionMs} durationMs={p.durationMs} onSeek={p.seek} />
+        </div>
         <div style={{ display: "flex", alignItems: "center", gap: "0.85rem", padding: "0.5rem 1rem 0.7rem", maxWidth: 1100, margin: "0 auto" }}>
           <button onClick={() => onExpand("full")} aria-label="Expand player" style={{ display: "flex", alignItems: "center", gap: "0.7rem", background: "none", border: "none", cursor: "pointer", minWidth: 0, flex: 1, textAlign: "left" }}>
             <span style={{ width: 44, height: 44, borderRadius: 8, overflow: "hidden", background: "var(--color-active)", display: "grid", placeItems: "center", flexShrink: 0 }}>

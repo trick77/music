@@ -255,6 +255,19 @@ html {
   .top-rank, .top-plays { display: none; }
   .top-genres { display: none; }
 }
+/* Docked mini-player: instead of a hard border, the scrolling page fades into
+   the dock through a soft gradient just above it (all viewports). */
+.player-dock::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: -24px;
+  height: 24px;
+  pointer-events: none;
+  background: linear-gradient(180deg, transparent, color-mix(in srgb, var(--color-panel) 92%, transparent));
+}
+
 body {
   margin: 0;
   background: var(--color-bg);

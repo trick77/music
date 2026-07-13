@@ -89,7 +89,10 @@ export function Home({ authenticated, onPlay, onShare, onUpload, renderRowAction
     const shown = song.genres.slice(0, GENRE_CAP);
     const overflow = song.genres.length - shown.length;
     return (
-      <>
+      // Wrapper is display:contents so the chips stay flex children of the meta
+      // line on tablet+/desktop; on phones .top-genres is hidden (the row is too
+      // narrow — the pills would otherwise crowd out the artist name).
+      <span className="top-genres">
         <span aria-hidden="true" style={{ color: "var(--color-border)", flex: "none" }}>·</span>
         {shown.map((name) => {
           const id = genreIds.get(name.toLowerCase());
@@ -107,7 +110,7 @@ export function Home({ authenticated, onPlay, onShare, onUpload, renderRowAction
           );
         })}
         {overflow > 0 && <span style={{ ...t.label, flex: "none" }}>+{overflow}</span>}
-      </>
+      </span>
     );
   };
 

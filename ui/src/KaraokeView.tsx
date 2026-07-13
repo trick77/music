@@ -8,20 +8,19 @@ const HOLD = 4;
 const INTRO_MIN = 2; // only animate the intro for lead-ins at least this long (s)
 const SWEEP_LEAD = 0.2; // s — advance the sweep clock to compensate for perceived lyric-sync lag
 
-type WordBox = { left: number; right: number; s: number; e: number };
 type LineRt = {
   el: HTMLDivElement;
-  fill: HTMLSpanElement;
   wordSpans: HTMLSpanElement[];
   wl: AlignedLine["words"];
-  words: WordBox[];
-  lineW: number;
   on?: boolean;
+  filled?: number; // last per-line fill state written: 0/1 for static lines, -1 sentinel for the active (dynamic) line
 };
 
-// KaraokeView renders the Apple-Music-style continuous per-line sweep. It measures
-// word x-positions after layout, then a single requestAnimationFrame loop reads the
-// live <audio> currentTime and writes fill-widths, per-line dim/blur, and the eased
+// KaraokeView renders the Apple-Music-style continuous per-line sweep. Lines wrap
+// onto multiple rows; each word carries its own time-driven fill (a text-clipped
+// gradient set via the --p custom property), so the highlight flows word-by-word
+// across rows. A single requestAnimationFrame loop reads the live <audio>
+// currentTime and writes per-word fill, per-line dim/blur, and the eased
 // auto-scroll straight to the DOM — never through React state (which can't keep
 // 60fps). Motion/CSS is lifted from docs/mockups/karaoke/player_integration.py.
 export function KaraokeView({ lines }: { lines: AlignedLine[] }) {
@@ -55,33 +54,15 @@ export function KaraokeView({ lines }: { lines: AlignedLine[] }) {
     const introEndsAt = firstStart - LEAD;
     const hasIntro = firstStart >= INTRO_MIN;
 
-    function measure() {
-      for (const l of L) {
-        if (!l) continue;
-        const n = l.wordSpans.length;
-        l.words = [];
-        for (let i = 0; i < n; i++) {
-          const sp = l.wordSpans[i];
-          const left = sp.offsetLeft;
-          const right = i + 1 < n ? l.wordSpans[i + 1].offsetLeft : left + sp.offsetWidth;
-          l.words.push({ left, right, s: +l.wl[i].start, e: +l.wl[i].end });
-        }
-        l.lineW = l.words.length ? l.words[l.words.length - 1].right : 0;
-      }
-    }
-
-    function frontX(l: LineRt, t: number): number {
-      const ws = l.words;
-      if (!ws.length) return 0;
-      if (t < ws[0].s) return 0;
-      let x = 0;
-      for (const w of ws) {
-        const se = w.s + Math.min(w.e - w.s, MAX_SWEEP);
-        if (t >= se) x = w.right;
-        else if (t >= w.s) return w.left + ((t - w.s) / (se - w.s)) * (w.right - w.left);
-        else return x;
-      }
-      return x;
+    // wordFill: 0..1 sung fraction of word k on the active line at time t.
+    function wordFill(l: LineRt, k: number, t: number): number {
+      const w = l.wl[k];
+      const s = +w.start;
+      const e = +w.end;
+      const dur = Math.min(e - s, MAX_SWEEP);
+      if (t <= s) return 0;
+      if (dur <= 0) return t >= e ? 1 : 0;
+      return Math.max(0, Math.min(1, (t - s) / dur));
     }
 
     let raf = 0;
@@ -105,7 +86,6 @@ export function KaraokeView({ lines }: { lines: AlignedLine[] }) {
         const on = i === active && held;
         if (l.on !== on) {
           l.el.classList.toggle("kv-active", on);
-          l.fill.classList.toggle("kv-sweeping", on);
           l.on = on;
         }
         if (!on) {
@@ -116,11 +96,28 @@ export function KaraokeView({ lines }: { lines: AlignedLine[] }) {
           l.el.style.opacity = "";
           l.el.style.filter = "";
         }
-        let x: number;
-        if (i < active) x = l.lineW;
-        else if (i > active) x = 0;
-        else x = frontX(l, t);
-        l.fill.style.width = x + "px";
+        // Per-word fill. Keyed on position vs. the active line (matches the old
+        // width-sweep: lines before active are fully sung, after are unsung, the
+        // active line sweeps word-by-word — regardless of the HOLD-gated `on`).
+        if (i === active) {
+          for (let k = 0; k < l.wordSpans.length; k++) {
+            const p = wordFill(l, k, t);
+            const sp = l.wordSpans[k];
+            sp.style.setProperty("--p", p.toFixed(3));
+            sp.classList.toggle("kv-sweeping", p > 0 && p < 1);
+          }
+          l.filled = -1;
+        } else {
+          const target = i < active ? 1 : 0;
+          if (l.filled !== target) {
+            const v = String(target);
+            for (const sp of l.wordSpans) {
+              sp.style.setProperty("--p", v);
+              sp.classList.remove("kv-sweeping");
+            }
+            l.filled = target;
+          }
+        }
       });
       if (active !== lastActive) {
         const el = L[active < 0 ? 0 : active]?.el;
@@ -134,13 +131,12 @@ export function KaraokeView({ lines }: { lines: AlignedLine[] }) {
       // The fonts.ready promise can resolve after unmount; bail so we don't spawn
       // an uncancellable rAF loop mutating detached DOM.
       if (cancelled) return;
-      measure();
       const el = L[0]?.el;
       if (el) inner!.style.transform = "translateY(" + (window.innerHeight * 0.4 - (el.offsetTop + el.offsetHeight / 2)) + "px)";
       raf = requestAnimationFrame(frame);
     }
     const onResize = () => {
-      measure();
+      // Wrapped line heights change on reflow; re-run the scroll transform.
       lastActive = -2;
     };
     window.addEventListener("resize", onResize);
@@ -176,38 +172,25 @@ export function KaraokeView({ lines }: { lines: AlignedLine[] }) {
 
 function LineRow({ line, register }: { line: AlignedLine; register: (rt: LineRt) => void }) {
   const elRef = useRef<HTMLDivElement>(null);
-  const fillRef = useRef<HTMLSpanElement>(null);
   const wordRefs = useRef<HTMLSpanElement[]>([]);
   const wl = line.words ?? [];
   useEffect(() => {
-    if (elRef.current && fillRef.current) {
-      register({ el: elRef.current, fill: fillRef.current, wordSpans: wordRefs.current, wl, words: [], lineW: 0 });
+    if (elRef.current) {
+      register({ el: elRef.current, wordSpans: wordRefs.current, wl });
     }
   });
   wordRefs.current = [];
   return (
     <div ref={elRef} className="kv-line">
       <div className="kv-lc">
-        <span className="kv-base">
-          {wl.length
-            ? wl.map((w, i) => (
-                <span key={i}>
-                  <span ref={(el) => { if (el) wordRefs.current[i] = el; }}>{w.w}</span>
-                  {i < wl.length - 1 ? " " : ""}
-                </span>
-              ))
-            : line.text || " "}
-        </span>
-        <span ref={fillRef} className="kv-fill">
-          {wl.length
-            ? wl.map((w, i) => (
-                <span key={i}>
-                  {w.w}
-                  {i < wl.length - 1 ? " " : ""}
-                </span>
-              ))
-            : line.text || " "}
-        </span>
+        {wl.length
+          ? wl.map((w, i) => (
+              <span key={i}>
+                <span ref={(el) => { if (el) wordRefs.current[i] = el; }} className="kv-word">{w.w}</span>
+                {i < wl.length - 1 ? " " : ""}
+              </span>
+            ))
+          : <span className="kv-word">{line.text || " "}</span>}
       </div>
     </div>
   );
@@ -224,14 +207,26 @@ const KV_CSS = `
 .kv-line { padding:14px 0; opacity:.28; filter: blur(3px); transform: scale(.96); transform-origin:left center;
   transition: opacity .45s ease, filter .45s ease, transform .45s cubic-bezier(.22,.61,.2,1); }
 .kv-line.kv-active { opacity:1; filter: blur(0); transform: scale(1.02); }
-.kv-lc { position:relative; display:inline-block; white-space:nowrap;
-  font-family:var(--font-serif); font-size: clamp(24px,3.9vw,46px); font-weight:700; line-height:1.22; letter-spacing:-.01em; }
-.kv-base { color: rgba(250,249,245,.22); }
-.kv-fill { position:absolute; left:0; top:0; height:100%; width:0; overflow:hidden; white-space:nowrap;
-  color: var(--color-ink); text-shadow: 0 0 20px rgba(217,119,87,.4), 0 0 6px rgba(250,249,245,.25); }
-.kv-fill.kv-sweeping {
-  -webkit-mask-image: linear-gradient(90deg,#000 calc(100% - 24px), rgba(0,0,0,.3) calc(100% - 7px), transparent);
-  mask-image: linear-gradient(90deg,#000 calc(100% - 24px), rgba(0,0,0,.3) calc(100% - 7px), transparent); }
+.kv-lc { display:block; font-family:var(--font-serif); font-size: clamp(24px,3.9vw,46px);
+  font-weight:700; line-height:1.22; letter-spacing:-.01em; }
+/* Each word is its own text-clipped gradient: sung fraction (--p, 0..1, written
+   by the rAF loop) shows in ink, the rest in the dim base tint. Lines wrap
+   naturally at the spaces between words, so long lines flow onto multiple rows
+   while the fill still advances word-by-word. */
+.kv-word { --p:0;
+  background-image: linear-gradient(90deg,
+    var(--color-ink) calc(var(--p) * 100%),
+    rgba(250,249,245,.22) calc(var(--p) * 100%));
+  -webkit-background-clip:text; background-clip:text;
+  -webkit-text-fill-color:transparent; color:transparent; }
+/* The word currently being sung: a soft trailing edge on the fill front plus the
+   glow, echoing the old .kv-fill sweep look. */
+.kv-word.kv-sweeping {
+  background-image: linear-gradient(90deg,
+    var(--color-ink) calc(var(--p) * 100% - 8px),
+    rgba(250,249,245,.55) calc(var(--p) * 100%),
+    rgba(250,249,245,.22) calc(var(--p) * 100% + 2px));
+  text-shadow: 0 0 20px rgba(217,119,87,.4), 0 0 6px rgba(250,249,245,.25); }
 /* Intro "get ready" flourish: music notes drift up and fade just ABOVE where the
    first lyric lands (the first line auto-scrolls to 40vh). Shown via .kv-visible
    during the instrumental lead-in. */

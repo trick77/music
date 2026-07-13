@@ -11,26 +11,37 @@ const ITEMS: Item[] = [
   { key: "playlists", icon: "playlist", label: "Playlists", path: "/playlists", match: (r) => r.name === "playlists" },
 ];
 
-// AccountSlot is the unobtrusive owner affordance in the rail's top avatar
-// position. In dev mode it stays a decorative accent mark (autologin, nothing to
-// do). In oidc mode it is a plain accent avatar that links to login when
-// anonymous and to logout when signed in — no lock icon, no visible "sign in"
-// copy, so an anonymous visitor sees nothing more than an avatar dot.
+// AccountSlot is the owner affordance anchored at the bottom of the rail. In dev
+// mode it stays a decorative accent mark (autologin, nothing to do). In oidc mode
+// it reads its state at a glance (Option B, ghost ↔ filled): signed out is a hollow
+// ring + person glyph that links to login; signed in is a filled accent avatar with
+// the username initial and a small presence dot, and clicking it logs out.
 function AccountSlot({ authMode, authenticated, username }: { authMode?: string; authenticated: boolean; username: string }) {
-  const base = { width: 28, height: 28, borderRadius: 999, background: "var(--color-accent)", marginBottom: "0.75rem" } as const;
+  const ring = { width: 32, height: 32, borderRadius: 999 } as const;
   if (authMode !== "oidc") {
-    return <span aria-hidden style={{ ...base, borderRadius: 8 }} />;
+    return <span aria-hidden style={{ ...ring, borderRadius: 8, background: "var(--color-accent)" }} />;
   }
-  const href = authenticated ? "/api/auth/logout" : "/api/auth/login";
-  const label = authenticated ? "Log out" : "Log in";
+  if (!authenticated) {
+    return (
+      <a
+        href="/api/auth/login"
+        aria-label="Log in"
+        title="Log in"
+        style={{ ...ring, display: "grid", placeItems: "center", background: "transparent", border: "1.5px solid var(--color-border)", color: "var(--color-muted)", textDecoration: "none" }}
+      >
+        <Glyph name="user" size={16} />
+      </a>
+    );
+  }
   return (
     <a
-      href={href}
-      aria-label={label}
-      title={label}
-      style={{ ...base, display: "grid", placeItems: "center", color: "var(--color-ink)", textDecoration: "none", fontFamily: "var(--font-serif)", fontSize: "var(--text-label)", fontWeight: 600 }}
+      href="/api/auth/logout"
+      aria-label="Log out"
+      title="Log out"
+      style={{ ...ring, position: "relative", display: "grid", placeItems: "center", background: "var(--color-accent)", color: "var(--color-ink)", textDecoration: "none", fontFamily: "var(--font-serif)", fontSize: "var(--text-label)", fontWeight: 600 }}
     >
-      {authenticated && username ? username.charAt(0).toUpperCase() : null}
+      {username ? username.charAt(0).toUpperCase() : <Glyph name="user" size={16} />}
+      <span aria-hidden style={{ position: "absolute", right: -1, bottom: -1, width: 9, height: 9, borderRadius: 999, background: "var(--color-online)", border: "2px solid var(--color-panel)" }} />
     </a>
   );
 }
@@ -67,6 +78,15 @@ export function Rail({ route, authenticated, studioEnabled = false, authMode, us
     );
   };
 
+  // Hairline that separates the rail's purpose groups.
+  const Sep = () => <div aria-hidden style={{ width: 28, height: 1, background: "var(--color-border)", margin: "4px 0" }} />;
+
+  const iconButton = (label: string, icon: GlyphName, onClick: () => void) => (
+    <button aria-label={label} title={label} onClick={onClick} style={{ display: "grid", placeItems: "center", width: 44, height: 44, borderRadius: 12, background: "none", border: "none", color: "var(--color-muted)", cursor: "pointer" }}>
+      <Glyph name={icon} size={22} />
+    </button>
+  );
+
   const tabItem = (it: Item) => {
     const active = it.match(route);
     return (
@@ -102,17 +122,19 @@ export function Rail({ route, authenticated, studioEnabled = false, authMode, us
           zIndex: 50,
         }}
       >
-        <AccountSlot authMode={authMode} authenticated={authenticated} username={username} />
-        {ITEMS.map(desktopItem)}
-        <button aria-label="Queue" title="Queue" onClick={onQueue} style={{ display: "grid", placeItems: "center", width: 44, height: 44, borderRadius: 12, background: "none", border: "none", color: "var(--color-muted)", cursor: "pointer" }}>
-          <Glyph name="queue" size={22} />
-        </button>
-        {authenticated && (
-          <button aria-label="Upload" onClick={onUpload} style={{ display: "grid", placeItems: "center", width: 44, height: 44, borderRadius: 12, background: "none", border: "none", color: "var(--color-muted)", cursor: "pointer" }}>
-            <Glyph name="upload" size={22} />
-          </button>
-        )}
-        {authenticated && studioEnabled && desktopItem({ key: "studio", icon: "spark", label: "Studio", path: "/studio", match: (r) => r.name === "studio" })}
+        {/* Discover */}
+        {ITEMS.slice(0, 3).map(desktopItem)}
+        <Sep />
+        {/* Your music */}
+        {ITEMS.slice(3).map(desktopItem)}
+        {iconButton("Queue", "queue", onQueue)}
+        {/* Make (owner) + account, anchored to the bottom */}
+        <div style={{ marginTop: "auto", display: "flex", flexDirection: "column", alignItems: "center", gap: "0.4rem" }}>
+          {authenticated && iconButton("Upload", "upload", onUpload)}
+          {authenticated && studioEnabled && desktopItem({ key: "studio", icon: "spark", label: "Studio", path: "/studio", match: (r) => r.name === "studio" })}
+          <Sep />
+          <AccountSlot authMode={authMode} authenticated={authenticated} username={username} />
+        </div>
       </nav>
 
       {/* Mobile bottom tab bar */}

@@ -79,7 +79,9 @@ one intentional literal.
 - **Home hero**: full-bleed panel that cycles the **top three most-played songs** as an
   **infinite, forward-only carousel** — after #3 it slides on to #1, never snapping backward.
   Each slide is **song-centric** — serif song title, `#N most played · genre` eyebrow (genre
-  links trail it), Play/Download/Share. The #1 slide is backed by the starred `is_hero` fanart;
+  links trail it). The **Play/Download/Share action row is stationary** (pinned bottom-left,
+  acting on the current slide) while only the artwork + eyebrow/title/artist slide. The panel is
+  focusable for ← → but its default focus ring is suppressed (it framed the whole hero). The #1 slide is backed by the starred `is_hero` fanart;
   #2/#3 by each song's own cover under a dark gradient. **Plain pill dots centred at the bottom**
   (active dot = accent-text, same size — no elongation). The slide is a controlled **~650ms**
   transform; it **auto-advances every ~30s**, paused on hover/focus/drag and restarted after any

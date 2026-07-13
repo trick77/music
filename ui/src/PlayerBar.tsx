@@ -217,7 +217,7 @@ export function PlayerBar({ fav, onShare, alignmentEnabled, openIntent = null, o
                   {song.coverArtId ? <img src={coverUrl(song.coverArtId, "thumb")} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <span style={{ fontFamily: "var(--font-serif)", color: "var(--color-muted)" }}>{coverInitial(song.title)}</span>}
                 </span>
                 <span style={{ minWidth: 0 }}>
-                  <span style={{ display: "block", fontFamily: "var(--font-serif)", fontWeight: 600, color: "#fff", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{song.title}</span>
+                  <span style={{ display: "block", fontFamily: "var(--font-sans)", fontWeight: 600, color: "#fff", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{song.title}</span>
                   <span style={{ display: "block", fontSize: "var(--text-label)", color: syncing ? "var(--color-accent-strong)" : "rgba(255,255,255,0.7)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                     {syncing ? "● Syncing karaoke…" : song.artistName}
                   </span>
@@ -246,7 +246,7 @@ export function PlayerBar({ fav, onShare, alignmentEnabled, openIntent = null, o
               <div style={{ width: "min(360px, 72vw)", aspectRatio: "1", borderRadius: 18, overflow: "hidden", background: "var(--color-active)", display: "grid", placeItems: "center", boxShadow: "0 24px 80px rgba(0,0,0,0.5)" }}>
                 {song.coverArtId ? <img src={coverUrl(song.coverArtId, "card")} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <span style={{ fontFamily: "var(--font-serif)", fontSize: "4rem", color: "var(--color-muted)" }}>{coverInitial(song.title)}</span>}
               </div>
-              <h2 style={{ margin: "1.5rem 0 0.25rem", fontFamily: "var(--font-serif)", color: "#fff", textAlign: "center" }}>{song.title}</h2>
+              <h2 style={{ margin: "1.5rem 0 0.25rem", fontFamily: "var(--font-sans)", color: "#fff", textAlign: "center" }}>{song.title}</h2>
               <p style={{ margin: 0, color: "rgba(255,255,255,0.8)" }}>{song.artistName}</p>
               <div style={{ width: "min(440px, 86vw)", marginTop: "1.5rem" }}>
                 <Scrubber positionMs={p.positionMs} durationMs={p.durationMs} onSeek={p.seek} />

@@ -379,7 +379,7 @@ export function App() {
           onShare={() => shareSong(song)}
           onCopyLyricsLink={() => { setPlayerMenuOpen(false); shareLyricsLink(song); }}
           onEdit={() => { setEditing(song); setPlayerMenuOpen(false); }}
-          onPublish={() => togglePublish(song)}
+          onPublish={() => { setPlayerMenuOpen(false); togglePublish(song); }}
           onDelete={() => { setPlayerMenuOpen(false); setDeleteErr(""); setDeleteFor(song); }}
           onClose={() => setPlayerMenuOpen(false)}
         />

@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
-import { parsePath, parsePlayerParam, clearPlayerParam } from "./router";
+import { parsePath, parsePlayerParam, pushPlayer, replacePlayer, closePlayer } from "./router";
 
 describe("parsePath", () => {
   it("maps root to home", () => {
@@ -51,53 +51,54 @@ describe("parsePlayerParam", () => {
   });
 });
 
-describe("clearPlayerParam", () => {
-  let mockReplaceState: ReturnType<typeof vi.fn>;
+describe("player URL helpers", () => {
+  let pushState: ReturnType<typeof vi.fn>;
+  let replaceState: ReturnType<typeof vi.fn>;
+  let back: ReturnType<typeof vi.fn>;
+  let dispatchEvent: ReturnType<typeof vi.fn>;
 
   beforeEach(() => {
-    // Stub window for node environment with location and history
-    mockReplaceState = vi.fn();
+    pushState = vi.fn();
+    replaceState = vi.fn();
+    back = vi.fn();
+    dispatchEvent = vi.fn();
     vi.stubGlobal("window", {
-      location: { href: "https://example.com/song/abc?player=lyrics&foo=bar#section" },
-      history: { replaceState: mockReplaceState },
+      location: { pathname: "/song/abc", search: "?player=lyrics" },
+      history: { pushState, replaceState, back },
+      dispatchEvent,
     });
+    vi.stubGlobal("PopStateEvent", class {});
   });
 
   afterEach(() => {
     vi.unstubAllGlobals();
   });
 
-  it("removes the player key from the current URL", () => {
-    clearPlayerParam();
-    expect(mockReplaceState).toHaveBeenCalledWith({}, "", "/song/abc?foo=bar#section");
+  it("pushPlayer pushes the song deep link and notifies listeners", () => {
+    pushPlayer("abc", "lyrics");
+    expect(pushState).toHaveBeenCalledWith({}, "", "/song/abc?player=lyrics");
+    expect(replaceState).not.toHaveBeenCalled();
+    expect(dispatchEvent).toHaveBeenCalledTimes(1);
   });
 
-  it("preserves other query keys", () => {
-    (window.location as any).href = "https://example.com/song/abc?player=lyrics&foo=bar&baz=qux";
-    clearPlayerParam();
-    expect(mockReplaceState).toHaveBeenCalledWith({}, "", "/song/abc?foo=bar&baz=qux");
+  it("replacePlayer replaces in place (no new history entry)", () => {
+    replacePlayer("abc", "full");
+    expect(replaceState).toHaveBeenCalledWith({}, "", "/song/abc?player=full");
+    expect(pushState).not.toHaveBeenCalled();
+    expect(dispatchEvent).toHaveBeenCalledTimes(1);
   });
 
-  it("preserves the pathname", () => {
-    (window.location as any).href = "https://example.com/playlist/xyz?player=full";
-    clearPlayerParam();
-    expect(mockReplaceState).toHaveBeenCalledWith({}, "", "/playlist/xyz");
+  it("closePlayer pops the pushed entry when we opened it in-app", () => {
+    closePlayer(true);
+    expect(back).toHaveBeenCalledTimes(1);
+    expect(replaceState).not.toHaveBeenCalled();
+    expect(dispatchEvent).not.toHaveBeenCalled();
   });
 
-  it("preserves hash fragment", () => {
-    (window.location as any).href = "https://example.com/song/abc?player=lyrics#top";
-    clearPlayerParam();
-    expect(mockReplaceState).toHaveBeenCalledWith({}, "", "/song/abc#top");
-  });
-
-  it("handles URL with only player param", () => {
-    (window.location as any).href = "https://example.com/song/abc?player=lyrics";
-    clearPlayerParam();
-    expect(mockReplaceState).toHaveBeenCalledWith({}, "", "/song/abc");
-  });
-
-  it("calls replaceState (does not push history)", () => {
-    clearPlayerParam();
-    expect(mockReplaceState).toHaveBeenCalledTimes(1);
+  it("closePlayer strips the param in place when arrived via a fresh deep link", () => {
+    closePlayer(false);
+    expect(back).not.toHaveBeenCalled();
+    expect(replaceState).toHaveBeenCalledWith({}, "", "/song/abc");
+    expect(dispatchEvent).toHaveBeenCalledTimes(1);
   });
 });

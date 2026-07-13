@@ -3,11 +3,13 @@
 // locked mock (docs/mockups/karaoke). onGenerate re-POSTs /align. The plain lyrics
 // stay visible (dimmed) behind the card so an unaligned song still shows its words.
 export function KaraokeCard({ state, lyrics, onGenerate }: {
-  state: "needs" | "generating" | "failed";
+  state: "needs" | "generating" | "failed" | "loading";
   lyrics: string;
   onGenerate: () => void;
 }) {
-  const copy = {
+  // "loading" shows only the plain lyrics (no overlay card) while a ready song's
+  // aligned lines are still being fetched — so no message box flashes.
+  const copy = state === "loading" ? null : {
     needs: {
       h: "Sync lyrics to the music",
       p: "Generate word-by-word karaoke timing — about a minute. Also runs automatically when you save lyrics in the tag editor.",
@@ -38,6 +40,7 @@ export function KaraokeCard({ state, lyrics, onGenerate }: {
       >
         {lyrics}
       </pre>
+      {copy && (
       <div style={{ position: "absolute", inset: 0, display: "grid", placeItems: "center", padding: 24 }}>
         <div
           role="status"
@@ -79,6 +82,7 @@ export function KaraokeCard({ state, lyrics, onGenerate }: {
           )}
         </div>
       </div>
+      )}
     </div>
   );
 }

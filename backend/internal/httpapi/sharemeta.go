@@ -2,6 +2,7 @@ package httpapi
 
 import (
 	"context"
+	"fmt"
 	"html"
 	"net/http"
 	"strings"
@@ -53,10 +54,7 @@ func songMeta(ctx context.Context, repo *library.Repo, r *http.Request, id strin
 	if err != nil || song == nil || !song.Published {
 		return "", false
 	}
-	img := ""
-	if song.CoverArtID != "" {
-		img = baseURL(r) + "/api/cover/" + song.CoverArtID
-	}
+	img := coverPreviewURL(r, song.CoverArtID)
 	return buildMeta("music.song", song.Title, song.ArtistName, img, baseURL(r)+r.URL.Path), true
 }
 
@@ -65,19 +63,32 @@ func playlistMeta(ctx context.Context, repo *library.Repo, r *http.Request, id s
 	if err != nil || pl == nil {
 		return "", false
 	}
-	desc := pl.Description
-	if desc == "" {
-		desc = "Playlist"
+	// Show the track count instead of the description: the preview subtitle
+	// stays useful even for playlists with no description. len(pl.Songs) is the
+	// published-track count, since GetPlaylist(..., false) loads only those.
+	n := len(pl.Songs)
+	noun := "songs"
+	if n == 1 {
+		noun = "song"
 	}
+	desc := fmt.Sprintf("Playlist · %d %s", n, noun)
 	coverID := pl.CoverArtID
 	if coverID == "" && len(pl.Songs) > 0 {
 		coverID = pl.Songs[0].CoverArtID // fallback to first track's cover
 	}
-	img := ""
-	if coverID != "" {
-		img = baseURL(r) + "/api/cover/" + coverID
-	}
+	img := coverPreviewURL(r, coverID)
 	return buildMeta("music.playlist", pl.Name, desc, img, baseURL(r)+r.URL.Path), true
+}
+
+// coverPreviewURL builds the absolute, sized cover URL used for og:image. The
+// card size (480px JPEG) keeps previews small enough that chat apps
+// (WhatsApp/Slack) don't reject an oversized original. Empty id yields "" so
+// buildMeta omits the image entirely.
+func coverPreviewURL(r *http.Request, coverID string) string {
+	if coverID == "" {
+		return ""
+	}
+	return baseURL(r) + "/api/cover/" + coverID + "?size=card"
 }
 
 // buildMeta renders the OG/Twitter block. All dynamic strings are HTML-escaped
@@ -88,6 +99,7 @@ func buildMeta(ogType, title, desc, img, url string) string {
 	meta := func(attr, key, val string) {
 		b.WriteString(`<meta ` + attr + `="` + key + `" content="` + html.EscapeString(val) + "\">\n")
 	}
+	meta("property", "og:site_name", "Music")
 	meta("property", "og:type", ogType)
 	meta("property", "og:title", title)
 	meta("property", "og:description", desc)

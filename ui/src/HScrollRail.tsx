@@ -2,19 +2,22 @@ import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 
 import { Icon } from "./Icon";
 
 // HScrollRail wraps a horizontal cover rail (the scrollbar is hidden by design)
-// and signals that more content lies off the right edge: the trailing cards fade
-// out (.rail-fade) and a › button appears that nudges the rail rightward. Both
-// disappear once the rail is scrolled to its end (or when nothing overflows), so
-// short rails look exactly as before.
+// and signals where more content lies: whichever edge has off-screen cards fades
+// out and grows a ‹/› button that nudges the rail that way. Indicators appear
+// only for the directions that can actually scroll, so a short (non-overflowing)
+// rail looks exactly as before, and a mid-scrolled rail shows both.
 export function HScrollRail({ children, innerStyle }: { children: ReactNode; innerStyle?: CSSProperties }) {
   const ref = useRef<HTMLDivElement>(null);
-  const [more, setMore] = useState(false);
+  const [edges, setEdges] = useState({ left: false, right: false });
 
   const sync = () => {
     const el = ref.current;
     if (!el) return;
-    // >1px slack absorbs sub-pixel rounding at the true end of the scroll range.
-    setMore(el.scrollWidth - el.clientWidth - el.scrollLeft > 1);
+    // >1px slack absorbs sub-pixel rounding at either true end of the range.
+    setEdges({
+      left: el.scrollLeft > 1,
+      right: el.scrollWidth - el.clientWidth - el.scrollLeft > 1,
+    });
   };
 
   useEffect(() => {
@@ -26,18 +29,40 @@ export function HScrollRail({ children, innerStyle }: { children: ReactNode; inn
     return () => ro.disconnect();
   }, [children]);
 
-  const nudge = () => {
+  const nudge = (dir: 1 | -1) => {
     const el = ref.current;
-    if (el) el.scrollBy({ left: el.clientWidth * 0.8, behavior: "smooth" });
+    if (el) el.scrollBy({ left: dir * el.clientWidth * 0.8, behavior: "smooth" });
   };
+
+  const { left, right } = edges;
+  // Fade only the edges that can scroll, keeping the gradient stops roughly under
+  // the ‹/› buttons so the chevrons sit in the faded band.
+  const mask =
+    left && right
+      ? "linear-gradient(90deg, transparent, #000 12%, #000 88%, transparent)"
+      : right
+        ? "linear-gradient(90deg, #000 82%, transparent)"
+        : left
+          ? "linear-gradient(90deg, transparent, #000 18%)"
+          : undefined;
 
   return (
     <div style={{ position: "relative" }}>
-      <div ref={ref} className={`hscroll${more ? " rail-fade" : ""}`} onScroll={sync} style={{ display: "flex", ...innerStyle }}>
+      <div
+        ref={ref}
+        className="hscroll"
+        onScroll={sync}
+        style={{ display: "flex", ...innerStyle, WebkitMaskImage: mask, maskImage: mask }}
+      >
         {children}
       </div>
-      {more && (
-        <button className="rail-more" aria-label="Scroll right" onClick={nudge}>
+      {left && (
+        <button className="rail-more rail-more-left" aria-label="Scroll left" onClick={() => nudge(-1)}>
+          <Icon name="chevronLeft" size="20px" />
+        </button>
+      )}
+      {right && (
+        <button className="rail-more rail-more-right" aria-label="Scroll right" onClick={() => nudge(1)}>
           <Icon name="chevronRight" size="20px" />
         </button>
       )}

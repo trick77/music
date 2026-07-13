@@ -97,7 +97,7 @@ const iconBtn: React.CSSProperties = {
 // state) and passed in by App; the overlay writes changes back through onExpand
 // (push a history entry) / onSetMode (replace in place) / onClose. onCopyLink
 // copies the current deep link (the address bar itself while the overlay is open).
-export function PlayerBar({ fav, onShare, alignmentEnabled, sessionReady, open, lyrics, onExpand, onSetMode, onClose, onCopyLink }: { fav: Fav; onShare: (s: Song) => void; alignmentEnabled: boolean; sessionReady: boolean; open: boolean; lyrics: boolean; onExpand: (mode: PlayerParam) => void; onSetMode: (mode: PlayerParam) => void; onClose: () => void; onCopyLink: () => void }) {
+export function PlayerBar({ fav, onShare, renderMenu, alignmentEnabled, sessionReady, open, lyrics, onExpand, onSetMode, onClose, onCopyLink }: { fav: Fav; onShare: (s: Song) => void; renderMenu?: (s: Song) => React.ReactNode; alignmentEnabled: boolean; sessionReady: boolean; open: boolean; lyrics: boolean; onExpand: (mode: PlayerParam) => void; onSetMode: (mode: PlayerParam) => void; onClose: () => void; onCopyLink: () => void }) {
   const p = usePlayer();
   const [align, setAlign] = useState<AlignmentData | null>(null);
   const song = p.current;
@@ -188,6 +188,7 @@ export function PlayerBar({ fav, onShare, alignmentEnabled, sessionReady, open, 
           )}
           <AirplayButton available={p.airplayAvailable} active={p.airplayActive} onClick={p.showAirplayPicker} />
           <button aria-label="Share" onClick={() => onShare(song)} style={iconBtn}><Icon name="share" size="20px" /></button>
+          {renderMenu?.(song)}
           <button aria-label="Expand" onClick={() => onExpand("full")} style={iconBtn}><Icon name="chevronUp" size="20px" /></button>
         </div>
       </div>

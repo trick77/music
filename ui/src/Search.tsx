@@ -105,7 +105,7 @@ export function Search({ onPlay }: { onPlay: (s: Song, tail: Song[]) => void }) 
                   <span style={{ width: 40, height: 40, borderRadius: 999, background: "var(--color-active)", display: "grid", placeItems: "center", color: "var(--color-muted)", fontFamily: "var(--font-serif)" }}>{coverInitial(a.name)}</span>
                   <span>
                     <span style={{ display: "block" }}>{a.name}</span>
-                    <span style={{ display: "block", ...t.label }}>{a.songCount} songs</span>
+                    <span style={{ display: "block", ...t.label }}>{a.songCount} {a.songCount === 1 ? "song" : "songs"}</span>
                   </span>
                 </button>
               ))}

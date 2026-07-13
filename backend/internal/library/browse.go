@@ -14,14 +14,16 @@ type ArtistSummary struct {
 }
 
 // GenreSummary is a genre with its song count and auto-sampled accent colour.
-// HasBackground reports whether the genre has an active generated/uploaded
-// background image, so the UI can flag genres that still need artwork.
+// BackgroundFanartID is the active genre background fanart id (empty when none);
+// HasBackground is derived from it, so the UI can both render the image and flag
+// genres that still need artwork.
 type GenreSummary struct {
-	ID            string `json:"id"`
-	Name          string `json:"name"`
-	SongCount     int    `json:"songCount"`
-	AccentColor   string `json:"accentColor"`
-	HasBackground bool   `json:"hasBackground"`
+	ID                 string `json:"id"`
+	Name               string `json:"name"`
+	SongCount          int    `json:"songCount"`
+	AccentColor        string `json:"accentColor"`
+	HasBackground      bool   `json:"hasBackground"`
+	BackgroundFanartID string `json:"backgroundFanartId"`
 }
 
 // AlbumSummary is a distinct artist+album pairing for the album-cover picker.
@@ -123,7 +125,7 @@ func (r *Repo) ListGenres(ctx context.Context, includeUnpublished bool) ([]Genre
 	}
 	rows, err := r.db.QueryContext(ctx,
 		`SELECT g.id, g.name, COALESCE(g.accent_color,''), COUNT(sg.song_id) c,
-		        EXISTS(SELECT 1 FROM fanart f WHERE f.genre_id = g.id AND f.kind='genre' AND f.is_active=1) hasbg
+		        (SELECT f.id FROM fanart f WHERE f.genre_id = g.id AND f.kind='genre' AND f.is_active=1 LIMIT 1) bgid
 		 FROM genres g JOIN song_genres sg ON sg.genre_id = g.id`+songJoin+`
 		 GROUP BY g.id ORDER BY g.name`)
 	if err != nil {
@@ -133,11 +135,12 @@ func (r *Repo) ListGenres(ctx context.Context, includeUnpublished bool) ([]Genre
 	out := []GenreSummary{}
 	for rows.Next() {
 		var g GenreSummary
-		var hasBg int
-		if err := rows.Scan(&g.ID, &g.Name, &g.AccentColor, &g.SongCount, &hasBg); err != nil {
+		var bgID sql.NullString
+		if err := rows.Scan(&g.ID, &g.Name, &g.AccentColor, &g.SongCount, &bgID); err != nil {
 			return nil, err
 		}
-		g.HasBackground = hasBg != 0
+		g.BackgroundFanartID = bgID.String
+		g.HasBackground = bgID.Valid && bgID.String != ""
 		out = append(out, g)
 	}
 	return out, rows.Err()
@@ -153,12 +156,12 @@ func (r *Repo) GetGenre(ctx context.Context, id string, includeUnpublished bool)
 		countExpr = "COUNT(s.id)"
 	}
 	var g GenreSummary
-	var hasBg int
+	var bgID sql.NullString
 	err := r.db.QueryRowContext(ctx,
 		`SELECT g.id, g.name, COALESCE(g.accent_color,''), `+countExpr+` c,
-		        EXISTS(SELECT 1 FROM fanart f WHERE f.genre_id = g.id AND f.kind='genre' AND f.is_active=1) hasbg
+		        (SELECT f.id FROM fanart f WHERE f.genre_id = g.id AND f.kind='genre' AND f.is_active=1 LIMIT 1) bgid
 		 FROM genres g `+songJoin+`
-		 WHERE g.id = ? GROUP BY g.id`, id).Scan(&g.ID, &g.Name, &g.AccentColor, &g.SongCount, &hasBg)
+		 WHERE g.id = ? GROUP BY g.id`, id).Scan(&g.ID, &g.Name, &g.AccentColor, &g.SongCount, &bgID)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, nil, nil
 	}
@@ -168,7 +171,8 @@ func (r *Repo) GetGenre(ctx context.Context, id string, includeUnpublished bool)
 	if !includeUnpublished && g.SongCount == 0 {
 		return nil, nil, nil
 	}
-	g.HasBackground = hasBg != 0
+	g.BackgroundFanartID = bgID.String
+	g.HasBackground = bgID.Valid && bgID.String != ""
 	songs, err := r.songsWhere(ctx, includeUnpublished,
 		`s.id IN (SELECT song_id FROM song_genres WHERE genre_id = ?)`, id)
 	return &g, songs, err

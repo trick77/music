@@ -23,7 +23,12 @@ Using what you learn, produce SEVEN things:
    "Style" box. Rules: NO spaces after commas; lowercase except proper nouns;
    at most 500 characters; describe era/epoch (inferred from the song's SONIC
    aesthetic, not its release date), genre/subgenre, tempo/energy,
-   instrumentation, and atmosphere/mood. Do NOT describe vocal character
+   instrumentation, and atmosphere/mood. Describe ONLY THIS SPECIFIC SONG's own
+   sound as heard on the actual recording — NOT the artist's signature or typical
+   style, and NOT the album's overall style. The same artist, and even the same
+   album, routinely spans different genres from one track to the next, so a
+   generic artist/album descriptor will misdescribe this song; if the track
+   departs from what the artist is known for, capture the track. Do NOT describe vocal character
    (timbre, range, or delivery — no raspy/smooth/powerful/breathy/belted), and
    NEVER state or imply whether the voice is male or female: such words push
    Suno toward the same wide, raspy voice every time, so leave the voice to

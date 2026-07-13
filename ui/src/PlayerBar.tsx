@@ -231,9 +231,9 @@ export function PlayerBar({ fav, onShare, alignmentEnabled, sessionReady, open, 
               <div style={{ width: "min(760px, 96vw)" }}>
                 <Scrubber positionMs={p.positionMs} durationMs={p.durationMs} onSeek={p.seek} />
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "1.5rem", marginTop: "0.75rem" }}>
+                  <Transport playing={p.playing} onPrev={p.prev} onToggle={p.toggle} onNext={p.next} size={26} />
                   <StarButton song={song} fav={fav} size={24} />
                   <button aria-label="Show artwork" aria-pressed onClick={() => onSetMode("full")} style={{ ...iconBtn, color: "var(--color-accent-strong)" }}><Icon name="captions" size="25px" /></button>
-                  <Transport playing={p.playing} onPrev={p.prev} onToggle={p.toggle} onNext={p.next} size={26} />
                   <AirplayButton available={p.airplayAvailable} active={p.airplayActive} onClick={p.showAirplayPicker} size={22} color="#fff" />
                   <button aria-label="Share" onClick={onCopyLink} style={{ ...iconBtn, color: "#fff" }}><Icon name="share" size="22px" /></button>
                 </div>
@@ -250,11 +250,11 @@ export function PlayerBar({ fav, onShare, alignmentEnabled, sessionReady, open, 
                 <Scrubber positionMs={p.positionMs} durationMs={p.durationMs} onSeek={p.seek} />
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: "1.5rem", marginTop: "1.25rem" }}>
+                <Transport playing={p.playing} onPrev={p.prev} onToggle={p.toggle} onNext={p.next} size={26} />
                 <StarButton song={song} fav={fav} size={24} />
                 {canKaraoke && (
                   <button aria-label="Show lyrics" aria-pressed={false} onClick={() => onSetMode("lyrics")} style={{ ...iconBtn, color: "#fff" }}><Icon name="captions" size="25px" /></button>
                 )}
-                <Transport playing={p.playing} onPrev={p.prev} onToggle={p.toggle} onNext={p.next} size={26} />
                 <AirplayButton available={p.airplayAvailable} active={p.airplayActive} onClick={p.showAirplayPicker} size={22} color="#fff" />
                 <button aria-label="Share" onClick={onCopyLink} style={{ ...iconBtn, color: "#fff" }}><Icon name="share" size="22px" /></button>
               </div>

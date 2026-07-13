@@ -137,4 +137,37 @@ func TestShareMeta_playlistFallsBackToFirstSongCover(t *testing.T) {
 	if !strings.Contains(b, `property="og:image"`) || !strings.Contains(b, "/api/cover/") {
 		t.Fatalf("playlist should fall back to first song cover:\n%s", b)
 	}
+	// og:image must request the sized card variant so chat apps don't reject an
+	// oversized original.
+	if !strings.Contains(b, "?size=card") {
+		t.Fatalf("playlist cover should use ?size=card:\n%s", b)
+	}
+	// The subtitle is the track count (one published track), not a description.
+	if !strings.Contains(b, "Playlist · 1 song") {
+		t.Fatalf("playlist meta should show track count:\n%s", b)
+	}
+}
+
+func TestShareMeta_playlistDescriptionNotLeaked(t *testing.T) {
+	// A published playlist's preview must advertise the track count, never the
+	// description text (which may be private/internal).
+	h := testServer(t, config.AuthModeDev)
+	pid := createPlaylist(t, h, "Road Trip", "a secret description that must not leak")
+	sid := uploadSongID(t, h)
+	doJSON(t, h, "POST", "/api/songs/"+sid+"/publish", "")
+	doJSON(t, h, "POST", "/api/playlists/"+pid+"/publish", "")
+	doJSON(t, h, "POST", "/api/playlists/"+pid+"/songs", `{"songId":"`+sid+`"}`)
+
+	rr := httptest.NewRecorder()
+	req := httptest.NewRequest("GET", "/playlist/"+pid, nil)
+	req.Host = "music.example.com"
+	h.ServeHTTP(rr, req)
+
+	body := rr.Body.String()
+	if !strings.Contains(body, "Playlist · 1 song") {
+		t.Fatalf("playlist meta should show the track count:\n%s", body)
+	}
+	if strings.Contains(body, "secret description") {
+		t.Fatalf("playlist description must not leak into preview:\n%s", body)
+	}
 }

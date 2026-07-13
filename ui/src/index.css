@@ -36,6 +36,7 @@
   --color-accent-strong: #d97757;
   /* accent roles (see docs/design-system.md): fill = active/primary, strong = interactive text. */
   --color-accent-fill: #c25f34;
+  --color-online: #5aa06a;
   --color-danger: #c14638;
   /* elevated surface for menus/popovers (promoted from Menu.tsx). */
   --color-elevated: #363632;

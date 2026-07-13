@@ -6,6 +6,7 @@ import { genreLabel } from "./titleCase";
 import { Glyph } from "./Glyph";
 import { Hero, type GenreLink } from "./Hero";
 import { Chapter } from "./Chapter";
+import { HScrollRail } from "./HScrollRail";
 import { Button, t } from "./ui";
 import { usePlayer } from "./player";
 import { SongCover } from "./SongCover";
@@ -164,9 +165,9 @@ export function Home({ authenticated, onPlay, onShare, onUpload, renderRowAction
         <section>
           <div style={sectionHead}>
             <h3 style={{ margin: 0, ...t.title }}>Recently added</h3>
-            <a onClick={() => navigate("/library")} style={{ color: "var(--color-muted)", fontSize: "var(--text-ui)", cursor: "pointer" }}>Your library →</a>
+            {authenticated && <a onClick={() => navigate("/library")} style={{ color: "var(--color-muted)", fontSize: "var(--text-ui)", cursor: "pointer" }}>Your library →</a>}
           </div>
-          <div className="hscroll" style={{ display: "flex", gap: "1rem" }}>
+          <HScrollRail innerStyle={{ gap: "1rem" }}>
             {feed.recentlyAdded.map((s, i) => (
               <button
                 key={s.id}
@@ -183,7 +184,7 @@ export function Home({ authenticated, onPlay, onShare, onUpload, renderRowAction
                 <div style={{ ...t.label, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.artistName}</div>
               </button>
             ))}
-          </div>
+          </HScrollRail>
         </section>
       )}
 
@@ -195,7 +196,7 @@ export function Home({ authenticated, onPlay, onShare, onUpload, renderRowAction
         <section>
           <div style={sectionHead}>
             <h3 style={{ margin: 0, ...t.title }}>Playlists</h3>
-            <a onClick={() => navigate("/playlists")} style={{ color: "var(--color-muted)", fontSize: "var(--text-ui)", cursor: "pointer" }}>Your library →</a>
+            {authenticated && <a onClick={() => navigate("/playlists")} style={{ color: "var(--color-muted)", fontSize: "var(--text-ui)", cursor: "pointer" }}>Your library →</a>}
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: "1rem" }}>
             {feed.playlists.map((pl) => (

@@ -84,6 +84,31 @@ html {
 .hscroll::-webkit-scrollbar {
   display: none;
 }
+/* Scroll affordance (HScrollRail): when more cards lie off the right edge, the
+   trailing edge fades out and a floating › button nudges the rail along. Both
+   are toggled from JS so short (non-overflowing) rails are unaffected. */
+.rail-fade {
+  -webkit-mask-image: linear-gradient(90deg, #000 82%, transparent);
+  mask-image: linear-gradient(90deg, #000 82%, transparent);
+}
+.rail-more {
+  position: absolute;
+  top: 50%;
+  right: 6px;
+  transform: translateY(-50%);
+  width: 34px;
+  height: 34px;
+  border-radius: 999px;
+  border: none;
+  background: rgba(20, 20, 18, 0.72);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  color: #fff;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
+}
 
 /* Frosted glass panel used by immersive detail/hero copy. */
 .glass {

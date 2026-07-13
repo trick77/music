@@ -76,14 +76,16 @@ one intentional literal.
   `rgba(0,0,0,.5)` 999px 11px + accent-text dot. Chips = active 999px 13px with ✕. Dashed tile =
   "add" affordance. Tinted CTA = accent-text on `color-mix(accent-text 12%)`.
 - **Sliders**: native range, accent-fill track/thumb (seek only; there is no volume slider).
-- **Home hero**: full-bleed panel that cycles the **top three most-played songs** as a
-  horizontal scroll-snap carousel. Each slide is **song-centric** — serif song title,
-  `#N most played · genre` eyebrow (genre links trail it), Play/Download/Share. The #1 slide is
-  backed by the starred `is_hero` fanart; #2/#3 by each song's own cover under a dark gradient.
-  **Vertical dot indicator** on the right edge (active dot elongates). Slow auto-advance (~7s)
-  that pauses on hover/focus and **stops for good once the user takes control** (play, dot, arrow,
-  swipe/drag); disabled entirely under `prefers-reduced-motion`. Collapses to a single static
-  panel with one or zero songs (no dots, no auto-advance).
+- **Home hero**: full-bleed panel that cycles the **top three most-played songs** as an
+  **infinite, forward-only carousel** — after #3 it slides on to #1, never snapping backward.
+  Each slide is **song-centric** — serif song title, `#N most played · genre` eyebrow (genre
+  links trail it), Play/Download/Share. The #1 slide is backed by the starred `is_hero` fanart;
+  #2/#3 by each song's own cover under a dark gradient. **Plain pill dots centred at the bottom**
+  (active dot = accent-text, same size — no elongation). The slide is a controlled **~650ms**
+  transform; it **auto-advances every ~30s**, paused on hover/focus/drag and restarted after any
+  manual move so each slide keeps its full dwell. Swipe/drag or ← →. Under `prefers-reduced-motion`
+  slides jump instantly and auto-advance is off. Collapses to a single static panel with one or
+  zero songs (no dots, no auto-advance).
 - **Player**: docked bar (now-playing 15/13, transport icon buttons, circular accent play, seek).
   Expanded player = big cover + serif white title on a gradient.
 - **Nav**: desktop rail (44px icon buttons, subtle grey active) + mobile tab bar (icon over

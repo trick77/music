@@ -85,24 +85,22 @@ html {
   display: none;
 }
 
-/* Home hero carousel: the top-three most-played songs as full-bleed slides that
-   scroll-snap horizontally (swipe/drag), with a vertical dot indicator on the
-   right edge. Distinct from HScrollRail on purpose — dots suit a small, fixed,
+/* Home hero carousel: the top-three most-played songs as an infinite,
+   forward-only slide track (transform-driven, so the ~650ms slide is
+   controllable and the 3→1 wrap is seamless), with plain pill dots centred at
+   the bottom. Distinct from HScrollRail on purpose — dots suit a small, fixed,
    ranked set where position matters; rails use edge fade + chevrons for long
    continuous scrolls. See docs/design-system.md. */
+.hero-viewport {
+  overflow: hidden;
+}
 .hero-track {
   display: flex;
-  overflow-x: auto;
-  scroll-snap-type: x mandatory;
-  scrollbar-width: none;
-  -webkit-overflow-scrolling: touch;
-}
-.hero-track::-webkit-scrollbar {
-  display: none;
+  will-change: transform;
+  touch-action: pan-y; /* let the page scroll vertically; we handle horizontal drags */
 }
 .hero-slide {
   flex: 0 0 100%;
-  scroll-snap-align: center;
   position: relative;
   display: flex;
   align-items: flex-end;
@@ -110,12 +108,12 @@ html {
 }
 .hero-dots {
   position: absolute;
-  top: 50%;
-  right: 14px;
-  transform: translateY(-50%);
+  left: 0;
+  right: 0;
+  bottom: 16px;
   display: flex;
-  flex-direction: column;
-  gap: 9px;
+  justify-content: center;
+  gap: 8px;
   z-index: 3;
 }
 .hero-dots button {
@@ -126,16 +124,10 @@ html {
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.4);
   cursor: pointer;
-  transition: height 0.25s, background 0.25s;
+  transition: background 0.25s;
 }
 .hero-dots button[aria-current="true"] {
-  background: #fff;
-  height: 20px;
-}
-@media (prefers-reduced-motion: reduce) {
-  .hero-track {
-    scroll-behavior: auto;
-  }
+  background: var(--color-accent-strong);
 }
 
 /* Scroll affordance (HScrollRail): whichever edge has off-screen cards fades out

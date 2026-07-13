@@ -111,8 +111,9 @@ html {
   text-decoration: underline;
 }
 
-/* Genre pill on a list row (e.g. the Top-ten meta line). Terracotta-tinted;
-   a static variant drops the affordance when the genre id didn't resolve. */
+/* Genre pill on a list row (e.g. the Top-ten meta line). Faint terracotta tint
+   with muted text — deliberately low-key so it doesn't compete with the row.
+   A static variant drops the affordance when the genre id didn't resolve. */
 .genre-chip {
   display: inline-block;
   flex: none;
@@ -120,23 +121,23 @@ html {
   line-height: 1.5;
   padding: 0 8px;
   border-radius: 999px;
-  border: 1px solid color-mix(in srgb, var(--color-accent) 38%, var(--color-border));
-  background: color-mix(in srgb, var(--color-accent) 12%, transparent);
-  color: var(--color-accent-strong);
+  border: 1px solid color-mix(in srgb, var(--color-accent) 18%, var(--color-border));
+  background: color-mix(in srgb, var(--color-accent) 5%, transparent);
+  color: var(--color-muted);
   text-decoration: none;
   white-space: nowrap;
   cursor: pointer;
 }
 .genre-chip:hover,
 .genre-chip:focus-visible {
-  background: color-mix(in srgb, var(--color-accent) 22%, transparent);
+  background: color-mix(in srgb, var(--color-accent) 10%, transparent);
 }
 .genre-chip.static {
   cursor: default;
 }
 .genre-chip.static:hover,
 .genre-chip.static:focus-visible {
-  background: color-mix(in srgb, var(--color-accent) 12%, transparent);
+  background: color-mix(in srgb, var(--color-accent) 5%, transparent);
 }
 
 /* Play affordance that fades in on hover of a cover tile. */

@@ -1,0 +1,219 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Edit from the mini player — ⋯ menu options</title>
+<style>
+  :root{
+    --bg:#1f1f1e; --panel:#1b1b1a; --active:#2c2c2a; --border:#323230;
+    --ink:#faf9f5; --muted:#9c9a92; --accent:#c6613f; --accent-strong:#d97757; --accent-fill:#c25f34;
+    /* elevated (menu) surface — matches Menu.tsx */
+    --elev:#363632; --elev-border:#454540; --elev-ink:#f3f0e8; --elev-hover:#3f3f3a;
+    --danger-ink:#ec7e7e; --danger-fill:#d03b3b;
+    --radius:12px;
+    --sans:"Anthropic Sans",system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif;
+    --serif:"Anthropic Serif",Georgia,"Times New Roman",Times,serif;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:16px;line-height:1.5;
+    -webkit-font-smoothing:antialiased}
+  .wrap{max-width:1180px;margin:0 auto;padding:40px 28px 120px}
+  h1{font-family:var(--serif);font-weight:600;font-size:1.9rem;margin:0 0 6px}
+  .lede{color:var(--muted);max-width:74ch;margin:0 0 6px}
+  .eyebrow{font-size:.72rem;letter-spacing:.18em;text-transform:uppercase;color:var(--accent-strong);font-weight:600;margin-bottom:12px}
+  h2{font-family:var(--serif);font-weight:600;font-size:1.3rem;margin:0}
+  .tag{font-size:.68rem;letter-spacing:.13em;text-transform:uppercase;color:var(--muted);border:1px solid var(--border);border-radius:999px;padding:4px 11px}
+  .tag.rec{color:var(--accent-strong);border-color:color-mix(in srgb,var(--accent-strong) 45%,transparent)}
+  .sec-head{display:flex;align-items:center;gap:14px;margin:0 0 4px}
+  .desc{color:var(--muted);font-size:.92rem;max-width:80ch;margin:6px 0 4px}
+  .desc b{color:var(--ink);font-weight:600}
+  hr.rule{border:0;border-top:1px solid var(--border);margin:44px 0}
+
+  .grid{display:grid;grid-template-columns:1fr;gap:30px;margin-top:22px}
+  @media(min-width:900px){.grid{grid-template-columns:repeat(3,1fr)}}
+
+  /* device viewport: shows the bottom of a screen with the docked bar */
+  .device{position:relative;height:300px;border:1px solid var(--border);border-radius:16px;overflow:hidden;
+    background:
+      radial-gradient(120% 80% at 50% -20%, rgba(214,119,87,.10), transparent 60%),
+      linear-gradient(180deg,#242320,#161615);
+    box-shadow:0 30px 70px -46px rgba(0,0,0,.85)}
+  .device .faux{position:absolute;inset:0 0 auto;padding:16px 16px 0;color:rgba(255,255,255,.16);font-size:.8rem}
+  .device .faux .line{height:10px;border-radius:6px;background:rgba(255,255,255,.05);margin-bottom:10px}
+  .device .faux .line.s{width:55%}.device .faux .line.m{width:72%}
+
+  /* docked mini bar — mirrors PlayerBar.tsx */
+  .minibar{position:absolute;left:0;right:0;bottom:0;background:color-mix(in srgb,var(--panel) 92%,transparent);
+    backdrop-filter:blur(14px);border-top:1px solid var(--border);z-index:5}
+  .scrub{display:flex;align-items:center;gap:.5rem;padding:6px 12px 0}
+  .scrub .t{font-size:.62rem;color:var(--muted);min-width:28px;font-variant-numeric:tabular-nums}
+  .scrub .t.r{text-align:right}
+  .bar{flex:1;height:4px;border-radius:3px;background:var(--active);position:relative}
+  .bar::before{content:"";position:absolute;left:0;top:0;bottom:0;width:34%;border-radius:3px;background:var(--accent-fill)}
+  .bar::after{content:"";position:absolute;left:34%;top:50%;transform:translate(-50%,-50%);width:11px;height:11px;border-radius:50%;background:var(--ink)}
+  .mrow{display:flex;align-items:center;gap:.6rem;padding:.45rem .7rem .6rem}
+  .track{display:flex;align-items:center;gap:.55rem;flex:1;min-width:0}
+  .cov{width:40px;height:40px;border-radius:8px;flex-shrink:0;overflow:hidden;
+    background:linear-gradient(135deg,#3a2a24,#7a3f2c);display:grid;place-items:center}
+  .cov .in{font-family:var(--serif);color:#f3d9cd;font-size:1.05rem}
+  .meta{min-width:0}
+  .meta b{display:block;font-weight:500;font-size:.82rem;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .meta span{display:block;font-size:.7rem;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+  /* transport + icon buttons */
+  .ib{display:grid;place-items:center;width:34px;height:34px;border-radius:8px;background:none;border:0;
+    cursor:pointer;color:var(--ink);flex-shrink:0}
+  .ib.mut{color:var(--muted)}
+  .ib.accent{color:var(--accent-strong)}
+  .ib.play{width:40px;height:40px;border-radius:999px;background:var(--accent-fill);color:var(--ink)}
+  .ib svg{width:19px;height:19px}
+  .ib.play svg{width:20px;height:20px}
+  .transport{display:flex;align-items:center;gap:.15rem;flex-shrink:0}
+
+  /* the ⋯ trigger + its popover */
+  .ovwrap{position:relative;flex-shrink:0}
+  .ovwrap .ib.on{background:var(--active);color:var(--ink)}
+  .ovmenu{position:absolute;bottom:calc(100% + 8px);right:0;min-width:210px;background:var(--elev);
+    border:1px solid var(--elev-border);border-radius:10px;padding:4px 0;
+    box-shadow:0 18px 32px rgba(0,0,0,.5);z-index:20;overflow:hidden}
+  .ovmenu.hidden{display:none}
+  .mi{display:flex;align-items:center;gap:10px;min-height:30px;padding:4px 12px;margin:0 4px;border-radius:6px;
+    color:var(--elev-ink);font-size:.85rem;cursor:pointer;text-align:left}
+  .mi .ico{display:grid;place-items:center;width:21px;height:21px;flex-shrink:0;color:var(--elev-ink)}
+  .mi .ico svg{width:18px;height:18px}
+  .mi:hover{background:var(--elev-hover)}
+  .mi.hot{background:var(--elev-hover)}          /* pre-highlighted Edit… for the mockup */
+  .mi.hot .ico{color:var(--accent-strong)}
+  .mi.danger{color:var(--danger-ink)}
+  .mi.danger .ico{color:var(--danger-ink)}
+  .mi.danger:hover{background:var(--danger-fill);color:#fff}
+  .mi.danger:hover .ico{color:#fff}
+  .msep{height:1px;background:var(--elev-border);margin:5px 14px}
+
+  .callout{display:flex;gap:11px;align-items:flex-start;font-size:.84rem;color:var(--muted);background:var(--bg);
+    border:1px solid var(--border);border-radius:10px;padding:11px 13px;margin-top:14px}
+  .callout b{color:var(--ink)}
+  .callout .dot{width:7px;height:7px;border-radius:50%;background:var(--accent-strong);margin-top:6px;flex-shrink:0}
+  .pill{display:inline-block;font-size:.68rem;color:var(--accent-strong);border:1px solid color-mix(in srgb,var(--accent-strong) 40%,transparent);
+    border-radius:999px;padding:2px 9px;margin-left:2px;vertical-align:middle}
+  .foot{color:var(--muted);font-size:.86rem;margin-top:8px}
+  .hint{font-size:.74rem;color:var(--muted);margin:2px 0 0;text-align:center}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="eyebrow">Mini player · edit the playing track</div>
+  <h1>Editing from the mini player</h1>
+  <p class="lede">A <b>⋯ (three-dot) menu</b> on the docked bar opens actions for the <b>currently-playing</b> track — including <b>Edit…</b>, which opens the existing tabbed tag editor (Details / Cover / Lyrics). The menu opens <b>upward</b> since the bar sits at the bottom of the screen. Three options below differ only in <b>how much the bar changes</b> and <b>what the menu holds</b>. Each shows the menu open with <b>Edit…</b> highlighted.</p>
+
+  <div class="grid" id="grid"></div>
+
+  <hr class="rule">
+  <p class="foot"><b>Edit… →</b> reuses the current tabbed <b>TagEditor</b> unchanged (full-screen on phones + iPad, so nothing gets truncated). No backend changes — it already saves to the file's ID3 tags.</p>
+</div>
+
+<script>
+const I = {
+  prev:'<path d="M17.971 4.285A2 2 0 0 1 21 6v12a2 2 0 0 1-3.029 1.715l-9.997-5.998a2 2 0 0 1-.003-3.432z" fill="currentColor" stroke="none"/><path d="M3 20V4"/>',
+  play:'<path d="M5 5a2 2 0 0 1 3.008-1.728l11.997 6.998a2 2 0 0 1 .003 3.458l-12 7A2 2 0 0 1 5 19z" fill="currentColor" stroke="none"/>',
+  next:'<path d="M21 4v16"/><path d="M6.029 4.285A2 2 0 0 0 3 6v12a2 2 0 0 0 3.029 1.715l9.997-5.998a2 2 0 0 0 .003-3.432z" fill="currentColor" stroke="none"/>',
+  star:'<path d="M11.525 2.295a.53.53 0 0 1 .95 0l2.31 4.679a2.123 2.123 0 0 0 1.595 1.16l5.166.756a.53.53 0 0 1 .294.904l-3.736 3.638a2.123 2.123 0 0 0-.611 1.878l.882 5.14a.53.53 0 0 1-.771.56l-4.618-2.428a2.122 2.122 0 0 0-1.973 0L6.396 21.01a.53.53 0 0 1-.77-.56l.881-5.139a2.122 2.122 0 0 0-.611-1.879L2.16 9.795a.53.53 0 0 1 .294-.906l5.165-.755a2.122 2.122 0 0 0 1.597-1.16z"/>',
+  captions:'<rect width="18" height="14" x="3" y="5" rx="2" ry="2"/><path d="M7 15h4M15 15h2M7 11h2M13 11h4"/>',
+  airplay:'<path d="M5 17H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2h-1"/><path d="m12 15 5 6H7Z" fill="currentColor" stroke="none"/>',
+  share:'<circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" x2="15.42" y1="13.51" y2="17.49"/><line x1="15.41" x2="8.59" y1="6.51" y2="10.49"/>',
+  chevronUp:'<path d="m18 15-6-6-6 6"/>',
+  moreVertical:'<circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/>',
+  edit:'<path d="M12 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.375 2.625a1 1 0 0 1 3 3l-9.013 9.014a2 2 0 0 1-.853.505l-2.873.84a.5.5 0 0 1-.62-.62l.84-2.873a2 2 0 0 1 .506-.852z"/>',
+  playNext:'<path d="M5 5a2 2 0 0 1 3.008-1.728l11.997 6.998a2 2 0 0 1 .003 3.458l-12 7A2 2 0 0 1 5 19z" fill="currentColor" stroke="none"/>',
+  openItems:'<path d="M16 12H3"/><path d="M16 6H3"/><path d="M10 18H3"/><path d="M21 6v10a2 2 0 0 1-2 2h-5"/><path d="m16 16-2 2 2 2"/>',
+  plus:'<path d="M5 12h14"/><path d="M12 5v14"/>',
+  download:'<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/><path d="M12 15V3"/>',
+  music:'<path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/>',
+  globe:'<circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/>',
+  trash:'<path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/>',
+  externalLink:'<path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>',
+};
+function svg(n){return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">${I[n]}</svg>`;}
+function ib(n,cls=''){return `<button class="ib ${cls}">${svg(n)}</button>`;}
+function transport(){return `<span class="transport">${ib('prev','mut')}${ib('play','play')}${ib('next','mut')}</span>`;}
+function mi(icon,label,{hot=false,danger=false,trail=''}={}){
+  return `<div class="mi ${hot?'hot':''} ${danger?'danger':''}"><span class="ico">${svg(icon)}</span><span style="flex:1">${label}</span>${trail?`<span style="opacity:.6;font-size:.75rem">${trail}</span>`:''}</div>`;
+}
+
+// menu bodies
+const FULL_MENU =
+  mi('playNext','Play next') + mi('openItems','Add to queue') + mi('plus','Add to playlist…') +
+  mi('download','Download') + mi('share','Share') + mi('edit','Edit…',{hot:true}) +
+  mi('music','Re-sync karaoke') + mi('globe','Unpublish') +
+  '<div class="msep"></div>' + mi('trash','Delete song',{danger:true});
+
+const DECLUTTER_MENU =
+  mi('star','Favourite') + mi('captions','Lyrics') + mi('airplay','AirPlay') + mi('share','Share') +
+  '<div class="msep"></div>' +
+  mi('edit','Edit…',{hot:true}) + mi('plus','Add to playlist…') + mi('openItems','Add to queue');
+
+const FOCUSED_MENU =
+  mi('edit','Edit details…',{hot:true}) + mi('plus','Add to playlist…') +
+  mi('externalLink','Go to song page') + mi('share','Share');
+
+// bar secondary-icon clusters (before the ⋯)
+const FULL_SECONDARY  = ib('star','accent') + ib('captions','mut') + ib('airplay','mut') + ib('share','mut');
+const NONE_SECONDARY  = '';           // option B moves them into the menu
+const KEEP_SECONDARY  = ib('star','accent') + ib('captions','mut') + ib('share','mut');
+
+function device(secondary, menu, showChevron=true){
+  return `<div class="device">
+    <div class="faux"><div class="line m"></div><div class="line s"></div><div class="line m"></div><div class="line s"></div></div>
+    <div class="minibar">
+      <div class="scrub"><span class="t r">1:24</span><span class="bar"></span><span class="t">3:52</span></div>
+      <div class="mrow">
+        <span class="track"><span class="cov"><span class="in">N</span></span>
+          <span class="meta"><b>Neon Undertow</b><span>Vesper Lake</span></span></span>
+        ${transport()}
+        ${secondary}
+        <span class="ovwrap">
+          <button class="ib mut on">${svg('moreVertical')}</button>
+          <div class="ovmenu">${menu}</div>
+        </span>
+        ${showChevron?ib('chevronUp','mut'):''}
+      </div>
+    </div>
+  </div>`;
+}
+
+const OPTIONS=[
+  {n:'A',rec:true,name:'Reuse the full menu',
+   desc:'Bar stays exactly as today; a <b>⋯</b> slots in just before the expand chevron. It opens the <b>same overflow menu already used in every song list</b> — so behaviour is identical everywhere. Lowest-risk, most consistent.',
+   sec:FULL_SECONDARY, menu:FULL_MENU,
+   note:'Zero new menu code — the existing <b>SongMenu</b> is dropped in for the playing track.'},
+  {n:'B',rec:false,name:'Declutter into ⋯',
+   desc:'The loose secondary icons (star · lyrics · AirPlay · share) <b>move off the bar and into the ⋯ menu</b>, leaving a clean bar: art · title · transport · <b>⋯</b> · chevron. Most breathing room; mirrors the earlier player-controls overflow study.',
+   sec:NONE_SECONDARY, menu:DECLUTTER_MENU,
+   note:'Relocates existing controls (they move, not vanish). AirPlay/lyrics still show/hide by availability.'},
+  {n:'C',rec:false,name:'Focused “Now playing” menu',
+   desc:'Keep the icons on the bar, add <b>⋯</b>, but the menu is <b>short and tailored to the playing track</b>: Edit, Add to playlist, jump to the song page, Share. Fewer items since transport/star/share already live on the bar.',
+   sec:KEEP_SECONDARY, menu:FOCUSED_MENU,
+   note:'A small dedicated menu (not the full list). “Go to song page” is a nice extra the list menu doesn’t have.'},
+];
+
+document.getElementById('grid').innerHTML = OPTIONS.map(o=>`
+  <div>
+    <div class="sec-head"><h2>Option ${o.n}</h2>
+      <span class="tag ${o.rec?'rec':''}">${o.rec?'recommended':'alt'}</span></div>
+    <p class="desc" style="min-height:5.5em">${o.name} — ${o.desc}</p>
+    ${device(o.sec,o.menu)}
+    <p class="hint">tap ⋯ to toggle · menu opens upward</p>
+    <div class="callout"><span class="dot"></span><span>${o.note}</span></div>
+  </div>`).join('');
+
+// let each ⋯ toggle its own menu (menus start open for review)
+document.querySelectorAll('.ovwrap .ib.on').forEach(btn=>{
+  btn.addEventListener('click',()=>{
+    const m=btn.parentElement.querySelector('.ovmenu');
+    m.classList.toggle('hidden'); btn.classList.toggle('on');
+  });
+});
+</script>
+</body>
+</html>

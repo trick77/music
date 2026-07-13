@@ -56,6 +56,11 @@ export function App() {
   const [uploadPct, setUploadPct] = useState(0);
   const [editing, setEditing] = useState<Song | null>(null);
   const [menuFor, setMenuFor] = useState<string | null>(null);
+  // The mini-player's ⋯ menu has its own open flag rather than reusing menuFor:
+  // the playing song can also appear in a visible list, so a shared id-keyed flag
+  // would pop both menus at once.
+  const [playerMenuOpen, setPlayerMenuOpen] = useState(false);
+  const playerMenuRef = useRef<HTMLSpanElement>(null);
   const [deleteFor, setDeleteFor] = useState<Song | null>(null);
   const [deleteBusy, setDeleteBusy] = useState(false);
   const [deleteErr, setDeleteErr] = useState("");
@@ -81,6 +86,25 @@ export function App() {
   const playerParam = parsePlayerParam(window.location.search);
   const authed = !!session?.authenticated;
   const fav = useFavorites(session === null ? null : session.authenticated);
+
+  // The mini-player's ⋯ menu can't lean on SongMenu's own fixed backdrop to
+  // dismiss: the player bar sets backdrop-filter, which makes it the containing
+  // block for position:fixed descendants, so that backdrop is clamped to the thin
+  // bar box instead of covering the viewport. Close on an outside pointer-down or
+  // Escape instead. (List rows have no such ancestor, so their backdrop still works.)
+  useEffect(() => {
+    if (!playerMenuOpen) return;
+    const onDown = (e: MouseEvent) => {
+      if (!playerMenuRef.current?.contains(e.target as Node)) setPlayerMenuOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setPlayerMenuOpen(false); };
+    document.addEventListener("mousedown", onDown);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDown);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [playerMenuOpen]);
 
   const refresh = () => listSongs().then(setSongs).catch(() => {});
 
@@ -330,6 +354,39 @@ export function App() {
     </>
   );
 
+  // playerMenu renders the mini-player's ⋯ overflow menu for the playing track,
+  // reusing the same SongMenu (and handlers) as the list rows so behaviour stays
+  // identical everywhere. The trigger is styled to match the bar's other 40px icon
+  // buttons; SongMenu's useMenuPlacement flips it upward above the docked bar.
+  const playerMenu = (song: Song): ReactNode => (
+    <span ref={playerMenuRef} style={{ position: "relative", display: "inline-flex" }}>
+      <button
+        aria-label="more"
+        onClick={() => setPlayerMenuOpen((o) => !o)}
+        style={{ display: "grid", placeItems: "center", width: 40, height: 40, borderRadius: 8, background: "none", border: "none", color: "var(--color-ink)", cursor: "pointer" }}
+      >
+        <Icon name="moreVertical" size="20px" />
+      </button>
+      {playerMenuOpen && (
+        <SongMenu
+          song={song}
+          authenticated={authed}
+          alignmentEnabled={!!session?.alignmentEnabled}
+          onSync={() => syncKaraoke(song)}
+          onPlayNext={() => { player.setQueue(playNext(player.queue, song)); setPlayerMenuOpen(false); flash("Playing next"); }}
+          onAddToQueue={() => { player.setQueue(addToQueue(player.queue, song)); setPlayerMenuOpen(false); flash("Added to queue"); }}
+          onAddToPlaylist={() => { setAddFor(song); setPlayerMenuOpen(false); }}
+          onShare={() => shareSong(song)}
+          onCopyLyricsLink={() => { setPlayerMenuOpen(false); shareLyricsLink(song); }}
+          onEdit={() => { setEditing(song); setPlayerMenuOpen(false); }}
+          onPublish={() => togglePublish(song)}
+          onDelete={() => { setPlayerMenuOpen(false); setDeleteErr(""); setDeleteFor(song); }}
+          onClose={() => setPlayerMenuOpen(false)}
+        />
+      )}
+    </span>
+  );
+
   const triggerUpload = () => uploadRef.current?.click();
 
   return (
@@ -370,7 +427,7 @@ export function App() {
 
       <input ref={uploadRef} type="file" accept=".mp3,audio/mpeg" onChange={onUpload} style={{ display: "none" }} disabled={uploading} />
 
-      <PlayerBar fav={fav} onShare={shareSong} alignmentEnabled={!!session?.alignmentEnabled} sessionReady={session !== null} open={playerParam !== null} lyrics={playerParam === "lyrics"} onExpand={expandPlayer} onSetMode={setPlayerMode} onClose={closePlayerView} onCopyLink={copyPlayerLink} />
+      <PlayerBar fav={fav} onShare={shareSong} renderMenu={playerMenu} alignmentEnabled={!!session?.alignmentEnabled} sessionReady={session !== null} open={playerParam !== null} lyrics={playerParam === "lyrics"} onExpand={expandPlayer} onSetMode={setPlayerMode} onClose={closePlayerView} onCopyLink={copyPlayerLink} />
 
       {showQueue && (
         <QueueDrawer

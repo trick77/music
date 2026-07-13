@@ -44,6 +44,23 @@ func sanitizeStylePrompt(s string) string {
 		out = append(out, part)
 		length += next
 	}
+
+	// Suno tends to inject unwanted wordless humming, so the style prompt must
+	// always end with the "no humming" negative. A prompt can't guarantee the
+	// model emits it, so enforce it here: append the token unless it is already
+	// present, dropping trailing descriptors if needed to stay within the cap.
+	const noHumming = "no humming"
+	if !seen[noHumming] {
+		for len(out) > 0 && length+len(noHumming)+1 > 500 {
+			last := out[len(out)-1]
+			out = out[:len(out)-1]
+			length -= len(last)
+			if len(out) > 0 {
+				length-- // the comma that had joined it
+			}
+		}
+		out = append(out, noHumming)
+	}
 	return strings.Join(out, ",")
 }
 

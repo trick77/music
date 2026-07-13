@@ -23,10 +23,19 @@ Using what you learn, produce SEVEN things:
    "Style" box. Rules: NO spaces after commas; lowercase except proper nouns;
    at most 500 characters; describe era/epoch (inferred from the song's SONIC
    aesthetic, not its release date), genre/subgenre, tempo/energy,
-   instrumentation, atmosphere/mood, and vocal character (timbre, delivery,
-   e.g. raspy/smooth/powerful/breathy) but NEVER state or imply whether the
-   voice is male or female — Suno has a dedicated setting for that. NEVER
-   mention real artist, band, or song names — describe only musical
+   instrumentation, and atmosphere/mood. Do NOT describe vocal character
+   (timbre, range, or delivery — no raspy/smooth/powerful/breathy/belted), and
+   NEVER state or imply whether the voice is male or female: such words push
+   Suno toward the same wide, raspy voice every time, so leave the voice to
+   Suno's default and include at most the single neutral anchor "clean vocals".
+   Keep every descriptor MEASURED — Suno over-reacts to hyperbolic adjectives
+   (e.g. psychedelic, massive, roaring, epic, explosive, brutal, thunderous)
+   and generates chaotic, off-genre output, so use restrained wording instead
+   (hazy/atmospheric, full/wide, driven/overdriven, grand/cinematic,
+   dynamic/punchy, heavy) and never stack more than one intensity word; convey
+   energy through tempo and dynamics. Suno also tends to add unwanted wordless
+   humming, so ALWAYS end the style prompt with the literal token "no humming".
+   NEVER mention real artist, band, or song names — describe only musical
    characteristics. This is a SINGLE flat line of descriptors: NO line breaks,
    and NO Suno meta/structure/section tags (e.g. [Verse], [Chorus], [Intro]) —
    song structure belongs ONLY in the lyrics field, never here.

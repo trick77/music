@@ -43,7 +43,7 @@ func TestGenerate_parsesThreeFieldsFromFencedJSON(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Generate: %v", err)
 	}
-	if res.StylePrompt != "1990s,heavy metal,thrash" {
+	if res.StylePrompt != "1990s,heavy metal,thrash,no humming" {
 		t.Fatalf("StylePrompt = %q", res.StylePrompt)
 	}
 	// Genres are de-duplicated (case-insensitively) and capped at 3.

@@ -38,9 +38,22 @@ func TestSanitizeStylePrompt_flattensStripsTagsAndDedupes(t *testing.T) {
 	// Structure tags, newlines, spaced commas, and a case-insensitive dup all get
 	// normalized to a single flat comma-joined line with no spaces after commas.
 	in := "[Verse] thrash metal, fast tempo\n[Chorus] aggressive, Thrash Metal, raspy vocals"
-	want := "thrash metal,fast tempo,aggressive,raspy vocals"
+	want := "thrash metal,fast tempo,aggressive,raspy vocals,no humming"
 	if got := sanitizeStylePrompt(in); got != want {
 		t.Fatalf("sanitizeStylePrompt =\n%q\nwant\n%q", got, want)
+	}
+}
+
+func TestSanitizeStylePrompt_appendsNoHummingWhenAbsent(t *testing.T) {
+	if got := sanitizeStylePrompt("dream pop,dreamy"); got != "dream pop,dreamy,no humming" {
+		t.Fatalf("sanitizeStylePrompt =\n%q\nwant\n%q", got, "dream pop,dreamy,no humming")
+	}
+}
+
+func TestSanitizeStylePrompt_doesNotDuplicateNoHumming(t *testing.T) {
+	// The token is preserved (case-insensitively) and never appended twice.
+	if got := sanitizeStylePrompt("dream pop,No Humming"); got != "dream pop,No Humming" {
+		t.Fatalf("sanitizeStylePrompt =\n%q\nwant\n%q", got, "dream pop,No Humming")
 	}
 }
 
@@ -55,7 +68,11 @@ func TestSanitizeStylePrompt_capsAt500WithoutCuttingMidDescriptor(t *testing.T) 
 	if len(got) > 500 {
 		t.Fatalf("style prompt exceeds 500 chars: %d", len(got))
 	}
-	for _, d := range strings.Split(got, ",") {
+	// The no-humming token is guaranteed even when the cap is hit.
+	if !strings.HasSuffix(got, ",no humming") {
+		t.Fatalf("style prompt must end with the no-humming token: %q", got)
+	}
+	for _, d := range strings.Split(strings.TrimSuffix(got, ",no humming"), ",") {
 		if !strings.HasPrefix(d, "descriptor-") {
 			t.Fatalf("descriptor cut mid-word: %q", d)
 		}

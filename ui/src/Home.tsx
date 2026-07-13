@@ -127,19 +127,9 @@ export function Home({ authenticated, onPlay, onShare, onUpload, renderRowAction
           </div>
           <div>
             {feed.topTen.map((s, i) => (
-              <div
-                key={s.id}
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "2.2rem 48px 1fr auto auto",
-                  alignItems: "center",
-                  gap: "0.85rem",
-                  padding: "0.5rem 0",
-                  borderBottom: "1px solid var(--color-border)",
-                }}
-              >
+              <div key={s.id} className="top-row">
                 <span
-                  className="rank-num"
+                  className="rank-num top-rank"
                   style={{ fontSize: "var(--text-body)", color: i < 3 ? "var(--color-accent-strong)" : "var(--color-muted)", textAlign: "right" }}
                 >
                   {String(i + 1)}
@@ -157,7 +147,7 @@ export function Home({ authenticated, onPlay, onShare, onUpload, renderRowAction
                     {renderGenreChips(s)}
                   </div>
                 </div>
-                <span className="rank-num" style={{ ...t.label, whiteSpace: "nowrap" }}>
+                <span className="rank-num top-plays" style={{ ...t.label, whiteSpace: "nowrap" }}>
                   {s.plays.toLocaleString()} {s.plays === 1 ? "play" : "plays"}
                 </span>
                 <span style={{ display: "flex", alignItems: "center", gap: "0.35rem" }}>{renderRowActions(s)}</span>

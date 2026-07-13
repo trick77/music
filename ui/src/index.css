@@ -208,6 +208,22 @@ html {
     display: flex;
   }
 }
+
+/* Top-ten row: full 5-col grid (rank | cover | title | plays | actions) on
+   tablet+/desktop; phones drop the rank number and play count to give the
+   title/artist more room. iPad (≥721px) keeps the full layout. */
+.top-row {
+  display: grid;
+  grid-template-columns: 2.2rem 48px 1fr auto auto;
+  align-items: center;
+  gap: 0.85rem;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid var(--color-border);
+}
+@media (max-width: 720px) {
+  .top-row { grid-template-columns: 48px 1fr auto; }
+  .top-rank, .top-plays { display: none; }
+}
 body {
   margin: 0;
   background: var(--color-bg);

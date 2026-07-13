@@ -49,7 +49,6 @@ export function Home({ authenticated, onPlay, onShare, onUpload, renderRowAction
 
   if (!feed) return <p style={{ color: "var(--color-muted)" }}>Loading</p>;
 
-  const featured = feed.topTen[0] ?? feed.recentlyAdded[0] ?? null;
   const isEmpty =
     !feed.hero &&
     feed.topTen.length === 0 &&
@@ -115,14 +114,22 @@ export function Home({ authenticated, onPlay, onShare, onUpload, renderRowAction
     );
   };
 
-  const featuredGenres: GenreLink[] = (featured?.genres ?? []).map((name) => ({
-    name,
-    id: genreIds.get(name.toLowerCase()) ?? null,
+  const toGenreLinks = (s: Song): GenreLink[] =>
+    s.genres.map((name) => ({ name, id: genreIds.get(name.toLowerCase()) ?? null }));
+
+  // The hero cycles the top three most-played songs. With no plays yet it keeps
+  // the old single-slide fallback to the newest upload (not "ranked", so its
+  // eyebrow stays "Featured song" rather than asserting a #1 it never earned).
+  const ranked = feed.topTen.length > 0;
+  const heroItems = (ranked ? feed.topTen.slice(0, 3) : feed.recentlyAdded.slice(0, 1)).map((song) => ({
+    song,
+    genres: toGenreLinks(song),
+    ranked,
   }));
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "2.5rem" }}>
-      <Hero hero={feed.hero} featured={featured} playing={current?.id === featured?.id && playing} genres={featuredGenres} onPlay={(s) => onPlay(s, [])} onShare={onShare} />
+      <Hero hero={feed.hero} items={heroItems} currentId={current?.id ?? null} playing={playing} onPlay={(s) => onPlay(s, [])} onShare={onShare} />
 
       {feed.topTen.length > 0 && (
         <section>

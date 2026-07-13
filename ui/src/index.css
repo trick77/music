@@ -84,6 +84,60 @@ html {
 .hscroll::-webkit-scrollbar {
   display: none;
 }
+
+/* Home hero carousel: the top-three most-played songs as full-bleed slides that
+   scroll-snap horizontally (swipe/drag), with a vertical dot indicator on the
+   right edge. Distinct from HScrollRail on purpose — dots suit a small, fixed,
+   ranked set where position matters; rails use edge fade + chevrons for long
+   continuous scrolls. See docs/design-system.md. */
+.hero-track {
+  display: flex;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+.hero-track::-webkit-scrollbar {
+  display: none;
+}
+.hero-slide {
+  flex: 0 0 100%;
+  scroll-snap-align: center;
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+  min-height: clamp(320px, 52vh, 560px);
+}
+.hero-dots {
+  position: absolute;
+  top: 50%;
+  right: 14px;
+  transform: translateY(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  z-index: 3;
+}
+.hero-dots button {
+  width: 8px;
+  height: 8px;
+  padding: 0;
+  border: none;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.4);
+  cursor: pointer;
+  transition: height 0.25s, background 0.25s;
+}
+.hero-dots button[aria-current="true"] {
+  background: #fff;
+  height: 20px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .hero-track {
+    scroll-behavior: auto;
+  }
+}
+
 /* Scroll affordance (HScrollRail): whichever edge has off-screen cards fades out
    (mask set inline from JS) and grows a floating ‹/› button that nudges the rail
    that way. Both are toggled from JS so short (non-overflowing) rails are

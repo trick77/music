@@ -51,7 +51,7 @@ function AccountSlot({ authMode, authenticated, username }: { authMode?: string;
 // the Studio slot appears only when authenticated AND Studio is configured
 // (studioEnabled) — a key-less instance shows nothing there (spec §2, presence
 // vs absence). The rail intentionally stays on the SVG <Glyph> set (Phase 8).
-export function Rail({ route, authenticated, studioEnabled = false, authMode, username = "", onUpload, onQueue }: { route: Route; authenticated: boolean; studioEnabled?: boolean; authMode?: string; username?: string; onUpload: () => void; onQueue: () => void }) {
+export function Rail({ route, authenticated, studioEnabled = false, authMode, username = "", playerActive = false, onUpload, onQueue }: { route: Route; authenticated: boolean; studioEnabled?: boolean; authMode?: string; username?: string; playerActive?: boolean; onUpload: () => void; onQueue: () => void }) {
   const nav = (path: string) => navigate(path);
 
   const desktopItem = (it: Item) => {
@@ -116,7 +116,9 @@ export function Rail({ route, authenticated, studioEnabled = false, authMode, us
           flexDirection: "column",
           alignItems: "center",
           gap: "0.4rem",
-          padding: "1rem 0",
+          // Reserve room for the fixed PlayerBar (~90px) when a track is loaded,
+          // so the bottom-anchored Upload/Studio/account block clears it.
+          padding: playerActive ? "1rem 0 6.5rem" : "1rem 0",
           background: "var(--color-panel)",
           borderRight: "1px solid var(--color-border)",
           zIndex: 50,

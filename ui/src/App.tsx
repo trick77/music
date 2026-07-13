@@ -334,7 +334,7 @@ export function App() {
 
   return (
     <div className="app-shell" style={{ minHeight: "100vh" }}>
-      <Rail route={route} authenticated={authed} studioEnabled={!!session?.studioEnabled} authMode={session?.authMode} username={session?.username ?? ""} onUpload={triggerUpload} onQueue={() => setShowQueue(true)} />
+      <Rail route={route} authenticated={authed} studioEnabled={!!session?.studioEnabled} authMode={session?.authMode} username={session?.username ?? ""} playerActive={!!player.current} onUpload={triggerUpload} onQueue={() => setShowQueue(true)} />
 
       <div style={{ maxWidth: 1080, margin: "0 auto", padding: "1.5rem 1.25rem 9rem" }}>
         {route.name === "home" ? (

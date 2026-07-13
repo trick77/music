@@ -99,20 +99,29 @@ func TestListGenres_hasBackgroundFlag(t *testing.T) {
 	}
 	var out struct {
 		Genres []struct {
-			Name          string `json:"name"`
-			HasBackground bool   `json:"hasBackground"`
+			Name               string `json:"name"`
+			HasBackground      bool   `json:"hasBackground"`
+			BackgroundFanartID string `json:"backgroundFanartId"`
 		} `json:"genres"`
 	}
 	json.Unmarshal(rr.Body.Bytes(), &out)
 	got := map[string]bool{}
+	bgID := map[string]string{}
 	for _, g := range out.Genres {
 		got[g.Name] = g.HasBackground
+		bgID[g.Name] = g.BackgroundFanartID
 	}
 	if !got["Jazz"] {
 		t.Errorf("Jazz should have background")
 	}
 	if got["Rock"] {
 		t.Errorf("Rock should not have background")
+	}
+	if bgID["Jazz"] != fanartID {
+		t.Errorf("Jazz backgroundFanartId = %q, want %q", bgID["Jazz"], fanartID)
+	}
+	if bgID["Rock"] != "" {
+		t.Errorf("Rock backgroundFanartId = %q, want empty", bgID["Rock"])
 	}
 }
 

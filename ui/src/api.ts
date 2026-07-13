@@ -290,7 +290,7 @@ export type Fanart = {
   error?: string;
 };
 
-export type GenreSummary = { id: string; name: string; songCount: number; accentColor: string; hasBackground: boolean };
+export type GenreSummary = { id: string; name: string; songCount: number; accentColor: string; hasBackground: boolean; backgroundFanartId: string };
 
 export type GenreDetail = {
   genre: GenreSummary;

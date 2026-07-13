@@ -220,9 +220,15 @@ html {
   padding: 0.5rem 0;
   border-bottom: 1px solid var(--color-border);
 }
+/* Wrapper for a row's genre pills. display:contents keeps the chips as flex
+   children of the meta line on tablet+/desktop; the phone media query hides
+   the whole group. Must be a rule (not an inline style) so the media-query
+   `display: none` can override it by source order. */
+.top-genres { display: contents; }
 @media (max-width: 720px) {
   .top-row { grid-template-columns: 48px 1fr auto; }
   .top-rank, .top-plays { display: none; }
+  .top-genres { display: none; }
 }
 body {
   margin: 0;

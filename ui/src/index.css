@@ -84,17 +84,13 @@ html {
 .hscroll::-webkit-scrollbar {
   display: none;
 }
-/* Scroll affordance (HScrollRail): when more cards lie off the right edge, the
-   trailing edge fades out and a floating › button nudges the rail along. Both
-   are toggled from JS so short (non-overflowing) rails are unaffected. */
-.rail-fade {
-  -webkit-mask-image: linear-gradient(90deg, #000 82%, transparent);
-  mask-image: linear-gradient(90deg, #000 82%, transparent);
-}
+/* Scroll affordance (HScrollRail): whichever edge has off-screen cards fades out
+   (mask set inline from JS) and grows a floating ‹/› button that nudges the rail
+   that way. Both are toggled from JS so short (non-overflowing) rails are
+   unaffected. */
 .rail-more {
   position: absolute;
   top: 50%;
-  right: 6px;
   transform: translateY(-50%);
   width: 34px;
   height: 34px;
@@ -108,6 +104,12 @@ html {
   place-items: center;
   cursor: pointer;
   box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
+}
+.rail-more-left {
+  left: 6px;
+}
+.rail-more-right {
+  right: 6px;
 }
 
 /* Frosted glass panel used by immersive detail/hero copy. */
@@ -256,16 +258,21 @@ html {
   .top-genres { display: none; }
 }
 /* Docked mini-player: instead of a hard border, the scrolling page fades into
-   the dock through a soft gradient just above it (all viewports). */
+   the dock through a soft gradient just above it (all viewports). The fade
+   starts past the fixed 64px desktop rail so it never dims the rail's lowest
+   icons; on phones the rail becomes a bottom tab bar, so it runs full-width. */
 .player-dock::before {
   content: "";
   position: absolute;
-  left: 0;
+  left: 64px;
   right: 0;
   top: -24px;
   height: 24px;
   pointer-events: none;
   background: linear-gradient(180deg, transparent, color-mix(in srgb, var(--color-panel) 92%, transparent));
+}
+@media (max-width: 720px) {
+  .player-dock::before { left: 0; }
 }
 
 body {

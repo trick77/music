@@ -152,7 +152,12 @@ export function PlayerBar({ fav, onShare, alignmentEnabled, openIntent = null, o
     await postAlign(song.id);
     setAlign({ status: "generating" });
   };
-  const syncing = align?.status === "generating";
+  // Effective status: prefer the freshly-fetched alignment, but fall back to the
+  // status already carried on the loaded song so the correct state renders on the
+  // very first paint — before getAlign's round-trip resolves. Otherwise a synced
+  // song briefly shows the needs-sync card while align is still null.
+  const alignStatus = align?.status ?? song.alignmentStatus ?? "";
+  const syncing = alignStatus === "generating";
 
   return (
     <>
@@ -226,9 +231,15 @@ export function PlayerBar({ fav, onShare, alignmentEnabled, openIntent = null, o
               </div>
               {/* Karaoke body: the sweep when ready, otherwise a state card over plain lyrics. */}
               <div style={{ flex: 1, minHeight: 0, width: "100%", marginTop: 72, marginBottom: 8 }}>
-                {align?.status === "ready" && align.lines?.length
-                  ? <KaraokeView lines={align.lines} />
-                  : <KaraokeCard state={align?.status === "failed" ? "failed" : align?.status === "generating" ? "generating" : "needs"} lyrics={song.lyrics ?? ""} onGenerate={onGenerate} />}
+                {align?.status === "ready" && align.lines?.length ? (
+                  <KaraokeView lines={align.lines} />
+                ) : alignStatus === "ready" ? (
+                  // Alignment is ready but the lines are still loading — show plain
+                  // lyrics, never the needs-sync card. The sweep replaces this next tick.
+                  <KaraokeCard state="loading" lyrics={song.lyrics ?? ""} onGenerate={onGenerate} />
+                ) : (
+                  <KaraokeCard state={alignStatus === "failed" ? "failed" : alignStatus === "generating" ? "generating" : "needs"} lyrics={song.lyrics ?? ""} onGenerate={onGenerate} />
+                )}
               </div>
               {/* Docked scrubber + transport stay driving playback. */}
               <div style={{ width: "min(760px, 96vw)" }}>

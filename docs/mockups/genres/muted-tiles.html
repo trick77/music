@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Genres — muted images &amp; bigger tiles</title>
+<style>
+  :root {
+    --color-bg: #1f1f1e;
+    --color-panel: #1b1b1a;
+    --color-active: #2c2c2a;
+    --color-border: #323230;
+    --color-ink: #faf9f5;
+    --color-muted: #9c9a92;
+    --color-accent: #c6613f;
+    --color-accent-strong: #d97757;
+    --color-accent-fill: #c25f34;
+    --font-sans: system-ui, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    --font-serif: Georgia, "Times New Roman", Times, serif;
+    --text-micro: 0.6875rem;
+    --text-label: 0.8125rem;
+    --text-ui: 0.9375rem;
+    --text-title: 1.25rem;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--color-bg); color: var(--color-ink);
+    font-family: var(--font-sans); line-height: 1.5;
+    padding: 40px clamp(16px, 4vw, 56px) 96px;
+  }
+  h1 { font-family: var(--font-serif); font-weight: 600; font-size: 1.9rem; margin: 0 0 6px; }
+  h2 { font-family: var(--font-serif); font-weight: 600; font-size: 1.35rem; margin: 44px 0 4px; }
+  .lede { color: var(--color-muted); max-width: 70ch; margin: 0 0 8px; }
+  .note { color: var(--color-muted); font-size: var(--text-label); max-width: 70ch; }
+  .pick { color: var(--color-accent-strong); font-weight: 600; }
+
+  /* ── Fake "vivid fanart" stand-ins (simulate photographic genre art) ── */
+  .art-jazz  { background: linear-gradient(135deg,#e8a13c 0%,#c0392b 55%,#6b1f6b 100%); }
+  .art-synth { background: linear-gradient(140deg,#ff5ea8 0%,#7b2ff7 55%,#1fb6ff 100%); }
+  .art-metal { background: linear-gradient(135deg,#8e9eab 0%,#3a3f4a 55%,#0b0d10 100%); }
+  .art-folk  { background: linear-gradient(135deg,#f6d365 0%,#7ea86b 55%,#2e5d34 100%); }
+
+  /* Text-legibility scrim used app-wide (index.css .scrim). */
+  .scrim { position:absolute; inset:0; pointer-events:none;
+    background: linear-gradient(180deg, rgba(15,15,14,0.15) 0%, rgba(15,15,14,0.35) 45%, rgba(20,20,18,0.92) 100%); }
+
+  /* Mute gradients under the scrim. */
+  .mute-A { position:absolute; inset:0; pointer-events:none;
+    background: linear-gradient(180deg, rgba(20,20,18,0.6), rgba(20,20,18,0.96)); }
+  .mute-B { position:absolute; inset:0; pointer-events:none;
+    background: linear-gradient(180deg, rgba(20,20,18,0.45), rgba(20,20,18,0.9)); }
+
+  /* ── Section 1: genre chapters ── */
+  .chapters { display:grid; grid-template-columns: repeat(3, 1fr); gap: 18px; margin-top: 16px; }
+  @media (max-width: 900px){ .chapters{ grid-template-columns:1fr; } }
+  .chapter { position:relative; border-radius:18px; overflow:hidden; min-height: 240px; display:flex; flex-direction:column; justify-content:flex-end; }
+  .chapter .cap { position:absolute; top:12px; left:14px; z-index:3; font-size:var(--text-micro); letter-spacing:.12em; text-transform:uppercase; padding:3px 8px; border-radius:999px; background:rgba(0,0,0,.45); color:#fff; }
+  .chapter .body { position:relative; z-index:2; padding:18px; }
+  .chapter .eyebrow { font-size:var(--text-micro); letter-spacing:.14em; text-transform:uppercase; color:rgba(255,255,255,.8); }
+  .chapter h3 { font-family:var(--font-serif); font-size:1.7rem; margin:.1rem 0 .1rem; color:#fff; text-shadow:0 2px 16px rgba(0,0,0,.55); }
+  .chapter .sub { color:rgba(255,255,255,.82); font-size:var(--text-label); margin-bottom:12px; }
+  .rail { display:flex; gap:10px; }
+  .cv { width:64px; height:64px; border-radius:10px; flex-shrink:0; box-shadow:0 2px 10px rgba(0,0,0,.4); }
+
+  /* ── Section 2: Genres tab grid ── */
+  .grid { display:grid; grid-template-columns: repeat(5, 1fr); gap: 14px; margin-top: 16px; }
+  @media (max-width: 1100px){ .grid{ grid-template-columns:repeat(3,1fr);} }
+  @media (max-width: 680px){ .grid{ grid-template-columns:repeat(2,1fr);} }
+  .tile { position:relative; border-radius:14px; overflow:hidden; aspect-ratio: 4/3; display:flex; flex-direction:column; justify-content:flex-end;
+    border:1px solid var(--color-border); cursor:pointer; }
+  .tile .body { position:relative; z-index:2; padding:14px; }
+  .tile .name { font-family:var(--font-serif); font-size:var(--text-title); color:#fff; text-shadow:0 2px 12px rgba(0,0,0,.6); }
+  .tile .count { color:rgba(255,255,255,.8); font-size:var(--text-label); }
+
+  /* No-artwork tile keeps today's accent-gradient fallback + ink text + badge + CTA. */
+  .tile.noart { border:1px dashed var(--color-border); background: linear-gradient(135deg,#4a6b8a,var(--color-panel)); }
+  .tile.noart .name { color:var(--color-ink); text-shadow:none; }
+  .tile.noart .count { color:var(--color-muted); }
+  .badge { position:absolute; top:8px; right:8px; z-index:3; display:inline-flex; align-items:center; gap:4px;
+    background: color-mix(in srgb, var(--color-accent-strong) 30%, var(--color-bg));
+    border:1px solid color-mix(in srgb, var(--color-accent-strong) 55%, transparent);
+    border-radius:999px; padding:2px 8px; font-size:var(--text-micro); font-weight:600; color:#fff; }
+  .dot { width:5px; height:5px; border-radius:50%; background:var(--color-accent-strong); }
+  .cta { position:relative; z-index:2; margin:10px 14px 14px; display:inline-flex; align-items:center; justify-content:center; gap:6px;
+    font-size:var(--text-label); font-weight:600; color:var(--color-accent-strong); border:1px solid var(--color-accent-strong);
+    border-radius:8px; padding:6px 8px; background: color-mix(in srgb, var(--color-accent-strong) 12%, transparent); }
+</style>
+</head>
+<body>
+  <h1>Genres — muted images &amp; bigger tiles</h1>
+  <p class="lede">Two decisions to confirm before I build this. The fake fanart below are deliberately vivid gradients so the muting is easy to judge; real art is photographic.</p>
+
+  <h2>1 · How muted should the genre images be?</h2>
+  <p class="note">Left is today (light <code>.scrim</code> only). <b class="pick">Option A</b> adds the exact hero-fallback gradient (<code>0.6→0.96</code>). <b class="pick">Option B</b> is a touch lighter (<code>0.45→0.9</code>) so the art still breathes on smaller surfaces. Both keep the scrim on top.</p>
+  <div class="chapters">
+    <div class="chapter">
+      <div class="art-synth" style="position:absolute;inset:0;"></div>
+      <div class="scrim"></div>
+      <span class="cap">Current — scrim only</span>
+      <div class="body">
+        <div class="eyebrow">Genre</div>
+        <h3>Synthwave</h3>
+        <div class="sub">42 tracks</div>
+        <div class="rail"><div class="cv art-jazz"></div><div class="cv art-folk"></div><div class="cv art-metal"></div></div>
+      </div>
+    </div>
+    <div class="chapter">
+      <div class="art-synth" style="position:absolute;inset:0;"></div>
+      <div class="mute-A"></div>
+      <div class="scrim"></div>
+      <span class="cap">Option A — hero 0.6→0.96</span>
+      <div class="body">
+        <div class="eyebrow">Genre</div>
+        <h3>Synthwave</h3>
+        <div class="sub">42 tracks</div>
+        <div class="rail"><div class="cv art-jazz"></div><div class="cv art-folk"></div><div class="cv art-metal"></div></div>
+      </div>
+    </div>
+    <div class="chapter">
+      <div class="art-synth" style="position:absolute;inset:0;"></div>
+      <div class="mute-B"></div>
+      <div class="scrim"></div>
+      <span class="cap">Option B — 0.45→0.9</span>
+      <div class="body">
+        <div class="eyebrow">Genre</div>
+        <h3>Synthwave</h3>
+        <div class="sub">42 tracks</div>
+        <div class="rail"><div class="cv art-jazz"></div><div class="cv art-folk"></div><div class="cv art-metal"></div></div>
+      </div>
+    </div>
+  </div>
+
+  <h2>2 · Genres tab — bigger, image-backed tiles at 5 columns</h2>
+  <p class="note">Tiles now show the muted fanart (using <b class="pick">Option A</b> here). Genres without art keep today's accent-gradient fallback, the “Needs artwork” badge, and the “Create in Studio” CTA. Note the singular “1 song”.</p>
+  <div class="grid">
+    <div class="tile">
+      <div class="art-jazz" style="position:absolute;inset:0;"></div><div class="mute-A"></div><div class="scrim"></div>
+      <div class="body"><div class="name">Jazz</div><div class="count">128 songs</div></div>
+    </div>
+    <div class="tile">
+      <div class="art-synth" style="position:absolute;inset:0;"></div><div class="mute-A"></div><div class="scrim"></div>
+      <div class="body"><div class="name">Synthwave</div><div class="count">42 songs</div></div>
+    </div>
+    <div class="tile">
+      <div class="art-metal" style="position:absolute;inset:0;"></div><div class="mute-A"></div><div class="scrim"></div>
+      <div class="body"><div class="name">Metal</div><div class="count">1 song</div></div>
+    </div>
+    <div class="tile">
+      <div class="art-folk" style="position:absolute;inset:0;"></div><div class="mute-A"></div><div class="scrim"></div>
+      <div class="body"><div class="name">Folk</div><div class="count">67 songs</div></div>
+    </div>
+    <div class="tile noart">
+      <span class="badge"><span class="dot"></span>Needs artwork</span>
+      <div class="body"><div class="name">Ambient</div><div class="count">9 songs</div></div>
+      <div class="cta">✦ Create in Studio</div>
+    </div>
+  </div>
+</body>
+</html>

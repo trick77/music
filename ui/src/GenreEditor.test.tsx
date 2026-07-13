@@ -4,7 +4,7 @@ import { GenreEditor } from "./GenreEditor";
 import type { GenreDetail } from "./api";
 
 const detail: GenreDetail = {
-  genre: { id: "g1", name: "Jazz", songCount: 3, accentColor: "#334455", hasBackground: false },
+  genre: { id: "g1", name: "Jazz", songCount: 3, accentColor: "#334455", hasBackground: false, backgroundFanartId: "" },
   songs: [],
   fanart: [],
   backgroundId: "",

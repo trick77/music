@@ -32,9 +32,10 @@ export function Hero({
   onShare: (s: Song) => void;
 }) {
   const heroBg = hero ? fanartUrl(hero.fanartId, "hero") : "";
-  // With no starred fanart, fall back to the featured song's own cover, blurred
-  // to fill the wide banner (a square cover can't) — instead of a flat gradient.
-  const coverBg = !hero && featured?.coverArtId ? coverUrl(featured.coverArtId, "card") : "";
+  // With no starred fanart, fall back to the featured song's own cover — shown
+  // sharp and muted under a dark gradient (like the full-screen player), cropped
+  // to fill the wide banner rather than blurred to stretch it.
+  const coverBg = !hero && featured?.coverArtId ? coverUrl(featured.coverArtId, "hero") : "";
   const accent = hero?.accentColor || "var(--color-accent)";
   const title = hero?.title || featured?.title || "Your library";
   const subtitle = featured
@@ -60,9 +61,7 @@ export function Hero({
           style={{
             position: "absolute",
             inset: 0,
-            background: `url(${coverBg}) center/cover no-repeat`,
-            filter: "blur(24px) saturate(1.15)",
-            transform: "scale(1.3)",
+            background: `linear-gradient(180deg, rgba(20,20,18,0.6), rgba(20,20,18,0.96)), url(${coverBg}) center/cover no-repeat`,
           }}
         />
       ) : null}

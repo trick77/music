@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { streamUrl, reportPlay, type Song } from "./api";
 import { coverUrl } from "./cover";
-import { saveResume, loadResume, type ResumeState } from "./resume";
+import { saveResume, loadResume, isResumeFresh, type ResumeState } from "./resume";
 
 export type PlayerState = {
   current: Song | null;
@@ -140,15 +140,16 @@ function persist(songId: string, positionMs: number) {
   const now = Date.now();
   if (now - lastPersist < 4000) return; // throttle disk writes
   lastPersist = now;
-  saveResume(resumeStore(), { songId, positionMs, reported: session.reported } satisfies ResumeState);
+  saveResume(resumeStore(), { songId, positionMs, reported: session.reported, savedAt: now } satisfies ResumeState);
 }
 
 // persistNow writes resume state immediately, bypassing the throttle. Used the
 // instant a play is reported so the saved `reported` flag can't lag behind a
 // tab close and let a resumed listen re-count (spec §9 integrity).
 function persistNow(songId: string, positionMs: number) {
-  lastPersist = Date.now();
-  saveResume(resumeStore(), { songId, positionMs, reported: session.reported } satisfies ResumeState);
+  const now = Date.now();
+  lastPersist = now;
+  saveResume(resumeStore(), { songId, positionMs, reported: session.reported, savedAt: now } satisfies ResumeState);
 }
 
 function hasMediaSession(): boolean {
@@ -344,22 +345,25 @@ export const player = {
   showAirplayPicker() {
     getAudio().webkitShowPlaybackTargetPicker?.();
   },
-  // restore seeds the last track + position WITHOUT autoplay (spec §15a: no
-  // surprise autoplay). Playback resumes from the restored position on the next
-  // explicit play/toggle.
+  // restore seeds the last track WITHOUT autoplay (spec §15a: no surprise
+  // autoplay). The saved position is only resumed within RESUME_WINDOW_MS of the
+  // last activity (accidental close / short break); after a longer gap the track
+  // loads at 0:00 so you don't reopen parked mid-song. Playback resumes from the
+  // restored position on the next explicit play/toggle.
   restore(songs: Song[]) {
     if (state.current) return; // already playing something
     const saved = loadResume(resumeStore());
     if (!saved) return;
     const song = songs.find((s) => s.id === saved.songId);
     if (!song) return;
-    set({ current: song, positionMs: saved.positionMs, durationMs: song.durationMs || 0, playing: false });
+    const resumeMs = isResumeFresh(saved, Date.now()) ? saved.positionMs : 0;
+    set({ current: song, positionMs: resumeMs, durationMs: song.durationMs || 0, playing: false });
     // A resumed listen must not re-count. Prefer the persisted `reported` flag
     // (written the instant the play was counted); fall back to the position
     // check for older saved state. Resuming an unreported, sub-threshold
     // position still counts once the threshold is later crossed (a real play).
     session = { reported: saved.reported ?? qualifiesForPlay(saved.positionMs, song.durationMs || 0) };
-    pendingSeekMs = saved.positionMs;
+    pendingSeekMs = resumeMs; // 0 when stale → loadedmetadata handler won't seek
     const el = getAudio();
     el.src = streamUrl(song.id);
     setMediaMetadata(song);

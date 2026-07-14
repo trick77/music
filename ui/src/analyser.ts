@@ -20,7 +20,11 @@ function ensureAnalyser(): AnalyserNode | null {
     ctx = new AC();
     const a = ctx.createAnalyser();
     a.fftSize = 2048; // 1024 bins — plenty of resolution to give every band distinct bins
-    a.smoothingTimeConstant = 0.8;
+    // Low smoothing lets near-raw transients through so beats actually spike.
+    // getByteFrequencyData applies this per call (once per rAF frame ~60fps), so a
+    // high value (0.8) flattens a ~50ms kick before we ever read it; the visual
+    // envelope is instead owned by ease() in VisualizerView.
+    a.smoothingTimeConstant = 0.4;
     // Dynamic range tuned for music: without this, typical loud tracks peg most
     // bins at 255 (bars stuck at max). -20 dBFS maps to full height, -82 to zero.
     a.minDecibels = -82;
@@ -77,13 +81,15 @@ export function bands(count: number): number[] {
     let hi = Math.round(minBin * Math.pow(bins / minBin, (i + 1) / count));
     if (hi <= prev) hi = prev + 1;
     if (hi > bins) hi = bins;
-    let sum = 0;
-    let n = 0;
+    // Peak (max) rather than mean of the band's bins: a beat's energy is narrow,
+    // and averaging it across a wide upper band (hundreds of bins at fftSize 2048)
+    // dilutes the transient away. Max keeps the hi-hat/cymbal bands lively; low
+    // bands span few bins so max≈mean there anyway.
+    let peak = 0;
     for (let b = prev; b < hi; b++) {
-      sum += freq[b];
-      n++;
+      if (freq[b] > peak) peak = freq[b];
     }
-    out[i] = n ? sum / n / 255 : 0;
+    out[i] = peak / 255;
     prev = hi;
   }
   return out;

@@ -73,13 +73,26 @@ export function Hero({
   // True while a slide transition is in flight — new moves are ignored until it
   // settles, so the child index can never run past a clone into empty space.
   const movingRef = useRef(false);
-  const dragRef = useRef({ x: 0, base: 0, w: 1 });
+  // x/lastX: pointer start and most-recent x (px). base: track offset (%) the drag
+  // is anchored on. w: track width (px). lastT: timestamp of the last move; vx: its
+  // signed velocity (px/ms), used to commit a quick flick even under the distance
+  // threshold.
+  const dragRef = useRef({ x: 0, base: 0, w: 1, lastX: 0, lastT: 0, vx: 0 });
 
   const paint = (animate: boolean) => {
     const el = trackRef.current;
     if (!el) return;
     el.style.transition = animate && !reduce ? `transform ${DUR_MS}ms ${EASE}` : "none";
     el.style.transform = `translateX(${-ciRef.current * 100}%)`;
+  };
+  // The track's live rendered offset as a percentage of its width — read mid-flight
+  // so a drag that grabs a slide during its transition anchors on where it visually
+  // is, not where the (already-advanced) child index says it should end up.
+  const liveBasePercent = () => {
+    const el = trackRef.current;
+    const t = el && getComputedStyle(el).transform;
+    if (!el || !t || t === "none") return -ciRef.current * 100;
+    return (new DOMMatrixReadOnly(t).m41 / (el.clientWidth || 1)) * 100;
   };
   // A move onto a clone is invisible-jumped to its real twin once settled; with
   // no animation (reduced motion) that happens immediately since no transition
@@ -98,15 +111,26 @@ export function Hero({
   const step = (dir: 1 | -1) => { if (!movingRef.current) goChild(ciRef.current + dir); };
   const toReal = (r: number) => { if (!movingRef.current && r !== active) goChild(r + 1); };
   const bumpDwell = () => setDwell((d) => d + 1);
-  const endDrag = (clientX: number) => {
+  // Commit when the drag crossed the distance threshold OR was a quick flick (short
+  // travel but fast), so a decisive short swipe still advances instead of snapping
+  // back. A cancelled pointer arrives without a clientX; fall back to the last x we
+  // saw so the swipe still resolves on its real delta rather than a forced dx=0.
+  const FLICK_VX = 0.5; // px/ms
+  const FLICK_MIN = 12; // px of travel required to treat a flick as intentional
+  const endDrag = (clientX?: number) => {
     if (!downRef.current) return;
     downRef.current = false;
-    const { x, w } = dragRef.current;
-    const dx = clientX ? clientX - x : 0;
-    const threshold = w * 0.18;
-    if (dx < -threshold) step(1);
-    else if (dx > threshold) step(-1);
-    else paint(true); // snap back
+    const { x, w, lastX, vx } = dragRef.current;
+    const dx = (clientX || lastX) - x;
+    const threshold = Math.max(44, w * 0.12);
+    const flick = Math.abs(vx) > FLICK_VX && Math.abs(dx) > FLICK_MIN;
+    if (Math.abs(dx) > threshold || flick) {
+      // Distance decides direction when it's past threshold; otherwise the flick's
+      // velocity sign does.
+      step(Math.abs(dx) > threshold ? (dx < 0 ? 1 : -1) : vx < 0 ? 1 : -1);
+    } else {
+      paint(true); // snap back
+    }
     bumpDwell();
   };
 
@@ -125,13 +149,20 @@ export function Hero({
   useEffect(() => {
     const el = trackRef.current;
     if (!el || !multi) return;
+    // transitioncancel matters as much as transitionend: onPointerDown kills the
+    // transition to take over an in-flight slide, which fires *cancel*, not *end* —
+    // without handling it, movingRef would latch true and freeze every later move.
     const onEnd = (e: TransitionEvent) => {
       if (e.propertyName !== "transform") return;
       normalize();
       movingRef.current = false;
     };
     el.addEventListener("transitionend", onEnd);
-    return () => el.removeEventListener("transitionend", onEnd);
+    el.addEventListener("transitioncancel", onEnd);
+    return () => {
+      el.removeEventListener("transitionend", onEnd);
+      el.removeEventListener("transitioncancel", onEnd);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [multi, n]);
 
@@ -185,18 +216,36 @@ export function Hero({
             if (!multi) return;
             const el = trackRef.current;
             if (!el) return;
+            // Take over any in-flight slide without a visual jump: anchor on the live
+            // rendered offset, and if the child index has already advanced onto a
+            // clone (0 or n+1), retarget it to the real twin while shifting the anchor
+            // by the same offset so the same slide stays put. Clearing movingRef here
+            // (backed by the transitioncancel handler) is what lets a mid-animation
+            // grab start a fresh drag instead of being swallowed by the moving gate.
+            let base = liveBasePercent();
+            if (ciRef.current === n + 1) { ciRef.current = 1; base += n * 100; }
+            else if (ciRef.current === 0) { ciRef.current = n; base -= n * 100; }
+            movingRef.current = false;
+            try { el.setPointerCapture(e.pointerId); } catch { /* capture is best-effort */ }
             downRef.current = true;
-            dragRef.current = { x: e.clientX, base: -ciRef.current * 100, w: el.clientWidth || 1 };
+            const now = performance.now();
+            dragRef.current = { x: e.clientX, base, w: el.clientWidth || 1, lastX: e.clientX, lastT: now, vx: 0 };
             el.style.transition = "none";
+            el.style.transform = `translateX(${base}%)`;
           }}
           onPointerMove={(e) => {
             if (!downRef.current) return;
-            const { x, base, w } = dragRef.current;
+            const d = dragRef.current;
             const el = trackRef.current;
-            if (el) el.style.transform = `translateX(${base + ((e.clientX - x) / w) * 100}%)`;
+            const now = performance.now();
+            const dt = now - d.lastT;
+            if (dt > 0) d.vx = (e.clientX - d.lastX) / dt;
+            d.lastX = e.clientX;
+            d.lastT = now;
+            if (el) el.style.transform = `translateX(${d.base + ((e.clientX - d.x) / d.w) * 100}%)`;
           }}
           onPointerUp={(e) => endDrag(e.clientX)}
-          onPointerCancel={() => endDrag(0)}
+          onPointerCancel={() => endDrag()}
         >
           {seq.map((item, i) => {
             const song = item?.song ?? null;

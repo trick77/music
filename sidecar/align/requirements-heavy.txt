@@ -1,8 +1,12 @@
 # Heavy, rarely-changing ML stack — its own early layer so it stays cached and is not
-# re-pushed when app code or a light dependency changes. torch/torchaudio are NOT
-# listed here: they're installed first from the PyTorch CPU wheel index in the
+# re-pushed when app code or a light dependency changes. torch/torchaudio/torchvision are
+# NOT listed here: they're installed first from the PyTorch CPU wheel index in the
 # Containerfile (pinning them here would fight that index). whisperx/demucs then find
 # torch already satisfied and keep the CPU builds.
 # Build for linux/amd64 — several deps (e.g. sphn via demucs) ship no arm64 wheel.
 whisperx==3.8.6
 demucs==4.1.0
+# Pin transformers (a transitive dep of whisperx, otherwise uncapped at >=4.48.0) so a
+# rebuild can't silently drift onto a 5.x that breaks whisperx's lazy Wav2Vec2ForCTC
+# import at runtime. 4.57.6 is the last 4.x and what the working build resolves today.
+transformers==4.57.6

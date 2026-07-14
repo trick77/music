@@ -95,6 +95,42 @@ export function isAttached(): boolean {
   return sourceEl !== null;
 }
 
+// bandEdges returns `count` contiguous [lo, hi) bin ranges, log-spaced from bin 1
+// (bin 0 is DC / sub-audible offset). The top is capped at ~16 kHz, NOT Nyquist:
+// the top few kHz are near-silent in real music and hard low-passed to zero by lossy
+// codecs (MP3/AAC), which left the rightmost band permanently dark. Ranges are
+// CONTIGUOUS — each starts where the last ended and spans at least one bin. A naive
+// floor(pow()) makes the low bands collide on the same bin (every left bar moves in
+// unison); chaining from `prev` plus the `hi <= prev` guard fixes it. Pure and
+// side-effect free so the mapping is unit-testable without a live AnalyserNode.
+export function bandEdges(count: number, bins: number, sampleRate: number): Array<[number, number]> {
+  const minBin = 1;
+  const nyquist = sampleRate / 2;
+  const maxBin = Math.min(bins, Math.max(minBin + count, Math.round((16000 / nyquist) * bins)));
+  const edges: Array<[number, number]> = [];
+  let prev = minBin;
+  for (let i = 0; i < count; i++) {
+    let hi = Math.round(minBin * Math.pow(maxBin / minBin, (i + 1) / count));
+    if (hi <= prev) hi = prev + 1;
+    if (hi > maxBin) hi = maxBin;
+    edges.push([prev, hi]);
+    prev = hi;
+  }
+  return edges;
+}
+
+// Memoize the band boundaries: bands() runs once per rAF frame (~60fps) but
+// count/bins/sampleRate never change within a session, so recomputing (and
+// reallocating) the edges every frame is pure waste. bandEdges stays pure.
+let edgeCache: { key: string; edges: Array<[number, number]> } | null = null;
+function cachedEdges(count: number, bins: number, sampleRate: number): Array<[number, number]> {
+  const key = `${count}:${bins}:${sampleRate}`;
+  if (!edgeCache || edgeCache.key !== key) {
+    edgeCache = { key, edges: bandEdges(count, bins, sampleRate) };
+  }
+  return edgeCache.edges;
+}
+
 // bands folds the FFT bins into `count` log-spaced bands, normalized to 0..1.
 // Returns all-zero when the analyser isn't ready or nothing has been tapped yet
 // (so the visualizer idles flat instead of erroring).
@@ -102,26 +138,19 @@ export function bands(count: number): number[] {
   const out = new Array<number>(count).fill(0);
   if (!analyser || !freq) return out;
   analyser.getByteFrequencyData(freq);
-  const bins = freq.length;
-  const minBin = 1; // skip bin 0 (DC / sub-audible offset)
-  // Log-spaced bands, but CONTIGUOUS: each band starts where the last ended and
-  // spans at least one bin. A naive floor(pow()) makes the low bands collide on
-  // the same bin (every left bar moves in unison); chaining from `prev` fixes it.
-  let prev = minBin;
+  const sampleRate = ctx?.sampleRate ?? 44100;
+  const edges = cachedEdges(count, freq.length, sampleRate);
   for (let i = 0; i < count; i++) {
-    let hi = Math.round(minBin * Math.pow(bins / minBin, (i + 1) / count));
-    if (hi <= prev) hi = prev + 1;
-    if (hi > bins) hi = bins;
+    const [lo, hi] = edges[i];
     // Peak (max) rather than mean of the band's bins: a beat's energy is narrow,
     // and averaging it across a wide upper band (hundreds of bins at fftSize 2048)
     // dilutes the transient away. Max keeps the hi-hat/cymbal bands lively; low
     // bands span few bins so max≈mean there anyway.
     let peak = 0;
-    for (let b = prev; b < hi; b++) {
+    for (let b = lo; b < hi; b++) {
       if (freq[b] > peak) peak = freq[b];
     }
     out[i] = peak / 255;
-    prev = hi;
   }
   return out;
 }

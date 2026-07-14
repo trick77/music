@@ -1,9 +1,9 @@
 // KaraokeCard renders the non-playing karaoke states over the plain lyrics: a
-// needs-sync CTA, a generating spinner, or a failed+retry card. Copy mirrors the
-// locked mock (docs/mockups/karaoke). onGenerate re-POSTs /align. The plain lyrics
-// stay visible (dimmed) behind the card so an unaligned song still shows its words.
+// needs-sync CTA or a failed+retry card. Copy mirrors the locked mock
+// (docs/mockups/karaoke). onGenerate re-POSTs /align. The plain lyrics stay visible
+// (dimmed) behind the card so an unaligned song still shows its words.
 export function KaraokeCard({ state, lyrics, onGenerate }: {
-  state: "needs" | "generating" | "failed" | "loading" | "plain";
+  state: "needs" | "failed" | "loading" | "plain";
   lyrics: string;
   onGenerate: () => void;
 }) {
@@ -23,15 +23,9 @@ export function KaraokeCard({ state, lyrics, onGenerate }: {
       p: "Something went wrong aligning the words. You can try again.",
       btn: "Try again",
     },
-    generating: {
-      h: "Aligning…",
-      p: "Matching each word to the vocal — about a minute. Keep browsing; it shows a spinner until it’s ready.",
-      btn: "",
-    },
   }[state];
   return (
     <div style={{ position: "relative", height: "100%" }}>
-      <style>{"@keyframes kv-spin { to { transform: rotate(360deg); } }"}</style>
       {/* Plain lyrics — crisp and readable in the "plain" static view; dimmed and
           blurred behind the CTA cards so an unaligned song still shows its words. */}
       <pre
@@ -56,24 +50,14 @@ export function KaraokeCard({ state, lyrics, onGenerate }: {
             border: "1px solid var(--color-border)", borderRadius: 16, padding: "30px 28px", backdropFilter: "blur(16px)",
           }}
         >
-          {state === "generating" ? (
-            <div
-              style={{
-                width: 42, height: 42, margin: "0 auto 18px", borderRadius: "50%",
-                border: "3px solid var(--color-active)", borderTopColor: "var(--color-accent-strong)",
-                animation: "kv-spin 1s linear infinite",
-              }}
-            />
-          ) : (
-            <div
-              style={{
-                width: 54, height: 54, margin: "0 auto 16px", borderRadius: "50%", background: "var(--color-active)",
-                display: "grid", placeItems: "center", color: "var(--color-accent-strong)", fontSize: 26,
-              }}
-            >
-              ♪
-            </div>
-          )}
+          <div
+            style={{
+              width: 54, height: 54, margin: "0 auto 16px", borderRadius: "50%", background: "var(--color-active)",
+              display: "grid", placeItems: "center", color: "var(--color-accent-strong)", fontSize: 26,
+            }}
+          >
+            ♪
+          </div>
           <h3 style={{ fontFamily: "var(--font-serif)", fontWeight: 600, margin: "0 0 8px", fontSize: 21, color: "var(--color-ink)" }}>{copy.h}</h3>
           <p style={{ margin: "0 0 20px", color: "var(--color-muted)", fontSize: 14, lineHeight: 1.55 }}>{copy.p}</p>
           {copy.btn && (

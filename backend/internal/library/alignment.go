@@ -22,6 +22,10 @@ type Alignment struct {
 // (the row stays untouched), so the caller can reject a concurrent request without a
 // separate read — closing the check-then-act race two POSTs could otherwise slip
 // through. The WHERE guard on the upsert makes the claim a single atomic statement.
+//
+// A resync clears the prior data up front: the karaoke UI only serves timing while
+// status='ready', so keeping the stale row would never be shown anyway. A successful
+// MarkAlignmentReady then writes the fresh timing.
 func (r *Repo) StartAlignment(ctx context.Context, songID string) (started bool, err error) {
 	res, err := r.db.ExecContext(ctx,
 		`INSERT INTO song_alignment(song_id, status) VALUES(?, 'generating')

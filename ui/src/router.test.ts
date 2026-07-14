@@ -20,6 +20,9 @@ describe("parsePath", () => {
   it("parses the genres list route", () => {
     expect(parsePath("/genres")).toEqual({ name: "genres" });
   });
+  it("parses the visualizer route", () => {
+    expect(parsePath("/visualizer")).toEqual({ name: "visualizer" });
+  });
   it("parses a genre detail route", () => {
     expect(parsePath("/genre/g1")).toEqual({ name: "genre", id: "g1" });
   });
@@ -95,10 +98,11 @@ describe("player URL helpers", () => {
     expect(dispatchEvent).not.toHaveBeenCalled();
   });
 
-  it("closePlayer strips the param in place when arrived via a fresh deep link", () => {
+  it("closePlayer navigates Home when arrived via a fresh deep link", () => {
     closePlayer(false);
     expect(back).not.toHaveBeenCalled();
-    expect(replaceState).toHaveBeenCalledWith({}, "", "/song/abc");
+    expect(replaceState).not.toHaveBeenCalled();
+    expect(pushState).toHaveBeenCalledWith({}, "", "/");
     expect(dispatchEvent).toHaveBeenCalledTimes(1);
   });
 });

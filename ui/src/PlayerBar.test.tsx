@@ -16,7 +16,7 @@ vi.mock("./player", () => ({
     durationMs: 0,
     airplayAvailable: false,
     airplayActive: false,
-    play() {}, toggle() {}, next() {}, prev() {}, seek() {},
+    play() {}, toggle() {}, stop() {}, next() {}, prev() {}, seek() {},
     setQueue() {}, restore() {}, remove() {}, patchSong() {}, showAirplayPicker() {},
   }),
 }));
@@ -49,23 +49,47 @@ function render(alignmentEnabled: boolean, current: Song, open: boolean, lyrics:
 }
 
 describe("PlayerBar lyrics gating", () => {
-  it("logged out: shows static lyrics with no karaoke-sync CTA", () => {
+  it("logged out, no timing: crisp static lyrics with no karaoke-sync CTA", () => {
     // alignmentEnabled is false for any anonymous caller (backend ANDs it with
-    // auth), so this is exactly the logged-out expanded-lyrics view.
-    const html = render(false, song(), true, true);
-    // The lyrics button is offered (mini-bar) and the words render...
+    // auth); with no ready timing this is the static-lyrics view.
+    const html = render(false, song({ alignmentStatus: "" }), true, true);
+    // The lyrics button is offered (mini-bar) and the words render crisply...
     expect(html).toContain('aria-label="Show lyrics"');
     expect(html).toContain("First line of the song");
+    expect(html).toContain("rgba(250,249,245,.85)"); // "plain" crisp color
     // ...but the signed-in-only sync affordances never appear.
     expect(html).not.toContain("Generate karaoke");
     expect(html).not.toContain("Sync lyrics to the music");
     expect(html).not.toContain("Syncing karaoke");
   });
 
-  it("signed in with alignment: the karaoke-sync CTA is reachable", () => {
-    // canKaraoke is true, alignment not yet ready → the needs-sync card renders.
+  it("logged out, timing ready: takes the karaoke path, not forced static", () => {
+    // A synced song must reach the animated player even logged out. The static
+    // markup can't run the async getAlign fetch, so it renders the pre-sweep
+    // backdrop (blurred/dimmed) — the sweep replaces it once lines load. The key
+    // assertion: it's NOT the crisp forced-static "plain" view auth used to force.
+    const html = render(false, song({ alignmentStatus: "ready" }), true, true);
+    expect(html).toContain("blur(2px)"); // dimmed backdrop, karaoke path
+    expect(html).not.toContain("rgba(250,249,245,.85)"); // not the crisp static view
+    expect(html).not.toContain("Generate karaoke");
+    expect(html).not.toContain("Syncing karaoke");
+  });
+
+  it("signed in without timing: the karaoke-generate CTA is reachable", () => {
+    // canGenerate is true, no alignment yet → the needs-sync card renders.
     const html = render(true, song({ alignmentStatus: "" }), true, true);
     expect(html).toContain("Generate karaoke");
+  });
+
+  it("signed in while generating: crisp static lyrics, no CTA or spinner", () => {
+    // A sync in progress shows no in-progress chrome — just the static lyrics
+    // until the sweep takes over. The Generate CTA is suppressed so it can't be
+    // re-clicked mid-run.
+    const html = render(true, song({ alignmentStatus: "generating" }), true, true);
+    expect(html).toContain("rgba(250,249,245,.85)"); // "plain" crisp color
+    expect(html).not.toContain("Generate karaoke");
+    expect(html).not.toContain("Aligning");
+    expect(html).not.toContain("Syncing karaoke");
   });
 
   it("offers the lyrics button whenever the track has lyrics, even logged out", () => {
@@ -75,5 +99,9 @@ describe("PlayerBar lyrics gating", () => {
   it("hides the lyrics button for a track with no lyrics", () => {
     const html = render(false, song({ lyrics: "" }), false, false);
     expect(html).not.toContain('aria-label="Show lyrics"');
+  });
+
+  it("offers a stop-and-close button in the mini bar", () => {
+    expect(render(false, song(), false, false)).toContain('aria-label="Stop and close"');
   });
 });

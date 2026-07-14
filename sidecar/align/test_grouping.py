@@ -83,6 +83,64 @@ def test_tokenization_mismatch_reanchors_next_line():
     assert out[0]["words"][-1]["start"] == 1.4
 
 
+def test_non_latin_words_reanchor_on_content():
+    # Cyrillic tokens strip to empty under an ASCII-only filter. Matching must anchor
+    # on their actual content, so a dropped middle word ("жестокий") does not drift the
+    # next line's timing early (the same re-anchoring guarantee as the Latin case).
+    lines = ["привет мир жестокий", "мы поём"]
+    flat = [
+        {"w": "привет", "start": 1.0, "end": 1.3, "conf": 0.9},
+        {"w": "мир", "start": 1.4, "end": 1.6, "conf": 0.9},
+        # "жестокий" missing (untimed and dropped upstream).
+        {"w": "мы", "start": 5.0, "end": 5.2, "conf": 0.9},
+        {"w": "поём", "start": 5.3, "end": 5.8, "conf": 0.9},
+    ]
+    out = group_words_into_lines(lines, flat)
+    assert out[1]["text"] == "мы поём"
+    assert out[1]["start"] == 5.0 and out[1]["end"] == 5.8
+    assert [w["start"] for w in out[1]["words"]] == [5.0, 5.3]
+
+
+def test_unmatched_leading_words_after_gap_are_not_seconds_early():
+    # A line's leading words ("so", "we") went unaligned across a ~5s instrumental
+    # gap; only "sing" anchored (15.5s). Even-spreading them across the whole gap
+    # would put "so" at ~11.8s — ~3s before it's sung, so it lights up far too early.
+    # They must instead sit at a nominal cadence just before the anchor.
+    lines = ["it is the end", "so we sing"]
+    flat = [
+        {"w": "it", "start": 9.0, "end": 9.3, "conf": 0.9},
+        {"w": "is", "start": 9.3, "end": 9.6, "conf": 0.9},
+        {"w": "the", "start": 9.6, "end": 9.8, "conf": 0.9},
+        {"w": "end", "start": 9.8, "end": 10.0, "conf": 0.9},
+        # ~5s instrumental gap; only "sing" of line 2 aligned.
+        {"w": "sing", "start": 15.5, "end": 16.0, "conf": 0.8},
+    ]
+    out = group_words_into_lines(lines, flat)
+    w = out[1]["words"]
+    assert [x["w"] for x in w] == ["so", "we", "sing"]
+    # "so" must land near the anchor, not smeared back into the instrumental gap.
+    assert w[0]["start"] >= 13.5, f"'so' started {w[0]['start']}s — too early"
+    # Still ordered and bounded by the anchor.
+    assert w[0]["start"] <= w[1]["start"] <= w[2]["start"] == 15.5
+
+
+def test_unmatched_trailing_words_before_gap_stay_near_their_line():
+    # Mirror image: "me close" continue line 1 (after aligned "hold" @10) and are sung
+    # ~10-11s, then a ~9s instrumental gap before line 2 ("next") at 20s. They must
+    # sit right after "hold", NOT get pushed toward the far anchor at 20s.
+    lines = ["hold me close", "next"]
+    flat = [
+        {"w": "hold", "start": 10.0, "end": 10.4, "conf": 0.9},
+        # "me", "close" unaligned; long instrumental gap; then:
+        {"w": "next", "start": 20.0, "end": 20.5, "conf": 0.9},
+    ]
+    out = group_words_into_lines(lines, flat)
+    me, close = out[0]["words"][1], out[0]["words"][2]
+    assert me["w"] == "me" and close["w"] == "close"
+    # Both stay close behind "hold" (sung ~10-11s), not smeared out toward 20s.
+    assert 10.0 <= me["start"] <= 11.5 and 10.0 <= close["start"] <= 12.0
+
+
 def test_all_source_words_present_and_monotonic():
     lines = ["alpha beta gamma", "delta epsilon"]
     flat = [

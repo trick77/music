@@ -13,6 +13,7 @@ import { PlaylistsPage } from "./PlaylistsPage";
 import { PlaylistPage } from "./PlaylistPage";
 import { Rail } from "./Rail";
 import { PlayerBar } from "./PlayerBar";
+import { VisualizerView } from "./VisualizerView";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { usePlayer } from "./player";
 import { useRoute, navigate, parsePlayerParam, pushPlayer, replacePlayer, closePlayer, type PlayerParam } from "./router";
@@ -76,6 +77,9 @@ export function App() {
   const [tabResetKey, setTabResetKey] = useState(0);
   const uploadRef = useRef<HTMLInputElement>(null);
   const restored = useRef(false);
+  // Fires once per mount so auto-opening the full player on a bare /song/:id landing
+  // doesn't re-trigger after the user closes it (close strips the param to a bare URL).
+  const songOpened = useRef(false);
   // Tracks whether we pushed the history entry that opened the player, so closing
   // it knows whether to pop that entry (in-app open) or strip the param in place
   // (arrived via a fresh deep link with nothing to pop).
@@ -136,6 +140,19 @@ export function App() {
     if (route.name === "song") return;
     player.restore(songs);
   }, [songs, player, route.name]);
+
+  // Landing on a /song/:id share link opens the existing full-screen player over
+  // Home. Runs once per mount (cold landing). Cue the song for ANY variant so the
+  // overlay has a current track to render; a bare link (no ?player=) additionally
+  // opens the overlay in "full" mode, while ?player=lyrics/full keep their chosen mode.
+  useEffect(() => {
+    if (songOpened.current || route.name !== "song") return;
+    const song = songs.find((s) => s.id === route.id);
+    if (!song) return; // songs still loading — retry when they arrive
+    songOpened.current = true;
+    if (song.id !== player.current?.id) player.play(song); // cue it (autoplay is blocked pre-gesture, harmless)
+    if (playerParam === null) replacePlayer(song.id, "full"); // open overlay in place — no history entry, pushedPlayer stays false
+  }, [songs, route, playerParam, player]);
 
   // Reset the pushed-entry flag whenever the player closes (by our button, the back
   // button, or a plain navigation), so the next open re-decides how to close.
@@ -409,7 +426,12 @@ export function App() {
         ) : route.name === "artist" ? (
           <Detail kind="artist" id={route.id} authenticated={authed} studioEnabled={!!session?.studioEnabled} imageGenEnabled={!!session?.imageGenEnabled} onPlay={onPlay} onShare={shareUrl} renderRowActions={rowActions} reloadKey={feedVersion} />
         ) : route.name === "song" ? (
-          <SongPage id={route.id} songs={songs} playingId={player.current?.id} onPlay={(s) => onPlay(s)} />
+          // A shared /song/:id link opens the full-screen player overlay (see the
+          // auto-open effect); Home sits behind it so closing lands on a real page.
+          <Home authenticated={authed} onPlay={onPlay} onShare={shareSong} onUpload={triggerUpload} renderRowActions={rowActions} reloadKey={feedVersion} />
+        ) : route.name === "visualizer" ? (
+          // Rendered full-screen (fixed) below, outside this constrained wrapper.
+          null
         ) : (
           <Library
             songs={songs}
@@ -428,6 +450,8 @@ export function App() {
       <input ref={uploadRef} type="file" accept=".mp3,audio/mpeg" onChange={onUpload} style={{ display: "none" }} disabled={uploading} />
 
       <PlayerBar fav={fav} onShare={shareSong} renderMenu={playerMenu} alignmentEnabled={!!session?.alignmentEnabled} open={playerParam !== null} lyrics={playerParam === "lyrics"} onExpand={expandPlayer} onSetMode={setPlayerMode} onClose={closePlayerView} onCopyLink={copyPlayerLink} />
+
+      {route.name === "visualizer" && <VisualizerView />}
 
       {showQueue && (
         <QueueDrawer
@@ -454,34 +478,6 @@ export function App() {
       {addFor && <AddToPlaylist song={addFor} authenticated={authed} onClose={() => setAddFor(null)} onDone={(name) => { setAddFor(null); flash(`Added to ${name}`); }} />}
       {toast && <UploadToast message={toast} uploading={uploading} pct={uploadPct} bottom={player.current ? 120 : 80} />}
       <style>{`.iconbtn, .iconbtn-sm { display: grid; place-items: center; background: transparent; border: none; cursor: pointer; color: var(--color-muted); border-radius: var(--radius-ui); } .iconbtn { width: 40px; height: 40px; } .iconbtn-sm { width: 32px; height: 32px; border-radius: 8px; } .iconbtn:hover, .iconbtn-sm:hover { background: var(--color-active); color: var(--color-ink); } @keyframes app-spin { to { transform: rotate(360deg); } } @keyframes app-upload-indef { 0% { transform: translateX(-110%); } 100% { transform: translateX(310%); } } @media (prefers-reduced-motion: reduce) { [style*="app-upload-indef"] { animation: none !important; } }`}</style>
-    </div>
-  );
-}
-
-// SongPage is the public share landing for a single song: it plays and resolves
-// the song from the loaded list (falling back to a message before the list is
-// ready).
-function SongPage({ id, songs, playingId, onPlay }: { id: string; songs: Song[]; playingId?: string; onPlay: (s: Song) => void }) {
-  const song = songs.find((s) => s.id === id);
-  useEffect(() => {
-    // Play only when this song isn't already the now-playing track — otherwise
-    // opening the full player (which routes to /song/:nowPlayingId) would re-enter
-    // here and toggle playback to a pause.
-    if (song && song.id !== playingId) onPlay(song);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [song?.id]);
-  if (!song)
-    return (
-      <p style={t.label}>
-        Loading song…{" "}
-        <button onClick={() => navigate("/")} style={{ background: "none", border: "none", color: "var(--color-accent-strong)", cursor: "pointer", ...t.ui }}>Home</button>
-      </p>
-    );
-  return (
-    <div>
-      <button onClick={() => navigate("/")} style={{ background: "none", border: "none", color: "var(--color-accent-strong)", cursor: "pointer", marginBottom: "1rem", ...t.ui }}>← Home</button>
-      <h1 style={t.display}>{song.title}</h1>
-      <p style={t.label}>{song.artistName}</p>
     </div>
   );
 }

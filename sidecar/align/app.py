@@ -8,6 +8,7 @@ force-aligns the KNOWN lyrics (fed as one whole-track segment) to the audio. We 
 the known words, never ASR output, so wrong-word transcription can't happen — only
 timing is inferred. The flat aligned word list is regrouped into the original lines.
 """
+import logging
 import os
 import tempfile
 
@@ -18,6 +19,9 @@ from fastapi import FastAPI, File, Form, UploadFile
 from fastapi.responses import JSONResponse
 
 from grouping import group_words_into_lines
+from language import detect_language
+
+log = logging.getLogger("align")
 
 app = FastAPI()
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
@@ -46,10 +50,14 @@ def health():
 
 
 @app.post("/align")
-async def align(audio: UploadFile = File(...), lyrics: str = Form(...), language: str = Form("en")):
+async def align(audio: UploadFile = File(...), lyrics: str = Form(...), language: str = Form("")):
     lines = [ln for ln in (l.strip() for l in lyrics.splitlines()) if ln]
     if not lines:
         return JSONResponse(status_code=400, content={"error": "no lyrics provided"})
+
+    # The backend sends no language (no per-song language is stored), so infer it from
+    # the lyrics; an explicit form value still wins as an override.
+    lang = (language or "").strip().lower() or detect_language(lines)
 
     with tempfile.TemporaryDirectory() as tmp:
         src = os.path.join(tmp, "in.mp3")
@@ -68,7 +76,16 @@ async def align(audio: UploadFile = File(...), lyrics: str = Form(...), language
         try:
             wav = whisperx.load_audio(target)
             duration = len(wav) / 16000.0
-            model, meta = _get_align_model(language)
+            # An unsupported detected language would raise on load; fall back to English
+            # so a bad guess never fails a song that would align fine in English.
+            try:
+                model, meta = _get_align_model(lang)
+            except Exception:
+                if lang == "en":
+                    raise
+                log.warning("no align model for %r; falling back to en", lang)
+                lang = "en"
+                model, meta = _get_align_model("en")
             segments = [{"text": " ".join(lines), "start": 0.0, "end": duration}]
             aligned = whisperx.align(segments, model, meta, wav, DEVICE, return_char_alignments=False)
         except Exception as e:
@@ -79,4 +96,4 @@ async def align(audio: UploadFile = File(...), lyrics: str = Form(...), language
         for w in aligned.get("word_segments", [])
         if w.get("start") is not None and w.get("end") is not None
     ]
-    return {"engine": ENGINE, "lines": group_words_into_lines(lines, flat)}
+    return {"engine": ENGINE, "language": lang, "lines": group_words_into_lines(lines, flat)}

@@ -147,6 +147,7 @@ func (h *songHandlers) runAlignment(songID, relPath, lyrics string) {
 	slog.Info("alignment completed",
 		"song", songID,
 		"engine", res.Engine,
+		"language", res.Language,
 		"elapsed", time.Since(started).Round(time.Millisecond),
 		"lines", len(res.Lines),
 		"words", st.words,
@@ -208,10 +209,18 @@ func (h *songHandlers) failAlignment(songID, reason string) {
 }
 
 // getAlign returns the song's alignment status and, when ready, its line timings.
-// The server-only failure reason is never included.
+// The server-only failure reason is never included. Readable by everyone (karaoke
+// playback isn't auth-gated), but the line timings carry lyric word text, so
+// unpublished songs stay invisible to anonymous callers by direct id — same guard
+// as songs.get. Generating alignment (postAlign) remains auth-only.
 func (h *songHandlers) getAlign(w http.ResponseWriter, r *http.Request) {
-	if !identify(h.cfg, r).Authenticated {
-		httpError(w, http.StatusForbidden, "authentication required")
+	song, err := h.repo.Get(r.Context(), r.PathValue("id"))
+	if err != nil {
+		serverError(w, "get song", err)
+		return
+	}
+	if song == nil || (!song.Published && !identify(h.cfg, r).Authenticated) {
+		httpError(w, http.StatusNotFound, "not found")
 		return
 	}
 	a, err := h.repo.GetAlignment(r.Context(), r.PathValue("id"))

@@ -8,6 +8,7 @@ export type Route =
   | { name: "unpublished" }
   | { name: "playlists" }
   | { name: "genres" }
+  | { name: "visualizer" }
   | { name: "studio"; genreId?: string }
   | { name: "song"; id: string }
   | { name: "playlist"; id: string }
@@ -23,6 +24,7 @@ export function parsePath(pathname: string): Route {
   if (parts.length === 1 && parts[0] === "unpublished") return { name: "unpublished" };
   if (parts.length === 1 && parts[0] === "playlists") return { name: "playlists" };
   if (parts.length === 1 && parts[0] === "genres") return { name: "genres" };
+  if (parts.length === 1 && parts[0] === "visualizer") return { name: "visualizer" };
   if (parts.length === 1 && parts[0] === "studio") return { name: "studio" };
   if (parts.length === 3 && parts[0] === "studio" && parts[1] === "genre") return { name: "studio", genreId: parts[2] };
   if (parts.length === 2 && parts[0] === "song") return { name: "song", id: parts[1] };
@@ -86,13 +88,12 @@ export function replacePlayer(id: string, param: PlayerParam): void {
 
 // closePlayer dismisses the overlay. When we pushed the entry (opened in-app) we
 // pop it so back-stack and history stay clean; when we arrived via a fresh deep
-// link there is nothing to pop, so we strip the param in place and stay on the
-// song page.
+// link there is nothing to pop, so we navigate Home — a real page — rather than
+// stripping the param and stranding the visitor on the bare /song/:id URL.
 export function closePlayer(pushed: boolean): void {
   if (pushed) {
     window.history.back();
     return;
   }
-  window.history.replaceState({}, "", window.location.pathname);
-  window.dispatchEvent(new PopStateEvent("popstate"));
+  navigate("/");
 }

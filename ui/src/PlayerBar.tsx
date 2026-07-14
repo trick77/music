@@ -7,7 +7,7 @@ import { Icon } from "./Icon";
 import { KaraokeView } from "./KaraokeView";
 import { KaraokeCard } from "./KaraokeCard";
 import { getAlign, postAlign, type AlignmentData, type Song } from "./api";
-import { type PlayerParam } from "./router";
+import { navigate, type PlayerParam } from "./router";
 
 type Fav = { has: (id: string) => boolean; toggle: (id: string) => void };
 
@@ -102,7 +102,10 @@ export function PlayerBar({ fav, onShare, renderMenu, alignmentEnabled, open, ly
   const [align, setAlign] = useState<AlignmentData | null>(null);
   const song = p.current;
   const hasLyrics = !!song?.lyrics && song.lyrics.trim() !== "";
-  const canKaraoke = alignmentEnabled && hasLyrics;
+  // canGenerate gates only the karaoke-generation CTA (signed-in + alignment on).
+  // Karaoke *playback* is not auth-gated — it keys off whether timing data exists,
+  // so everyone (logged out included) sees the animated player for a synced song.
+  const canGenerate = alignmentEnabled && hasLyrics;
 
   // Each new track gets fresh alignment state.
   useEffect(() => {
@@ -119,8 +122,10 @@ export function PlayerBar({ fav, onShare, renderMenu, alignmentEnabled, open, ly
   }, [open, lyrics, song, hasLyrics, onSetMode]);
 
   // In lyrics mode, fetch the alignment and poll while it is still generating.
+  // Gated on hasLyrics (not auth) so anon viewers also pull existing timing and get
+  // the animated player; the backend serves timing to everyone for published songs.
   useEffect(() => {
-    if (!open || !lyrics || !canKaraoke || !song) return;
+    if (!open || !lyrics || !hasLyrics || !song) return;
     let alive = true;
     let timer: ReturnType<typeof setTimeout> | undefined;
     const tick = async () => {
@@ -137,7 +142,7 @@ export function PlayerBar({ fav, onShare, renderMenu, alignmentEnabled, open, ly
     // align?.status is a dep so the in-view Generate/Try-again buttons (which set
     // status to "generating" without changing any other dep) re-arm the poll; it
     // converges because same-status refetches don't change the dep.
-  }, [open, lyrics, canKaraoke, song?.id, align?.status]);
+  }, [open, lyrics, hasLyrics, song?.id, align?.status]);
 
   if (!p.current || !song) return null;
 
@@ -153,9 +158,6 @@ export function PlayerBar({ fav, onShare, renderMenu, alignmentEnabled, open, ly
   // very first paint — before getAlign's round-trip resolves. Otherwise a synced
   // song briefly shows the needs-sync card while align is still null.
   const alignStatus = align?.status ?? song.alignmentStatus ?? "";
-  // Gated on canKaraoke so a stale alignmentStatus on the song can't surface a
-  // "Syncing karaoke…" label to an anon viewer who only ever sees static lyrics.
-  const syncing = canKaraoke && alignStatus === "generating";
 
   return (
     <>
@@ -192,10 +194,16 @@ export function PlayerBar({ fav, onShare, renderMenu, alignmentEnabled, open, ly
           {hasLyrics && (
             <button aria-label="Show lyrics" onClick={() => onExpand("lyrics")} style={iconBtn}><Icon name="captions" size="23px" /></button>
           )}
+          {/* Visualizer and AirPlay are mutually exclusive: while audio is routed to
+              a remote device there is nothing local to visualize, so hide this. */}
+          {!p.airplayActive && (
+            <button aria-label="Open visualizer" onClick={() => navigate("/visualizer")} style={iconBtn}><Icon name="visualizer" size="23px" /></button>
+          )}
           <AirplayButton available={p.airplayAvailable} active={p.airplayActive} onClick={p.showAirplayPicker} />
           <button aria-label="Share" onClick={() => onShare(song)} style={iconBtn}><Icon name="share" size="20px" /></button>
           {renderMenu?.(song)}
           <button aria-label="Expand" onClick={() => onExpand("full")} style={iconBtn}><Icon name="chevronUp" size="20px" /></button>
+          <button aria-label="Stop and close" onClick={p.stop} style={iconBtn}><Icon name="close" size="20px" /></button>
         </div>
       </div>
 
@@ -228,26 +236,29 @@ export function PlayerBar({ fav, onShare, renderMenu, alignmentEnabled, open, ly
                 </span>
                 <span style={{ minWidth: 0 }}>
                   <span style={{ display: "block", fontFamily: "var(--font-sans)", fontWeight: 600, color: "#fff", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{song.title}</span>
-                  <span style={{ display: "block", fontSize: "var(--text-label)", color: syncing ? "var(--color-accent-strong)" : "rgba(255,255,255,0.7)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                    {syncing ? "● Syncing karaoke…" : song.artistName}
+                  <span style={{ display: "block", fontSize: "var(--text-label)", color: "rgba(255,255,255,0.7)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    {song.artistName}
                   </span>
                 </span>
               </div>
-              {/* Karaoke body: the sweep when ready, otherwise a state card over plain
-                  lyrics — but only for those who can sync (signed in + alignment on).
-                  Everyone else (logged out, or alignment disabled) gets the static
-                  lyrics with no sync CTA. */}
+              {/* Karaoke body: the animated sweep whenever timing data is ready — for
+                  everyone, logged out included. With no ready timing we show static
+                  plain lyrics; a signed-in viewer who can generate also gets the
+                  needs/failed CTA over them — but never while a sync is generating
+                  (no in-progress chrome). Static lyrics are the *only* untimed view. */}
               <div style={{ flex: 1, minHeight: 0, width: "100%", marginTop: 72, marginBottom: 8 }}>
-                {!canKaraoke ? (
-                  <KaraokeCard state="plain" lyrics={song.lyrics ?? ""} onGenerate={onGenerate} />
-                ) : align?.status === "ready" && align.lines?.length ? (
+                {align?.status === "ready" && align.lines?.length ? (
                   <KaraokeView lines={align.lines} />
                 ) : alignStatus === "ready" ? (
                   // Alignment is ready but the lines are still loading — show plain
                   // lyrics, never the needs-sync card. The sweep replaces this next tick.
                   <KaraokeCard state="loading" lyrics={song.lyrics ?? ""} onGenerate={onGenerate} />
+                ) : canGenerate && alignStatus !== "generating" ? (
+                  <KaraokeCard state={alignStatus === "failed" ? "failed" : "needs"} lyrics={song.lyrics ?? ""} onGenerate={onGenerate} />
                 ) : (
-                  <KaraokeCard state={alignStatus === "failed" ? "failed" : alignStatus === "generating" ? "generating" : "needs"} lyrics={song.lyrics ?? ""} onGenerate={onGenerate} />
+                  // No ready timing (untimed, or a sync still generating) → crisp static
+                  // lyrics for everyone. Once it's ready the sweep takes over.
+                  <KaraokeCard state="plain" lyrics={song.lyrics ?? ""} onGenerate={onGenerate} />
                 )}
               </div>
               {/* Docked scrubber + transport stay driving playback. */}
@@ -257,6 +268,9 @@ export function PlayerBar({ fav, onShare, renderMenu, alignmentEnabled, open, ly
                   <Transport playing={p.playing} onPrev={p.prev} onToggle={p.toggle} onNext={p.next} size={26} />
                   <StarButton song={song} fav={fav} size={24} />
                   <button aria-label="Show artwork" aria-pressed onClick={() => onSetMode("full")} style={{ ...iconBtn, color: "var(--color-accent-strong)" }}><Icon name="captions" size="25px" /></button>
+                  {!p.airplayActive && (
+                    <button aria-label="Open visualizer" onClick={() => navigate("/visualizer")} style={{ ...iconBtn, color: "#fff" }}><Icon name="visualizer" size="24px" /></button>
+                  )}
                   <AirplayButton available={p.airplayAvailable} active={p.airplayActive} onClick={p.showAirplayPicker} size={22} color="#fff" />
                   <button aria-label="Share" onClick={onCopyLink} style={{ ...iconBtn, color: "#fff" }}><Icon name="share" size="22px" /></button>
                 </div>
@@ -277,6 +291,9 @@ export function PlayerBar({ fav, onShare, renderMenu, alignmentEnabled, open, ly
                 <StarButton song={song} fav={fav} size={24} />
                 {hasLyrics && (
                   <button aria-label="Show lyrics" aria-pressed={false} onClick={() => onSetMode("lyrics")} style={{ ...iconBtn, color: "#fff" }}><Icon name="captions" size="25px" /></button>
+                )}
+                {!p.airplayActive && (
+                  <button aria-label="Open visualizer" onClick={() => navigate("/visualizer")} style={{ ...iconBtn, color: "#fff" }}><Icon name="visualizer" size="24px" /></button>
                 )}
                 <AirplayButton available={p.airplayAvailable} active={p.airplayActive} onClick={p.showAirplayPicker} size={22} color="#fff" />
                 <button aria-label="Share" onClick={onCopyLink} style={{ ...iconBtn, color: "#fff" }}><Icon name="share" size="22px" /></button>

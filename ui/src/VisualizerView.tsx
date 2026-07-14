@@ -3,8 +3,9 @@ import { player, usePlayer } from "./player";
 import { coverUrl } from "./cover";
 import { navigate } from "./router";
 import { attach, resume, bands } from "./analyser";
-import { Glyph } from "./Glyph";
 import { Icon } from "./Icon";
+import { Scrubber, StarButton, Transport, iconBtn, type Fav } from "./PlayerControls";
+import { type Song } from "./api";
 
 const N = 28; // number of spectrum columns
 
@@ -23,7 +24,7 @@ const N = 28; // number of spectrum columns
 // on a remote speaker (nothing local to visualize), so we hide the bars and show
 // a note instead — mirroring the player bar, which hides the visualizer button
 // while AirPlay is active.
-export function VisualizerView() {
+export function VisualizerView({ fav, onShare }: { fav: Fav; onShare: (s: Song) => void }) {
   const p = usePlayer();
   const song = p.current;
   const airplay = p.airplayActive;
@@ -88,7 +89,7 @@ export function VisualizerView() {
       // Ambient composition: a slim spectrum along the lower third; the album art
       // (DOM layer) fills the frame behind it. Bottom is left clear for transport.
       const x0 = w * 0.05, x1 = w * 0.95;
-      const yBot = h * 0.8, yTop = h * 0.52;
+      const yBot = h * 0.72, yTop = h * 0.44; // lifted to clear the scrubber + control row
       const colW = (x1 - x0) / N, bw = colW * 0.62;
       const cells = 18, cellH = (yBot - yTop) / cells, cg = Math.min(2.5, cellH * 0.4);
       for (let i = 0; i < N; i++) {
@@ -214,16 +215,18 @@ export function VisualizerView() {
         </div>
       )}
 
-      {/* Minimal transport (no AirPlay control here by design). */}
+      {/* Full transport — same controls as the lyrics player, minus AirPlay (nothing
+          local to visualize while casting) and the view toggles (the X closes here). */}
       {song && (
         <div style={{ position: "absolute", bottom: "max(28px, 6vh)", left: 0, right: 0, display: "flex", justifyContent: "center", zIndex: 3 }}>
-          <button
-            aria-label={p.playing ? "Pause" : "Play"}
-            onClick={p.toggle}
-            style={{ display: "grid", placeItems: "center", width: 60, height: 60, borderRadius: 999, background: "var(--color-accent-fill)", border: "none", color: "var(--color-ink)", cursor: "pointer" }}
-          >
-            <Glyph name={p.playing ? "pause" : "play"} size={26} />
-          </button>
+          <div style={{ width: "min(760px, 96vw)" }}>
+            <Scrubber positionMs={p.positionMs} durationMs={p.durationMs} onSeek={p.seek} />
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "1.5rem", marginTop: "0.75rem" }}>
+              <Transport playing={p.playing} onPrev={p.prev} onToggle={p.toggle} onNext={p.next} size={26} />
+              <StarButton song={song} fav={fav} size={24} />
+              <button aria-label="Share" onClick={() => onShare(song)} style={{ ...iconBtn, color: "#fff" }}><Icon name="share" size="22px" /></button>
+            </div>
+          </div>
         </div>
       )}
 

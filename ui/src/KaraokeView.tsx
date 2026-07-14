@@ -7,6 +7,7 @@ const MAX_SWEEP = 1.2;
 const HOLD = 4;
 const INTRO_MIN = 2; // only animate the intro for lead-ins at least this long (s)
 const SWEEP_LEAD = 0.2; // s — advance the sweep clock to compensate for perceived lyric-sync lag
+const CONF_MIN = 0.4; // words scored below this (incl. interpolated conf=0) render softened — timing is uncertain. Matches the backend summarizeAlignment threshold.
 
 type LineRt = {
   el: HTMLDivElement;
@@ -102,19 +103,14 @@ export function KaraokeView({ lines }: { lines: AlignedLine[] }) {
         if (i === active) {
           for (let k = 0; k < l.wordSpans.length; k++) {
             const p = wordFill(l, k, t);
-            const sp = l.wordSpans[k];
-            sp.style.setProperty("--p", p.toFixed(3));
-            sp.classList.toggle("kv-sweeping", p > 0 && p < 1);
+            l.wordSpans[k].style.setProperty("--p", p.toFixed(3));
           }
           l.filled = -1;
         } else {
           const target = i < active ? 1 : 0;
           if (l.filled !== target) {
             const v = String(target);
-            for (const sp of l.wordSpans) {
-              sp.style.setProperty("--p", v);
-              sp.classList.remove("kv-sweeping");
-            }
+            for (const sp of l.wordSpans) sp.style.setProperty("--p", v);
             l.filled = target;
           }
         }
@@ -186,7 +182,7 @@ function LineRow({ line, register }: { line: AlignedLine; register: (rt: LineRt)
         {wl.length
           ? wl.map((w, i) => (
               <span key={i}>
-                <span ref={(el) => { if (el) wordRefs.current[i] = el; }} className="kv-word">{w.w}</span>
+                <span ref={(el) => { if (el) wordRefs.current[i] = el; }} className={w.conf < CONF_MIN ? "kv-word kv-lowconf" : "kv-word"}>{w.w}</span>
                 {i < wl.length - 1 ? " " : ""}
               </span>
             ))
@@ -219,14 +215,9 @@ const KV_CSS = `
     rgba(250,249,245,.22) calc(var(--p) * 100%));
   -webkit-background-clip:text; background-clip:text;
   -webkit-text-fill-color:transparent; color:transparent; }
-/* The word currently being sung: a soft trailing edge on the fill front plus the
-   glow, echoing the old .kv-fill sweep look. */
-.kv-word.kv-sweeping {
-  background-image: linear-gradient(90deg,
-    var(--color-ink) calc(var(--p) * 100% - 8px),
-    rgba(250,249,245,.55) calc(var(--p) * 100%),
-    rgba(250,249,245,.22) calc(var(--p) * 100% + 2px));
-  text-shadow: 0 0 20px rgba(217,119,87,.4), 0 0 6px rgba(250,249,245,.25); }
+/* Words the aligner timed with low confidence (or had to interpolate, conf=0) render
+   a touch softer, so uncertain timing reads as intentional rather than exact. */
+.kv-word.kv-lowconf { opacity:.72; }
 /* Intro "get ready" flourish: music notes drift up and fade just ABOVE where the
    first lyric lands (the first line auto-scrolls to 40vh). Shown via .kv-visible
    during the instrumental lead-in. */

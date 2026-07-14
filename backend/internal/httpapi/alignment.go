@@ -147,6 +147,7 @@ func (h *songHandlers) runAlignment(songID, relPath, lyrics string) {
 	slog.Info("alignment completed",
 		"song", songID,
 		"engine", res.Engine,
+		"language", res.Language,
 		"elapsed", time.Since(started).Round(time.Millisecond),
 		"lines", len(res.Lines),
 		"words", st.words,

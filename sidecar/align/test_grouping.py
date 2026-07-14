@@ -83,6 +83,24 @@ def test_tokenization_mismatch_reanchors_next_line():
     assert out[0]["words"][-1]["start"] == 1.4
 
 
+def test_non_latin_words_reanchor_on_content():
+    # Cyrillic tokens strip to empty under an ASCII-only filter. Matching must anchor
+    # on their actual content, so a dropped middle word ("жестокий") does not drift the
+    # next line's timing early (the same re-anchoring guarantee as the Latin case).
+    lines = ["привет мир жестокий", "мы поём"]
+    flat = [
+        {"w": "привет", "start": 1.0, "end": 1.3, "conf": 0.9},
+        {"w": "мир", "start": 1.4, "end": 1.6, "conf": 0.9},
+        # "жестокий" missing (untimed and dropped upstream).
+        {"w": "мы", "start": 5.0, "end": 5.2, "conf": 0.9},
+        {"w": "поём", "start": 5.3, "end": 5.8, "conf": 0.9},
+    ]
+    out = group_words_into_lines(lines, flat)
+    assert out[1]["text"] == "мы поём"
+    assert out[1]["start"] == 5.0 and out[1]["end"] == 5.8
+    assert [w["start"] for w in out[1]["words"]] == [5.0, 5.3]
+
+
 def test_all_source_words_present_and_monotonic():
     lines = ["alpha beta gamma", "delta epsilon"]
     flat = [

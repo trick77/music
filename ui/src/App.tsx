@@ -13,6 +13,7 @@ import { PlaylistsPage } from "./PlaylistsPage";
 import { PlaylistPage } from "./PlaylistPage";
 import { Rail } from "./Rail";
 import { PlayerBar } from "./PlayerBar";
+import { VisualizerView } from "./VisualizerView";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { usePlayer } from "./player";
 import { useRoute, navigate, parsePlayerParam, pushPlayer, replacePlayer, closePlayer, type PlayerParam } from "./router";
@@ -410,6 +411,9 @@ export function App() {
           <Detail kind="artist" id={route.id} authenticated={authed} studioEnabled={!!session?.studioEnabled} imageGenEnabled={!!session?.imageGenEnabled} onPlay={onPlay} onShare={shareUrl} renderRowActions={rowActions} reloadKey={feedVersion} />
         ) : route.name === "song" ? (
           <SongPage id={route.id} songs={songs} playingId={player.current?.id} onPlay={(s) => onPlay(s)} />
+        ) : route.name === "visualizer" ? (
+          // Rendered full-screen (fixed) below, outside this constrained wrapper.
+          null
         ) : (
           <Library
             songs={songs}
@@ -428,6 +432,8 @@ export function App() {
       <input ref={uploadRef} type="file" accept=".mp3,audio/mpeg" onChange={onUpload} style={{ display: "none" }} disabled={uploading} />
 
       <PlayerBar fav={fav} onShare={shareSong} renderMenu={playerMenu} alignmentEnabled={!!session?.alignmentEnabled} open={playerParam !== null} lyrics={playerParam === "lyrics"} onExpand={expandPlayer} onSetMode={setPlayerMode} onClose={closePlayerView} onCopyLink={copyPlayerLink} />
+
+      {route.name === "visualizer" && <VisualizerView />}
 
       {showQueue && (
         <QueueDrawer

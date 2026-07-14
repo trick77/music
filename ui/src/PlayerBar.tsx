@@ -97,7 +97,7 @@ const iconBtn: React.CSSProperties = {
 // state) and passed in by App; the overlay writes changes back through onExpand
 // (push a history entry) / onSetMode (replace in place) / onClose. onCopyLink
 // copies the current deep link (the address bar itself while the overlay is open).
-export function PlayerBar({ fav, onShare, renderMenu, alignmentEnabled, sessionReady, open, lyrics, onExpand, onSetMode, onClose, onCopyLink }: { fav: Fav; onShare: (s: Song) => void; renderMenu?: (s: Song) => React.ReactNode; alignmentEnabled: boolean; sessionReady: boolean; open: boolean; lyrics: boolean; onExpand: (mode: PlayerParam) => void; onSetMode: (mode: PlayerParam) => void; onClose: () => void; onCopyLink: () => void }) {
+export function PlayerBar({ fav, onShare, renderMenu, alignmentEnabled, open, lyrics, onExpand, onSetMode, onClose, onCopyLink }: { fav: Fav; onShare: (s: Song) => void; renderMenu?: (s: Song) => React.ReactNode; alignmentEnabled: boolean; open: boolean; lyrics: boolean; onExpand: (mode: PlayerParam) => void; onSetMode: (mode: PlayerParam) => void; onClose: () => void; onCopyLink: () => void }) {
   const p = usePlayer();
   const [align, setAlign] = useState<AlignmentData | null>(null);
   const song = p.current;
@@ -109,15 +109,14 @@ export function PlayerBar({ fav, onShare, renderMenu, alignmentEnabled, sessionR
     setAlign(null);
   }, [song?.id]);
 
-  // Graceful degradation: if the URL asks for lyrics but the loaded track can't do
-  // karaoke (no lyrics / alignment off), downgrade the URL to artwork so the deep
-  // link stays honest. Gated on both a loaded song AND a resolved session — the
-  // session (which carries alignmentEnabled) is fetched in parallel with the song
-  // list, so acting before it resolves could wrongly downgrade a valid karaoke deep
-  // link when the song list happens to win the race.
+  // Graceful degradation: if the URL asks for lyrics but the loaded track has no
+  // lyrics at all, downgrade the URL to artwork so the deep link stays honest. Gated
+  // on a loaded song so we know whether it has lyrics; this no longer depends on the
+  // session, since static lyrics are shown to everyone (karaoke sync is the only
+  // signed-in-gated part, handled inside the body).
   useEffect(() => {
-    if (open && lyrics && song && sessionReady && !canKaraoke) onSetMode("full");
-  }, [open, lyrics, song, sessionReady, canKaraoke, onSetMode]);
+    if (open && lyrics && song && !hasLyrics) onSetMode("full");
+  }, [open, lyrics, song, hasLyrics, onSetMode]);
 
   // In lyrics mode, fetch the alignment and poll while it is still generating.
   useEffect(() => {
@@ -154,7 +153,9 @@ export function PlayerBar({ fav, onShare, renderMenu, alignmentEnabled, sessionR
   // very first paint — before getAlign's round-trip resolves. Otherwise a synced
   // song briefly shows the needs-sync card while align is still null.
   const alignStatus = align?.status ?? song.alignmentStatus ?? "";
-  const syncing = alignStatus === "generating";
+  // Gated on canKaraoke so a stale alignmentStatus on the song can't surface a
+  // "Syncing karaoke…" label to an anon viewer who only ever sees static lyrics.
+  const syncing = canKaraoke && alignStatus === "generating";
 
   return (
     <>
@@ -188,7 +189,7 @@ export function PlayerBar({ fav, onShare, renderMenu, alignmentEnabled, sessionR
           </button>
           <Transport playing={p.playing} onPrev={p.prev} onToggle={p.toggle} onNext={p.next} size={20} />
           <StarButton song={song} fav={fav} />
-          {canKaraoke && (
+          {hasLyrics && (
             <button aria-label="Show lyrics" onClick={() => onExpand("lyrics")} style={iconBtn}><Icon name="captions" size="23px" /></button>
           )}
           <AirplayButton available={p.airplayAvailable} active={p.airplayActive} onClick={p.showAirplayPicker} />
@@ -218,7 +219,7 @@ export function PlayerBar({ fav, onShare, renderMenu, alignmentEnabled, sessionR
             <Icon name="close" size="24px" />
           </button>
 
-          {lyrics && canKaraoke ? (
+          {lyrics && hasLyrics ? (
             <>
               {/* Now-playing chip: artwork shrinks up-top in lyrics mode (Apple-style). */}
               <div style={{ position: "absolute", top: 16, left: 20, right: 64, display: "flex", alignItems: "center", gap: 12, minWidth: 0 }}>
@@ -232,9 +233,14 @@ export function PlayerBar({ fav, onShare, renderMenu, alignmentEnabled, sessionR
                   </span>
                 </span>
               </div>
-              {/* Karaoke body: the sweep when ready, otherwise a state card over plain lyrics. */}
+              {/* Karaoke body: the sweep when ready, otherwise a state card over plain
+                  lyrics — but only for those who can sync (signed in + alignment on).
+                  Everyone else (logged out, or alignment disabled) gets the static
+                  lyrics with no sync CTA. */}
               <div style={{ flex: 1, minHeight: 0, width: "100%", marginTop: 72, marginBottom: 8 }}>
-                {align?.status === "ready" && align.lines?.length ? (
+                {!canKaraoke ? (
+                  <KaraokeCard state="plain" lyrics={song.lyrics ?? ""} onGenerate={onGenerate} />
+                ) : align?.status === "ready" && align.lines?.length ? (
                   <KaraokeView lines={align.lines} />
                 ) : alignStatus === "ready" ? (
                   // Alignment is ready but the lines are still loading — show plain
@@ -269,7 +275,7 @@ export function PlayerBar({ fav, onShare, renderMenu, alignmentEnabled, sessionR
               <div style={{ display: "flex", alignItems: "center", gap: "1.5rem", marginTop: "1.25rem" }}>
                 <Transport playing={p.playing} onPrev={p.prev} onToggle={p.toggle} onNext={p.next} size={26} />
                 <StarButton song={song} fav={fav} size={24} />
-                {canKaraoke && (
+                {hasLyrics && (
                   <button aria-label="Show lyrics" aria-pressed={false} onClick={() => onSetMode("lyrics")} style={{ ...iconBtn, color: "#fff" }}><Icon name="captions" size="25px" /></button>
                 )}
                 <AirplayButton available={p.airplayAvailable} active={p.airplayActive} onClick={p.showAirplayPicker} size={22} color="#fff" />

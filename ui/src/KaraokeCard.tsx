@@ -3,13 +3,16 @@
 // locked mock (docs/mockups/karaoke). onGenerate re-POSTs /align. The plain lyrics
 // stay visible (dimmed) behind the card so an unaligned song still shows its words.
 export function KaraokeCard({ state, lyrics, onGenerate }: {
-  state: "needs" | "generating" | "failed" | "loading";
+  state: "needs" | "generating" | "failed" | "loading" | "plain";
   lyrics: string;
   onGenerate: () => void;
 }) {
-  // "loading" shows only the plain lyrics (no overlay card) while a ready song's
-  // aligned lines are still being fetched — so no message box flashes.
-  const copy = state === "loading" ? null : {
+  // "plain" shows only the lyrics, crisp and full-strength — the static view for
+  // anyone who can't sync (logged out, or alignment disabled). "loading" shows the
+  // dimmed backdrop lyrics with no card while a ready song's aligned lines are still
+  // being fetched — so no message box flashes.
+  const isBare = state === "loading" || state === "plain";
+  const copy = isBare ? null : {
     needs: {
       h: "Sync lyrics to the music",
       p: "Generate word-by-word karaoke timing — about a minute. Also runs automatically when you save lyrics in the tag editor.",
@@ -29,13 +32,17 @@ export function KaraokeCard({ state, lyrics, onGenerate }: {
   return (
     <div style={{ position: "relative", height: "100%" }}>
       <style>{"@keyframes kv-spin { to { transform: rotate(360deg); } }"}</style>
-      {/* Plain lyrics behind the card so an unaligned song still shows its words. */}
+      {/* Plain lyrics — crisp and readable in the "plain" static view; dimmed and
+          blurred behind the CTA cards so an unaligned song still shows its words. */}
       <pre
         aria-label="Lyrics"
         style={{
           position: "absolute", inset: 0, overflow: "auto", margin: 0, padding: "8vh 8vw",
-          fontFamily: "var(--font-serif)", fontSize: 20, lineHeight: 1.6, color: "rgba(250,249,245,.55)",
-          whiteSpace: "pre-wrap", textAlign: "center", filter: "blur(2px)", opacity: 0.5,
+          fontFamily: "var(--font-serif)", fontSize: 20, lineHeight: 1.6,
+          whiteSpace: "pre-wrap", textAlign: "center",
+          ...(state === "plain"
+            ? { color: "rgba(250,249,245,.85)" }
+            : { color: "rgba(250,249,245,.55)", filter: "blur(2px)", opacity: 0.5 }),
         }}
       >
         {lyrics}

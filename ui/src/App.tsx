@@ -427,7 +427,7 @@ export function App() {
 
       <input ref={uploadRef} type="file" accept=".mp3,audio/mpeg" onChange={onUpload} style={{ display: "none" }} disabled={uploading} />
 
-      <PlayerBar fav={fav} onShare={shareSong} renderMenu={playerMenu} alignmentEnabled={!!session?.alignmentEnabled} sessionReady={session !== null} open={playerParam !== null} lyrics={playerParam === "lyrics"} onExpand={expandPlayer} onSetMode={setPlayerMode} onClose={closePlayerView} onCopyLink={copyPlayerLink} />
+      <PlayerBar fav={fav} onShare={shareSong} renderMenu={playerMenu} alignmentEnabled={!!session?.alignmentEnabled} open={playerParam !== null} lyrics={playerParam === "lyrics"} onExpand={expandPlayer} onSetMode={setPlayerMode} onClose={closePlayerView} onCopyLink={copyPlayerLink} />
 
       {showQueue && (
         <QueueDrawer

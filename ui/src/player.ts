@@ -23,7 +23,7 @@ export type PlayerState = {
 // history (so prev can return to it). With an empty queue it stops instead.
 export function advance(state: PlayerState): PlayerState {
   if (state.queue.length === 0) {
-    return { ...state, playing: false };
+    return { ...state, playing: false, positionMs: 0 };
   }
   const [next, ...rest] = state.queue;
   const history = state.current ? [...state.history, state.current] : state.history;
@@ -322,8 +322,11 @@ export const player = {
     emit();
     if (state.current?.id !== before) loadCurrent(true);
     else {
-      // queue empty — advance stopped playback; reflect it on the element
-      getAudio().pause();
+      // queue empty — advance stopped playback and reset positionMs to 0; reset
+      // the element to the start too so the paused track is cued to replay from 0.
+      const el = getAudio();
+      el.pause();
+      el.currentTime = 0;
     }
   },
   prev() {

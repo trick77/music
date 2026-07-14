@@ -19,10 +19,11 @@ describe("advance", () => {
     expect(s.positionMs).toBe(0);
   });
 
-  it("stops (playing=false) when the queue is empty, keeping current", () => {
-    const s = advance(base({ current: song("a"), queue: [], playing: true }));
+  it("stops (playing=false) and resets position when the queue is empty, keeping current", () => {
+    const s = advance(base({ current: song("a"), queue: [], playing: true, positionMs: 199000 }));
     expect(s.current?.id).toBe("a");
     expect(s.playing).toBe(false);
+    expect(s.positionMs).toBe(0);
   });
 });
 

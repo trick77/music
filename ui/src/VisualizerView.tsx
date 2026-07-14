@@ -6,11 +6,15 @@ import { attach, resume, bands } from "./analyser";
 import { Glyph } from "./Glyph";
 import { Icon } from "./Icon";
 
-const N = 24; // number of spectrum bars
+const N = 28; // number of spectrum columns
 
 // VisualizerView is the full-screen, deep-linkable audio visualizer (route
-// /visualizer). It draws direction "F": rounded terracotta bars with floating
-// peak caps over the current song's album art, blurred and dimmed as a backdrop.
+// /visualizer). Ambient composition: the album art fills the frame (a DOM layer
+// with the SAME treatment as the full-screen player — center/cover under a dark
+// gradient, no blur), and a slim heat-mapped LED spectrum sits along the bottom.
+// Each column is a stack of discrete cells coloured by height (deep terracotta →
+// amber → near-white) with a bright cap cell on the slow-falling peak, plus a
+// whisper-quiet BASS/TREBLE hint at the ends.
 //
 // The blurred cover is a DOM layer (GPU-composited once per song), NOT redrawn
 // each frame — the transparent <canvas> on top draws only the bars + peaks, so
@@ -54,25 +58,19 @@ export function VisualizerView() {
     resize();
     window.addEventListener("resize", resize);
 
-    function barGrad(x0: number, y0: number, x1: number, y1: number) {
-      const g = ctx.createLinearGradient(x0, y0, x1, y1);
-      g.addColorStop(0, "#f0a877");
-      g.addColorStop(0.45, "#d97757");
-      g.addColorStop(1, "#c25f34");
-      return g;
-    }
-    // Rounded-top bar path. r is clamped non-negative so a tiny/zero height can't
-    // feed arcTo a negative radius (which throws IndexSizeError).
-    function rrTop(x: number, y: number, bw: number, bh: number, r: number) {
-      r = Math.max(0, Math.min(r, bw / 2, bh));
-      ctx.beginPath();
-      ctx.moveTo(x, y + bh);
-      ctx.lineTo(x, y + r);
-      ctx.arcTo(x, y, x + r, y, r);
-      ctx.lineTo(x + bw - r, y);
-      ctx.arcTo(x + bw, y, x + bw, y + r, r);
-      ctx.lineTo(x + bw, y + bh);
-      ctx.closePath();
+    // heat maps a cell's 0..1 height fraction to a warm colour: deep terracotta at
+    // the base, warming through amber to near-white at the top.
+    const C_LOW = [122, 59, 34]; // #7a3b22
+    const C_MID = [217, 119, 87]; // #d97757 (--color-accent-strong)
+    const C_HI = [246, 180, 131]; // #f6b483
+    const C_TOP = [255, 242, 230]; // #fff2e6
+    function heat(f: number): string {
+      let a = C_LOW, b = C_MID, u = 0;
+      if (f < 0.5) { a = C_LOW; b = C_MID; u = f / 0.5; }
+      else if (f < 0.82) { a = C_MID; b = C_HI; u = (f - 0.5) / 0.32; }
+      else { a = C_HI; b = C_TOP; u = (f - 0.82) / 0.18; }
+      const ch = (k: number) => (a[k] + (b[k] - a[k]) * u) | 0;
+      return `rgb(${ch(0)},${ch(1)},${ch(2)})`;
     }
 
     function ease(target: number[]) {
@@ -87,26 +85,41 @@ export function VisualizerView() {
     function draw() {
       ctx.clearRect(0, 0, w, h);
       if (airplayRef.current) return; // sound is on a remote speaker — nothing to show
-      const gap = w / N;
-      const bw = gap * 0.56;
-      const base = h * 0.8; // leave the bottom ~20% clear for the transport control
+      // Ambient composition: a slim spectrum along the lower third; the album art
+      // (DOM layer) fills the frame behind it. Bottom is left clear for transport.
+      const x0 = w * 0.05, x1 = w * 0.95;
+      const yBot = h * 0.8, yTop = h * 0.52;
+      const colW = (x1 - x0) / N, bw = colW * 0.62;
+      const cells = 18, cellH = (yBot - yTop) / cells, cg = Math.min(2.5, cellH * 0.4);
+      for (let i = 0; i < N; i++) {
+        const x = x0 + i * colW + (colW - bw) / 2;
+        const lit = Math.round(levels[i] * cells);
+        for (let c = 0; c < lit; c++) {
+          ctx.fillStyle = heat(c / (cells - 1));
+          ctx.fillRect(x, yBot - (c + 1) * cellH + cg / 2, bw, cellH - cg);
+        }
+        // bright cap cell riding the slow-falling peak — only where there's energy,
+        // so silent columns stay empty (no uniform dash row along the floor).
+        const pk = peaks[i] * cells;
+        if (pk >= 1) {
+          const pc = Math.round(pk) - 1;
+          ctx.fillStyle = "#fff2e6";
+          ctx.fillRect(x, yBot - (pc + 1) * cellH + cg / 2, bw, cellH - cg);
+        }
+      }
+      // Ends-only frequency hint — whisper-quiet.
+      const hasLS = "letterSpacing" in ctx;
       ctx.save();
-      ctx.shadowColor = "rgba(240,168,119,0.7)";
-      ctx.shadowBlur = 15;
-      for (let i = 0; i < N; i++) {
-        const bh = Math.max(2, levels[i] * base * 0.8);
-        const x = i * gap + (gap - bw) / 2;
-        ctx.fillStyle = barGrad(x, base - bh, x, base);
-        rrTop(x, base - bh, bw, bh, bw / 2);
-        ctx.fill();
-      }
-      ctx.shadowBlur = 0;
-      ctx.fillStyle = "#faf0e4";
-      for (let i = 0; i < N; i++) {
-        const ph = Math.max(2, peaks[i] * base * 0.8);
-        const x = i * gap + (gap - bw) / 2;
-        ctx.fillRect(x, base - ph - 3, bw, 2.5);
-      }
+      ctx.globalAlpha = 0.4;
+      ctx.fillStyle = "#e7ddd0";
+      ctx.font = `600 ${Math.round(Math.min(14, h * 0.02))}px system-ui, sans-serif`;
+      ctx.textBaseline = "alphabetic";
+      if (hasLS) (ctx as unknown as { letterSpacing: string }).letterSpacing = "2px";
+      ctx.textAlign = "left";
+      ctx.fillText("BASS", x0, yBot + h * 0.05);
+      ctx.textAlign = "right";
+      ctx.fillText("TREBLE", x1, yBot + h * 0.05);
+      if (hasLS) (ctx as unknown as { letterSpacing: string }).letterSpacing = "0px";
       ctx.restore();
     }
 

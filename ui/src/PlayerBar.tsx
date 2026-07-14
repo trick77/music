@@ -196,6 +196,7 @@ export function PlayerBar({ fav, onShare, renderMenu, alignmentEnabled, open, ly
           <button aria-label="Share" onClick={() => onShare(song)} style={iconBtn}><Icon name="share" size="20px" /></button>
           {renderMenu?.(song)}
           <button aria-label="Expand" onClick={() => onExpand("full")} style={iconBtn}><Icon name="chevronUp" size="20px" /></button>
+          <button aria-label="Stop and close" onClick={p.stop} style={iconBtn}><Icon name="close" size="20px" /></button>
         </div>
       </div>
 

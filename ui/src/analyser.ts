@@ -19,8 +19,12 @@ function ensureAnalyser(): AnalyserNode | null {
   try {
     ctx = new AC();
     const a = ctx.createAnalyser();
-    a.fftSize = 512; // 256 bins — enough low-end resolution once folded into ~24 bands
+    a.fftSize = 2048; // 1024 bins — plenty of resolution to give every band distinct bins
     a.smoothingTimeConstant = 0.8;
+    // Dynamic range tuned for music: without this, typical loud tracks peg most
+    // bins at 255 (bars stuck at max). -20 dBFS maps to full height, -82 to zero.
+    a.minDecibels = -82;
+    a.maxDecibels = -20;
     a.connect(ctx.destination);
     freq = new Uint8Array(a.frequencyBinCount);
     analyser = a;
@@ -65,17 +69,22 @@ export function bands(count: number): number[] {
   analyser.getByteFrequencyData(freq);
   const bins = freq.length;
   const minBin = 1; // skip bin 0 (DC / sub-audible offset)
-  const ratio = bins / minBin;
+  // Log-spaced bands, but CONTIGUOUS: each band starts where the last ended and
+  // spans at least one bin. A naive floor(pow()) makes the low bands collide on
+  // the same bin (every left bar moves in unison); chaining from `prev` fixes it.
+  let prev = minBin;
   for (let i = 0; i < count; i++) {
-    const lo = Math.floor(minBin * Math.pow(ratio, i / count));
-    const hi = Math.max(lo + 1, Math.floor(minBin * Math.pow(ratio, (i + 1) / count)));
+    let hi = Math.round(minBin * Math.pow(bins / minBin, (i + 1) / count));
+    if (hi <= prev) hi = prev + 1;
+    if (hi > bins) hi = bins;
     let sum = 0;
     let n = 0;
-    for (let b = lo; b < hi && b < bins; b++) {
+    for (let b = prev; b < hi; b++) {
       sum += freq[b];
       n++;
     }
     out[i] = n ? sum / n / 255 : 0;
+    prev = hi;
   }
   return out;
 }

@@ -116,10 +116,14 @@ export function VisualizerView({ fav, onShare }: { fav: Fav; onShare: (s: Song) 
       ctx.font = `600 ${Math.round(Math.min(14, h * 0.02))}px system-ui, sans-serif`;
       ctx.textBaseline = "alphabetic";
       if (hasLS) (ctx as unknown as { letterSpacing: string }).letterSpacing = "2px";
+      // Align the labels to the bars themselves, not the column band: the bars are
+      // inset within their columns by (colW - bw)/2, so BASS starts at the first
+      // bar's left edge and TREBLE ends at the last bar's right edge (symmetric).
+      const barInset = (colW - bw) / 2;
       ctx.textAlign = "left";
-      ctx.fillText("BASS", x0, yBot + h * 0.05);
+      ctx.fillText("BASS", x0 + barInset, yBot + h * 0.05);
       ctx.textAlign = "right";
-      ctx.fillText("TREBLE", x1, yBot + h * 0.05);
+      ctx.fillText("TREBLE", x1 - barInset, yBot + h * 0.05);
       if (hasLS) (ctx as unknown as { letterSpacing: string }).letterSpacing = "0px";
       ctx.restore();
     }

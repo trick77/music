@@ -7,7 +7,6 @@ const MAX_SWEEP = 1.2;
 const HOLD = 4;
 const INTRO_MIN = 2; // only animate the intro for lead-ins at least this long (s)
 const SWEEP_LEAD = 0.2; // s — advance the sweep clock to compensate for perceived lyric-sync lag
-const CONF_MIN = 0.4; // words scored below this (incl. interpolated conf=0) render softened — timing is uncertain. Matches the backend summarizeAlignment threshold.
 
 type LineRt = {
   el: HTMLDivElement;
@@ -182,7 +181,7 @@ function LineRow({ line, register }: { line: AlignedLine; register: (rt: LineRt)
         {wl.length
           ? wl.map((w, i) => (
               <span key={i}>
-                <span ref={(el) => { if (el) wordRefs.current[i] = el; }} className={w.conf < CONF_MIN ? "kv-word kv-lowconf" : "kv-word"}>{w.w}</span>
+                <span ref={(el) => { if (el) wordRefs.current[i] = el; }} className="kv-word">{w.w}</span>
                 {i < wl.length - 1 ? " " : ""}
               </span>
             ))
@@ -215,9 +214,6 @@ const KV_CSS = `
     rgba(250,249,245,.22) calc(var(--p) * 100%));
   -webkit-background-clip:text; background-clip:text;
   -webkit-text-fill-color:transparent; color:transparent; }
-/* Words the aligner timed with low confidence (or had to interpolate, conf=0) render
-   a touch softer, so uncertain timing reads as intentional rather than exact. */
-.kv-word.kv-lowconf { opacity:.72; }
 /* Intro "get ready" flourish: music notes drift up and fade just ABOVE where the
    first lyric lands (the first line auto-scrolls to 40vh). Shown via .kv-visible
    during the instrumental lead-in. */

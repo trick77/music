@@ -20,6 +20,7 @@ SUPPORTED = {
     "en", "fr", "de", "es", "it", "ja", "zh", "nl", "uk", "pt", "ar", "cs",
     "ru", "pl", "hu", "fi", "fa", "el", "tr", "da", "he", "vi", "ko", "ur",
     "te", "hi", "ca", "ml", "sk", "sl", "hr", "ro", "eu", "gl", "ka", "lv",
+    "no", "nn",
 }
 
 _MIN_CHARS = 24         # short/repetitive lyrics detect badly — keep the default

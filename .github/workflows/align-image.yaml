@@ -1,0 +1,66 @@
+name: Align image
+
+# Builds and publishes the WhisperX+Demucs alignment sidecar image
+# (ghcr.io/<owner>/music-align) on GitHub's native amd64 runners — no local build or
+# push from a dev machine, no qemu emulation. Runs when the sidecar changes, or on
+# demand. The main app image is built separately by release.yaml.
+on:
+  push:
+    branches: [master]
+    paths:
+      - "sidecar/align/**"
+      - ".github/workflows/align-image.yaml"
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: align-image
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: docker/setup-buildx-action@v4
+
+      - uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # Build + load into the runner's Docker first, so we can boot-test the image
+      # before publishing — a missing module or a CUDA-torch regression fails here,
+      # not in production. The push step reuses the same gha cache, so it's near-instant.
+      - name: Build (load for smoke test)
+        uses: docker/build-push-action@v7
+        with:
+          context: ./sidecar/align
+          file: ./sidecar/align/Containerfile
+          platforms: linux/amd64
+          load: true
+          tags: ghcr.io/${{ github.repository_owner }}/music-align:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Smoke test (boots, CPU-only torch)
+        run: |
+          docker run --rm ghcr.io/${{ github.repository_owner }}/music-align:latest \
+            python -c "import torch, torchaudio, whisperx, demucs, app; from language import detect_language; assert torch.version.cuda is None, 'expected CPU-only torch'; print('OK', torch.__version__, detect_language(['a long enough english test line for detection']))"
+
+      - name: Push
+        uses: docker/build-push-action@v7
+        with:
+          context: ./sidecar/align
+          file: ./sidecar/align/Containerfile
+          platforms: linux/amd64
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/music-align:latest
+            ghcr.io/${{ github.repository_owner }}/music-align:${{ github.sha }}
+          cache-from: type=gha

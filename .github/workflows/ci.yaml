@@ -44,3 +44,20 @@ jobs:
       - run: npm ci
       - run: npm run build
       - run: npm test -- --run
+
+  sidecar:
+    name: Align sidecar (test)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: sidecar/align
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      # The align sidecar's custom logic (word grouping/interpolation, language
+      # detection) is unit-tested without the multi-GB ML stack — the tests import
+      # only grouping.py/language.py, so pytest + langdetect is all that's needed.
+      - run: pip install pytest langdetect==1.0.9
+      - run: python -m pytest -q

@@ -4,9 +4,27 @@ RUN apt-get update && apt-get install -y --no-install-recommends ffmpeg \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
+
+# Layers are ordered heaviest + most-stable first, so a small dependency change or a
+# code edit never invalidates (and re-pushes) the multi-GB ML stack.
+#
+# 1) CPU-only torch/torchaudio from the PyTorch CPU wheel index. The default PyPI
+#    wheels bundle ~5GB of CUDA libraries we never use — the sidecar runs on CPU (GPU
+#    is opt-in and would need a CUDA base image) — so the CPU wheels cut the image from
+#    ~8.5GB to ~2.5GB. Installed first because it's the largest, stablest layer;
+#    whisperx/demucs below then find torch already satisfied and keep these CPU builds.
+RUN pip install --no-cache-dir torch==2.8.0 torchaudio==2.8.0 \
+    --index-url https://download.pytorch.org/whl/cpu
+
+# 2) Rest of the heavy ML stack (rarely changes).
+COPY requirements-heavy.txt .
+RUN pip install --no-cache-dir -r requirements-heavy.txt
+
+# 3) Light, more-frequently-changing deps -> a small separate layer.
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
+# 4) App code -> the last, tiny layer.
 COPY grouping.py language.py app.py ./
 
 EXPOSE 8000

@@ -165,9 +165,11 @@ export function VisualizerView({ fav, onShare }: { fav: Fav; onShare: (s: Song) 
     };
   }, []);
 
+  // Always return to Home, whatever the entry point (mini-bar, lyrics, artwork, or a
+  // direct /visualizer deep link). history.back() would land on whatever entry happens to
+  // sit under /visualizer — inconsistent, and a deep link has no back entry at all.
   function close() {
-    if (window.history.length > 1) window.history.back();
-    else navigate("/");
+    navigate("/");
   }
 
   return (

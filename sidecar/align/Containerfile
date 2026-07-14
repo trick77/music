@@ -7,7 +7,7 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-COPY grouping.py app.py ./
+COPY grouping.py language.py app.py ./
 
 EXPOSE 8000
 # Export OMP_NUM_THREADS = (cores - 1) before torch loads, so OpenMP-parallel CPU

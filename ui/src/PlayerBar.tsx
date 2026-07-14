@@ -7,7 +7,7 @@ import { Icon } from "./Icon";
 import { KaraokeView } from "./KaraokeView";
 import { KaraokeCard } from "./KaraokeCard";
 import { getAlign, postAlign, type AlignmentData, type Song } from "./api";
-import { type PlayerParam } from "./router";
+import { navigate, type PlayerParam } from "./router";
 
 type Fav = { has: (id: string) => boolean; toggle: (id: string) => void };
 
@@ -194,6 +194,11 @@ export function PlayerBar({ fav, onShare, renderMenu, alignmentEnabled, open, ly
           {hasLyrics && (
             <button aria-label="Show lyrics" onClick={() => onExpand("lyrics")} style={iconBtn}><Icon name="captions" size="23px" /></button>
           )}
+          {/* Visualizer and AirPlay are mutually exclusive: while audio is routed to
+              a remote device there is nothing local to visualize, so hide this. */}
+          {!p.airplayActive && (
+            <button aria-label="Open visualizer" onClick={() => navigate("/visualizer")} style={iconBtn}><Icon name="visualizer" size="23px" /></button>
+          )}
           <AirplayButton available={p.airplayAvailable} active={p.airplayActive} onClick={p.showAirplayPicker} />
           <button aria-label="Share" onClick={() => onShare(song)} style={iconBtn}><Icon name="share" size="20px" /></button>
           {renderMenu?.(song)}
@@ -263,6 +268,9 @@ export function PlayerBar({ fav, onShare, renderMenu, alignmentEnabled, open, ly
                   <Transport playing={p.playing} onPrev={p.prev} onToggle={p.toggle} onNext={p.next} size={26} />
                   <StarButton song={song} fav={fav} size={24} />
                   <button aria-label="Show artwork" aria-pressed onClick={() => onSetMode("full")} style={{ ...iconBtn, color: "var(--color-accent-strong)" }}><Icon name="captions" size="25px" /></button>
+                  {!p.airplayActive && (
+                    <button aria-label="Open visualizer" onClick={() => navigate("/visualizer")} style={{ ...iconBtn, color: "#fff" }}><Icon name="visualizer" size="24px" /></button>
+                  )}
                   <AirplayButton available={p.airplayAvailable} active={p.airplayActive} onClick={p.showAirplayPicker} size={22} color="#fff" />
                   <button aria-label="Share" onClick={onCopyLink} style={{ ...iconBtn, color: "#fff" }}><Icon name="share" size="22px" /></button>
                 </div>
@@ -283,6 +291,9 @@ export function PlayerBar({ fav, onShare, renderMenu, alignmentEnabled, open, ly
                 <StarButton song={song} fav={fav} size={24} />
                 {hasLyrics && (
                   <button aria-label="Show lyrics" aria-pressed={false} onClick={() => onSetMode("lyrics")} style={{ ...iconBtn, color: "#fff" }}><Icon name="captions" size="25px" /></button>
+                )}
+                {!p.airplayActive && (
+                  <button aria-label="Open visualizer" onClick={() => navigate("/visualizer")} style={{ ...iconBtn, color: "#fff" }}><Icon name="visualizer" size="24px" /></button>
                 )}
                 <AirplayButton available={p.airplayAvailable} active={p.airplayActive} onClick={p.showAirplayPicker} size={22} color="#fff" />
                 <button aria-label="Share" onClick={onCopyLink} style={{ ...iconBtn, color: "#fff" }}><Icon name="share" size="22px" /></button>

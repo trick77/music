@@ -13,6 +13,7 @@ import { PlaylistsPage } from "./PlaylistsPage";
 import { PlaylistPage } from "./PlaylistPage";
 import { Rail } from "./Rail";
 import { PlayerBar } from "./PlayerBar";
+import { VisualizerView } from "./VisualizerView";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { usePlayer } from "./player";
 import { useRoute, navigate, parsePlayerParam, pushPlayer, replacePlayer, closePlayer, type PlayerParam } from "./router";
@@ -428,6 +429,9 @@ export function App() {
           // A shared /song/:id link opens the full-screen player overlay (see the
           // auto-open effect); Home sits behind it so closing lands on a real page.
           <Home authenticated={authed} onPlay={onPlay} onShare={shareSong} onUpload={triggerUpload} renderRowActions={rowActions} reloadKey={feedVersion} />
+        ) : route.name === "visualizer" ? (
+          // Rendered full-screen (fixed) below, outside this constrained wrapper.
+          null
         ) : (
           <Library
             songs={songs}
@@ -446,6 +450,8 @@ export function App() {
       <input ref={uploadRef} type="file" accept=".mp3,audio/mpeg" onChange={onUpload} style={{ display: "none" }} disabled={uploading} />
 
       <PlayerBar fav={fav} onShare={shareSong} renderMenu={playerMenu} alignmentEnabled={!!session?.alignmentEnabled} open={playerParam !== null} lyrics={playerParam === "lyrics"} onExpand={expandPlayer} onSetMode={setPlayerMode} onClose={closePlayerView} onCopyLink={copyPlayerLink} />
+
+      {route.name === "visualizer" && <VisualizerView />}
 
       {showQueue && (
         <QueueDrawer

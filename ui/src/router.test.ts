@@ -20,6 +20,9 @@ describe("parsePath", () => {
   it("parses the genres list route", () => {
     expect(parsePath("/genres")).toEqual({ name: "genres" });
   });
+  it("parses the visualizer route", () => {
+    expect(parsePath("/visualizer")).toEqual({ name: "visualizer" });
+  });
   it("parses a genre detail route", () => {
     expect(parsePath("/genre/g1")).toEqual({ name: "genre", id: "g1" });
   });

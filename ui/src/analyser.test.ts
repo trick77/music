@@ -1,53 +1,40 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 
-// A minimal, controllable AudioContext mock. state is flipped manually so tests
-// can reproduce the suspended -> running transition that resume() triggers
-// asynchronously in a real browser.
+// A minimal, controllable AudioContext mock. createMediaElementSource is the tap
+// we care about; resume() records that the context was un-suspended.
 let lastCtx: MockAudioContext;
 
 class MockAudioContext {
   state: "suspended" | "running" = "suspended";
   destination = {};
   createMediaElementSource = vi.fn(() => ({ connect: vi.fn() }));
-  resume = vi.fn();
-  private listeners: Array<() => void> = [];
+  resume = vi.fn(() => {
+    this.state = "running";
+  });
 
   constructor() {
     lastCtx = this; // capture the instance the module under test creates
-    lastCtx.state = initialState;
   }
 
   createAnalyser() {
     return {
       fftSize: 0,
       smoothingTimeConstant: 0,
+      minDecibels: 0,
+      maxDecibels: 0,
       frequencyBinCount: 128,
       connect: vi.fn(),
       getByteFrequencyData: vi.fn(),
     };
   }
-  addEventListener(_type: "statechange", cb: () => void) {
-    this.listeners.push(cb);
-  }
-  removeEventListener(_type: "statechange", cb: () => void) {
-    this.listeners = this.listeners.filter((l) => l !== cb);
-  }
-  // Test helper: move to running and fire statechange, like a resolved resume().
-  goRunning() {
-    this.state = "running";
-    for (const l of [...this.listeners]) l();
-  }
 }
-
-let initialState: "suspended" | "running" = "suspended";
 
 // Fresh module state per test (analyser.ts holds module-level singletons). The
 // module creates the context itself; MockAudioContext's constructor captures the
-// instance into lastCtx so the test can drive its state.
-async function freshAnalyser(state: "suspended" | "running") {
+// instance into lastCtx so the test can inspect its calls.
+async function freshAnalyser() {
   vi.resetModules();
-  initialState = state;
-  lastCtx = undefined as unknown as MockAudioContext; // no context created until attach() needs one
+  lastCtx = undefined as unknown as MockAudioContext; // no context until attach() needs one
   vi.stubGlobal("window", { AudioContext: MockAudioContext });
   return import("./analyser");
 }
@@ -57,58 +44,65 @@ const el = {} as HTMLMediaElement;
 describe("attach", () => {
   beforeEach(() => vi.unstubAllGlobals());
 
-  it("defers the tap while the context is suspended, then taps once it runs", async () => {
-    const { attach, isAttached } = await freshAnalyser("suspended");
+  it("taps the element immediately when a context is available", async () => {
+    const { attach, isAttached } = await freshAnalyser();
 
     attach(el);
 
-    // The element must NOT be rerouted into a still-suspended (silent) graph.
-    expect(lastCtx.createMediaElementSource).not.toHaveBeenCalled();
-    expect(isAttached()).toBe(false);
-    expect(lastCtx.resume).toHaveBeenCalled();
-
-    // Once the context reaches running, the deferred tap fires exactly once.
-    lastCtx.goRunning();
     expect(lastCtx.createMediaElementSource).toHaveBeenCalledTimes(1);
     expect(lastCtx.createMediaElementSource).toHaveBeenCalledWith(el);
     expect(isAttached()).toBe(true);
   });
 
-  it("taps immediately when the context is already running", async () => {
-    const { attach, isAttached } = await freshAnalyser("running");
+  it("is idempotent across repeated calls (taps exactly once)", async () => {
+    const { attach } = await freshAnalyser();
 
+    attach(el);
+    attach(el);
     attach(el);
 
     expect(lastCtx.createMediaElementSource).toHaveBeenCalledTimes(1);
+  });
+
+  it("is a no-op once tapped (a different element is ignored)", async () => {
+    const { attach } = await freshAnalyser();
+
+    attach(el);
+    attach({} as HTMLMediaElement);
+
+    expect(lastCtx.createMediaElementSource).toHaveBeenCalledTimes(1);
+  });
+
+  it("is a no-op when passed a null element (no context even created)", async () => {
+    const { attach, isAttached } = await freshAnalyser();
+
+    attach(null);
+
+    expect(lastCtx).toBeUndefined();
+    expect(isAttached()).toBe(false);
+  });
+});
+
+describe("prime", () => {
+  beforeEach(() => vi.unstubAllGlobals());
+
+  it("taps the element and un-suspends the context so audio flows on play", async () => {
+    const { prime, isAttached } = await freshAnalyser();
+
+    prime(el);
+
+    expect(lastCtx.createMediaElementSource).toHaveBeenCalledTimes(1);
+    expect(lastCtx.resume).toHaveBeenCalled();
+    expect(lastCtx.state).toBe("running");
     expect(isAttached()).toBe(true);
   });
 
-  it("does not stack statechange listeners across repeated frame-loop calls", async () => {
-    const { attach } = await freshAnalyser("suspended");
+  it("is a no-op on a null element", async () => {
+    const { prime, isAttached } = await freshAnalyser();
 
-    attach(el);
-    attach(el);
-    attach(el);
+    prime(null);
 
-    // Three attach() calls while suspended must still tap exactly once when the
-    // context starts (one pending element, one listener).
-    lastCtx.goRunning();
-    expect(lastCtx.createMediaElementSource).toHaveBeenCalledTimes(1);
-  });
-
-  it("is a no-op once tapped (element already routed)", async () => {
-    const { attach } = await freshAnalyser("running");
-
-    attach(el);
-    attach({} as HTMLMediaElement); // a different element must be ignored
-    expect(lastCtx.createMediaElementSource).toHaveBeenCalledTimes(1);
-  });
-
-  it("is a no-op when passed a null element", async () => {
-    const { attach, isAttached } = await freshAnalyser("running");
-
-    attach(null);
-    expect(lastCtx).toBeUndefined(); // no AudioContext even created for a null element
+    expect(lastCtx).toBeUndefined();
     expect(isAttached()).toBe(false);
   });
 });

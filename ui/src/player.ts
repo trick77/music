@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { streamUrl, reportPlay, type Song } from "./api";
 import { coverUrl } from "./cover";
 import { saveResume, loadResume, clearResume, isResumeFresh, type ResumeState } from "./resume";
+import { prime } from "./analyser";
 
 export type PlayerState = {
   current: Song | null;
@@ -262,7 +263,13 @@ function loadCurrent(autoplay: boolean) {
   el.src = streamUrl(state.current.id);
   el.currentTime = 0;
   setMediaMetadata(state.current);
-  if (autoplay) void el.play().catch(() => {});
+  // Tap the element into the analyser graph BEFORE it plays: rerouting a paused
+  // element is seamless, rerouting a playing one glitches (the first-open
+  // equalizer stutter). Idempotent, so this only does real work on first play.
+  if (autoplay) {
+    prime(el);
+    void el.play().catch(() => {});
+  }
 }
 
 export const player = {
@@ -304,8 +311,10 @@ export const player = {
   toggle() {
     if (!state.current) return;
     const el = getAudio();
-    if (el.paused) void el.play().catch(() => {});
-    else el.pause();
+    if (el.paused) {
+      prime(el); // tap before playback resumes — before el.play() (see loadCurrent)
+      void el.play().catch(() => {});
+    } else el.pause();
   },
   // stop is the user-facing "close the player": halt audio, forget the track, and
   // wipe the resume state so restore() won't reseed it on the next load. The dock

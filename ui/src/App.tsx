@@ -451,7 +451,7 @@ export function App() {
 
       <PlayerBar fav={fav} onShare={shareSong} renderMenu={playerMenu} alignmentEnabled={!!session?.alignmentEnabled} open={playerParam !== null} lyrics={playerParam === "lyrics"} onExpand={expandPlayer} onSetMode={setPlayerMode} onClose={closePlayerView} onCopyLink={copyPlayerLink} />
 
-      {route.name === "visualizer" && <VisualizerView />}
+      {route.name === "visualizer" && <VisualizerView fav={fav} onShare={shareSong} />}
 
       {showQueue && (
         <QueueDrawer

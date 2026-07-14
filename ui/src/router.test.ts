@@ -98,10 +98,11 @@ describe("player URL helpers", () => {
     expect(dispatchEvent).not.toHaveBeenCalled();
   });
 
-  it("closePlayer strips the param in place when arrived via a fresh deep link", () => {
+  it("closePlayer navigates Home when arrived via a fresh deep link", () => {
     closePlayer(false);
     expect(back).not.toHaveBeenCalled();
-    expect(replaceState).toHaveBeenCalledWith({}, "", "/song/abc");
+    expect(replaceState).not.toHaveBeenCalled();
+    expect(pushState).toHaveBeenCalledWith({}, "", "/");
     expect(dispatchEvent).toHaveBeenCalledTimes(1);
   });
 });

@@ -13,7 +13,6 @@ import { SongCover } from "./SongCover";
 import { genreLabel } from "./titleCase";
 import { Glyph } from "./Glyph";
 import { Icon } from "./Icon";
-import { SyncingBadge } from "./SyncingBadge";
 import { GenreEditor } from "./GenreEditor";
 
 export type DetailKind = "genre" | "artist";
@@ -159,7 +158,6 @@ export function Detail({ kind, id, authenticated, studioEnabled, imageGenEnabled
                 <div style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: current?.id === s.id ? "var(--color-accent-strong)" : undefined }}>{s.title}</div>
                 <div style={{ display: "flex", alignItems: "center", gap: "0.6rem", color: "var(--color-muted)", fontSize: "var(--text-label)" }}>
                   <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.artistName}</span>
-                  <SyncingBadge status={s.alignmentStatus} />
                 </div>
               </button>
               <span style={{ display: "flex", alignItems: "center", gap: "0.35rem" }}>{renderRowActions(s)}</span>

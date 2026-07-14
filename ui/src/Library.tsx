@@ -5,7 +5,6 @@ import { fanartUrl } from "./fanart";
 import { formatDuration } from "./format";
 import { navigate } from "./router";
 import { Glyph } from "./Glyph";
-import { SyncingBadge } from "./SyncingBadge";
 import { t } from "./ui";
 import { genreLabel } from "./titleCase";
 import { usePlayer } from "./player";
@@ -152,7 +151,6 @@ export function Library({ songs, favoriteIds, authenticated, studioEnabled = fal
                 <span style={{ display: "block", color: isPlaying ? "var(--color-accent-strong)" : "var(--color-ink)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{song.title}</span>
                 <span style={{ display: "flex", alignItems: "center", gap: "0.6rem", ...t.label }}>
                   <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{song.artistName}</span>
-                  <SyncingBadge status={song.alignmentStatus} />
                 </span>
               </span>
               <span style={{ color: "var(--color-muted)", fontVariantNumeric: "tabular-nums", flexShrink: 0 }}>{formatDuration(song.durationMs)}</span>

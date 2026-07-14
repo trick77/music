@@ -80,7 +80,7 @@ export function VisualizerView() {
         const a = target[i] > levels[i] ? 0.5 : 0.14; // fast attack, slow decay
         levels[i] += (target[i] - levels[i]) * a;
         if (levels[i] > peaks[i]) peaks[i] = levels[i];
-        else peaks[i] = Math.max(levels[i], peaks[i] - 0.012);
+        else peaks[i] = Math.max(levels[i], peaks[i] - 0.0035); // slow hang-and-fall
       }
     }
 
@@ -158,39 +158,16 @@ export function VisualizerView() {
         background: "#141413",
       }}
     >
-      {/* Blurred cover backdrop (DOM layer, composited once per song). */}
-      {song?.coverArtId ? (
-        <img
-          key={song.coverArtId}
-          src={coverUrl(song.coverArtId, "hero")}
-          alt=""
-          aria-hidden="true"
-          style={{
-            position: "absolute",
-            inset: "-8%",
-            width: "116%",
-            height: "116%",
-            objectFit: "cover",
-            filter: "blur(40px) saturate(1.1)",
-          }}
-        />
-      ) : (
-        <div
-          aria-hidden="true"
-          style={{
-            position: "absolute",
-            inset: 0,
-            background:
-              "radial-gradient(120% 100% at 35% 30%, #5c2f1e 0%, #2a1a14 55%, #161311 100%)",
-          }}
-        />
-      )}
+      {/* Cover backdrop — IDENTICAL treatment to the full-screen player:
+          the hero art at center/cover under the same dark gradient scrim, no blur. */}
       <div
         aria-hidden="true"
         style={{
           position: "absolute",
           inset: 0,
-          background: "linear-gradient(180deg, rgba(18,18,16,0.55) 0%, rgba(18,18,16,0.62) 55%, rgba(18,18,16,0.8) 100%)",
+          background: song?.coverArtId
+            ? `linear-gradient(180deg, rgba(20,20,18,0.6), rgba(20,20,18,0.96)), url(${coverUrl(song.coverArtId, "hero")}) center/cover`
+            : "var(--color-bg)",
         }}
       />
 

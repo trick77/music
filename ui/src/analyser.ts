@@ -119,6 +119,18 @@ export function bandEdges(count: number, bins: number, sampleRate: number): Arra
   return edges;
 }
 
+// Memoize the band boundaries: bands() runs once per rAF frame (~60fps) but
+// count/bins/sampleRate never change within a session, so recomputing (and
+// reallocating) the edges every frame is pure waste. bandEdges stays pure.
+let edgeCache: { key: string; edges: Array<[number, number]> } | null = null;
+function cachedEdges(count: number, bins: number, sampleRate: number): Array<[number, number]> {
+  const key = `${count}:${bins}:${sampleRate}`;
+  if (!edgeCache || edgeCache.key !== key) {
+    edgeCache = { key, edges: bandEdges(count, bins, sampleRate) };
+  }
+  return edgeCache.edges;
+}
+
 // bands folds the FFT bins into `count` log-spaced bands, normalized to 0..1.
 // Returns all-zero when the analyser isn't ready or nothing has been tapped yet
 // (so the visualizer idles flat instead of erroring).
@@ -127,7 +139,7 @@ export function bands(count: number): number[] {
   if (!analyser || !freq) return out;
   analyser.getByteFrequencyData(freq);
   const sampleRate = ctx?.sampleRate ?? 44100;
-  const edges = bandEdges(count, freq.length, sampleRate);
+  const edges = cachedEdges(count, freq.length, sampleRate);
   for (let i = 0; i < count; i++) {
     const [lo, hi] = edges[i];
     // Peak (max) rather than mean of the band's bins: a beat's energy is narrow,

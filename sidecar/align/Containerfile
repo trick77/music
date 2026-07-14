@@ -8,12 +8,17 @@ WORKDIR /app
 # Layers are ordered heaviest + most-stable first, so a small dependency change or a
 # code edit never invalidates (and re-pushes) the multi-GB ML stack.
 #
-# 1) CPU-only torch/torchaudio from the PyTorch CPU wheel index. The default PyPI
-#    wheels bundle ~5GB of CUDA libraries we never use — the sidecar runs on CPU (GPU
+# 1) CPU-only torch/torchaudio/torchvision from the PyTorch CPU wheel index. The default
+#    PyPI wheels bundle ~5GB of CUDA libraries we never use — the sidecar runs on CPU (GPU
 #    is opt-in and would need a CUDA base image) — so the CPU wheels cut the image from
 #    ~8.5GB to ~2.5GB. Installed first because it's the largest, stablest layer;
 #    whisperx/demucs below then find torch already satisfied and keep these CPU builds.
-RUN pip install --no-cache-dir torch==2.8.0 torchaudio==2.8.0 \
+#    torchvision MUST be installed here too, from the same CPU index: whisperx 3.8.6
+#    requires torchvision~=0.23.0, and transformers imports it lazily during align-model
+#    load. If it's left to resolve from PyPI it pulls the default (CUDA) build, whose
+#    compiled ops don't match torch's CPU build — `torchvision::nms does not exist`, which
+#    transformers masks as "Could not import module 'Wav2Vec2ForCTC'" and 500s /align.
+RUN pip install --no-cache-dir torch==2.8.0 torchaudio==2.8.0 torchvision==0.23.0 \
     --index-url https://download.pytorch.org/whl/cpu
 
 # 2) Rest of the heavy ML stack (rarely changes).

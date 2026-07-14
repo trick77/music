@@ -64,18 +64,11 @@ async def align(audio: UploadFile = File(...), lyrics: str = Form(...), language
         with open(src, "wb") as fh:
             fh.write(await audio.read())
 
-        # 1) Vocal isolation (Demucs) -> a cleaner signal for alignment.
+        # 1) Load the align model FIRST — before the ~2-minute Demucs stage. The model
+        # only needs `lang` (already known), so loading it up front means a broken
+        # dependency (e.g. a wav2vec2/transformers import failure) fails in seconds
+        # instead of after Demucs has already burned minutes of CPU.
         try:
-            demucs_main(["--two-stems", "vocals", "-n", "htdemucs", "-o", tmp, src])
-            vocal = os.path.join(tmp, "htdemucs", "in", "vocals.wav")
-            target = vocal if os.path.exists(vocal) else src
-        except Exception:
-            target = src  # fall back to the full mix if separation fails
-
-        # 2) Forced alignment of the KNOWN lyrics as one whole-track segment.
-        try:
-            wav = whisperx.load_audio(target)
-            duration = len(wav) / 16000.0
             # An unsupported detected language would raise on load; fall back to English
             # so a bad guess never fails a song that would align fine in English.
             try:
@@ -86,6 +79,21 @@ async def align(audio: UploadFile = File(...), lyrics: str = Form(...), language
                 log.warning("no align model for %r; falling back to en", lang)
                 lang = "en"
                 model, meta = _get_align_model("en")
+        except Exception as e:
+            return JSONResponse(status_code=500, content={"error": f"alignment failed: {e}"})
+
+        # 2) Vocal isolation (Demucs) -> a cleaner signal for alignment.
+        try:
+            demucs_main(["--two-stems", "vocals", "-n", "htdemucs", "-o", tmp, src])
+            vocal = os.path.join(tmp, "htdemucs", "in", "vocals.wav")
+            target = vocal if os.path.exists(vocal) else src
+        except Exception:
+            target = src  # fall back to the full mix if separation fails
+
+        # 3) Forced alignment of the KNOWN lyrics as one whole-track segment.
+        try:
+            wav = whisperx.load_audio(target)
+            duration = len(wav) / 16000.0
             segments = [{"text": " ".join(lines), "start": 0.0, "end": duration}]
             aligned = whisperx.align(segments, model, meta, wav, DEVICE, return_char_alignments=False)
         except Exception as e:

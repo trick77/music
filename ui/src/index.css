@@ -446,6 +446,3 @@ select.ui-control {
     border-radius: 0;
   }
 }
-
-/* Karaoke "syncing" row badge: a gently pulsing accent dot. */
-@keyframes kv-pulse { 0%, 100% { opacity: 0.35; } 50% { opacity: 1; } }

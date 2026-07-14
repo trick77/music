@@ -34,6 +34,28 @@ func alignEnabledServer(t *testing.T, stubURL string) http.Handler {
 	return New(cfg, st, spa)
 }
 
+// alignDevAndAnon builds a dev (authenticated) and an oidc (anonymous) handler over
+// ONE shared store + media dir, both wired to the alignment sidecar at stubURL — so
+// a song synced via dev can be read back through the anonymous handler.
+func alignDevAndAnon(t *testing.T, stubURL string) (dev http.Handler, anon http.Handler) {
+	t.Helper()
+	st, err := store.Open(t.TempDir() + "/test.db")
+	if err != nil {
+		t.Fatalf("store.Open: %v", err)
+	}
+	t.Cleanup(func() { st.Close() })
+	media := t.TempDir()
+	spa := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { w.Write([]byte("SPA")) })
+	mk := func(mode config.AuthMode) http.Handler {
+		cfg := config.Config{
+			AuthMode: mode, DevUser: config.DevUserConfig{Username: "dev"}, MediaDir: media,
+			MaxUploadMB: 50, AlignURL: stubURL, AlignTimeout: 30 * time.Second,
+		}
+		return New(cfg, st, spa)
+	}
+	return mk(config.AuthModeDev), mk(config.AuthModeOIDC)
+}
+
 func stubSidecar(t *testing.T) *httptest.Server {
 	t.Helper()
 	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -42,14 +64,20 @@ func stubSidecar(t *testing.T) *httptest.Server {
 	}))
 }
 
-func TestAlignRoutes_anonForbidden(t *testing.T) {
+func TestAlignRoutes_anonGating(t *testing.T) {
 	h := testServer(t, config.AuthModeOIDC) // anonymous
-	for _, m := range []string{"POST", "GET"} {
-		rr := httptest.NewRecorder()
-		h.ServeHTTP(rr, httptest.NewRequest(m, "/api/songs/whatever/align", nil))
-		if rr.Code != http.StatusForbidden {
-			t.Fatalf("anon %s /align = %d, want 403", m, rr.Code)
-		}
+	// Generating alignment stays auth-only.
+	post := httptest.NewRecorder()
+	h.ServeHTTP(post, httptest.NewRequest("POST", "/api/songs/whatever/align", nil))
+	if post.Code != http.StatusForbidden {
+		t.Fatalf("anon POST /align = %d, want 403", post.Code)
+	}
+	// Reading alignment is open to everyone; an unknown/unpublished song is 404
+	// (not 403) — the published-guard hides it exactly like GET /api/songs/{id}.
+	get := httptest.NewRecorder()
+	h.ServeHTTP(get, httptest.NewRequest("GET", "/api/songs/whatever/align", nil))
+	if get.Code != http.StatusNotFound {
+		t.Fatalf("anon GET /align (missing song) = %d, want 404", get.Code)
 	}
 }
 
@@ -84,6 +112,59 @@ func TestSession_alignmentFlag(t *testing.T) {
 	json.Unmarshal(rr.Body.Bytes(), &body)
 	if body["alignmentEnabled"] != true {
 		t.Fatalf("alignmentEnabled = %v, want true when enabled+authed", body["alignmentEnabled"])
+	}
+}
+
+func TestGetAlign_anonReadsPublishedTiming(t *testing.T) {
+	stub := stubSidecar(t)
+	defer stub.Close()
+	dev, anon := alignDevAndAnon(t, stub.URL)
+
+	up := uploadFixture(t, dev)
+	var song struct {
+		ID string `json:"id"`
+	}
+	json.Unmarshal(up.Body.Bytes(), &song)
+
+	// Saving lyrics auto-starts alignment; poll (as dev) until it's ready.
+	if pr := patch(t, dev, song.ID, `{"title":"T","artistName":"Test Artist","genres":[],"lyrics":"la la"}`); pr.Code != http.StatusOK {
+		t.Fatalf("PATCH lyrics = %d", pr.Code)
+	}
+	deadline := time.Now().Add(3 * time.Second)
+	for {
+		gr := httptest.NewRecorder()
+		dev.ServeHTTP(gr, httptest.NewRequest("GET", "/api/songs/"+song.ID+"/align", nil))
+		var body map[string]any
+		json.Unmarshal(gr.Body.Bytes(), &body)
+		if body["status"] == "ready" {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatal("alignment did not reach 'ready' within deadline")
+		}
+		time.Sleep(15 * time.Millisecond)
+	}
+
+	// Unpublished: anon must not read the timing (it carries lyric word text).
+	pre := httptest.NewRecorder()
+	anon.ServeHTTP(pre, httptest.NewRequest("GET", "/api/songs/"+song.ID+"/align", nil))
+	if pre.Code != http.StatusNotFound {
+		t.Fatalf("anon GET /align (unpublished) = %d, want 404", pre.Code)
+	}
+
+	// Publish, then anon reads the ready timing + lines.
+	if rr := doJSON(t, dev, "POST", "/api/songs/"+song.ID+"/publish", ""); rr.Code != http.StatusOK {
+		t.Fatalf("publish = %d", rr.Code)
+	}
+	post := httptest.NewRecorder()
+	anon.ServeHTTP(post, httptest.NewRequest("GET", "/api/songs/"+song.ID+"/align", nil))
+	if post.Code != http.StatusOK {
+		t.Fatalf("anon GET /align (published) = %d, want 200", post.Code)
+	}
+	var body map[string]any
+	json.Unmarshal(post.Body.Bytes(), &body)
+	if body["status"] != "ready" || body["lines"] == nil {
+		t.Fatalf("anon ready body missing timings: %v", body)
 	}
 }
 

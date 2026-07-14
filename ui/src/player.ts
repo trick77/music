@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { streamUrl, reportPlay, type Song } from "./api";
 import { coverUrl } from "./cover";
-import { saveResume, loadResume, isResumeFresh, type ResumeState } from "./resume";
+import { saveResume, loadResume, clearResume, isResumeFresh, type ResumeState } from "./resume";
 
 export type PlayerState = {
   current: Song | null;
@@ -307,6 +307,15 @@ export const player = {
     if (el.paused) void el.play().catch(() => {});
     else el.pause();
   },
+  // stop is the user-facing "close the player": halt audio, forget the track, and
+  // wipe the resume state so restore() won't reseed it on the next load. The dock
+  // self-unmounts once current is null (PlayerBar's `if (!p.current) return null`).
+  stop() {
+    if (!state.current) return;
+    getAudio().pause();
+    clearResume(resumeStore());
+    set({ current: null, queue: [], history: [], playing: false, positionMs: 0, durationMs: 0 });
+  },
   next() {
     const before = state.current?.id;
     state = advance(state);
@@ -382,6 +391,7 @@ export function usePlayer() {
     ...snap,
     play: player.play,
     toggle: player.toggle,
+    stop: player.stop,
     next: player.next,
     prev: player.prev,
     seek: player.seek,

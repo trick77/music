@@ -16,7 +16,7 @@ vi.mock("./player", () => ({
     durationMs: 0,
     airplayAvailable: false,
     airplayActive: false,
-    play() {}, toggle() {}, next() {}, prev() {}, seek() {},
+    play() {}, toggle() {}, stop() {}, next() {}, prev() {}, seek() {},
     setQueue() {}, restore() {}, remove() {}, patchSong() {}, showAirplayPicker() {},
   }),
 }));
@@ -75,5 +75,9 @@ describe("PlayerBar lyrics gating", () => {
   it("hides the lyrics button for a track with no lyrics", () => {
     const html = render(false, song({ lyrics: "" }), false, false);
     expect(html).not.toContain('aria-label="Show lyrics"');
+  });
+
+  it("offers a stop-and-close button in the mini bar", () => {
+    expect(render(false, song(), false, false)).toContain('aria-label="Stop and close"');
   });
 });

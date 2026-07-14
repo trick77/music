@@ -76,7 +76,7 @@ export function VisualizerView({ fav, onShare }: { fav: Fav; onShare: (s: Song) 
 
     function ease(target: number[]) {
       for (let i = 0; i < N; i++) {
-        const a = target[i] > levels[i] ? 0.5 : 0.14; // fast attack, slow decay
+        const a = target[i] > levels[i] ? 0.85 : 0.14; // snap up on a beat, fall gently
         levels[i] += (target[i] - levels[i]) * a;
         if (levels[i] > peaks[i]) peaks[i] = levels[i];
         else peaks[i] = Math.max(levels[i], peaks[i] - 0.0035); // slow hang-and-fall

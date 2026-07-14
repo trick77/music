@@ -1,10 +1,8 @@
-# Pinned to the versions validated by the Phase 2.5 spike (a real song aligned
-# cleanly). Build for linux/amd64 — several deps (e.g. sphn via demucs) ship no
-# arm64 wheel and would otherwise require a Rust source build.
+# Light, more-frequently-changing deps. Kept in their OWN layer (installed last,
+# after the heavy ML stack) so bumping one of these — or adding a small dependency
+# like langdetect — re-installs and re-pushes only a few MB, never the multi-GB
+# torch/whisperx/demucs layer. See requirements-heavy.txt and the Containerfile.
 fastapi==0.139.0
 uvicorn[standard]==0.51.0
 python-multipart==0.0.32
-whisperx==3.8.6
-demucs==4.1.0
-torch==2.8.0
 langdetect==1.0.9

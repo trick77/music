@@ -1,0 +1,8 @@
+# Heavy, rarely-changing ML stack — its own early layer so it stays cached and is not
+# re-pushed when app code or a light dependency changes. torch/torchaudio are NOT
+# listed here: they're installed first from the PyTorch CPU wheel index in the
+# Containerfile (pinning them here would fight that index). whisperx/demucs then find
+# torch already satisfied and keep the CPU builds.
+# Build for linux/amd64 — several deps (e.g. sphn via demucs) ship no arm64 wheel.
+whisperx==3.8.6
+demucs==4.1.0

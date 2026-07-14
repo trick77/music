@@ -48,10 +48,14 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      - name: Smoke test (boots, CPU-only torch)
+      # Actually LOAD the wav2vec2 align model, not just `import whisperx`. The failing
+      # `Wav2Vec2ForCTC` import is lazy — it only fires inside load_align_model at runtime,
+      # so a bare import passes green while POST /align 500s after ~2min in production.
+      # Loading the model here turns a bad dependency resolve into a red build.
+      - name: Smoke test (boots, CPU-only torch, loads align model)
         run: |
           docker run --rm ghcr.io/${{ github.repository_owner }}/music-align:latest \
-            python -c "import torch, torchaudio, whisperx, demucs, app; from language import detect_language; assert torch.version.cuda is None, 'expected CPU-only torch'; print('OK', torch.__version__, detect_language(['a long enough english test line for detection']))"
+            python -c "import torch, torchaudio, whisperx, demucs, app; from language import detect_language; assert torch.version.cuda is None, 'expected CPU-only torch'; whisperx.load_align_model('en', 'cpu'); print('OK', torch.__version__, detect_language(['a long enough english test line for detection']))"
 
       - name: Push
         uses: docker/build-push-action@v7

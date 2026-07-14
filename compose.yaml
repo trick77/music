@@ -69,6 +69,11 @@ services:
     restart: unless-stopped
     networks:
       - traefik                  # shared network so `music` can resolve `align` by name
+    volumes:
+      # Persist downloaded ML models (wav2vec2 align model + htdemucs weights, hundreds
+      # of MB) across container recreates. Without this they re-download on every image
+      # pull/restart — and a new image is published on every merge to master.
+      - align-models:/root/.cache
     # GPU (optional, ~10x faster). Uncomment with the NVIDIA container toolkit installed:
     # deploy:
     #   resources:

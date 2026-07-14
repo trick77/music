@@ -24,8 +24,15 @@ import re
 
 def _norm(w):
     """Fold a token to lowercase alphanumerics for matching (apostrophes, hyphens
-    and punctuation are stripped so "don't" <-> "dont", "well-known" <-> "wellknown")."""
-    return re.sub(r"[^a-z0-9]", "", w.lower())
+    and punctuation are stripped so "don't" <-> "dont", "well-known" <-> "wellknown").
+
+    Non-Latin scripts (Cyrillic, Greek, Arabic, ...) strip to empty under the ASCII
+    filter; collapsing every token to "" would make difflib match purely positionally
+    and defeat the content re-anchoring. Fall back to the lowercased token so those
+    words still match on their own content. (Spaceless scripts like CJK still tokenize
+    per line, so their timing stays coarse — a separate limitation.)"""
+    w = w.lower()
+    return re.sub(r"[^a-z0-9]", "", w) or w.strip()
 
 
 def _fill_unmatched(src):

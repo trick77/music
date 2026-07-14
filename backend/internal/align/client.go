@@ -32,8 +32,9 @@ type Line struct {
 
 // Result is the sidecar's full response for one song.
 type Result struct {
-	Engine string `json:"engine"`
-	Lines  []Line `json:"lines"`
+	Engine   string `json:"engine"`
+	Language string `json:"language"` // language the sidecar aligned with (detected from lyrics)
+	Lines    []Line `json:"lines"`
 }
 
 // Client calls the alignment sidecar synchronously.

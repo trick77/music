@@ -132,6 +132,54 @@ func TestPlays_LimitTen(t *testing.T) {
 	}
 }
 
+func TestTopTen_ExcludesPlaysOlderThan30Days(t *testing.T) {
+	r := newRepo(t)
+	ctx := context.Background()
+	a := seedSong(t, r, "Recent")
+	b := seedSong(t, r, "Stale")
+
+	// Song A: two plays inside the window.
+	for i := 0; i < 2; i++ {
+		if err := r.RecordPlay(ctx, a); err != nil {
+			t.Fatalf("RecordPlay a: %v", err)
+		}
+	}
+	// Song B: one play backdated beyond the 30-day window (direct insert, since
+	// RecordPlay always stamps played_at = now).
+	if _, err := r.db.ExecContext(ctx,
+		`INSERT INTO plays(id, song_id, played_at) VALUES(?, ?, datetime('now','-31 days'))`,
+		NewID(), b); err != nil {
+		t.Fatalf("insert stale play: %v", err)
+	}
+
+	top, err := r.TopTen(ctx, true)
+	if err != nil {
+		t.Fatalf("TopTen: %v", err)
+	}
+	if len(top) != 1 || top[0].ID != a {
+		t.Fatalf("chart = %+v, want only song A (stale play must not chart)", top)
+	}
+
+	// A fresh play for B proves the window, not the song, is the filter — and its
+	// count reflects only the in-window play, ignoring the 31-day-old one.
+	if err := r.RecordPlay(ctx, b); err != nil {
+		t.Fatalf("RecordPlay b: %v", err)
+	}
+	top, err = r.TopTen(ctx, true)
+	if err != nil {
+		t.Fatalf("TopTen: %v", err)
+	}
+	if len(top) != 2 {
+		t.Fatalf("len(top) = %d, want 2 after B's recent play", len(top))
+	}
+	if top[0].ID != a || top[0].Plays != 2 {
+		t.Errorf("rank 1 = %s plays=%d, want %s plays=2", top[0].ID, top[0].Plays, a)
+	}
+	if top[1].ID != b || top[1].Plays != 1 {
+		t.Errorf("rank 2 = %s plays=%d, want %s plays=1 (stale play excluded)", top[1].ID, top[1].Plays, b)
+	}
+}
+
 func TestPlays_UnknownSongErrors(t *testing.T) {
 	r := newRepo(t)
 	ctx := context.Background()

@@ -9,7 +9,6 @@
 let ctx: AudioContext | null = null;
 let analyser: AnalyserNode | null = null;
 let sourceEl: HTMLMediaElement | null = null; // the element we've already tapped
-let pendingEl: HTMLMediaElement | null = null; // element waiting for a running ctx to tap
 let freq: Uint8Array<ArrayBuffer> | null = null;
 
 function ensureAnalyser(): AnalyserNode | null {
@@ -39,50 +38,35 @@ function ensureAnalyser(): AnalyserNode | null {
   }
 }
 
-// tapNow routes an element into the analyser. Only call once the context is
-// running: createMediaElementSource pulls the element out of the browser's
-// default output path, so doing it while the graph is still suspended (silent)
-// leaves playback muted until resume() lands — an audible gap on first open.
-function tapNow(el: HTMLMediaElement): void {
-  if (!analyser || !ctx) return;
+// attach taps a media element into the analyser exactly once. Safe to call every
+// frame: a no-op when el is null, already tapped, or Web Audio is unavailable.
+// Audio still reaches the speakers because the analyser is wired to destination.
+//
+// createMediaElementSource pulls the element out of the browser's default output
+// and into our graph. On an *already-playing* element that reroute cuts the sound
+// out for a moment — so the real fix is to tap before playback starts (see
+// prime()); by the time the visualizer calls attach() the element is already
+// tapped and this is a no-op.
+export function attach(el: HTMLMediaElement | null): void {
+  if (!el || sourceEl) return;
+  const a = ensureAnalyser();
+  if (!a || !ctx) return;
   try {
-    ctx.createMediaElementSource(el).connect(analyser);
+    ctx.createMediaElementSource(el).connect(a);
   } catch {
     // Throws if the element was already tapped (e.g. a prior mount). Either way
     // it's now routed through our graph, so record it and stop retrying.
   }
   sourceEl = el;
-  pendingEl = null;
 }
 
-// attach taps a media element into the analyser exactly once. Safe to call every
-// frame: a no-op when el is null, already tapped, or Web Audio is unavailable.
-// Audio still reaches the speakers because the analyser is wired to destination.
-//
-// The tap is deferred until the context is running so the element is never
-// rerouted into a suspended (silent) graph. If the context isn't running yet we
-// kick resume() and register a one-time statechange listener to tap the moment
-// it starts — this also covers the reduced-motion caller, which attaches once
-// rather than on every frame.
-export function attach(el: HTMLMediaElement | null): void {
-  if (!el || sourceEl) return;
-  const a = ensureAnalyser();
-  if (!a || !ctx) return;
-  void ctx.resume();
-  if (ctx.state === "running") {
-    tapNow(el);
-    return;
-  }
-  if (pendingEl) return; // already waiting for the context to start
-  pendingEl = el;
-  const c = ctx;
-  const onState = () => {
-    if (c.state === "running" && pendingEl) {
-      c.removeEventListener("statechange", onState);
-      tapNow(pendingEl);
-    }
-  };
-  c.addEventListener("statechange", onState);
+// prime taps the element into the graph BEFORE it starts playing and un-suspends
+// the context, so audio flows the instant play() begins. Rerouting a paused
+// element is seamless; rerouting a playing one glitches — call this from the play
+// path, inside the user gesture, right before el.play(). Idempotent.
+export function prime(el: HTMLMediaElement | null): void {
+  attach(el);
+  resume();
 }
 
 // resume un-suspends the context. Browsers start it suspended until a user

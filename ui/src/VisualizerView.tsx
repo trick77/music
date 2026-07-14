@@ -32,6 +32,8 @@ export function VisualizerView({ fav, onShare }: { fav: Fav; onShare: (s: Song) 
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const airplayRef = useRef(airplay);
   airplayRef.current = airplay;
+  const playingRef = useRef(p.playing);
+  playingRef.current = p.playing;
 
   useEffect(() => {
     const canvas0 = canvasRef.current;
@@ -108,7 +110,9 @@ export function VisualizerView({ fav, onShare }: { fav: Fav; onShare: (s: Song) 
           ctx.fillRect(x, yBot - (pc + 1) * cellH + cg / 2, bw, cellH - cg);
         }
       }
-      // Ends-only frequency hint — whisper-quiet.
+      // Ends-only frequency hint — whisper-quiet, and only once something is
+      // playing (the spectrum has energy to label); hidden while paused/idle.
+      if (!playingRef.current) return;
       const hasLS = "letterSpacing" in ctx;
       ctx.save();
       ctx.globalAlpha = 0.4;

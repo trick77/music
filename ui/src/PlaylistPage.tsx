@@ -11,7 +11,6 @@ import { playlistShareUrl } from "./share";
 import { shuffle } from "./player";
 import { Glyph } from "./Glyph";
 import { Icon } from "./Icon";
-import { SyncingBadge } from "./SyncingBadge";
 import { RefineRow } from "./StudioShared";
 import { Button, Spinner, controlClass, fieldLabel, t } from "./ui";
 
@@ -536,7 +535,6 @@ export function PlaylistPageView({ playlist, authenticated, onPlay, onShare, ren
                 <div style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.title}</div>
                 <div style={{ display: "flex", alignItems: "center", gap: "0.6rem", color: "var(--color-muted)", fontSize: "var(--text-label)" }}>
                   <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.artistName}</span>
-                  <SyncingBadge status={s.alignmentStatus} />
                 </div>
               </button>
               <span style={{ display: "flex", alignItems: "center", gap: "0.35rem" }}>{renderRowActions(s)}</span>

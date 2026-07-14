@@ -32,6 +32,8 @@ export function VisualizerView({ fav, onShare }: { fav: Fav; onShare: (s: Song) 
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const airplayRef = useRef(airplay);
   airplayRef.current = airplay;
+  const playingRef = useRef(p.playing);
+  playingRef.current = p.playing;
 
   useEffect(() => {
     const canvas0 = canvasRef.current;
@@ -108,7 +110,9 @@ export function VisualizerView({ fav, onShare }: { fav: Fav; onShare: (s: Song) 
           ctx.fillRect(x, yBot - (pc + 1) * cellH + cg / 2, bw, cellH - cg);
         }
       }
-      // Ends-only frequency hint — whisper-quiet.
+      // Ends-only frequency hint — whisper-quiet, and only once something is
+      // playing (the spectrum has energy to label); hidden while paused/idle.
+      if (!playingRef.current) return;
       const hasLS = "letterSpacing" in ctx;
       ctx.save();
       ctx.globalAlpha = 0.4;
@@ -116,10 +120,14 @@ export function VisualizerView({ fav, onShare }: { fav: Fav; onShare: (s: Song) 
       ctx.font = `600 ${Math.round(Math.min(14, h * 0.02))}px system-ui, sans-serif`;
       ctx.textBaseline = "alphabetic";
       if (hasLS) (ctx as unknown as { letterSpacing: string }).letterSpacing = "2px";
+      // Align the labels to the bars themselves, not the column band: the bars are
+      // inset within their columns by (colW - bw)/2, so BASS starts at the first
+      // bar's left edge and TREBLE ends at the last bar's right edge (symmetric).
+      const barInset = (colW - bw) / 2;
       ctx.textAlign = "left";
-      ctx.fillText("BASS", x0, yBot + h * 0.05);
+      ctx.fillText("BASS", x0 + barInset, yBot + h * 0.05);
       ctx.textAlign = "right";
-      ctx.fillText("TREBLE", x1, yBot + h * 0.05);
+      ctx.fillText("TREBLE", x1 - barInset, yBot + h * 0.05);
       if (hasLS) (ctx as unknown as { letterSpacing: string }).letterSpacing = "0px";
       ctx.restore();
     }

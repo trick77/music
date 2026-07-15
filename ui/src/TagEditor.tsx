@@ -5,7 +5,10 @@ import { IMAGE_ACCEPT, useImageDrop } from "./imageDrop";
 import { Icon } from "./Icon";
 import { Button, controlClass, fieldLabel, t, Spinner, Overlay } from "./ui";
 import { titleCase, genreLabel } from "./titleCase";
-import { formatDuration, formatFileSize, formatDateAdded, formatLastPlayed } from "./format";
+import {
+  formatDuration, formatFileSize, formatDateAdded, formatLastPlayed,
+  formatBitrate, formatSampleRate, formatChannels,
+} from "./format";
 
 type Props = { song: Song; onClose: () => void; onSaved: (s: Song) => void };
 type Tab = "details" | "cover" | "lyrics" | "info";
@@ -60,10 +63,10 @@ const cleanLyrics = (raw: string) =>
     .replace(/\n{3,}/g, "\n\n")   // collapse blank-line runs
     .trim();
 
-// TagEditor is a tabbed editor (Details / Cover / Lyrics) — a centered modal on
+// TagEditor is a tabbed editor (Details / Cover / Lyrics / Info) — a centered modal on
 // desktop, full-screen on mobile and touch tablets. Tabs keep each screen short as the form grows
-// (docs/design-system.md). All three tabs stay mounted so unsaved edits survive
-// tab switches; only their visibility toggles.
+// (docs/design-system.md). All four tabs stay mounted so unsaved edits survive
+// tab switches; only their visibility toggles. Info is read-only.
 export function TagEditor({ song, onClose, onSaved }: Props) {
   const [tab, setTab] = useState<Tab>("details");
   const [title, setTitle] = useState(song.title);
@@ -362,6 +365,11 @@ export function TagEditor({ song, onClose, onSaved }: Props) {
                   : !stats ? <Spinner size="13px" />
                   : formatLastPlayed(stats.lastPlayedAt)
               } />
+            </InfoSection>
+            <InfoSection label="Audio">
+              <InfoRow k="Bitrate" v={formatBitrate(song.bitrateKbps)} />
+              <InfoRow k="Sample rate" v={formatSampleRate(song.sampleRate)} />
+              <InfoRow k="Channels" v={formatChannels(song.channels)} />
             </InfoSection>
             <InfoSection label="File">
               <InfoRow k="Duration" v={formatDuration(song.durationMs)} />

@@ -162,11 +162,22 @@ one intentional literal.
     so the frame doesn't jump between tabs, and keeps every panel mounted so unsaved edits survive
     a tab switch. The price is trailing whitespace on the short tabs (Cover, Info). Don't "fix" it
     into per-tab heights without accepting the jump.
-  - **Info tab** — read-only: **Plays · Last played · Duration · Size · Added**. The **only** place
-    in the app that shows a play count (see the rank-numbers rule above). Plays are **lifetime**
+  - **Info tab** — read-only, grouped **Playback · Audio · File**: Plays · Last played ·
+    Bitrate · Sample rate · Channels · Duration · Size · Added. The **only** place in the app that
+    shows a play count (see the rank-numbers rule above). Plays are **lifetime**
     (`GET /api/songs/{id}/stats`, editor-only), deliberately unlike the top-ten chart's rolling
     30-day window — a song's own stats should mean what they say. `fileSize` is the **stored**
     file's size; tags are baked in at download time, so a download differs slightly.
+    - **Audio info is 0 = unknown, and renders `—`.** A row imported before migration 0006 has
+      NULL until the background backfill reaches it, and a file that won't decode stays unknown
+      forever. Never render a confident `0 Hz` / `0 kbps`; duration already degrades this way.
+    - **Bitrate is an average, derived — not read from a frame header.** A frame header's rate is
+      exact for CBR and *wrong* for VBR (it describes frame 1, not the file), which would drag in
+      Xing detection and frame counting. `audio bytes × 8 ÷ duration ms` is an average by
+      construction, so it's right for both. It needs the **audio** bytes (ID3 tags, especially an
+      imported cover, are not audio) and the **decoder's** duration, not a container's rounded
+      claim — verified against ffprobe on `testdata/sample.mp3`: 128 kbps exactly, where the naive
+      file-size ÷ container-duration gives 133. See `backend/internal/metadata/audio.go`.
     - Timestamps from the API are SQLite `datetime('now')` — **UTC with no zone marker**, a shape
       `Date` parses as *local*. Always go through `format.ts` (`formatDateAdded`,
       `formatLastPlayed`); never `new Date(apiTimestamp)` directly.

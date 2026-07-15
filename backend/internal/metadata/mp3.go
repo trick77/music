@@ -25,6 +25,9 @@ type Tags struct {
 	Genres     []string
 	Lyrics     string
 	DurationMS int64
+	// Audio properties of the encoded stream (see audio.go). Zeroed, like
+	// DurationMS, when the file can't be decoded.
+	Audio
 	// CoverBytes/CoverMIME hold the embedded front-cover attached picture (APIC),
 	// when the file carries one. Empty when the file has no embedded art.
 	CoverBytes []byte
@@ -58,7 +61,11 @@ func Parse(r io.ReadSeeker) (Tags, error) {
 	}
 
 	if _, err := r.Seek(0, io.SeekStart); err == nil {
-		out.DurationMS = decodeDurationMS(r)
+		var sampleRate int
+		out.DurationMS, sampleRate = decodeDuration(r)
+		// Needs the decoded duration and a second pass over the file, so it runs
+		// after the decode rather than inside it.
+		out.Audio = readAudio(r, sampleRate, out.DurationMS)
 	}
 	return out, nil
 }
@@ -93,18 +100,22 @@ func splitGenres(raw string) []string {
 	return genres
 }
 
-// decodeDurationMS decodes the MP3 stream to measure its true length. go-mp3
-// emits 16-bit little-endian stereo PCM (4 bytes per sample frame), so the
-// duration is Length()/4/SampleRate seconds. Returns 0 on any decode error.
-func decodeDurationMS(r io.Reader) int64 {
+// decodeDuration decodes the MP3 stream to measure its true length, and returns
+// the stream's sample rate alongside it — the decoder already knows it, and the
+// Info tab wants it, so throwing it away just means opening the file twice. go-mp3
+// emits 16-bit little-endian stereo PCM (4 bytes per sample frame), so the duration
+// is Length()/4/SampleRate seconds. Note the stereo output is the DECODER's, not
+// the source's — it says nothing about the file's channel count (see audio.go).
+// Returns zeroes on any decode error.
+func decodeDuration(r io.Reader) (durationMS int64, sampleRate int) {
 	d, err := mp3.NewDecoder(r)
 	if err != nil {
-		return 0
+		return 0, 0
 	}
 	sr := int64(d.SampleRate())
 	if sr <= 0 {
-		return 0
+		return 0, 0
 	}
 	frames := d.Length() / 4
-	return frames * 1000 / sr
+	return frames * 1000 / sr, int(sr)
 }

@@ -24,6 +24,9 @@ describe("audio info formatters", () => {
     expect(formatSampleRate(44100)).toBe("44.1 kHz");
     expect(formatSampleRate(48000)).toBe("48 kHz");
   });
+  it("doesn't round a half-rate up to a wrong number", () => {
+    expect(formatSampleRate(22050)).toBe("22.05 kHz"); // one decimal would say 22.1
+  });
   it("names channel layouts", () => {
     expect(formatChannels(1)).toBe("Mono");
     expect(formatChannels(2)).toBe("Stereo");

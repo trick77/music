@@ -4,9 +4,14 @@
 -- (which is play data).
 --
 -- Nullable with no default on purpose. A SQL migration cannot read the MP3s, so
--- existing rows land NULL and are filled by the backfill in library/audio_info.go
--- on the next start. NULL is also the permanent resting state for a file we can't
--- decode — the UI renders "—", exactly as duration already degrades.
+-- existing rows land NULL and are filled by the backfill in
+-- httpapi/audio_backfill.go on the next start (its queries live in
+-- library/audio_info.go).
+--
+-- NULL vs 0 carries meaning, and the backfill depends on it:
+--   NULL = not measured yet — still pending, retried on the next start.
+--   0    = measured, unknowable (the file won't decode) — settled, never retried.
+-- Both render "—" in the UI, exactly as duration already degrades.
 ALTER TABLE songs ADD COLUMN sample_rate INTEGER;
 ALTER TABLE songs ADD COLUMN channels INTEGER;
 ALTER TABLE songs ADD COLUMN bitrate_kbps INTEGER;

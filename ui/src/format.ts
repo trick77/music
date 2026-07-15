@@ -13,11 +13,13 @@ const EMPTY = "—";
 // or a file that wouldn't decode — so every one of these guards zero rather than
 // rendering a confident "0 Hz".
 
-/** "44.1 kHz" — the fractional part only shows when there is one. */
+/**
+ * "44.1 kHz" — the fractional part only shows when there is one. Two decimals,
+ * trimmed: one would round 22050 Hz to a wrong-looking "22.1 kHz".
+ */
 export function formatSampleRate(hz: number): string {
   if (!Number.isFinite(hz) || hz <= 0) return EMPTY;
-  const khz = hz / 1000;
-  return `${Number.isInteger(khz) ? khz : khz.toFixed(1)} kHz`;
+  return `${parseFloat((hz / 1000).toFixed(2))} kHz`;
 }
 
 /** Channel count as a layout name. The server collapses joint/dual stereo to 2. */

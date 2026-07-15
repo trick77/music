@@ -13,7 +13,9 @@ const EMPTY = "—";
 export function formatFileSize(bytes: number): string {
   if (!Number.isFinite(bytes) || bytes <= 0) return EMPTY;
   const kb = bytes / 1024;
-  if (kb < 1024) return `${Math.round(kb)} KB`;
+  // Test the ROUNDED value: 1048570 B is 1023.99 KB, which would otherwise print
+  // as "1024 KB" rather than rolling over to "1.0 MB".
+  if (Math.round(kb) < 1024) return `${Math.round(kb)} KB`;
   const mb = kb / 1024;
   // One decimal is useful at track sizes (8.4 MB); past 100 MB it's just noise.
   return mb < 100 ? `${mb.toFixed(1)} MB` : `${Math.round(mb)} MB`;
@@ -45,14 +47,23 @@ export function formatDateAdded(createdAt: string): string {
 
 const DAY_MS = 86_400_000;
 
+/** Midnight local on the day containing d — the anchor for calendar-day maths. */
+function startOfLocalDay(d: Date): number {
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+}
+
 /**
  * formatLastPlayed renders when a song was last played, relative while that's the
  * more useful reading and absolute once it isn't. `now` is injectable for tests.
+ *
+ * Days are CALENDAR days in the viewer's zone, not elapsed 24h windows: "Yesterday"
+ * is a claim about the calendar, so a play at 22:00 last night must not read "Today"
+ * merely because it was under 24 hours ago. Rounding absorbs DST's 23/25-hour days.
  */
 export function formatLastPlayed(lastPlayedAt: string, now: Date = new Date()): string {
   const d = parseSqlite(lastPlayedAt);
   if (!d) return "Never"; // the server sends "" for a song nobody has played
-  const days = Math.floor((now.getTime() - d.getTime()) / DAY_MS);
+  const days = Math.round((startOfLocalDay(now) - startOfLocalDay(d)) / DAY_MS);
   if (days <= 0) return "Today";
   if (days === 1) return "Yesterday";
   if (days < 30) return `${days} days ago`;

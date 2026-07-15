@@ -18,8 +18,10 @@ type SongStats struct {
 }
 
 // SongStats returns lifetime play figures for songID. A song nobody has played
-// is not an error — it yields a zero count and an empty timestamp. Both columns
-// are served by the existing idx_plays_song index.
+// is not an error — it yields a zero count and an empty timestamp. idx_plays_song
+// is on (song_id) alone, so it serves the filter and MAX(played_at) then scans the
+// matched rows; fine at plays-per-song scale. Widen the index to (song_id,
+// played_at) if that ever stops being true.
 func (r *Repo) SongStats(ctx context.Context, songID string) (*SongStats, error) {
 	var stats SongStats
 	var last sql.NullString

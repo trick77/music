@@ -462,7 +462,9 @@ export function App() {
           onClose={() => setShowQueue(false)}
         />
       )}
-      {editing && <TagEditor song={editing} onClose={() => setEditing(null)} onSaved={(saved) => { propagateSong(saved); setEditing(saved); }} />}
+      {/* key on the id so a different song remounts: the editor's field state and its
+          fetched play stats are seeded per song and would otherwise persist. */}
+      {editing && <TagEditor key={editing.id} song={editing} onClose={() => setEditing(null)} onSaved={(saved) => { propagateSong(saved); setEditing(saved); }} />}
       {deleteFor && (
         <ConfirmDialog
           title="Delete song"

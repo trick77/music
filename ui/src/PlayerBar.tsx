@@ -107,7 +107,7 @@ export function PlayerBar({ fav, onShare, renderMenu, alignmentEnabled, open, ly
               <span style={{ display: "block", color: "var(--color-muted)", fontSize: "var(--text-label)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{song.artistName}</span>
             </span>
           </button>
-          <Transport playing={p.playing} onPrev={p.prev} onToggle={p.toggle} onNext={p.next} size={20} />
+          <Transport playing={p.playing} onPrev={p.prev} onToggle={p.toggle} onNext={p.next} canNext={p.queue.length > 0} size={20} />
           <StarButton song={song} fav={fav} />
           {hasLyrics && (
             <button aria-label="Show lyrics" onClick={() => onExpand("lyrics")} style={iconBtn}><Icon name="captions" size="23px" /></button>
@@ -183,7 +183,7 @@ export function PlayerBar({ fav, onShare, renderMenu, alignmentEnabled, open, ly
               <div style={{ width: "min(760px, 96vw)" }}>
                 <Scrubber positionMs={p.positionMs} durationMs={p.durationMs} onSeek={p.seek} />
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "1.5rem", marginTop: "0.75rem" }}>
-                  <Transport playing={p.playing} onPrev={p.prev} onToggle={p.toggle} onNext={p.next} size={26} />
+                  <Transport playing={p.playing} onPrev={p.prev} onToggle={p.toggle} onNext={p.next} canNext={p.queue.length > 0} size={26} />
                   <StarButton song={song} fav={fav} size={24} />
                   <button aria-label="Show artwork" aria-pressed onClick={() => onSetMode("full")} style={{ ...iconBtn, color: "var(--color-accent-strong)" }}><Icon name="captions" size="25px" /></button>
                   {!p.airplayActive && (
@@ -205,7 +205,7 @@ export function PlayerBar({ fav, onShare, renderMenu, alignmentEnabled, open, ly
                 <Scrubber positionMs={p.positionMs} durationMs={p.durationMs} onSeek={p.seek} />
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: "1.5rem", marginTop: "1.25rem" }}>
-                <Transport playing={p.playing} onPrev={p.prev} onToggle={p.toggle} onNext={p.next} size={26} />
+                <Transport playing={p.playing} onPrev={p.prev} onToggle={p.toggle} onNext={p.next} canNext={p.queue.length > 0} size={26} />
                 <StarButton song={song} fav={fav} size={24} />
                 {hasLyrics && (
                   <button aria-label="Show lyrics" aria-pressed={false} onClick={() => onSetMode("lyrics")} style={{ ...iconBtn, color: "#fff" }}><Icon name="captions" size="25px" /></button>

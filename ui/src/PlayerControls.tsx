@@ -71,7 +71,10 @@ export function Scrubber({ positionMs, durationMs, onSeek, accent = "var(--color
   );
 }
 
-export function Transport({ playing, onPrev, onToggle, onNext, size = 22 }: { playing: boolean; onPrev: () => void; onToggle: () => void; onNext: () => void; size?: number }) {
+// canNext greys out Next when nothing follows in the queue. Previous stays live
+// throughout: with empty history it restarts the track, which is useful rather
+// than a dead end. Defaults true so a caller that doesn't care keeps the button.
+export function Transport({ playing, onPrev, onToggle, onNext, canNext = true, size = 22 }: { playing: boolean; onPrev: () => void; onToggle: () => void; onNext: () => void; canNext?: boolean; size?: number }) {
   return (
     <div style={{ display: "flex", alignItems: "center", gap: "0.4rem" }}>
       <button aria-label="Previous" onClick={onPrev} style={iconBtn}><Glyph name="prev" size={size - 2} /></button>
@@ -82,7 +85,14 @@ export function Transport({ playing, onPrev, onToggle, onNext, size = 22 }: { pl
       >
         <Glyph name={playing ? "pause" : "play"} size={size} />
       </button>
-      <button aria-label="Next" onClick={onNext} style={iconBtn}><Glyph name="next" size={size - 2} /></button>
+      <button
+        aria-label="Next"
+        onClick={onNext}
+        disabled={!canNext}
+        style={canNext ? iconBtn : { ...iconBtn, color: "var(--color-muted)", opacity: 0.45, cursor: "default" }}
+      >
+        <Glyph name="next" size={size - 2} />
+      </button>
     </div>
   );
 }

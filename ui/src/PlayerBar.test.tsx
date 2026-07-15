@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, afterEach } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
 import type { Song } from "./api";
 
@@ -6,11 +6,11 @@ import type { Song } from "./api";
 // which is a side-effecting module exercised via Playwright, not unit tests. We
 // mock it here to feed a fixed snapshot so the render is deterministic and no
 // audio/DOM is touched. A hoisted holder lets each test swap the current song.
-const h = vi.hoisted(() => ({ current: null as Song | null }));
+const h = vi.hoisted(() => ({ current: null as Song | null, queue: [] as Song[] }));
 vi.mock("./player", () => ({
   usePlayer: () => ({
     current: h.current,
-    queue: [],
+    queue: h.queue,
     playing: false,
     positionMs: 0,
     durationMs: 0,
@@ -103,5 +103,37 @@ describe("PlayerBar lyrics gating", () => {
 
   it("offers a stop-and-close button in the mini bar", () => {
     expect(render(false, song(), false, false)).toContain('aria-label="Stop and close"');
+  });
+});
+
+// With nothing queued behind the current track there is nowhere to skip to, so the
+// Next control must not look live: pressing it would close the player (see next()).
+// Previous stays enabled throughout — with empty history it restarts the track.
+describe("PlayerBar next-button gating", () => {
+  afterEach(() => {
+    h.queue = [];
+  });
+
+  const nextButton = (html: string) => /<button aria-label="Next"[^>]*>/.exec(html)?.[0] ?? "";
+
+  it("disables Next when the queue is empty", () => {
+    h.queue = [];
+    expect(nextButton(render(false, song(), false, false))).toContain("disabled");
+  });
+
+  it("enables Next when a song is queued behind the current one", () => {
+    h.queue = [song({ id: "s2" })];
+    expect(nextButton(render(false, song(), false, false))).not.toContain("disabled");
+  });
+
+  it("keeps Previous enabled even with an empty queue", () => {
+    h.queue = [];
+    const html = render(false, song(), false, false);
+    expect(/<button aria-label="Previous"[^>]*>/.exec(html)?.[0] ?? "").not.toContain("disabled");
+  });
+
+  it("gates Next in the full-screen player too, not just the mini bar", () => {
+    h.queue = [];
+    expect(nextButton(render(false, song(), true, false))).toContain("disabled");
   });
 });

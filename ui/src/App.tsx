@@ -186,6 +186,27 @@ export function App() {
     closePlayer(pushedPlayer.current);
   }, []);
 
+  // The player can now close itself: finishing the last song with an empty queue
+  // clears `current` (next → stop). The overlay lives in the URL, and the
+  // URL-follows-current effect above bails once current is null, so without this
+  // a stale ?player= would linger — re-opening the overlay on the next play, and
+  // surviving a reload. Route it through the same close path as the X so every
+  // close lands on one destination.
+  //
+  // hadCurrent gates this to a real null *transition*. A cold landing on
+  // /song/:id?player=full starts with current === null until the deep-link effect
+  // above cues the track; closing on that would break share links.
+  const hadCurrent = useRef(false);
+  useEffect(() => {
+    if (player.current) {
+      hadCurrent.current = true;
+      return;
+    }
+    if (!hadCurrent.current) return;
+    hadCurrent.current = false;
+    if (playerParam !== null) closePlayerView();
+  }, [player.current, playerParam, closePlayerView]);
+
   const flash = (msg: string) => {
     setToast(msg);
     window.setTimeout(() => setToast(null), 2000);

@@ -209,7 +209,7 @@ export function VisualizerView({ fav, onShare }: { fav: Fav; onShare: (s: Song) 
           <div style={{ width: "min(760px, 96vw)" }}>
             <Scrubber positionMs={p.positionMs} durationMs={p.durationMs} onSeek={p.seek} />
             <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "1.5rem", marginTop: "0.75rem" }}>
-              <Transport playing={p.playing} onPrev={p.prev} onToggle={p.toggle} onNext={p.next} size={26} />
+              <Transport playing={p.playing} onPrev={p.prev} onToggle={p.toggle} onNext={p.next} canNext={p.queue.length > 0} size={26} />
               <StarButton song={song} fav={fav} size={24} />
               <button aria-label="Share" onClick={() => onShare(song)} style={{ ...iconBtn, color: "#fff" }}><Icon name="share" size="22px" /></button>
             </div>

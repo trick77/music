@@ -53,22 +53,29 @@ describe("VisualizerView control row", () => {
     expect(render(song({ lyrics: "   " }))).not.toContain('aria-label="Show lyrics"');
   });
 
+  // markup of a single element, so an assertion about one control can't be satisfied
+  // (or broken) by another one sharing the row.
+  function el(html: string, match: string, tag = "button") {
+    const start = html.lastIndexOf("<" + tag, html.indexOf(match));
+    return html.slice(start, html.indexOf("</" + tag + ">", start));
+  }
+
   it("when rendering the karaoke button, then it is a plain action, not the accent toggle", () => {
     // It navigates to the lyrics player rather than toggling a view in place, so it
     // must not borrow the player's accent-pressed toggle styling.
-    const html = render(song());
-    const btn = html.slice(html.indexOf('aria-label="Show lyrics"'));
-    expect(btn.slice(0, btn.indexOf("</button>"))).toContain("color:#fff");
-    expect(html).not.toContain("aria-pressed");
-    expect(html).not.toContain("--color-accent-strong");
+    const btn = el(render(song()), 'aria-label="Show lyrics"');
+    expect(btn).toContain("color:#fff");
+    expect(btn).not.toContain("aria-pressed");
+    expect(btn).not.toContain("--color-accent-strong");
   });
 
   it("when a song is playing, then a divider separates transport from the actions", () => {
     const html = render(song());
     expect(html).toContain("data-divider");
     // On the cover scrim only the white tint survives; the app border token vanishes.
-    expect(html).toContain("rgba(255,255,255,0.2)");
-    expect(html).not.toContain("var(--color-border)");
+    const divider = el(html, "data-divider", "span");
+    expect(divider).toContain("rgba(255,255,255,0.2)");
+    expect(divider).not.toContain("var(--color-border)");
   });
 
   it("when nothing is playing, then the control row and its divider are gone", () => {

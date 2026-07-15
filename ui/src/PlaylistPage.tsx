@@ -3,9 +3,11 @@ import {
   addSongToPlaylist, applyPlaylistCover, deletePlaylist, generateStudioCoverArt, getPlaylist, listSongs,
   refinePlaylistPrompt, removeSongFromPlaylist, reorderPlaylist, setPlaylistPublished, studioCoverArtUrl,
   suggestPlaylistDescriptions, suggestPlaylistPrompt, updatePlaylist, updatePlaylistDescription,
+  uploadPlaylistCover,
   type PlaylistDetail, type Song,
 } from "./api";
 import { coverUrl, coverInitial } from "./cover";
+import { IMAGE_ACCEPT, useImageDrop } from "./imageDrop";
 import { navigate } from "./router";
 import { playlistShareUrl } from "./share";
 import { shuffle } from "./player";
@@ -27,6 +29,40 @@ type Props = {
   /** Whether a chat model is configured (gates AI prompt/description suggestions). */
   chatEnabled?: boolean;
 };
+
+// CoverSquare renders the playlist's 120px cover. When editable it is both a file
+// picker (click) and a drop target; when not, it is the same square without the
+// affordances, so the page looks identical to anonymous viewers.
+function CoverSquare(p: {
+  editable: boolean;
+  dropping: boolean;
+  busy: boolean;
+  dropProps: Record<string, unknown>;
+  onPick: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  error: string | null;
+  children: ReactNode;
+}) {
+  const box: React.CSSProperties = {
+    position: "relative", width: 120, height: 120, flexShrink: 0, borderRadius: 12, overflow: "hidden",
+    background: "var(--color-active)", display: "grid", placeItems: "center",
+    border: p.dropping ? "2px dashed var(--color-accent-strong)" : "1px solid var(--color-border)",
+  };
+  if (!p.editable) return <span style={box}>{p.children}</span>;
+  return (
+    <div style={{ flexShrink: 0 }}>
+      <label {...p.dropProps} title="Click or drop an image to set the cover" style={{ ...box, cursor: "pointer" }}>
+        {p.children}
+        {(p.dropping || p.busy) && (
+          <span style={{ position: "absolute", inset: 0, display: "grid", placeItems: "center", background: "rgba(0,0,0,0.55)", color: "#fff", fontSize: "var(--text-label)", textAlign: "center", padding: 6 }}>
+            {p.busy ? <Spinner size="18px" /> : "Drop to set cover"}
+          </span>
+        )}
+        <input type="file" accept={IMAGE_ACCEPT} onChange={p.onPick} style={{ display: "none" }} />
+      </label>
+      {p.error && <p role="alert" style={{ color: "var(--color-accent-strong)", fontSize: "var(--text-label)", margin: "0.35rem 0 0", maxWidth: 120 }}>{p.error}</p>}
+    </div>
+  );
+}
 
 // defaultTone picks which suggested description tone is pre-selected when the
 // chips first render. Evocative reads best as a default playlist blurb — punchy
@@ -128,6 +164,10 @@ export function PlaylistPageView({ playlist, authenticated, onPlay, onShare, ren
   const [applyingCover, setApplyingCover] = useState(false);
   const [generatedCoverId, setGeneratedCoverId] = useState<string | null>(null);
   const [coverErr, setCoverErr] = useState<string | null>(null);
+  // Kept separate from coverErr: that one lives inside the AI-cover panel, which
+  // is hidden when image generation is off — an upload error must show regardless.
+  const [coverUploadErr, setCoverUploadErr] = useState<string | null>(null);
+  const [uploadingCover, setUploadingCover] = useState(false);
 
   // AI description tone chips state.
   const [tones, setTones] = useState<{ punchy: string; evocative: string; factual: string } | null>(null);
@@ -143,6 +183,38 @@ export function PlaylistPageView({ playlist, authenticated, onPlay, onShare, ren
     setDescription(playlist?.description ?? "");
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [playlist?.id]);
+
+  // Dropping (or picking) an image sets the playlist cover directly, alongside
+  // the AI-generated route further down. One success path for both entry points.
+  // Declared above the loading early-return: useImageDrop is a hook, so it has to
+  // run on every render, including the one where playlist is still null.
+  const applyCoverFile = async (file: File) => {
+    if (!playlist) return;
+    setCoverUploadErr(null);
+    setUploadingCover(true);
+    try {
+      // PUT /playlists/{id}/cover already responds with the full reloaded detail,
+      // so its return value is what a refetch would give — no second roundtrip.
+      onPlaylistUpdate?.(await uploadPlaylistCover(playlist.id, file));
+    } catch {
+      setCoverUploadErr("Cover upload failed");
+    } finally {
+      setUploadingCover(false);
+    }
+  };
+
+  const onPickCover = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    await applyCoverFile(file);
+    e.target.value = "";
+  };
+
+  const { dropping: coverDropping, dropProps: coverDropProps } = useImageDrop({
+    onFile: applyCoverFile,
+    onReject: setCoverUploadErr,
+    disabled: !authenticated,
+  });
 
   if (!playlist) return <p style={{ color: "var(--color-muted)" }}>Loading…</p>;
   const { songs } = playlist;
@@ -318,13 +390,22 @@ export function PlaylistPageView({ playlist, authenticated, onPlay, onShare, ren
       </button>
 
       <div style={{ display: "flex", gap: "1rem", alignItems: "flex-start", flexWrap: "wrap" }}>
-        <span style={{ width: 120, height: 120, flexShrink: 0, borderRadius: 12, overflow: "hidden", background: "var(--color-active)", display: "grid", placeItems: "center", border: "1px solid var(--color-border)" }}>
+        {/* Signed in, the cover doubles as an upload target — click to pick or drop
+            an image on it. Anonymous viewers get the same square, inert. */}
+        <CoverSquare
+          editable={authenticated}
+          dropping={coverDropping}
+          busy={uploadingCover}
+          dropProps={coverDropProps}
+          onPick={onPickCover}
+          error={coverUploadErr}
+        >
           {playlist.coverArtId ? (
             <img src={coverUrl(playlist.coverArtId, "card")} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
           ) : (
             <span style={{ fontFamily: "var(--font-serif)", color: "var(--color-muted)", fontSize: "2rem" }}>{coverInitial(playlist.name)}</span>
           )}
-        </span>
+        </CoverSquare>
         <div style={{ minWidth: 0, flex: 1 }}>
           <div style={{ fontSize: "var(--text-micro)", letterSpacing: "0.14em", textTransform: "uppercase", color: "var(--color-muted)" }}>
             Playlist

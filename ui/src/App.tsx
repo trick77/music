@@ -160,6 +160,22 @@ export function App() {
     if (playerParam === null) pushedPlayer.current = false;
   }, [playerParam]);
 
+  // A file dropped anywhere outside a drop zone would otherwise make the browser
+  // navigate away to render it, silently discarding the whole SPA session. Swallow
+  // stray file drops at the window; the zones stopPropagation on their own drops.
+  useEffect(() => {
+    const swallow = (e: DragEvent) => {
+      if (!Array.from(e.dataTransfer?.types ?? []).includes("Files")) return;
+      e.preventDefault();
+    };
+    window.addEventListener("dragover", swallow);
+    window.addEventListener("drop", swallow);
+    return () => {
+      window.removeEventListener("dragover", swallow);
+      window.removeEventListener("drop", swallow);
+    };
+  }, []);
+
   // While the player is open, keep the URL's song id pointed at the now-playing
   // track so the deep link follows next/prev/queue advances. replace (never push)
   // so skipping tracks doesn't stack the back button.

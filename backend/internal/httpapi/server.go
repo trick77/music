@@ -161,6 +161,10 @@ func build(cfg config.Config, st *store.Store, spa http.Handler, gen imagegen.Pr
 			// are gone) so they don't show a permanent spinner.
 			_, _ = h.repo.FailOrphanedGenerating(context.Background())
 			_, _ = h.repo.FailOrphanedAlignments(context.Background())
+			// Recover audio info for songs imported before migration 0006. Off the
+			// startup path on purpose — it reopens every stored file, and nothing is
+			// broken while it runs (unfilled rows just render "—").
+			go h.backfillAudioInfo(context.Background())
 			// Single serial worker in front of the one-at-a-time alignment sidecar.
 			h.initAlignQueue()
 			shareRepo = h.repo
@@ -183,6 +187,7 @@ func build(cfg config.Config, st *store.Store, spa http.Handler, gen imagegen.Pr
 			mux.HandleFunc("GET /api/suggest", h.suggest)
 			mux.HandleFunc("PUT /api/songs/{id}/cover", h.putCover)
 			mux.HandleFunc("DELETE /api/songs/{id}/cover", h.deleteCover)
+			mux.HandleFunc("GET /api/songs/{id}/cover/download", h.downloadCover)
 			mux.HandleFunc("GET /api/cover/{id}", h.getCover)
 			mux.HandleFunc("GET /api/artists", h.listArtists)
 			mux.HandleFunc("GET /api/artists/{id}", h.getArtist)

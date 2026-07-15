@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { uploadFanart, patchGenre, type GenreDetail, type Fanart } from "./api";
 import { fanartUrl } from "./fanart";
+import { IMAGE_ACCEPT, useImageDrop } from "./imageDrop";
 import { Icon } from "./Icon";
 import { navigate } from "./router";
 import { Button, controlClass, fieldLabel, t } from "./ui";
@@ -21,14 +22,21 @@ export function GenreEditor({ detail, studioEnabled, imageGenEnabled, onClose, o
 
   const refresh = () => onChanged();
 
-  const onUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  // One success path for both the file picker and the drop zone.
+  const applyFanartFile = async (file: File) => {
     setErr(null);
     try { await uploadFanart("genre", genreId, file); refresh(); }
     catch { setErr("Upload failed"); }
+  };
+
+  const onUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    await applyFanartFile(file);
     e.target.value = "";
   };
+
+  const { dropping, dropProps } = useImageDrop({ onFile: applyFanartFile, onReject: setErr });
 
   const setBackground = async (fa: Fanart) => {
     if (fa.status !== "ready") return;
@@ -85,9 +93,20 @@ export function GenreEditor({ detail, studioEnabled, imageGenEnabled, onClose, o
               )}
             </div>
           ))}
-          <label style={{ aspectRatio: "16/9", borderRadius: 10, border: "1px dashed var(--color-border)", display: "grid", placeItems: "center", cursor: "pointer", color: "var(--color-accent-strong)" }}>
-            <span style={{ display: "grid", placeItems: "center", gap: 4 }}><Icon name="upload" size="18px" /><span style={{ fontSize: "var(--text-label)", fontWeight: 500 }}>Upload…</span></span>
-            <input type="file" accept="image/jpeg,image/png" onChange={onUpload} style={{ display: "none" }} />
+          <label
+            {...dropProps}
+            style={{
+              aspectRatio: "16/9", borderRadius: 10,
+              border: dropping ? "2px dashed var(--color-accent-strong)" : "1px dashed var(--color-border)",
+              background: dropping ? "var(--color-accent-fill)" : "transparent",
+              display: "grid", placeItems: "center", cursor: "pointer", color: "var(--color-accent-strong)",
+            }}
+          >
+            <span style={{ display: "grid", placeItems: "center", gap: 4 }}>
+              <Icon name="upload" size="18px" />
+              <span style={{ fontSize: "var(--text-label)", fontWeight: 500 }}>{dropping ? "Drop image" : "Upload or drop…"}</span>
+            </span>
+            <input type="file" accept={IMAGE_ACCEPT} onChange={onUpload} style={{ display: "none" }} />
           </label>
         </div>
 

@@ -240,11 +240,16 @@ export function TagEditor({ song, onClose, onSaved }: Props) {
                 {preview ? "Replace cover…" : "Add cover…"}
                 <input type="file" accept="image/jpeg,image/png" onChange={onCover} style={{ display: "none" }} />
               </label>
-              {preview && (
-                <div style={{ textAlign: "center", marginTop: 4 }}>
+              <div style={{ display: "flex", justifyContent: "center", gap: "var(--space-2)", marginTop: 4 }}>
+                {/* Keyed on the song's actual art, not the preview: a staged pick on a
+                    coverless song has nothing to remove — there, Undo is the way back. */}
+                {song.coverArtId && coverOp.kind !== "remove" && (
                   <Button variant="ghost" small onClick={() => setCoverOp({ kind: "remove" })}>Remove cover</Button>
-                </div>
-              )}
+                )}
+                {coverOp.kind !== "keep" && (
+                  <Button variant="ghost" small onClick={() => setCoverOp({ kind: "keep" })}>Undo</Button>
+                )}
+              </div>
               <p style={{ fontSize: "var(--text-label)", color: "var(--color-muted)", textAlign: "center", marginTop: 6 }}>
                 Applies to every track on this artist + album.
                 {coverOp.kind !== "keep" && <><br />Pending — applies when you save.</>}

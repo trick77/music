@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import type { ButtonHTMLAttributes, CSSProperties, ReactNode } from "react";
 import { Icon } from "./Icon";
 
@@ -87,4 +88,65 @@ export function Button({ variant = "primary", small, busy, disabled, children, s
       {children}
     </button>
   );
+}
+
+/**
+ * Overlay sizing against the software keyboard.
+ *
+ * iOS/iPadOS never shrinks the layout viewport when the software keyboard opens — and
+ * `dvh` is derived from the layout viewport, so it keeps reporting the full height while
+ * the keyboard covers the bottom ~40%. A modal capped at `90dvh` therefore sizes itself
+ * into space that isn't on screen, stranding its pinned footer (and any field near the
+ * bottom) in a band nothing can reach: scrolling moves content *inside* a box, and every
+ * box here has its bottom edge below the fold.
+ *
+ * WebKit implements neither `interactive-widget=resizes-content` nor the VirtualKeyboard
+ * API, so `visualViewport` is the only surface that reports the genuinely visible band.
+ * Sizing `.ui-overlay` to it makes `max-height: 100%` on `.ui-modal` mean what it says.
+ * Do not "simplify" this back to `dvh` — see docs/design-system.md.
+ */
+type ViewportReading = Pick<VisualViewport, "offsetTop" | "offsetLeft" | "width" | "height">;
+
+/** Maps a VisualViewport reading to the inline style pinning an overlay to it. */
+export function visualViewportBox(vv: ViewportReading | null | undefined): CSSProperties {
+  if (!vv) return {}; // unsupported — the stylesheet's `inset: 0` stands unchanged
+  return {
+    top: vv.offsetTop,
+    left: vv.offsetLeft,
+    width: vv.width,
+    height: vv.height,
+    right: "auto", // override `inset: 0`, which would otherwise fight top/left/size
+    bottom: "auto",
+  };
+}
+
+/** True when two boxes describe the same band — lets us skip no-op re-renders. */
+export function sameViewportBox(a: CSSProperties, b: CSSProperties): boolean {
+  return a.top === b.top && a.left === b.left && a.width === b.width && a.height === b.height;
+}
+
+/**
+ * Tracks the visible band. Returns `{}` where visualViewport is unavailable (SSR, older
+ * browsers), leaving the CSS to stand. The equality guard matters: iOS fires resize/scroll
+ * continuously through the keyboard animation, and re-rendering the whole dialog on every
+ * frame is what makes this technique feel janky.
+ */
+export function useVisualViewportBox(): CSSProperties {
+  const [box, setBox] = useState<CSSProperties>({});
+  useEffect(() => {
+    const vv = typeof window === "undefined" ? undefined : window.visualViewport;
+    if (!vv) return;
+    const sync = () => {
+      const next = visualViewportBox(vv);
+      setBox((prev) => (sameViewportBox(prev, next) ? prev : next));
+    };
+    sync();
+    vv.addEventListener("resize", sync);
+    vv.addEventListener("scroll", sync);
+    return () => {
+      vv.removeEventListener("resize", sync);
+      vv.removeEventListener("scroll", sync);
+    };
+  }, []);
+  return box;
 }

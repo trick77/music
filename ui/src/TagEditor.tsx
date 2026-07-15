@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { updateSong, uploadCover, removeCover, suggest, getSongStats, type Song, type SongStats, type Suggestion } from "./api";
 import { coverUrl, coverInitial } from "./cover";
+import { IMAGE_ACCEPT, useImageDrop } from "./imageDrop";
 import { Icon } from "./Icon";
 import { Button, controlClass, fieldLabel, t, Spinner, Overlay } from "./ui";
 import { titleCase, genreLabel } from "./titleCase";
@@ -156,11 +157,21 @@ export function TagEditor({ song, onClose, onSaved }: Props) {
     onClose();
   };
 
+  // One staging path for both the file picker and the drop zone. A drop stages the
+  // file exactly like the picker does — it must not upload on its own, or dropping
+  // would be the one cover edit that bypasses Save and hits the album immediately.
+  const stageCoverFile = (file: File) => {
+    setErr(null);
+    setCoverOp({ kind: "replace", file, previewUrl: URL.createObjectURL(file) });
+  };
+
   const onCover = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) setCoverOp({ kind: "replace", file, previewUrl: URL.createObjectURL(file) });
+    if (file) stageCoverFile(file);
     e.target.value = "";
   };
+
+  const { dropping, dropProps } = useImageDrop({ onFile: stageCoverFile, onReject: setErr });
 
   const tabButton = (id: Tab, label: string) => (
     <button
@@ -276,17 +287,32 @@ export function TagEditor({ song, onClose, onSaved }: Props) {
           {/* Cover */}
           <div style={{ gridColumn: 1, gridRow: 1, visibility: tab === "cover" ? "visible" : "hidden" }}>
             <div style={{ width: 160, maxWidth: "100%", margin: "0 auto" }}>
-              <div style={{ width: 160, height: 160, borderRadius: "var(--radius-ui)", overflow: "hidden", border: "1px solid var(--color-border)", background: "var(--color-active)", display: "grid", placeItems: "center" }}>
+              <div
+                {...dropProps}
+                style={{
+                  position: "relative", width: 160, height: 160, borderRadius: "var(--radius-ui)", overflow: "hidden",
+                  border: dropping ? "2px dashed var(--color-accent-strong)" : "1px solid var(--color-border)",
+                  background: "var(--color-active)", display: "grid", placeItems: "center",
+                }}
+              >
                 {preview ? (
                   <img src={preview} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
                 ) : (
                   <span style={{ fontFamily: "var(--font-serif)", fontSize: "2rem", color: "var(--color-muted)" }}>{coverInitial(artistName)}</span>
                 )}
+                {dropping && (
+                  <span style={{ position: "absolute", inset: 0, display: "grid", placeItems: "center", gap: 4, background: "rgba(0,0,0,0.55)", color: "#fff", fontSize: "var(--text-label)" }}>
+                    Drop to replace
+                  </span>
+                )}
               </div>
               <label style={{ display: "block", marginTop: 8, textAlign: "center", fontSize: "var(--text-label)", color: "var(--color-accent-strong)", cursor: "pointer" }}>
                 {preview ? "Replace cover…" : "Add cover…"}
-                <input type="file" accept="image/jpeg,image/png" onChange={onCover} style={{ display: "none" }} />
+                <input type="file" accept={IMAGE_ACCEPT} onChange={onCover} style={{ display: "none" }} />
               </label>
+              <p style={{ fontSize: "var(--text-label)", color: "var(--color-muted)", textAlign: "center", marginTop: 2 }}>
+                or drop an image on it
+              </p>
               <div style={{ display: "flex", justifyContent: "center", gap: "var(--space-2)", marginTop: 4 }}>
                 {/* Keyed on the song's actual art, not the preview: a staged pick on a
                     coverless song has nothing to remove — there, Undo is the way back. */}

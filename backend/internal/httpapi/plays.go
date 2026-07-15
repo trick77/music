@@ -87,6 +87,31 @@ func (h *songHandlers) postPlay(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
+// getSongStats returns one song's LIFETIME play figures for the tag editor's Info
+// tab (the only place in the app that shows a play count). Editor-only: recording
+// a play is the one public write, but reading the counts back is not.
+func (h *songHandlers) getSongStats(w http.ResponseWriter, r *http.Request) {
+	if !identify(h.cfg, r).Authenticated {
+		httpError(w, http.StatusForbidden, "authentication required")
+		return
+	}
+	song, err := h.repo.Get(r.Context(), r.PathValue("id"))
+	if err != nil {
+		serverError(w, "get song", err)
+		return
+	}
+	if song == nil {
+		httpError(w, http.StatusNotFound, "not found")
+		return
+	}
+	stats, err := h.repo.SongStats(r.Context(), song.ID)
+	if err != nil {
+		serverError(w, "song stats", err)
+		return
+	}
+	writeJSON(w, stats)
+}
+
 // getTopTen returns the deterministic ten-most-played chart. Public.
 func (h *songHandlers) getTopTen(w http.ResponseWriter, r *http.Request) {
 	entries, err := h.repo.TopTen(r.Context(), identify(h.cfg, r).Authenticated)

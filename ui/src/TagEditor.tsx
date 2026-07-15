@@ -1,12 +1,45 @@
 import { useEffect, useState } from "react";
-import { updateSong, uploadCover, removeCover, suggest, type Song, type Suggestion } from "./api";
+import { updateSong, uploadCover, removeCover, suggest, getSongStats, type Song, type SongStats, type Suggestion } from "./api";
 import { coverUrl, coverInitial } from "./cover";
 import { Icon } from "./Icon";
-import { Button, controlClass, fieldLabel, t, Overlay } from "./ui";
+import { Button, controlClass, fieldLabel, t, Spinner, Overlay } from "./ui";
 import { titleCase, genreLabel } from "./titleCase";
+import { formatDuration, formatFileSize, formatDateAdded, formatLastPlayed } from "./format";
 
 type Props = { song: Song; onClose: () => void; onSaved: (s: Song) => void };
-type Tab = "details" | "cover" | "lyrics";
+type Tab = "details" | "cover" | "lyrics" | "info";
+
+// InfoSection / InfoRow render the Info tab's read-only key/value list. Figures are
+// tabular so the values line up down the right edge.
+//
+// The group label is a heading OUTSIDE the <dl>, not a <dt>: "Playback" and "File"
+// name a section, not a term, and a <dt> without a following <dd> is invalid — as is
+// mixing bare dt/dd children with <div>-wrapped groups in one list.
+function InfoSection({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <section>
+      <h4 style={{ ...t.micro, fontWeight: 600, margin: "var(--space-3) 0 var(--space-1)" }}>
+        {label}
+      </h4>
+      <dl style={{ margin: 0 }}>{children}</dl>
+    </section>
+  );
+}
+
+function InfoRow({ k, v }: { k: string; v: React.ReactNode }) {
+  return (
+    <div style={{
+      display: "flex", alignItems: "baseline", justifyContent: "space-between",
+      gap: "var(--space-4)", padding: "7px 0", borderBottom: "1px solid var(--color-border)",
+    }}>
+      <dt style={{ ...t.label, margin: 0 }}>{k}</dt>
+      <dd style={{
+        margin: 0, fontSize: "var(--text-label)", textAlign: "right",
+        fontVariantNumeric: "tabular-nums",
+      }}>{v}</dd>
+    </div>
+  );
+}
 
 // cleanLyrics strips Suno's bracketed directives ([Verse], [Chorus], [Guitar solo], …)
 // and tidies leftover whitespace, leaving only sung words. Parentheses are left intact —
@@ -36,6 +69,19 @@ export function TagEditor({ song, onClose, onSaved }: Props) {
   const [artistOpts, setArtistOpts] = useState<Suggestion[]>([]);
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  const [stats, setStats] = useState<SongStats | null>(null);
+  const [statsErr, setStatsErr] = useState(false);
+
+  // Play figures are the one thing here the song payload doesn't already carry, so
+  // fetch them — but only once the Info tab is actually opened, and only once.
+  useEffect(() => {
+    if (tab !== "info" || stats || statsErr) return;
+    let live = true;
+    getSongStats(song.id)
+      .then((s) => { if (live) setStats(s); })
+      .catch(() => { if (live) setStatsErr(true); });
+    return () => { live = false; };
+  }, [tab, song.id, stats, statsErr]);
 
   // Esc closes the dialog (unless a save is in flight), matching the other modals.
   useEffect(() => {
@@ -125,6 +171,7 @@ export function TagEditor({ song, onClose, onSaved }: Props) {
           {tabButton("details", "Details")}
           {tabButton("cover", "Cover")}
           {tabButton("lyrics", "Lyrics")}
+          {tabButton("info", "Info")}
         </div>
 
         <div className="ui-modal-body" style={{ padding: "var(--space-5)" }}>
@@ -246,6 +293,28 @@ export function TagEditor({ song, onClose, onSaved }: Props) {
               placeholder="Paste lyrics here. Clean removes [Verse]/[Chorus] tags."
               style={{ minHeight: 220, lineHeight: 1.5 }}
             />
+          </div>
+
+          {/* Info — read-only. The only place in the app that shows a play count;
+              the top-ten chart deliberately shows rank and nothing else. */}
+          <div style={{ gridColumn: 1, gridRow: 1, visibility: tab === "info" ? "visible" : "hidden" }}>
+            <InfoSection label="Playback">
+              <InfoRow k="Plays" v={
+                statsErr ? "Unavailable"
+                  : !stats ? <Spinner size="13px" />
+                  : stats.plays.toLocaleString()
+              } />
+              <InfoRow k="Last played" v={
+                statsErr ? "Unavailable"
+                  : !stats ? <Spinner size="13px" />
+                  : formatLastPlayed(stats.lastPlayedAt)
+              } />
+            </InfoSection>
+            <InfoSection label="File">
+              <InfoRow k="Duration" v={formatDuration(song.durationMs)} />
+              <InfoRow k="Size" v={formatFileSize(song.fileSize)} />
+              <InfoRow k="Added" v={formatDateAdded(song.createdAt)} />
+            </InfoSection>
           </div>
           </div>
 

@@ -484,7 +484,8 @@
   .rankrow .n { font-variant-numeric: tabular-nums; font-size: 1.15rem; min-width: 22px; text-align: right; color: var(--muted); }
   .rankrow .n.top { color: var(--accent-strong); }
   .rankrow .nm { font-size: var(--text-ui); }
-  .rankrow .plays { margin-left: auto; font-size: var(--text-label); color: var(--muted); font-variant-numeric: tabular-nums; }
+  /* No .plays rule: the chart shows RANK ONLY. A song's play count appears in exactly one
+     place — the tag editor's Info tab. See "Never show a play count" in design-system.md. */
 
   .subgrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: var(--space-5); }
   .spec-card { background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius); padding: var(--space-4); }
@@ -778,6 +779,7 @@
           <button class="mtab on">Details</button>
           <button class="mtab">Cover</button>
           <button class="mtab">Lyrics</button>
+          <button class="mtab">Info</button>
         </div>
         <div class="te-body">
           <div class="te-cover">
@@ -849,10 +851,11 @@
   <section>
     <p class="eyebrow">Applied · MP3 editor</p>
     <h2>Tabbed tag editor</h2>
-    <p class="lead">Details / Cover / Lyrics tabs keep each screen short as the form grows. A
+    <p class="lead">Details / Cover / Lyrics / Info tabs keep each screen short as the form grows. A
     centered modal on desktop, full-screen on mobile — both open over the loom-style blurred
     backdrop (try <b style="color:var(--ink)">Edit tags…</b> in the Modals section). Lyrics is a
-    tall textarea on its own tab.</p>
+    tall textarea on its own tab; Info is read-only (plays, last played, duration, size, added) and is
+    the only place in the app that shows a play count.</p>
     <div class="compare2">
       <div>
         <p class="opt-label"><b>Desktop</b> — centered modal, blurred backdrop.</p>
@@ -865,6 +868,7 @@
             <button class="mtab">Details</button>
             <button class="mtab">Cover</button>
             <button class="mtab on">Lyrics</button>
+            <button class="mtab">Info</button>
           </div>
           <div>
             <div class="row-between">
@@ -889,7 +893,7 @@ rust cathedral, doom we crave.</textarea>
         <p class="opt-label"><b>Mobile</b> — full-screen, same tabs.</p>
         <div class="phone">
           <div class="fs-head"><h3>Edit tags</h3><button class="modal-close" aria-label="Close"><span class="i" data-lucide="x" data-size="18"></span></button></div>
-          <div style="padding:12px 16px 0"><div class="mtabs"><button class="mtab">Details</button><button class="mtab">Cover</button><button class="mtab on">Lyrics</button></div></div>
+          <div style="padding:12px 16px 0"><div class="mtabs"><button class="mtab">Details</button><button class="mtab">Cover</button><button class="mtab on">Lyrics</button><button class="mtab">Info</button></div></div>
           <div class="fs-body">
             <div>
               <div class="row-between"><label class="lbl-new">Lyrics</label><button class="btn btn-ghost btn-small" title="Remove [Verse]/[Chorus]-style Suno tags">Clean</button></div>
@@ -1168,11 +1172,11 @@ rust cathedral, doom we crave.</textarea>
         </div>
       </div>
       <div class="spec-card">
-        <h4>Top ten (rank numbers)</h4>
+        <h4>Top ten (rank only — never a play count)</h4>
         <div class="ranklist">
-          <div class="rankrow"><span class="n top">1</span><span class="nm">Iron Verdict</span><span class="plays">4,182</span></div>
-          <div class="rankrow"><span class="n top">2</span><span class="nm">Molten Requiem</span><span class="plays">3,904</span></div>
-          <div class="rankrow"><span class="n">3</span><span class="nm">Cathedral of Rust</span><span class="plays">2,551</span></div>
+          <div class="rankrow"><span class="n top">1</span><span class="nm">Iron Verdict</span></div>
+          <div class="rankrow"><span class="n top">2</span><span class="nm">Molten Requiem</span></div>
+          <div class="rankrow"><span class="n">3</span><span class="nm">Cathedral of Rust</span></div>
         </div>
       </div>
     </div>

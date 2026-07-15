@@ -21,11 +21,12 @@ export const iconBtn: React.CSSProperties = {
 };
 
 // Divider separates the transport (prev/play/next) from the actions that follow it
-// (favorite, lyrics, visualizer, AirPlay, share) in every control row. The default
-// tint reads on the app's light chrome; the immersive rows sit on the dark cover
-// scrim and pass a white one.
+// (favorite, lyrics, visualizer, AirPlay, share) in every control row. Purely
+// decorative — the rows carry no group semantics to announce — so it's aria-hidden,
+// like the rail's group separator. The default tint reads against the docked
+// panel; the immersive rows sit on the cover scrim and pass a white one.
 export function Divider({ color = "var(--color-border)" }: { color?: string }) {
-  return <span role="separator" aria-orientation="vertical" style={{ width: 1, height: 24, background: color, flexShrink: 0 }} />;
+  return <span aria-hidden data-divider style={{ width: 1, height: 24, background: color, flexShrink: 0 }} />;
 }
 
 export function StarButton({ song, fav, size = 20 }: { song: Song; fav: Fav; size?: number }) {

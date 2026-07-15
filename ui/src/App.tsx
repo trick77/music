@@ -178,6 +178,15 @@ export function App() {
     pushedPlayer.current = true;
     pushPlayer(curId, mode);
   }, [curId]);
+  // Leaving the visualizer for the lyrics player deliberately does NOT mark the
+  // overlay as pushed: closing it then lands Home, the same single destination
+  // every other entry point closes to, instead of reopening the visualizer the
+  // viewer already left.
+  const showLyricsFromVisualizer = useCallback(() => {
+    if (!curId) return;
+    pushedPlayer.current = false;
+    pushPlayer(curId, "lyrics");
+  }, [curId]);
   const setPlayerMode = useCallback((mode: PlayerParam) => {
     if (!curId) return;
     replacePlayer(curId, mode);
@@ -451,7 +460,7 @@ export function App() {
 
       <PlayerBar fav={fav} onShare={shareSong} renderMenu={playerMenu} alignmentEnabled={!!session?.alignmentEnabled} open={playerParam !== null} lyrics={playerParam === "lyrics"} onExpand={expandPlayer} onSetMode={setPlayerMode} onClose={closePlayerView} onCopyLink={copyPlayerLink} />
 
-      {route.name === "visualizer" && <VisualizerView fav={fav} onShare={shareSong} onShowLyrics={() => expandPlayer("lyrics")} />}
+      {route.name === "visualizer" && <VisualizerView fav={fav} onShare={shareSong} onShowLyrics={showLyricsFromVisualizer} />}
 
       {showQueue && (
         <QueueDrawer

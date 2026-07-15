@@ -108,22 +108,29 @@ describe("PlayerBar lyrics gating", () => {
 
 describe("PlayerBar transport divider", () => {
   // Every control row separates the transport from the actions that follow it.
-  const sep = (html: string) => (html.match(/role="separator" aria-orientation="vertical"/g) ?? []).length;
+  const dividers = (html: string) => (html.match(/data-divider/g) ?? []).length;
+  // Each row's divider is tinted for the surface it sits on: the docked panel takes
+  // the app border token, the cover-scrim overlays take white (the token vanishes
+  // against the art). An overlay row also renders the mini bar underneath, so a
+  // white-tinted divider there is the overlay's.
+  const white = (html: string) => (html.match(/rgba\(255,255,255,0\.2\)/g) ?? []).length;
 
   it("when the mini bar renders, then a divider follows the transport", () => {
-    expect(sep(render(false, song(), false, false))).toBe(1);
+    const html = render(false, song(), false, false);
+    expect(dividers(html)).toBe(1);
+    expect(html).toContain("var(--color-border)");
+    expect(white(html)).toBe(0);
   });
 
-  it("when the full player is open, then both its row and the mini bar carry a divider", () => {
-    expect(sep(render(false, song(), true, false))).toBe(2);
+  it("when the full player is open, then its row carries a white-tinted divider", () => {
+    const html = render(false, song(), true, false);
+    expect(dividers(html)).toBe(2); // the overlay row + the mini bar below it
+    expect(white(html)).toBe(1);
   });
 
-  it("when the karaoke player is open, then both its row and the mini bar carry a divider", () => {
-    expect(sep(render(false, song(), true, true))).toBe(2);
-  });
-
-  it("when on the dark overlay, then the divider uses the white tint, not the app border token", () => {
-    // --color-border reads on the app's light chrome but vanishes on the cover scrim.
-    expect(render(false, song(), true, false)).toContain("rgba(255,255,255,0.2)");
+  it("when the karaoke player is open, then its row carries a white-tinted divider", () => {
+    const html = render(false, song(), true, true);
+    expect(dividers(html)).toBe(2);
+    expect(white(html)).toBe(1);
   });
 });

@@ -213,7 +213,7 @@ export function VisualizerView({ fav, onShare, onShowLyrics }: { fav: Fav; onSha
           <div style={{ width: "min(760px, 96vw)" }}>
             <Scrubber positionMs={p.positionMs} durationMs={p.durationMs} onSeek={p.seek} />
             <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "1.5rem", marginTop: "0.75rem" }}>
-              <Transport playing={p.playing} onPrev={p.prev} onToggle={p.toggle} onNext={p.next} size={26} />
+              <Transport playing={p.playing} onPrev={p.prev} onToggle={p.toggle} onNext={p.next} canNext={p.queue.length > 0} size={26} />
               <Divider color="rgba(255,255,255,0.2)" />
               <StarButton song={song} fav={fav} size={24} />
               {hasLyrics && (

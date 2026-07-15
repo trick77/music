@@ -211,6 +211,34 @@ export function App() {
     closePlayer(pushedPlayer.current);
   }, []);
 
+  // The player can now close itself: finishing the last song with an empty queue
+  // clears `current` (next → stop). The overlay lives in the URL, and the
+  // URL-follows-current effect above bails once current is null, so without this
+  // a stale ?player= would linger — re-opening the overlay on the next play, and
+  // surviving a reload. Route it through the same close path as the X so every
+  // close lands on one destination.
+  //
+  // hadCurrent gates this to a real null *transition*. A cold landing on
+  // /song/:id?player=full starts with current === null until the deep-link effect
+  // above cues the track; closing on that would break share links.
+  const hadCurrent = useRef(false);
+  useEffect(() => {
+    if (player.current) {
+      hadCurrent.current = true;
+      return;
+    }
+    if (!hadCurrent.current) return;
+    hadCurrent.current = false;
+    if (playerParam !== null) closePlayerView();
+    // The visualizer is a route rather than an overlay, so the close above can't
+    // reach it — but it's just as much a full-screen player takeover, and leaving
+    // it up would strand the viewer on "Nothing is playing" with no way out but
+    // the X. Send them home so every full-screen surface dismisses the same way.
+    // navigate() directly, not closePlayerView: pushedPlayer tracks the overlay
+    // push, not this route.
+    else if (route.name === "visualizer") navigate("/");
+  }, [player.current, playerParam, closePlayerView, route.name]);
+
   const flash = (msg: string) => {
     setToast(msg);
     window.setTimeout(() => setToast(null), 2000);

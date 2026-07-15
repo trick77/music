@@ -21,7 +21,10 @@ export type PlayerState = {
 // ── Pure transitions (unit-tested) ─────────────────────────────────────────
 
 // advance moves the queue head to current, pushing the outgoing current onto
-// history (so prev can return to it). With an empty queue it stops instead.
+// history (so prev can return to it). With an empty queue it stops instead —
+// kept so the transition stays total, but note that end-of-queue no longer comes
+// through here: next() short-circuits to stop() (closing the player) before it
+// would ever call advance() on an empty queue.
 export function advance(state: PlayerState): PlayerState {
   if (state.queue.length === 0) {
     return { ...state, playing: false, positionMs: 0 };
@@ -125,6 +128,7 @@ let pendingSeekMs = 0;
 let lastPersist = 0;
 
 function emit() {
+  syncNextAction(); // keep the OS "next track" control in step with the queue
   for (const l of listeners) l();
 }
 
@@ -177,6 +181,15 @@ function setPlaybackState(s: "playing" | "paused" | "none") {
   if (hasMediaSession()) navigator.mediaSession.playbackState = s;
 }
 
+// clearMediaSession wipes the OS Now Playing widget (lock screen, macOS control
+// centre). Without it a forgotten track lingers there with controls that no-op
+// against a null current. Every path that clears `current` must call this.
+function clearMediaSession() {
+  if (!hasMediaSession()) return;
+  guardMedia(() => (navigator.mediaSession.metadata = null));
+  setPlaybackState("none");
+}
+
 function updatePositionState() {
   if (!hasMediaSession() || !audio) return;
   const d = audio.duration;
@@ -188,20 +201,37 @@ function updatePositionState() {
   }
 }
 
+function guardMedia(fn: () => void) {
+  try {
+    fn();
+  } catch {
+    // unsupported action — ignore
+  }
+}
+
 function setupMediaHandlers() {
   if (!hasMediaSession()) return;
   const ms = navigator.mediaSession;
-  const guard = (fn: () => void) => {
-    try {
-      fn();
-    } catch {
-      // unsupported action — ignore
-    }
-  };
-  guard(() => ms.setActionHandler("play", () => player.toggle()));
-  guard(() => ms.setActionHandler("pause", () => player.toggle()));
-  guard(() => ms.setActionHandler("nexttrack", () => player.next()));
-  guard(() => ms.setActionHandler("previoustrack", () => player.prev()));
+  guardMedia(() => ms.setActionHandler("play", () => player.toggle()));
+  guardMedia(() => ms.setActionHandler("pause", () => player.toggle()));
+  guardMedia(() => ms.setActionHandler("previoustrack", () => player.prev()));
+  syncNextAction();
+}
+
+// syncNextAction mirrors the greyed-out Next button onto the OS media controls
+// (AirPods double-tap, the macOS Now Playing widget, lock screen). A null handler
+// is how you tell the platform an action is unavailable, so the system greys out
+// its own Next too — otherwise a headphone tap would still close the player from
+// behind a disabled on-screen button. Driven from emit() so it can never drift out
+// of sync with the queue; lastNextAction keeps a 4x/second timeupdate from
+// re-registering the handler on every tick.
+let lastNextAction: boolean | null = null;
+function syncNextAction() {
+  if (!hasMediaSession()) return;
+  const canNext = state.queue.length > 0;
+  if (canNext === lastNextAction) return;
+  lastNextAction = canNext;
+  guardMedia(() => navigator.mediaSession.setActionHandler("nexttrack", canNext ? () => player.next() : null));
 }
 
 function getAudio(): HTMLAudioElement {
@@ -224,7 +254,11 @@ function getAudio(): HTMLAudioElement {
   });
   el.addEventListener("pause", () => {
     set({ playing: false });
-    setPlaybackState("paused");
+    // pause() on a playing element queues this event asynchronously, so it lands
+    // *after* stop() has already torn the player down — reporting "paused" then
+    // would resurrect the finished track on the OS widget. With no current track
+    // there is nothing paused, only nothing playing.
+    setPlaybackState(state.current ? "paused" : "none");
   });
   // AirPlay wiring, Safari-only. Feature-detect the picker; if it exists we can
   // trust the companion events fire, so we listen for target availability (to
@@ -296,7 +330,12 @@ export const player = {
   remove(id: string) {
     const wasCurrent = state.current?.id === id;
     state = removeSong(state, id);
-    if (wasCurrent) getAudio().pause();
+    // removeSong clears current when the deleted song was playing, so the OS
+    // widget has to go with it — same reasoning as stop().
+    if (wasCurrent) {
+      getAudio().pause();
+      clearMediaSession();
+    }
     emit();
   },
   // patchSong swaps in an edited song wherever it appears (current/queue/history)
@@ -323,20 +362,23 @@ export const player = {
     if (!state.current) return;
     getAudio().pause();
     clearResume(resumeStore());
+    clearMediaSession(); // matters more now that stop() also runs when the last song ends
     set({ current: null, queue: [], history: [], playing: false, positionMs: 0, durationMs: 0 });
   },
   next() {
-    const before = state.current?.id;
+    // Advancing past the end closes the player. The `ended` listener and the Next
+    // control funnel through here, so finishing the last song tidies the dock away
+    // instead of parking it at 0:00. The UI greys Next out when the queue is empty
+    // (Transport's canNext), so a deliberate press can't reach this — `ended` is the
+    // real caller. stop() clears resume state, which is right: the song finished,
+    // there's no position worth reopening at.
+    if (state.queue.length === 0) {
+      player.stop();
+      return;
+    }
     state = advance(state);
     emit();
-    if (state.current?.id !== before) loadCurrent(true);
-    else {
-      // queue empty — advance stopped playback and reset positionMs to 0; reset
-      // the element to the start too so the paused track is cued to replay from 0.
-      const el = getAudio();
-      el.pause();
-      el.currentTime = 0;
-    }
+    loadCurrent(true);
   },
   prev() {
     // Standard media-player "back": more than a few seconds into the track, the

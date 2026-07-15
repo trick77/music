@@ -1,5 +1,8 @@
 import { describe, it, expect } from "vitest";
-import { formatDuration, formatFileSize, formatDateAdded, formatLastPlayed } from "./format";
+import {
+  formatDuration, formatFileSize, formatDateAdded, formatLastPlayed,
+  formatSampleRate, formatChannels, formatBitrate,
+} from "./format";
 
 describe("formatDuration", () => {
   it("formats minutes and seconds", () => {
@@ -11,6 +14,27 @@ describe("formatDuration", () => {
   it("handles zero and invalid", () => {
     expect(formatDuration(0)).toBe("0:00");
     expect(formatDuration(NaN)).toBe("0:00");
+  });
+});
+
+// Zero means "unknown" across all three: a row the backfill hasn't reached, or a
+// file that wouldn't decode. It must never render as "0 Hz" / "0 kbps".
+describe("audio info formatters", () => {
+  it("renders sample rate in kHz", () => {
+    expect(formatSampleRate(44100)).toBe("44.1 kHz");
+    expect(formatSampleRate(48000)).toBe("48 kHz");
+  });
+  it("names channel layouts", () => {
+    expect(formatChannels(1)).toBe("Mono");
+    expect(formatChannels(2)).toBe("Stereo");
+  });
+  it("renders bitrate", () => {
+    expect(formatBitrate(128)).toBe("128 kbps");
+  });
+  it("renders unknown values as an em dash, never as zero", () => {
+    expect(formatSampleRate(0)).toBe("—");
+    expect(formatChannels(0)).toBe("—");
+    expect(formatBitrate(0)).toBe("—");
   });
 });
 

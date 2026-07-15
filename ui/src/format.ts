@@ -9,6 +9,30 @@ export function formatDuration(ms: number): string {
 /** Placeholder for a value we don't have, so columns still line up. */
 const EMPTY = "—";
 
+// Audio info. The server sends 0 for "unknown" — a row the backfill hasn't reached,
+// or a file that wouldn't decode — so every one of these guards zero rather than
+// rendering a confident "0 Hz".
+
+/** "44.1 kHz" — the fractional part only shows when there is one. */
+export function formatSampleRate(hz: number): string {
+  if (!Number.isFinite(hz) || hz <= 0) return EMPTY;
+  const khz = hz / 1000;
+  return `${Number.isInteger(khz) ? khz : khz.toFixed(1)} kHz`;
+}
+
+/** Channel count as a layout name. The server collapses joint/dual stereo to 2. */
+export function formatChannels(channels: number): string {
+  if (channels === 1) return "Mono";
+  if (channels === 2) return "Stereo";
+  return EMPTY;
+}
+
+/** "128 kbps" — an average across the file, so it's honest for VBR too. */
+export function formatBitrate(kbps: number): string {
+  if (!Number.isFinite(kbps) || kbps <= 0) return EMPTY;
+  return `${Math.round(kbps)} kbps`;
+}
+
 /** formatFileSize renders a byte count for the tag editor's Info tab. */
 export function formatFileSize(bytes: number): string {
   if (!Number.isFinite(bytes) || bytes <= 0) return EMPTY;

@@ -4,7 +4,10 @@ import { coverUrl, coverInitial } from "./cover";
 import { Icon } from "./Icon";
 import { Button, controlClass, fieldLabel, t, Spinner, Overlay } from "./ui";
 import { titleCase, genreLabel } from "./titleCase";
-import { formatDuration, formatFileSize, formatDateAdded, formatLastPlayed } from "./format";
+import {
+  formatDuration, formatFileSize, formatDateAdded, formatLastPlayed,
+  formatBitrate, formatSampleRate, formatChannels,
+} from "./format";
 
 type Props = { song: Song; onClose: () => void; onSaved: (s: Song) => void };
 type Tab = "details" | "cover" | "lyrics" | "info";
@@ -309,6 +312,11 @@ export function TagEditor({ song, onClose, onSaved }: Props) {
                   : !stats ? <Spinner size="13px" />
                   : formatLastPlayed(stats.lastPlayedAt)
               } />
+            </InfoSection>
+            <InfoSection label="Audio">
+              <InfoRow k="Bitrate" v={formatBitrate(song.bitrateKbps)} />
+              <InfoRow k="Sample rate" v={formatSampleRate(song.sampleRate)} />
+              <InfoRow k="Channels" v={formatChannels(song.channels)} />
             </InfoSection>
             <InfoSection label="File">
               <InfoRow k="Duration" v={formatDuration(song.durationMs)} />

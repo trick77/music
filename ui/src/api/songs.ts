@@ -10,6 +10,11 @@ export type Song = {
   year: number;
   trackNo: number;
   durationMs: number;
+  // Audio properties of the stored file. 0 means unknown — either the backfill
+  // hasn't reached this row yet, or the file couldn't be decoded. Render "—".
+  sampleRate: number;
+  channels: number;
+  bitrateKbps: number;
   // fileSize is the STORED file's size. Tags are baked into the bytes on the fly at
   // download time, so a download differs slightly from this.
   fileSize: number;

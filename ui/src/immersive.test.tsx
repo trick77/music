@@ -5,7 +5,7 @@ import { Chapter } from "./Chapter";
 import type { GenreChapter, HomeHero, Song } from "./api";
 
 function song(id: string, title: string): Song {
-  return { id, title, artistName: "Vesper Lake", album: "", year: 0, trackNo: 0, durationMs: 200000, fileSize: 0, createdAt: "", genres: [], coverArtId: "", published: true };
+  return { id, title, artistName: "Vesper Lake", album: "", year: 0, trackNo: 0, durationMs: 200000, fileSize: 0, createdAt: "", sampleRate: 0, channels: 0, bitrateKbps: 0, genres: [], coverArtId: "", published: true };
 }
 
 function item(id: string, title: string, genres: GenreLink[] = [], ranked = true): HeroItem {

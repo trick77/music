@@ -93,9 +93,15 @@ one intentional literal.
   - `.ui-overlay` needs a **definite grid row** (`grid-template-rows: minmax(0, 1fr)`) or
     `max-height: 100%` on the modal is self-referential against an `auto` track and silently does
     nothing.
-  - `.ui-overlay` / `.ui-modal` is the **primitive**; `ConfirmDialog`, `GenreEditor`,
-    `AddToPlaylist` and `QueueDrawer` still hand-roll their overlays and inherit none of the
-    above. Migrate them to it rather than re-solving this per dialog.
+  - **Use the `<Overlay>` component (`ui.tsx`), never a bare `className="ui-overlay"`.** The class
+    alone does not size itself — `<Overlay>` calls the hook. A hand-rolled div would sit at the
+    layout viewport's height and bury its footer under the keyboard, i.e. *worse* than the `90dvh`
+    this replaced. `ConfirmDialog`, `GenreEditor`, `AddToPlaylist` and `QueueDrawer` still
+    hand-roll their overlays and inherit none of this; migrate them onto `<Overlay>`.
+  - **Deliberate side effect on desktop:** the cap is now the overlay's content box (visible
+    height − 32px) rather than `90dvh`, so a *very tall* dialog may run ~7% taller and its gutter
+    is a flat 16px instead of a proportional ~54px. Accepted: it spends the visible band where the
+    band is scarce, and no current dialog is tall enough to reach either cap on a desktop window.
 - **Search field**: 999px pill, leading search icon, borderless 15px input.
 - **Cards / tiles**: cover art falls back to a serif monogram on `--color-active`. Ribbons =
   `rgba(0,0,0,.5)` 999px 11px + accent-text dot. Chips = active 999px 13px with ✕. Dashed tile =

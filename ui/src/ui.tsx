@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useLayoutEffect, useState } from "react";
 import type { ButtonHTMLAttributes, CSSProperties, ReactNode } from "react";
 import { Icon } from "./Icon";
 
@@ -107,8 +107,11 @@ export function Button({ variant = "primary", small, busy, disabled, children, s
  */
 type ViewportReading = Pick<VisualViewport, "offsetTop" | "offsetLeft" | "width" | "height">;
 
+/** The subset of CSSProperties this module sets. Keeps the equality guard total. */
+export type ViewportBox = Pick<CSSProperties, "top" | "left" | "width" | "height" | "right" | "bottom">;
+
 /** Maps a VisualViewport reading to the inline style pinning an overlay to it. */
-export function visualViewportBox(vv: ViewportReading | null | undefined): CSSProperties {
+export function visualViewportBox(vv: ViewportReading | null | undefined): ViewportBox {
   if (!vv) return {}; // unsupported — the stylesheet's `inset: 0` stands unchanged
   return {
     top: vv.offsetTop,
@@ -121,20 +124,23 @@ export function visualViewportBox(vv: ViewportReading | null | undefined): CSSPr
 }
 
 /** True when two boxes describe the same band — lets us skip no-op re-renders. */
-export function sameViewportBox(a: CSSProperties, b: CSSProperties): boolean {
+export function sameViewportBox(a: ViewportBox, b: ViewportBox): boolean {
   return a.top === b.top && a.left === b.left && a.width === b.width && a.height === b.height;
 }
 
 /**
- * Tracks the visible band. Returns `{}` where visualViewport is unavailable (SSR, older
- * browsers), leaving the CSS to stand. The equality guard matters: iOS fires resize/scroll
- * continuously through the keyboard animation, and re-rendering the whole dialog on every
- * frame is what makes this technique feel janky.
+ * Tracks the visible band. Returns `{}` before measurement and where visualViewport is
+ * unavailable (SSR, older browsers), leaving the CSS to stand. The equality guard
+ * matters: iOS fires resize/scroll continuously through the keyboard animation, and
+ * re-rendering the whole dialog every frame is what makes this technique feel janky.
+ *
+ * useLayoutEffect, not useEffect: this measures, and painting the unmeasured frame
+ * first would show the overlay at the layout viewport's size and then snap.
  */
-export function useVisualViewportBox(): CSSProperties {
-  const [box, setBox] = useState<CSSProperties>({});
-  useEffect(() => {
-    const vv = typeof window === "undefined" ? undefined : window.visualViewport;
+function useVisualViewportBox(): ViewportBox {
+  const [box, setBox] = useState<ViewportBox>({});
+  useLayoutEffect(() => {
+    const vv = window.visualViewport;
     if (!vv) return;
     const sync = () => {
       const next = visualViewportBox(vv);
@@ -149,4 +155,23 @@ export function useVisualViewportBox(): CSSProperties {
     };
   }, []);
   return box;
+}
+
+/**
+ * Overlay — the backdrop every dialog sits on. USE THIS RATHER THAN THE BARE
+ * `.ui-overlay` CLASS.
+ *
+ * The keyboard-avoidance above only works if something calls the hook, and a plain
+ * `<div className="ui-overlay">` silently doesn't: it would size to the layout
+ * viewport and bury its dialog's footer under the keyboard — worse than the `90dvh`
+ * this replaced. Wrapping the hook in the component is what makes that unrepresentable.
+ * `ConfirmDialog`, `GenreEditor`, `AddToPlaylist` and `QueueDrawer` still hand-roll
+ * their own overlays; migrate them onto this, not onto the class.
+ */
+export function Overlay({ onClick, children }: { onClick?: () => void; children: ReactNode }) {
+  return (
+    <div className="ui-overlay" style={useVisualViewportBox()} onClick={onClick}>
+      {children}
+    </div>
+  );
 }

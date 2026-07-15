@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"image"
 	"image/jpeg"
+	"image/png"
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
@@ -206,6 +207,128 @@ func TestUpload_unprobeableEmbeddedCoverIsNonFatal(t *testing.T) {
 	}
 	if got := coverArtIDOf(t, up); got != "" {
 		t.Fatalf("coverArtId = %q, want empty (unprobeable art skipped)", got)
+	}
+}
+
+func TestDownloadCover_servesAttachmentNamedAfterSong(t *testing.T) {
+	h := testServer(t, config.AuthModeDev)
+	// The fixture's embedded art is a JPEG, so the download must come back .jpg —
+	// the extension follows the stored file, not a guess.
+	up := uploadBytes(t, h, "withcover.mp3", mp3WithTags(t, "Cover Song", "The Band", "Album", jpegBytes(t, 240), "image/jpeg"))
+	if up.Code != http.StatusCreated {
+		t.Fatalf("upload = %d, body=%s", up.Code, up.Body.String())
+	}
+	var song struct {
+		ID string `json:"id"`
+	}
+	json.Unmarshal(up.Body.Bytes(), &song)
+
+	rr := httptest.NewRecorder()
+	h.ServeHTTP(rr, httptest.NewRequest("GET", "/api/songs/"+song.ID+"/cover/download", nil))
+	if rr.Code != http.StatusOK {
+		t.Fatalf("GET cover download = %d, body=%s", rr.Code, rr.Body.String())
+	}
+	if got, want := rr.Header().Get("Content-Disposition"), `attachment; filename="The Band - Cover Song.jpg"`; got != want {
+		t.Fatalf("Content-Disposition = %q, want %q", got, want)
+	}
+	if ct := rr.Header().Get("Content-Type"); ct != "image/jpeg" {
+		t.Fatalf("cover download content-type = %q", ct)
+	}
+	if _, _, err := image.Decode(bytes.NewReader(rr.Body.Bytes())); err != nil {
+		t.Fatalf("downloaded cover did not decode: %v", err)
+	}
+}
+
+// The extension follows the stored file rather than a guess, so a PNG cover must
+// come back .png — this is the case the .jpg test above cannot prove.
+func TestDownloadCover_pngKeepsItsExtension(t *testing.T) {
+	h := testServer(t, config.AuthModeDev)
+	var art bytes.Buffer
+	if err := png.Encode(&art, image.NewRGBA(image.Rect(0, 0, 220, 220))); err != nil {
+		t.Fatalf("encode png cover: %v", err)
+	}
+	up := uploadBytes(t, h, "pngcover.mp3", mp3WithTags(t, "Static", "PNG Band", "Album", art.Bytes(), "image/png"))
+	if up.Code != http.StatusCreated {
+		t.Fatalf("upload = %d, body=%s", up.Code, up.Body.String())
+	}
+	var song struct {
+		ID string `json:"id"`
+	}
+	json.Unmarshal(up.Body.Bytes(), &song)
+
+	rr := httptest.NewRecorder()
+	h.ServeHTTP(rr, httptest.NewRequest("GET", "/api/songs/"+song.ID+"/cover/download", nil))
+	if rr.Code != http.StatusOK {
+		t.Fatalf("GET png cover download = %d, body=%s", rr.Code, rr.Body.String())
+	}
+	if got, want := rr.Header().Get("Content-Disposition"), `attachment; filename="PNG Band - Static.png"`; got != want {
+		t.Fatalf("Content-Disposition = %q, want %q", got, want)
+	}
+	if ct := rr.Header().Get("Content-Type"); ct != "image/png" {
+		t.Fatalf("png cover content-type = %q, want image/png", ct)
+	}
+}
+
+// An unknown song id must 404 rather than panic on the nil song.
+func TestDownloadCover_unknownSong404(t *testing.T) {
+	h := testServer(t, config.AuthModeDev)
+	rr := httptest.NewRecorder()
+	h.ServeHTTP(rr, httptest.NewRequest("GET", "/api/songs/nosuchsong/cover/download", nil))
+	if rr.Code != http.StatusNotFound {
+		t.Fatalf("cover download for unknown song = %d, want 404", rr.Code)
+	}
+}
+
+// A song with no cover has nothing to attach — 404 rather than an empty file.
+func TestDownloadCover_noCover404(t *testing.T) {
+	h := testServer(t, config.AuthModeDev)
+	up := uploadFixture(t, h)
+	var song struct {
+		ID string `json:"id"`
+	}
+	json.Unmarshal(up.Body.Bytes(), &song)
+	if got := coverArtIDOf(t, up); got != "" {
+		t.Fatalf("fixture unexpectedly has a cover (%q); this test needs a coverless song", got)
+	}
+
+	rr := httptest.NewRecorder()
+	h.ServeHTTP(rr, httptest.NewRequest("GET", "/api/songs/"+song.ID+"/cover/download", nil))
+	if rr.Code != http.StatusNotFound {
+		t.Fatalf("cover download without cover = %d, want 404", rr.Code)
+	}
+}
+
+// Cover-art download is signed-in only — anonymous callers are refused even once
+// the song is published, unlike the inline GET /api/cover/{id} view.
+func TestDownloadCover_anonymousForbidden(t *testing.T) {
+	dev, anon := devAndAnon(t)
+	up := uploadBytes(t, dev, "withcover.mp3", mp3WithCover(t))
+	if up.Code != http.StatusCreated {
+		t.Fatalf("upload = %d, body=%s", up.Code, up.Body.String())
+	}
+	var song struct {
+		ID         string `json:"id"`
+		CoverArtID string `json:"coverArtId"`
+	}
+	json.Unmarshal(up.Body.Bytes(), &song)
+
+	if code := getStatus(t, anon, "/api/songs/"+song.ID+"/cover/download"); code != http.StatusForbidden {
+		t.Fatalf("anonymous cover download = %d, want 403", code)
+	}
+	// The signed-in user can fetch it.
+	if code := getStatus(t, dev, "/api/songs/"+song.ID+"/cover/download"); code != http.StatusOK {
+		t.Fatalf("dev cover download = %d, want 200", code)
+	}
+	// Publishing does not open the download up.
+	if rr := doJSON(t, dev, "POST", "/api/songs/"+song.ID+"/publish", ""); rr.Code != http.StatusOK {
+		t.Fatalf("publish = %d", rr.Code)
+	}
+	if code := getStatus(t, anon, "/api/songs/"+song.ID+"/cover/download"); code != http.StatusForbidden {
+		t.Fatalf("anonymous cover download of published song = %d, want 403", code)
+	}
+	// The art is still viewable inline for anonymous listeners.
+	if code := getStatus(t, anon, "/api/cover/"+song.CoverArtID); code != http.StatusOK {
+		t.Fatalf("anonymous inline cover view = %d, want 200", code)
 	}
 }
 

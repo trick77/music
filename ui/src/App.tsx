@@ -205,7 +205,14 @@ export function App() {
     if (!hadCurrent.current) return;
     hadCurrent.current = false;
     if (playerParam !== null) closePlayerView();
-  }, [player.current, playerParam, closePlayerView]);
+    // The visualizer is a route rather than an overlay, so the close above can't
+    // reach it — but it's just as much a full-screen player takeover, and leaving
+    // it up would strand the viewer on "Nothing is playing" with no way out but
+    // the X. Send them home so every full-screen surface dismisses the same way.
+    // navigate() directly, not closePlayerView: pushedPlayer tracks the overlay
+    // push, not this route.
+    else if (route.name === "visualizer") navigate("/");
+  }, [player.current, playerParam, closePlayerView, route.name]);
 
   const flash = (msg: string) => {
     setToast(msg);

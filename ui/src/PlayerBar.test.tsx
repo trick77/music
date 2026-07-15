@@ -105,3 +105,25 @@ describe("PlayerBar lyrics gating", () => {
     expect(render(false, song(), false, false)).toContain('aria-label="Stop and close"');
   });
 });
+
+describe("PlayerBar transport divider", () => {
+  // Every control row separates the transport from the actions that follow it.
+  const sep = (html: string) => (html.match(/role="separator" aria-orientation="vertical"/g) ?? []).length;
+
+  it("when the mini bar renders, then a divider follows the transport", () => {
+    expect(sep(render(false, song(), false, false))).toBe(1);
+  });
+
+  it("when the full player is open, then both its row and the mini bar carry a divider", () => {
+    expect(sep(render(false, song(), true, false))).toBe(2);
+  });
+
+  it("when the karaoke player is open, then both its row and the mini bar carry a divider", () => {
+    expect(sep(render(false, song(), true, true))).toBe(2);
+  });
+
+  it("when on the dark overlay, then the divider uses the white tint, not the app border token", () => {
+    // --color-border reads on the app's light chrome but vanishes on the cover scrim.
+    expect(render(false, song(), true, false)).toContain("rgba(255,255,255,0.2)");
+  });
+});

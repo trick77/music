@@ -86,3 +86,9 @@ services:
 networks:
   traefik:
     external: true
+
+volumes:
+  # Named volume for the align sidecar's model cache. Persists across `docker compose
+  # pull` + container recreate, so the wav2vec2 + htdemucs weights download once
+  # instead of on every deploy.
+  align-models:

@@ -158,9 +158,6 @@ export function Home({ authenticated, onPlay, onShare, onUpload, renderRowAction
                     {renderGenreChips(s)}
                   </div>
                 </div>
-                <span className="rank-num top-plays" style={{ ...t.label, whiteSpace: "nowrap" }}>
-                  {s.plays.toLocaleString()} {s.plays === 1 ? "play" : "plays"}
-                </span>
                 <span style={{ display: "flex", alignItems: "center", gap: "0.35rem" }}>{renderRowActions(s)}</span>
               </div>
             ))}

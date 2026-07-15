@@ -11,6 +11,8 @@ const song: Song = {
   year: 2026,
   trackNo: 1,
   durationMs: 2000,
+  fileSize: 36380,
+  createdAt: "2026-07-15 14:08:58",
   genres: [],
   coverArtId: "c1",
   lyrics: "",

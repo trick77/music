@@ -4,7 +4,7 @@ import type { Song } from "./api";
 
 const s = (id: string): Song => ({
   id, title: id, artistName: "", album: "", year: 0, trackNo: 0,
-  durationMs: 0, genres: [], coverArtId: "", published: true,
+  durationMs: 0, fileSize: 0, createdAt: "", genres: [], coverArtId: "", published: true,
 });
 
 describe("queue ops", () => {

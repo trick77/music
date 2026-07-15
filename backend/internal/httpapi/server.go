@@ -172,6 +172,7 @@ func build(cfg config.Config, st *store.Store, spa http.Handler, gen imagegen.Pr
 			mux.HandleFunc("POST /api/songs/{id}/publish", h.publish)
 			mux.HandleFunc("POST /api/songs/{id}/unpublish", h.unpublish)
 			mux.HandleFunc("POST /api/songs/{id}/play", h.postPlay) // PUBLIC — the one documented anonymous write (spec §12)
+			mux.HandleFunc("GET /api/songs/{id}/stats", h.getSongStats)
 			mux.HandleFunc("GET /api/top-ten", h.getTopTen)
 			mux.HandleFunc("GET /api/home", h.getHome)
 			mux.HandleFunc("GET /api/search", h.getSearch)

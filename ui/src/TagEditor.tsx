@@ -8,6 +8,14 @@ import { titleCase, genreLabel } from "./titleCase";
 type Props = { song: Song; onClose: () => void; onSaved: (s: Song) => void };
 type Tab = "details" | "cover" | "lyrics";
 
+// CoverOp is the cover edit staged for the next save, mirroring how the other
+// tabs hold their edits in state. A union rather than a pair of flags so the
+// states stay mutually exclusive — "removed" and "replaced" can't both be true.
+type CoverOp =
+  | { kind: "keep" }
+  | { kind: "remove" }
+  | { kind: "replace"; file: File; previewUrl: string };
+
 // cleanLyrics strips Suno's bracketed directives ([Verse], [Chorus], [Guitar solo], …)
 // and tidies leftover whitespace, leaving only sung words. Parentheses are left intact —
 // "(ooh)"/"(yeah)" ad-libs are usually actually sung. Keep in sync with the server-side
@@ -32,10 +40,18 @@ export function TagEditor({ song, onClose, onSaved }: Props) {
   const [genres, setGenres] = useState<string[]>(song.genres);
   const [genreInput, setGenreInput] = useState("");
   const [lyrics, setLyrics] = useState(song.lyrics ?? "");
-  const [cover, setCover] = useState(song.coverArtId);
+  const [coverOp, setCoverOp] = useState<CoverOp>({ kind: "keep" });
   const [artistOpts, setArtistOpts] = useState<Suggestion[]>([]);
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+
+  // What the Cover tab shows: the staged edit if there is one, else the song's
+  // current art. Removal is album-wide and irreversible once saved, so nothing
+  // here touches the server until Save — closing discards, like every other tab.
+  const preview =
+    coverOp.kind === "replace" ? coverOp.previewUrl
+      : coverOp.kind === "remove" ? null
+        : song.coverArtId ? coverUrl(song.coverArtId) : null;
 
   // Esc closes the dialog (unless a save is in flight), matching the other modals.
   useEffect(() => {
@@ -43,6 +59,13 @@ export function TagEditor({ song, onClose, onSaved }: Props) {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [onClose, saving]);
+
+  // Release the staged file's object URL once it's superseded or the editor closes.
+  useEffect(() => {
+    if (coverOp.kind !== "replace") return;
+    const url = coverOp.previewUrl;
+    return () => URL.revokeObjectURL(url);
+  }, [coverOp]);
 
   const addGenre = (g: string) => {
     const v = g.trim();
@@ -59,40 +82,38 @@ export function TagEditor({ song, onClose, onSaved }: Props) {
       pending && !genres.some((x) => x.toLowerCase() === pending.toLowerCase())
         ? [...genres, pending]
         : genres;
+    let saved: Song;
     try {
-      const saved = await updateSong(song.id, {
+      saved = await updateSong(song.id, {
         title, artistName, album,
         year: Number(year) || 0, trackNo: Number(trackNo) || 0, genres: finalGenres, lyrics,
       });
-      onSaved(saved);
-      onClose();
     } catch {
       setErr("Could not save changes");
       setSaving(false);
+      return;
     }
+    // Cover last: it keys off the song's artist + album, so applying it after the
+    // tag save targets the album as edited here rather than the one left behind.
+    try {
+      if (coverOp.kind === "remove") saved = await removeCover(song.id);
+      else if (coverOp.kind === "replace") saved = await uploadCover(song.id, coverOp.file);
+    } catch {
+      // Tags are already committed. Stay open with the cover edit still staged —
+      // the tag save is idempotent, so Save again just retries the cover.
+      onSaved(saved);
+      setErr("Tags saved, but the cover could not be updated");
+      setSaving(false);
+      return;
+    }
+    onSaved(saved);
+    onClose();
   };
 
-  const onCover = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const onCover = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file) return;
-    try {
-      const saved = await uploadCover(song.id, file);
-      setCover(saved.coverArtId);
-      onSaved(saved);
-    } catch {
-      setErr("Cover upload failed");
-    }
+    if (file) setCoverOp({ kind: "replace", file, previewUrl: URL.createObjectURL(file) });
     e.target.value = "";
-  };
-
-  const onRemoveCover = async () => {
-    try {
-      const saved = await removeCover(song.id);
-      setCover(saved.coverArtId);
-      onSaved(saved);
-    } catch {
-      setErr("Could not remove cover");
-    }
   };
 
   const tabButton = (id: Tab, label: string) => (
@@ -209,23 +230,24 @@ export function TagEditor({ song, onClose, onSaved }: Props) {
           <div style={{ gridColumn: 1, gridRow: 1, visibility: tab === "cover" ? "visible" : "hidden" }}>
             <div style={{ width: 160, maxWidth: "100%", margin: "0 auto" }}>
               <div style={{ width: 160, height: 160, borderRadius: "var(--radius-ui)", overflow: "hidden", border: "1px solid var(--color-border)", background: "var(--color-active)", display: "grid", placeItems: "center" }}>
-                {cover ? (
-                  <img src={coverUrl(cover)} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                {preview ? (
+                  <img src={preview} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
                 ) : (
                   <span style={{ fontFamily: "var(--font-serif)", fontSize: "2rem", color: "var(--color-muted)" }}>{coverInitial(artistName)}</span>
                 )}
               </div>
               <label style={{ display: "block", marginTop: 8, textAlign: "center", fontSize: "var(--text-label)", color: "var(--color-accent-strong)", cursor: "pointer" }}>
-                {cover ? "Replace cover…" : "Add cover…"}
+                {preview ? "Replace cover…" : "Add cover…"}
                 <input type="file" accept="image/jpeg,image/png" onChange={onCover} style={{ display: "none" }} />
               </label>
-              {cover && (
+              {preview && (
                 <div style={{ textAlign: "center", marginTop: 4 }}>
-                  <Button variant="ghost" small onClick={onRemoveCover}>Remove cover</Button>
+                  <Button variant="ghost" small onClick={() => setCoverOp({ kind: "remove" })}>Remove cover</Button>
                 </div>
               )}
               <p style={{ fontSize: "var(--text-label)", color: "var(--color-muted)", textAlign: "center", marginTop: 6 }}>
                 Applies to every track on this artist + album.
+                {coverOp.kind !== "keep" && <><br />Pending — applies when you save.</>}
               </p>
             </div>
           </div>

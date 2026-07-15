@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"image"
 	"image/jpeg"
+	"image/png"
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
@@ -235,6 +236,46 @@ func TestDownloadCover_servesAttachmentNamedAfterSong(t *testing.T) {
 	}
 	if _, _, err := image.Decode(bytes.NewReader(rr.Body.Bytes())); err != nil {
 		t.Fatalf("downloaded cover did not decode: %v", err)
+	}
+}
+
+// The extension follows the stored file rather than a guess, so a PNG cover must
+// come back .png — this is the case the .jpg test above cannot prove.
+func TestDownloadCover_pngKeepsItsExtension(t *testing.T) {
+	h := testServer(t, config.AuthModeDev)
+	var art bytes.Buffer
+	if err := png.Encode(&art, image.NewRGBA(image.Rect(0, 0, 220, 220))); err != nil {
+		t.Fatalf("encode png cover: %v", err)
+	}
+	up := uploadBytes(t, h, "pngcover.mp3", mp3WithTags(t, "Static", "PNG Band", "Album", art.Bytes(), "image/png"))
+	if up.Code != http.StatusCreated {
+		t.Fatalf("upload = %d, body=%s", up.Code, up.Body.String())
+	}
+	var song struct {
+		ID string `json:"id"`
+	}
+	json.Unmarshal(up.Body.Bytes(), &song)
+
+	rr := httptest.NewRecorder()
+	h.ServeHTTP(rr, httptest.NewRequest("GET", "/api/songs/"+song.ID+"/cover/download", nil))
+	if rr.Code != http.StatusOK {
+		t.Fatalf("GET png cover download = %d, body=%s", rr.Code, rr.Body.String())
+	}
+	if got, want := rr.Header().Get("Content-Disposition"), `attachment; filename="PNG Band - Static.png"`; got != want {
+		t.Fatalf("Content-Disposition = %q, want %q", got, want)
+	}
+	if ct := rr.Header().Get("Content-Type"); ct != "image/png" {
+		t.Fatalf("png cover content-type = %q, want image/png", ct)
+	}
+}
+
+// An unknown song id must 404 rather than panic on the nil song.
+func TestDownloadCover_unknownSong404(t *testing.T) {
+	h := testServer(t, config.AuthModeDev)
+	rr := httptest.NewRecorder()
+	h.ServeHTTP(rr, httptest.NewRequest("GET", "/api/songs/nosuchsong/cover/download", nil))
+	if rr.Code != http.StatusNotFound {
+		t.Fatalf("cover download for unknown song = %d, want 404", rr.Code)
 	}
 }
 

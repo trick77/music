@@ -33,16 +33,18 @@ export function SongMenu(p: Props) {
           ...menuSurface,
         }}
       >
-        {/* Grouped: playback · get-and-share · manage · destructive. Each group's
-            separator lives inside the condition that renders the group, so a
-            separator can never end up adjacent to nothing (e.g. anonymous, where
-            the manage and destructive groups vanish entirely). */}
+        {/* Grouped: playback · get-and-share · manage · destructive. Every separator
+            is gated on `authenticated`, which is what makes the grouping earn its
+            keep: signed in there are ~10 entries and the groups do real work, but
+            anonymous leaves only four, where dividers read as stray rules rather
+            than structure. So the anonymous menu stays deliberately flat, and no
+            separator can ever end up adjacent to an empty group. */}
         <MenuItem icon="play" onClick={p.onPlayNext}>Play next</MenuItem>
         <MenuItem icon="openItems" onClick={p.onAddToQueue}>Add to queue</MenuItem>
         {/* Playlist-building is signed-in only (spec §1); omit for anonymous. */}
         {p.authenticated && <MenuItem icon="plus" onClick={p.onAddToPlaylist}>Add to playlist…</MenuItem>}
 
-        <MenuSeparator />
+        {p.authenticated && <MenuSeparator />}
         <MenuItem icon="download" href={`/api/songs/${p.song.id}/download`}>Download</MenuItem>
         {/* Cover-art download is signed-in only; anonymous listeners still see the
             art inline, they just can't pull the original file. */}

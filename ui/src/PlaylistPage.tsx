@@ -193,8 +193,9 @@ export function PlaylistPageView({ playlist, authenticated, onPlay, onShare, ren
     setCoverUploadErr(null);
     setUploadingCover(true);
     try {
-      await uploadPlaylistCover(playlist.id, file);
-      onPlaylistUpdate?.(await getPlaylist(playlist.id));
+      // PUT /playlists/{id}/cover already responds with the full reloaded detail,
+      // so its return value is what a refetch would give — no second roundtrip.
+      onPlaylistUpdate?.(await uploadPlaylistCover(playlist.id, file));
     } catch {
       setCoverUploadErr("Cover upload failed");
     } finally {

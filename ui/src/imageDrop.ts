@@ -40,7 +40,7 @@ export function useImageDrop({ onFile, onReject, disabled }: Options) {
 
   // Reorder drags (queue rows, playlist rows) carry no files — ignore them so
   // dragging a row across a cover never lights it up as a drop target.
-  const hasFiles = (e: React.DragEvent) => Array.from(e.dataTransfer.types).includes("Files");
+  const hasFiles = (e: React.DragEvent) => Array.from(e.dataTransfer?.types ?? []).includes("Files");
 
   const reset = useCallback(() => {
     depth.current = 0;

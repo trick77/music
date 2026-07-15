@@ -411,21 +411,29 @@ select.ui-control {
   z-index: 50;
   display: grid;
   place-items: center;
+  /* A definite row, so .ui-modal's `max-height: 100%` has something real to resolve
+     against. With the default implicit `auto` row the track sizes to the modal, making
+     the percentage self-referential — CSS then drops the cap and the modal grows past
+     the visible band. */
+  grid-template-rows: minmax(0, 1fr);
   padding: 16px;
   background: rgba(0, 0, 0, 0.5);
   backdrop-filter: blur(2px);
   -webkit-backdrop-filter: blur(2px);
 }
 /* Dialog surface: centered modal on desktop, full-screen on mobile/tablet.
-   The cap uses dvh (dynamic viewport height), not vh: on iOS Safari vh measures
-   the largest viewport (chrome retracted), so a vh cap can run the footer below
-   the visible area. dvh tracks the actually-visible height, keeping the pinned
-   footer on screen. */
+   The cap is a percentage of .ui-overlay, NOT a viewport unit — and that is
+   load-bearing. dvh is derived from the layout viewport, which iOS does not
+   shrink when the software keyboard opens, so a dvh cap sizes the modal into
+   space that is off screen and buries the pinned footer under the keyboard
+   where no scroll can reach it. useVisualViewportBox (ui.tsx) sizes the overlay
+   to the genuinely visible band, which is what makes 100% here mean 100% of
+   what the user can see. See docs/design-system.md before changing this back. */
 .ui-modal {
   display: flex;
   flex-direction: column;
   width: min(560px, 100%);
-  max-height: 90dvh;
+  max-height: 100%;
   background: var(--color-panel);
   border: 1px solid var(--color-border);
   border-radius: 14px;
@@ -442,7 +450,7 @@ select.ui-control {
   .ui-modal {
     width: 100%;
     max-height: none;
-    height: 100dvh;
+    height: 100%;
     border: none;
     border-radius: 0;
   }

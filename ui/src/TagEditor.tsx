@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { updateSong, uploadCover, removeCover, suggest, getSongStats, type Song, type SongStats, type Suggestion } from "./api";
 import { coverUrl, coverInitial } from "./cover";
 import { Icon } from "./Icon";
-import { Button, controlClass, fieldLabel, t, Spinner } from "./ui";
+import { Button, controlClass, fieldLabel, t, Spinner, Overlay } from "./ui";
 import { titleCase, genreLabel } from "./titleCase";
 import { formatDuration, formatFileSize, formatDateAdded, formatLastPlayed } from "./format";
 
@@ -158,7 +158,7 @@ export function TagEditor({ song, onClose, onSaved }: Props) {
   );
 
   return (
-    <div className="ui-overlay" onClick={() => { if (!saving) onClose(); }}>
+    <Overlay onClick={() => { if (!saving) onClose(); }}>
       <div className="ui-modal" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-label="Edit">
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "var(--space-4)", padding: "var(--space-4) var(--space-5)", borderBottom: "1px solid var(--color-border)" }}>
           <h3 style={{ margin: 0, ...t.title }}>Edit</h3>
@@ -329,6 +329,6 @@ export function TagEditor({ song, onClose, onSaved }: Props) {
           </div>
         </div>
       </div>
-    </div>
+    </Overlay>
   );
 }

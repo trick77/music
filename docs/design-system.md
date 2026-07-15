@@ -71,6 +71,37 @@ one intentional literal.
 - **Modals / overlays**: open over `rgba(0,0,0,0.5)` + **2px backdrop-blur** (matches loom's
   `SettingsModal`). Apply to **all** overlays. Surface 14px radius, serif title. Close on
   Esc / backdrop / ✕ / Cancel.
+  - **Never size a dialog with `dvh` (or `vh`/`svh`).** The `<Overlay>` component (`ui.tsx`) sizes
+    itself in JS from `visualViewport`, and `.ui-modal` caps at `max-height: 100%` **of that**.
+    This is not a style preference — it is the only way the bottom of a dialog stays reachable on
+    iPad, and it is easy to "simplify" back into a bug:
+    - iOS never shrinks the **layout viewport** when the software keyboard opens, and every
+      viewport unit — `vh`, `svh`, `dvh` — derives from it. `dvh` tracks the address bar
+      collapsing, **not** the keyboard. A modal capped at `90dvh` is 751px tall on an iPad in
+      landscape while only ~484px is visible, so its pinned footer sits ~255px below the fold.
+    - **Scrolling cannot rescue it.** A scrollbar moves content *inside* a box; the footer is not
+      in the scrolling body, and the modal's own bottom edge is already below the fold. Going
+      full-screen makes it *worse* — the footer then sits exactly at the viewport bottom, which
+      the keyboard always covers.
+    - WebKit implements neither `interactive-widget=resizes-content` (the one-line CSS fix,
+      Android-only, [WebKit bug 259770](https://bugs.webkit.org/show_bug.cgi?id=259770), open and
+      unassigned since 2023) nor the VirtualKeyboard API. `visualViewport` is the only surface
+      that reports the visible band. There is no CSS-only fix.
+    - **Known fragility:** an iPadOS 26 bug leaves `visualViewport.offsetTop` un-reset after the
+      keyboard closes (26.0, partly fixed in 26.1). If dialogs ever sit slightly offset after
+      typing, start there — don't rip out the hook.
+  - `.ui-overlay` needs a **definite grid row** (`grid-template-rows: minmax(0, 1fr)`) or
+    `max-height: 100%` on the modal is self-referential against an `auto` track and silently does
+    nothing.
+  - **Use the `<Overlay>` component (`ui.tsx`), never a bare `className="ui-overlay"`.** The class
+    alone does not size itself — `<Overlay>` calls the hook. A hand-rolled div would sit at the
+    layout viewport's height and bury its footer under the keyboard, i.e. *worse* than the `90dvh`
+    this replaced. `ConfirmDialog`, `GenreEditor`, `AddToPlaylist` and `QueueDrawer` still
+    hand-roll their overlays and inherit none of this; migrate them onto `<Overlay>`.
+  - **Deliberate side effect on desktop:** the cap is now the overlay's content box (visible
+    height − 32px) rather than `90dvh`, so a *very tall* dialog may run ~7% taller and its gutter
+    is a flat 16px instead of a proportional ~54px. Accepted: it spends the visible band where the
+    band is scarce, and no current dialog is tall enough to reach either cap on a desktop window.
 - **Search field**: 999px pill, leading search icon, borderless 15px input.
 - **Cards / tiles**: cover art falls back to a serif monogram on `--color-active`. Ribbons =
   `rgba(0,0,0,.5)` 999px 11px + accent-text dot. Chips = active 999px 13px with ✕. Dashed tile =
@@ -162,3 +193,9 @@ labels (the spinner is the signal). Placeholder hints ("Search…") are a separa
 Single breakpoint at **720px** (matches `.app-shell` / rail). Below it: desktop rail → mobile tab
 bar, and modals/sheets → full-screen. Wide content scrolls inside its own container; the page body
 never scrolls sideways.
+
+**One documented exception:** `.ui-modal` also goes full-screen on touch tablets up to 1024px
+(`(min-width: 721px) and (max-width: 1024px) and (pointer: coarse)` — iPad portrait/landscape),
+where a centered dialog leaves the footer cramped against the viewport edge. A large *touchscreen
+desktop* (>1024px) keeps the centered modal. This is the only place a second breakpoint is
+sanctioned; don't add more.

@@ -89,7 +89,7 @@ export function Transport({ playing, onPrev, onToggle, onNext, canNext = true, s
         aria-label="Next"
         onClick={onNext}
         disabled={!canNext}
-        style={canNext ? iconBtn : { ...iconBtn, color: "var(--color-muted)", opacity: 0.45, cursor: "default" }}
+        style={canNext ? iconBtn : { ...iconBtn, color: "var(--color-muted)", cursor: "default" }}
       >
         <Glyph name="next" size={size - 2} />
       </button>

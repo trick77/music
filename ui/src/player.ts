@@ -181,6 +181,15 @@ function setPlaybackState(s: "playing" | "paused" | "none") {
   if (hasMediaSession()) navigator.mediaSession.playbackState = s;
 }
 
+// clearMediaSession wipes the OS Now Playing widget (lock screen, macOS control
+// centre). Without it a forgotten track lingers there with controls that no-op
+// against a null current. Every path that clears `current` must call this.
+function clearMediaSession() {
+  if (!hasMediaSession()) return;
+  guardMedia(() => (navigator.mediaSession.metadata = null));
+  setPlaybackState("none");
+}
+
 function updatePositionState() {
   if (!hasMediaSession() || !audio) return;
   const d = audio.duration;
@@ -245,7 +254,11 @@ function getAudio(): HTMLAudioElement {
   });
   el.addEventListener("pause", () => {
     set({ playing: false });
-    setPlaybackState("paused");
+    // pause() on a playing element queues this event asynchronously, so it lands
+    // *after* stop() has already torn the player down — reporting "paused" then
+    // would resurrect the finished track on the OS widget. With no current track
+    // there is nothing paused, only nothing playing.
+    setPlaybackState(state.current ? "paused" : "none");
   });
   // AirPlay wiring, Safari-only. Feature-detect the picker; if it exists we can
   // trust the companion events fire, so we listen for target availability (to
@@ -317,7 +330,12 @@ export const player = {
   remove(id: string) {
     const wasCurrent = state.current?.id === id;
     state = removeSong(state, id);
-    if (wasCurrent) getAudio().pause();
+    // removeSong clears current when the deleted song was playing, so the OS
+    // widget has to go with it — same reasoning as stop().
+    if (wasCurrent) {
+      getAudio().pause();
+      clearMediaSession();
+    }
     emit();
   },
   // patchSong swaps in an edited song wherever it appears (current/queue/history)
@@ -344,13 +362,7 @@ export const player = {
     if (!state.current) return;
     getAudio().pause();
     clearResume(resumeStore());
-    // Clear the OS Now Playing widget too, or the finished track lingers on the
-    // lock screen / macOS control centre with controls that no-op against a null
-    // current. Matters more now that stop() also runs when the last song ends.
-    if (hasMediaSession()) {
-      guardMedia(() => (navigator.mediaSession.metadata = null));
-      setPlaybackState("none");
-    }
+    clearMediaSession(); // matters more now that stop() also runs when the last song ends
     set({ current: null, queue: [], history: [], playing: false, positionMs: 0, durationMs: 0 });
   },
   next() {

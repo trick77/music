@@ -6,7 +6,7 @@ import {
   ChevronDown, ChevronLeft, ChevronRight, ChevronUp, X, CircleX, MessageSquare,
   CirclePlus, Eye, Globe, Clock, EllipsisVertical, Plus, Upload, Download, Share2,
   ExternalLink, Volume2, ArrowUpNarrowWide, ArrowDownWideNarrow, List, ListEnd,
-  Music, Shuffle, Airplay, Captions, AudioLines,
+  Music, Shuffle, Airplay, Captions, AudioLines, ImageDown,
   type LucideIcon,
 } from "lucide-react";
 
@@ -67,6 +67,7 @@ const COMPONENTS = {
   plus: Plus,
   upload: Upload,
   download: Download,
+  imageDown: ImageDown,
   share: Share2,
   externalLink: ExternalLink,
   volume: Volume2,

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { updateSong, uploadCover, removeCover, suggest, type Song, type Suggestion } from "./api";
 import { coverUrl, coverInitial } from "./cover";
+import { IMAGE_ACCEPT, useImageDrop } from "./imageDrop";
 import { Icon } from "./Icon";
 import { Button, controlClass, fieldLabel, t } from "./ui";
 import { titleCase, genreLabel } from "./titleCase";
@@ -72,9 +73,9 @@ export function TagEditor({ song, onClose, onSaved }: Props) {
     }
   };
 
-  const onCover = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  // One success path for both the file picker and the drop zone.
+  const applyCoverFile = async (file: File) => {
+    setErr(null);
     try {
       const saved = await uploadCover(song.id, file);
       setCover(saved.coverArtId);
@@ -82,8 +83,16 @@ export function TagEditor({ song, onClose, onSaved }: Props) {
     } catch {
       setErr("Cover upload failed");
     }
+  };
+
+  const onCover = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    await applyCoverFile(file);
     e.target.value = "";
   };
+
+  const { dropping, dropProps } = useImageDrop({ onFile: applyCoverFile, onReject: setErr });
 
   const onRemoveCover = async () => {
     try {
@@ -208,17 +217,32 @@ export function TagEditor({ song, onClose, onSaved }: Props) {
           {/* Cover */}
           <div style={{ gridColumn: 1, gridRow: 1, visibility: tab === "cover" ? "visible" : "hidden" }}>
             <div style={{ width: 160, maxWidth: "100%", margin: "0 auto" }}>
-              <div style={{ width: 160, height: 160, borderRadius: "var(--radius-ui)", overflow: "hidden", border: "1px solid var(--color-border)", background: "var(--color-active)", display: "grid", placeItems: "center" }}>
+              <div
+                {...dropProps}
+                style={{
+                  position: "relative", width: 160, height: 160, borderRadius: "var(--radius-ui)", overflow: "hidden",
+                  border: dropping ? "2px dashed var(--color-accent-strong)" : "1px solid var(--color-border)",
+                  background: "var(--color-active)", display: "grid", placeItems: "center",
+                }}
+              >
                 {cover ? (
                   <img src={coverUrl(cover)} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
                 ) : (
                   <span style={{ fontFamily: "var(--font-serif)", fontSize: "2rem", color: "var(--color-muted)" }}>{coverInitial(artistName)}</span>
                 )}
+                {dropping && (
+                  <span style={{ position: "absolute", inset: 0, display: "grid", placeItems: "center", gap: 4, background: "rgba(0,0,0,0.55)", color: "#fff", fontSize: "var(--text-label)" }}>
+                    Drop to replace
+                  </span>
+                )}
               </div>
               <label style={{ display: "block", marginTop: 8, textAlign: "center", fontSize: "var(--text-label)", color: "var(--color-accent-strong)", cursor: "pointer" }}>
                 {cover ? "Replace cover…" : "Add cover…"}
-                <input type="file" accept="image/jpeg,image/png" onChange={onCover} style={{ display: "none" }} />
+                <input type="file" accept={IMAGE_ACCEPT} onChange={onCover} style={{ display: "none" }} />
               </label>
+              <p style={{ fontSize: "var(--text-label)", color: "var(--color-muted)", textAlign: "center", marginTop: 2 }}>
+                or drop an image on it
+              </p>
               {cover && (
                 <div style={{ textAlign: "center", marginTop: 4 }}>
                   <Button variant="ghost" small onClick={onRemoveCover}>Remove cover</Button>

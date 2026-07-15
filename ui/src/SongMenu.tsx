@@ -33,30 +33,44 @@ export function SongMenu(p: Props) {
           ...menuSurface,
         }}
       >
+        {/* Grouped: playback · get-and-share · manage · destructive. Each group's
+            separator lives inside the condition that renders the group, so a
+            separator can never end up adjacent to nothing (e.g. anonymous, where
+            the manage and destructive groups vanish entirely). */}
         <MenuItem icon="play" onClick={p.onPlayNext}>Play next</MenuItem>
         <MenuItem icon="openItems" onClick={p.onAddToQueue}>Add to queue</MenuItem>
         {/* Playlist-building is signed-in only (spec §1); omit for anonymous. */}
         {p.authenticated && <MenuItem icon="plus" onClick={p.onAddToPlaylist}>Add to playlist…</MenuItem>}
+
+        <MenuSeparator />
         <MenuItem icon="download" href={`/api/songs/${p.song.id}/download`}>Download</MenuItem>
+        {/* Cover-art download is signed-in only; anonymous listeners still see the
+            art inline, they just can't pull the original file. */}
+        {p.authenticated && !!p.song.coverArtId && (
+          <MenuItem icon="imageDown" href={`/api/songs/${p.song.id}/cover/download`}>
+            Download cover art
+          </MenuItem>
+        )}
         <MenuItem icon="share" onClick={p.onShare}>Share</MenuItem>
         {!!p.song.lyrics && p.song.lyrics.trim() !== "" && (
           <MenuItem icon="music" onClick={p.onCopyLyricsLink}>Copy lyrics link</MenuItem>
         )}
-        {p.authenticated && <MenuItem icon="edit" onClick={p.onEdit}>Edit…</MenuItem>}
-        {/* Karaoke: only when enabled AND the song has lyrics — empty lyrics can
-            never trigger alignment. Re-sync when already synced. */}
-        {p.authenticated && p.alignmentEnabled && !!p.song.lyrics && p.song.lyrics.trim() !== "" && (
-          <MenuItem icon="music" onClick={p.onSync}>
-            {p.song.alignmentStatus === "ready" ? "Re-sync karaoke" : "Generate karaoke"}
-          </MenuItem>
-        )}
-        {/* Publish gate (spec): an unpublished song is visible only to logged-in
-            users until published. Signed-in only. */}
-        {p.authenticated && (
-          <MenuItem icon="globe" onClick={p.onPublish}>{p.song.published ? "Unpublish" : "Publish"}</MenuItem>
-        )}
+
         {p.authenticated && (
           <>
+            <MenuSeparator />
+            <MenuItem icon="edit" onClick={p.onEdit}>Edit…</MenuItem>
+            {/* Karaoke: only when enabled AND the song has lyrics — empty lyrics can
+                never trigger alignment. Re-sync when already synced. */}
+            {p.alignmentEnabled && !!p.song.lyrics && p.song.lyrics.trim() !== "" && (
+              <MenuItem icon="music" onClick={p.onSync}>
+                {p.song.alignmentStatus === "ready" ? "Re-sync karaoke" : "Generate karaoke"}
+              </MenuItem>
+            )}
+            {/* Publish gate (spec): an unpublished song is visible only to logged-in
+                users until published. Signed-in only. */}
+            <MenuItem icon="globe" onClick={p.onPublish}>{p.song.published ? "Unpublish" : "Publish"}</MenuItem>
+
             <MenuSeparator />
             <MenuItem icon="trash" danger onClick={p.onDelete}>Delete song</MenuItem>
           </>

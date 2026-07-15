@@ -137,7 +137,7 @@ export function TagEditor({ song, onClose, onSaved }: Props) {
       <div className="ui-modal" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-label="Edit">
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "var(--space-4)", padding: "var(--space-4) var(--space-5)", borderBottom: "1px solid var(--color-border)" }}>
           <h3 style={{ margin: 0, ...t.title }}>Edit</h3>
-          <button onClick={onClose} aria-label="Close" style={{ display: "inline-flex", background: "none", border: "none", color: "var(--color-muted)", cursor: "pointer", padding: 2 }}>
+          <button onClick={onClose} disabled={saving} aria-label="Close" style={{ display: "inline-flex", background: "none", border: "none", color: "var(--color-muted)", cursor: saving ? "default" : "pointer", padding: 2, opacity: saving ? 0.6 : 1 }}>
             <Icon name="close" size="18px" />
           </button>
         </div>
@@ -277,7 +277,7 @@ export function TagEditor({ song, onClose, onSaved }: Props) {
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "var(--space-4)", padding: "var(--space-3) var(--space-5)", borderTop: "1px solid var(--color-border)" }}>
           <span style={t.label}>Changes save to the file's ID3 tags.</span>
           <div style={{ display: "flex", gap: "var(--space-2)", flexShrink: 0 }}>
-            <Button variant="secondary" onClick={onClose}>Cancel</Button>
+            <Button variant="secondary" disabled={saving} onClick={onClose}>Cancel</Button>
             <Button busy={saving} onClick={onSave}>Save changes</Button>
           </div>
         </div>

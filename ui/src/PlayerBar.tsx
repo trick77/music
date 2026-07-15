@@ -6,7 +6,7 @@ import { KaraokeView } from "./KaraokeView";
 import { KaraokeCard } from "./KaraokeCard";
 import { getAlign, postAlign, type AlignmentData, type Song } from "./api";
 import { navigate, type PlayerParam } from "./router";
-import { AirplayButton, Scrubber, StarButton, Transport, iconBtn, type Fav } from "./PlayerControls";
+import { AirplayButton, Divider, Scrubber, StarButton, Transport, iconBtn, type Fav } from "./PlayerControls";
 
 // PlayerBar renders the docked mini-player (whenever a track is loaded) and,
 // when expanded, the full-screen player. Both are driven entirely by the
@@ -108,6 +108,7 @@ export function PlayerBar({ fav, onShare, renderMenu, alignmentEnabled, open, ly
             </span>
           </button>
           <Transport playing={p.playing} onPrev={p.prev} onToggle={p.toggle} onNext={p.next} canNext={p.queue.length > 0} size={20} />
+          <Divider />
           <StarButton song={song} fav={fav} />
           {hasLyrics && (
             <button aria-label="Show lyrics" onClick={() => onExpand("lyrics")} style={iconBtn}><Icon name="captions" size="23px" /></button>
@@ -184,6 +185,7 @@ export function PlayerBar({ fav, onShare, renderMenu, alignmentEnabled, open, ly
                 <Scrubber positionMs={p.positionMs} durationMs={p.durationMs} onSeek={p.seek} />
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "1.5rem", marginTop: "0.75rem" }}>
                   <Transport playing={p.playing} onPrev={p.prev} onToggle={p.toggle} onNext={p.next} canNext={p.queue.length > 0} size={26} />
+                  <Divider color="rgba(255,255,255,0.2)" />
                   <StarButton song={song} fav={fav} size={24} />
                   <button aria-label="Show artwork" aria-pressed onClick={() => onSetMode("full")} style={{ ...iconBtn, color: "var(--color-accent-strong)" }}><Icon name="captions" size="25px" /></button>
                   {!p.airplayActive && (
@@ -206,6 +208,7 @@ export function PlayerBar({ fav, onShare, renderMenu, alignmentEnabled, open, ly
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: "1.5rem", marginTop: "1.25rem" }}>
                 <Transport playing={p.playing} onPrev={p.prev} onToggle={p.toggle} onNext={p.next} canNext={p.queue.length > 0} size={26} />
+                <Divider color="rgba(255,255,255,0.2)" />
                 <StarButton song={song} fav={fav} size={24} />
                 {hasLyrics && (
                   <button aria-label="Show lyrics" aria-pressed={false} onClick={() => onSetMode("lyrics")} style={{ ...iconBtn, color: "#fff" }}><Icon name="captions" size="25px" /></button>

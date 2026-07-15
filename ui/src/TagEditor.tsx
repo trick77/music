@@ -1,10 +1,14 @@
 import { useEffect, useState } from "react";
 import { updateSong, uploadCover, removeCover, suggest, getSongStats, type Song, type SongStats, type Suggestion } from "./api";
 import { coverUrl, coverInitial } from "./cover";
+import { IMAGE_ACCEPT, useImageDrop } from "./imageDrop";
 import { Icon } from "./Icon";
 import { Button, controlClass, fieldLabel, t, Spinner, Overlay } from "./ui";
 import { titleCase, genreLabel } from "./titleCase";
-import { formatDuration, formatFileSize, formatDateAdded, formatLastPlayed } from "./format";
+import {
+  formatDuration, formatFileSize, formatDateAdded, formatLastPlayed,
+  formatBitrate, formatSampleRate, formatChannels,
+} from "./format";
 
 type Props = { song: Song; onClose: () => void; onSaved: (s: Song) => void };
 type Tab = "details" | "cover" | "lyrics" | "info";
@@ -59,10 +63,10 @@ const cleanLyrics = (raw: string) =>
     .replace(/\n{3,}/g, "\n\n")   // collapse blank-line runs
     .trim();
 
-// TagEditor is a tabbed editor (Details / Cover / Lyrics) — a centered modal on
+// TagEditor is a tabbed editor (Details / Cover / Lyrics / Info) — a centered modal on
 // desktop, full-screen on mobile and touch tablets. Tabs keep each screen short as the form grows
-// (docs/design-system.md). All three tabs stay mounted so unsaved edits survive
-// tab switches; only their visibility toggles.
+// (docs/design-system.md). All four tabs stay mounted so unsaved edits survive
+// tab switches; only their visibility toggles. Info is read-only.
 export function TagEditor({ song, onClose, onSaved }: Props) {
   const [tab, setTab] = useState<Tab>("details");
   const [title, setTitle] = useState(song.title);
@@ -156,11 +160,21 @@ export function TagEditor({ song, onClose, onSaved }: Props) {
     onClose();
   };
 
+  // One staging path for both the file picker and the drop zone. A drop stages the
+  // file exactly like the picker does — it must not upload on its own, or dropping
+  // would be the one cover edit that bypasses Save and hits the album immediately.
+  const stageCoverFile = (file: File) => {
+    setErr(null);
+    setCoverOp({ kind: "replace", file, previewUrl: URL.createObjectURL(file) });
+  };
+
   const onCover = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) setCoverOp({ kind: "replace", file, previewUrl: URL.createObjectURL(file) });
+    if (file) stageCoverFile(file);
     e.target.value = "";
   };
+
+  const { dropping, dropProps } = useImageDrop({ onFile: stageCoverFile, onReject: setErr });
 
   const tabButton = (id: Tab, label: string) => (
     <button
@@ -276,17 +290,32 @@ export function TagEditor({ song, onClose, onSaved }: Props) {
           {/* Cover */}
           <div style={{ gridColumn: 1, gridRow: 1, visibility: tab === "cover" ? "visible" : "hidden" }}>
             <div style={{ width: 160, maxWidth: "100%", margin: "0 auto" }}>
-              <div style={{ width: 160, height: 160, borderRadius: "var(--radius-ui)", overflow: "hidden", border: "1px solid var(--color-border)", background: "var(--color-active)", display: "grid", placeItems: "center" }}>
+              <div
+                {...dropProps}
+                style={{
+                  position: "relative", width: 160, height: 160, borderRadius: "var(--radius-ui)", overflow: "hidden",
+                  border: dropping ? "2px dashed var(--color-accent-strong)" : "1px solid var(--color-border)",
+                  background: "var(--color-active)", display: "grid", placeItems: "center",
+                }}
+              >
                 {preview ? (
                   <img src={preview} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
                 ) : (
                   <span style={{ fontFamily: "var(--font-serif)", fontSize: "2rem", color: "var(--color-muted)" }}>{coverInitial(artistName)}</span>
                 )}
+                {dropping && (
+                  <span style={{ position: "absolute", inset: 0, display: "grid", placeItems: "center", gap: 4, background: "rgba(0,0,0,0.55)", color: "#fff", fontSize: "var(--text-label)" }}>
+                    Drop to replace
+                  </span>
+                )}
               </div>
               <label style={{ display: "block", marginTop: 8, textAlign: "center", fontSize: "var(--text-label)", color: "var(--color-accent-strong)", cursor: "pointer" }}>
                 {preview ? "Replace cover…" : "Add cover…"}
-                <input type="file" accept="image/jpeg,image/png" onChange={onCover} style={{ display: "none" }} />
+                <input type="file" accept={IMAGE_ACCEPT} onChange={onCover} style={{ display: "none" }} />
               </label>
+              <p style={{ fontSize: "var(--text-label)", color: "var(--color-muted)", textAlign: "center", marginTop: 2 }}>
+                or drop an image on it
+              </p>
               <div style={{ display: "flex", justifyContent: "center", gap: "var(--space-2)", marginTop: 4 }}>
                 {/* Keyed on the song's actual art, not the preview: a staged pick on a
                     coverless song has nothing to remove — there, Undo is the way back. */}
@@ -336,6 +365,11 @@ export function TagEditor({ song, onClose, onSaved }: Props) {
                   : !stats ? <Spinner size="13px" />
                   : formatLastPlayed(stats.lastPlayedAt)
               } />
+            </InfoSection>
+            <InfoSection label="Audio">
+              <InfoRow k="Bitrate" v={formatBitrate(song.bitrateKbps)} />
+              <InfoRow k="Sample rate" v={formatSampleRate(song.sampleRate)} />
+              <InfoRow k="Channels" v={formatChannels(song.channels)} />
             </InfoSection>
             <InfoSection label="File">
               <InfoRow k="Duration" v={formatDuration(song.durationMs)} />

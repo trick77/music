@@ -2,7 +2,6 @@ package library
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 )
 
@@ -30,9 +29,7 @@ func (r *Repo) RecordPlay(ctx context.Context, songID string) error {
 // case-folded title, then id — so ties never depend on row insertion order. The
 // 30-day window is always the WHERE clause; %s appends " AND ..." (a published
 // filter, or empty) so anonymous viewers never chart an unpublished song.
-const topTenSelect = `SELECT s.id, s.title, s.artist_id, a.name, s.album, s.year, s.track_no,
-	s.duration_ms, s.file_path, s.file_size, s.content_hash, s.cover_art_id, s.lyrics, s.created_at, s.is_published,
-	COALESCE(al.status, '') AS alignment_status,
+const topTenSelect = `SELECT ` + songColumns + `,
 	COUNT(p.id) AS play_count
 	FROM songs s JOIN artists a ON a.id = s.artist_id JOIN plays p ON p.song_id = s.id
 	LEFT JOIN song_alignment al ON al.song_id = s.id
@@ -72,23 +69,7 @@ func (r *Repo) TopTen(ctx context.Context, includeUnpublished bool) ([]TopTenEnt
 	return out, nil
 }
 
-// scanSongWithCount scans the standard song columns plus a trailing count.
+// scanSongWithCount scans songColumns plus topTenSelect's trailing play count.
 func scanSongWithCount(row scanner, count *int) (*Song, error) {
-	var s Song
-	var album, cover, lyrics sql.NullString
-	var year, track sql.NullInt64
-	var published int64
-	if err := row.Scan(&s.ID, &s.Title, &s.ArtistID, &s.ArtistName, &album, &year, &track,
-		&s.DurationMS, &s.FilePath, &s.FileSize, &s.ContentHash, &cover, &lyrics, &s.CreatedAt, &published,
-		&s.AlignmentStatus, count); err != nil {
-		return nil, err
-	}
-	s.Album = album.String
-	s.Year = int(year.Int64)
-	s.TrackNo = int(track.Int64)
-	s.CoverArtID = cover.String
-	s.Lyrics = lyrics.String
-	s.Published = published != 0
-	s.Genres = []string{}
-	return &s, nil
+	return scanSongInto(row, count)
 }

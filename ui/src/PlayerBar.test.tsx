@@ -26,7 +26,7 @@ import { PlayerBar } from "./PlayerBar";
 function song(over: Partial<Song> = {}): Song {
   return {
     id: "s1", title: "Nightbird", artistName: "Vesper Lake", album: "", year: 0,
-    trackNo: 0, durationMs: 200000, fileSize: 0, createdAt: "", genres: [], coverArtId: "", published: true,
+    trackNo: 0, durationMs: 200000, fileSize: 0, createdAt: "", sampleRate: 0, channels: 0, bitrateKbps: 0, genres: [], coverArtId: "", published: true,
     lyrics: "First line of the song\nSecond line here", ...over,
   };
 }
@@ -135,5 +135,34 @@ describe("PlayerBar next-button gating", () => {
   it("gates Next in the full-screen player too, not just the mini bar", () => {
     h.queue = [];
     expect(nextButton(render(false, song(), true, false))).toContain("disabled");
+  });
+});
+
+describe("PlayerBar transport divider", () => {
+  // Every control row separates the transport from the actions that follow it.
+  const dividers = (html: string) => (html.match(/data-divider/g) ?? []).length;
+  // Each row's divider is tinted for the surface it sits on: the docked panel takes
+  // the app border token, the cover-scrim overlays take white (the token vanishes
+  // against the art). An overlay row also renders the mini bar underneath, so a
+  // white-tinted divider there is the overlay's.
+  const white = (html: string) => (html.match(/rgba\(255,255,255,0\.2\)/g) ?? []).length;
+
+  it("when the mini bar renders, then a divider follows the transport", () => {
+    const html = render(false, song(), false, false);
+    expect(dividers(html)).toBe(1);
+    expect(html).toContain("var(--color-border)");
+    expect(white(html)).toBe(0);
+  });
+
+  it("when the full player is open, then its row carries a white-tinted divider", () => {
+    const html = render(false, song(), true, false);
+    expect(dividers(html)).toBe(2); // the overlay row + the mini bar below it
+    expect(white(html)).toBe(1);
+  });
+
+  it("when the karaoke player is open, then its row carries a white-tinted divider", () => {
+    const html = render(false, song(), true, true);
+    expect(dividers(html)).toBe(2);
+    expect(white(html)).toBe(1);
   });
 });

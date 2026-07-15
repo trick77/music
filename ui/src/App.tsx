@@ -160,6 +160,22 @@ export function App() {
     if (playerParam === null) pushedPlayer.current = false;
   }, [playerParam]);
 
+  // A file dropped anywhere outside a drop zone would otherwise make the browser
+  // navigate away to render it, silently discarding the whole SPA session. Swallow
+  // stray file drops at the window; the zones stopPropagation on their own drops.
+  useEffect(() => {
+    const swallow = (e: DragEvent) => {
+      if (!Array.from(e.dataTransfer?.types ?? []).includes("Files")) return;
+      e.preventDefault();
+    };
+    window.addEventListener("dragover", swallow);
+    window.addEventListener("drop", swallow);
+    return () => {
+      window.removeEventListener("dragover", swallow);
+      window.removeEventListener("drop", swallow);
+    };
+  }, []);
+
   // While the player is open, keep the URL's song id pointed at the now-playing
   // track so the deep link follows next/prev/queue advances. replace (never push)
   // so skipping tracks doesn't stack the back button.
@@ -177,6 +193,15 @@ export function App() {
     if (!curId) return;
     pushedPlayer.current = true;
     pushPlayer(curId, mode);
+  }, [curId]);
+  // Leaving the visualizer for the lyrics player deliberately does NOT mark the
+  // overlay as pushed: closing it then lands Home, the same single destination
+  // every other entry point closes to, instead of reopening the visualizer the
+  // viewer already left.
+  const showLyricsFromVisualizer = useCallback(() => {
+    if (!curId) return;
+    pushedPlayer.current = false;
+    pushPlayer(curId, "lyrics");
   }, [curId]);
   const setPlayerMode = useCallback((mode: PlayerParam) => {
     if (!curId) return;
@@ -479,7 +504,7 @@ export function App() {
 
       <PlayerBar fav={fav} onShare={shareSong} renderMenu={playerMenu} alignmentEnabled={!!session?.alignmentEnabled} open={playerParam !== null} lyrics={playerParam === "lyrics"} onExpand={expandPlayer} onSetMode={setPlayerMode} onClose={closePlayerView} onCopyLink={copyPlayerLink} />
 
-      {route.name === "visualizer" && <VisualizerView fav={fav} onShare={shareSong} />}
+      {route.name === "visualizer" && <VisualizerView fav={fav} onShare={shareSong} onShowLyrics={showLyricsFromVisualizer} />}
 
       {showQueue && (
         <QueueDrawer

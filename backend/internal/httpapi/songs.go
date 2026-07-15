@@ -205,6 +205,9 @@ func (h *songHandlers) upload(w http.ResponseWriter, r *http.Request) {
 		Year:        year,
 		TrackNo:     tags.TrackNo,
 		DurationMS:  tags.DurationMS,
+		SampleRate:  tags.SampleRate,
+		Channels:    tags.Channels,
+		BitrateKbps: tags.BitrateKbps,
 		FileSize:    size,
 		FilePath:    relPath,
 		ContentHash: hash,
@@ -438,7 +441,10 @@ func isMP3(filename, contentType string) bool {
 	return contentType == "audio/mpeg" || contentType == "audio/mp3"
 }
 
-func downloadName(s *library.Song) string {
+// downloadBase is the filename stem shared by every per-song download ("Artist -
+// Title", sanitized of path/shell-hostile runes, song ID as a last resort). The
+// caller appends the extension for the flavour it serves.
+func downloadBase(s *library.Song) string {
 	base := s.Title
 	if s.ArtistName != "" {
 		base = s.ArtistName + " - " + s.Title
@@ -452,7 +458,11 @@ func downloadName(s *library.Song) string {
 	if base == "" {
 		base = s.ID
 	}
-	return base + ".mp3"
+	return base
+}
+
+func downloadName(s *library.Song) string {
+	return downloadBase(s) + ".mp3"
 }
 
 func httpError(w http.ResponseWriter, code int, msg string) {

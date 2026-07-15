@@ -4,7 +4,7 @@ import { coverUrl } from "./cover";
 import { navigate } from "./router";
 import { attach, resume, bands } from "./analyser";
 import { Icon } from "./Icon";
-import { Scrubber, StarButton, Transport, iconBtn, type Fav } from "./PlayerControls";
+import { Divider, Scrubber, StarButton, Transport, iconBtn, type Fav } from "./PlayerControls";
 import { type Song } from "./api";
 
 const N = 28; // number of spectrum columns
@@ -23,10 +23,11 @@ const N = 28; // number of spectrum columns
 // on a remote speaker (nothing local to visualize), so we hide the bars and show
 // a note instead — mirroring the player bar, which hides the visualizer button
 // while AirPlay is active.
-export function VisualizerView({ fav, onShare }: { fav: Fav; onShare: (s: Song) => void }) {
+export function VisualizerView({ fav, onShare, onShowLyrics }: { fav: Fav; onShare: (s: Song) => void; onShowLyrics: () => void }) {
   const p = usePlayer();
   const song = p.current;
   const airplay = p.airplayActive;
+  const hasLyrics = !!song?.lyrics && song.lyrics.trim() !== "";
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const airplayRef = useRef(airplay);
@@ -203,14 +204,21 @@ export function VisualizerView({ fav, onShare }: { fav: Fav; onShare: (s: Song) 
       )}
 
       {/* Full transport — same controls as the lyrics player, minus AirPlay (nothing
-          local to visualize while casting) and the view toggles (the X closes here). */}
+          local to visualize while casting) and the artwork toggle (the X closes here).
+          The lyrics button leaves for the lyrics player rather than toggling a view in
+          place, so it stays a plain white action — not the accent-pressed toggle the
+          player uses for artwork↔lyrics. */}
       {song && (
         <div style={{ position: "absolute", bottom: "max(28px, 6vh)", left: 0, right: 0, display: "flex", justifyContent: "center", zIndex: 3 }}>
           <div style={{ width: "min(760px, 96vw)" }}>
             <Scrubber positionMs={p.positionMs} durationMs={p.durationMs} onSeek={p.seek} />
             <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "1.5rem", marginTop: "0.75rem" }}>
               <Transport playing={p.playing} onPrev={p.prev} onToggle={p.toggle} onNext={p.next} canNext={p.queue.length > 0} size={26} />
+              <Divider color="rgba(255,255,255,0.2)" />
               <StarButton song={song} fav={fav} size={24} />
+              {hasLyrics && (
+                <button aria-label="Show lyrics" onClick={onShowLyrics} style={{ ...iconBtn, color: "#fff" }}><Icon name="captions" size="25px" /></button>
+              )}
               <button aria-label="Share" onClick={() => onShare(song)} style={{ ...iconBtn, color: "#fff" }}><Icon name="share" size="22px" /></button>
             </div>
           </div>

@@ -18,6 +18,11 @@ type Song struct {
 	Year        int      `json:"year"`
 	TrackNo     int      `json:"trackNo"`
 	DurationMS  int64    `json:"durationMs"`
+	// Audio properties of the stored file, for the tag editor's Info tab. 0 means
+	// "unknown" — not yet backfilled, or undecodable; the UI renders "—".
+	SampleRate  int      `json:"sampleRate"`
+	Channels    int      `json:"channels"`
+	BitrateKbps int      `json:"bitrateKbps"`
 	FilePath    string   `json:"-"`
 	FileSize    int64    `json:"fileSize"`
 	ContentHash string   `json:"-"`
@@ -40,6 +45,9 @@ type CreateSongParams struct {
 	Year        int
 	TrackNo     int
 	DurationMS  int64
+	SampleRate  int
+	Channels    int
+	BitrateKbps int
 	FileSize    int64
 	FilePath    string
 	ContentHash string
@@ -69,10 +77,13 @@ func (r *Repo) Create(ctx context.Context, id string, p CreateSongParams) (*Song
 		return nil, err
 	}
 	if _, err := tx.ExecContext(ctx,
-		`INSERT INTO songs(id, title, artist_id, album, year, track_no, duration_ms, file_path, file_size, content_hash, cover_art_id, lyrics)
-		 VALUES(?,?,?,?,?,?,?,?,?,?,?,?)`,
+		`INSERT INTO songs(id, title, artist_id, album, year, track_no, duration_ms, file_path, file_size, content_hash, cover_art_id, lyrics, sample_rate, channels, bitrate_kbps)
+		 VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
 		id, p.Title, artistID, normalizeAlbum(p.Album), nullInt(p.Year), nullInt(p.TrackNo),
 		p.DurationMS, p.FilePath, p.FileSize, p.ContentHash, nullStr(coverID), nullStr(p.Lyrics),
+		// NULL rather than 0 for an undecodable file, so it's indistinguishable from
+		// a not-yet-backfilled row and the backfill can retry it.
+		nullInt(p.SampleRate), nullInt(p.Channels), nullInt(p.BitrateKbps),
 	); err != nil {
 		return nil, err
 	}
@@ -181,11 +192,19 @@ func (r *Repo) List(ctx context.Context, includeUnpublished bool) ([]Song, error
 	return songs, rows.Err()
 }
 
-const songSelect = `SELECT s.id, s.title, s.artist_id, a.name, s.album, s.year, s.track_no,
+// songColumns is the ONE column list every song read shares, and its order is the
+// contract scanSongInto scans in. It was duplicated between here and topTenSelect;
+// they must agree, so they now derive from this. Anything appending extra columns
+// (topTenSelect's play count) must append AFTER these.
+const songColumns = `s.id, s.title, s.artist_id, a.name, s.album, s.year, s.track_no,
 	s.duration_ms, s.file_path, s.file_size, s.content_hash, s.cover_art_id, s.lyrics, s.created_at, s.is_published,
-	COALESCE(al.status, '') AS alignment_status
-	FROM songs s JOIN artists a ON a.id = s.artist_id
+	s.sample_rate, s.channels, s.bitrate_kbps,
+	COALESCE(al.status, '') AS alignment_status`
+
+const songFrom = ` FROM songs s JOIN artists a ON a.id = s.artist_id
 	LEFT JOIN song_alignment al ON al.song_id = s.id`
+
+const songSelect = `SELECT ` + songColumns + songFrom
 
 // publishedFilter appends a clause restricting to published songs. hasWhere
 // selects AND vs WHERE; includeUnpublished (an authenticated viewer) yields "".
@@ -203,14 +222,27 @@ type scanner interface {
 	Scan(dest ...any) error
 }
 
-func scanSong(row scanner) (*Song, error) {
+func scanSong(row scanner) (*Song, error) { return scanSongInto(row, nil) }
+
+// scanSongInto scans songColumns in order. When count is non-nil it scans one
+// trailing column into it — the shape topTenSelect produces. Single scanner so the
+// column list and the scan order can't drift apart.
+func scanSongInto(row scanner, count *int) (*Song, error) {
 	var s Song
 	var album, cover, lyrics sql.NullString
 	var year, track sql.NullInt64
+	// Audio info is NULL for rows the backfill hasn't reached and for files that
+	// can't be decoded; both surface as 0 and render "—".
+	var sampleRate, channels, bitrate sql.NullInt64
 	var published int64
-	if err := row.Scan(&s.ID, &s.Title, &s.ArtistID, &s.ArtistName, &album, &year, &track,
+	dest := []any{&s.ID, &s.Title, &s.ArtistID, &s.ArtistName, &album, &year, &track,
 		&s.DurationMS, &s.FilePath, &s.FileSize, &s.ContentHash, &cover, &lyrics, &s.CreatedAt, &published,
-		&s.AlignmentStatus); err != nil {
+		&sampleRate, &channels, &bitrate,
+		&s.AlignmentStatus}
+	if count != nil {
+		dest = append(dest, count)
+	}
+	if err := row.Scan(dest...); err != nil {
 		return nil, err
 	}
 	s.Album = album.String
@@ -218,6 +250,9 @@ func scanSong(row scanner) (*Song, error) {
 	s.TrackNo = int(track.Int64)
 	s.CoverArtID = cover.String
 	s.Lyrics = lyrics.String
+	s.SampleRate = int(sampleRate.Int64)
+	s.Channels = int(channels.Int64)
+	s.BitrateKbps = int(bitrate.Int64)
 	s.Published = published != 0
 	s.Genres = []string{}
 	return &s, nil

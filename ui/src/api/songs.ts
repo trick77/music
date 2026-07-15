@@ -10,6 +10,10 @@ export type Song = {
   year: number;
   trackNo: number;
   durationMs: number;
+  // fileSize is the STORED file's size. Tags are baked into the bytes on the fly at
+  // download time, so a download differs slightly from this.
+  fileSize: number;
+  createdAt: string; // SQLite datetime, UTC — parse via format.ts, never `new Date()` directly
   genres: string[];
   coverArtId: string;
   lyrics?: string;
@@ -120,4 +124,19 @@ export async function deleteSong(id: string): Promise<void> {
 // continues regardless of whether the play was counted.
 export function reportPlay(id: string): Promise<void> {
   return fetch(`/api/songs/${id}/play`, { method: "POST" }).then(() => {}, () => {});
+}
+
+// SongStats is a song's LIFETIME playback history — deliberately not the rolling
+// 30-day window the top-ten chart uses.
+export type SongStats = {
+  plays: number;
+  lastPlayedAt: string; // SQLite datetime (UTC), or "" when never played
+};
+
+// getSongStats reads one song's play figures. Editor-only (403 when anonymous);
+// the Info tab is the only place in the app that shows a play count.
+export async function getSongStats(id: string): Promise<SongStats> {
+  const r = await fetch(`/api/songs/${id}/stats`);
+  if (!r.ok) throw new Error(`stats failed (${r.status})`);
+  return r.json();
 }

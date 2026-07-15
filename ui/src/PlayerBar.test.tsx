@@ -26,7 +26,7 @@ import { PlayerBar } from "./PlayerBar";
 function song(over: Partial<Song> = {}): Song {
   return {
     id: "s1", title: "Nightbird", artistName: "Vesper Lake", album: "", year: 0,
-    trackNo: 0, durationMs: 200000, genres: [], coverArtId: "", published: true,
+    trackNo: 0, durationMs: 200000, fileSize: 0, createdAt: "", genres: [], coverArtId: "", published: true,
     lyrics: "First line of the song\nSecond line here", ...over,
   };
 }

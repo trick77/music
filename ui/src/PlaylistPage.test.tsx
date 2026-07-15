@@ -25,6 +25,8 @@ function song(overrides: Partial<Song>): Song {
     year: 0,
     trackNo: 0,
     durationMs: 0,
+    fileSize: 0,
+    createdAt: "",
     genres: [],
     coverArtId: "",
     published: true,

@@ -14,10 +14,11 @@ import { PlaylistsPage } from "./PlaylistsPage";
 import { PlaylistPage } from "./PlaylistPage";
 import { Rail } from "./Rail";
 import { PlayerBar } from "./PlayerBar";
+import { iconBtn } from "./PlayerControls";
 import { VisualizerView } from "./VisualizerView";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { usePlayer } from "./player";
-import { useRoute, navigate, parsePlayerParam, pushPlayer, replacePlayer, closePlayer, type PlayerParam } from "./router";
+import { useRoute, navigate, parsePlayerParam, pushPlayer, replacePlayer, leaveLyricsForArtwork, closeToOrigin, type PlayerParam } from "./router";
 import { useFavorites } from "./favorites";
 import { addToQueue, playNext } from "./queue";
 import { songShareUrl, lyricsShareUrl, copyText } from "./share";
@@ -81,10 +82,6 @@ export function App() {
   // Fires once per mount so auto-opening the full player on a bare /song/:id landing
   // doesn't re-trigger after the user closes it (close strips the param to a bare URL).
   const songOpened = useRef(false);
-  // Tracks whether we pushed the history entry that opened the player, so closing
-  // it knows whether to pop that entry (in-app open) or strip the param in place
-  // (arrived via a fresh deep link with nothing to pop).
-  const pushedPlayer = useRef(false);
   // The player overlay's state lives in the URL (source of truth). Re-read on every
   // render — useRoute re-renders on popstate, which our push/replace/close helpers
   // dispatch — so this stays in sync with the address bar.
@@ -150,14 +147,8 @@ export function App() {
     if (!song) return; // songs still loading — retry when they arrive
     songOpened.current = true;
     if (song.id !== player.current?.id) player.play(song); // cue it (autoplay is blocked pre-gesture, harmless)
-    if (playerParam === null) replacePlayer(song.id, "full"); // open overlay in place — no history entry, pushedPlayer stays false
+    if (playerParam === null) replacePlayer(song.id, "full"); // open overlay in place — no new entry, and the current one keeps its marker
   }, [songs, route, playerParam, player]);
-
-  // Reset the pushed-entry flag whenever the player closes (by our button, the back
-  // button, or a plain navigation), so the next open re-decides how to close.
-  useEffect(() => {
-    if (playerParam === null) pushedPlayer.current = false;
-  }, [playerParam]);
 
   // A file dropped anywhere outside a drop zone would otherwise make the browser
   // navigate away to render it, silently discarding the whole SPA session. Swallow
@@ -188,17 +179,19 @@ export function App() {
   // now-playing id so the callbacks stay stable across unrelated re-renders (the
   // downgrade effect in PlayerBar depends on onSetMode's identity).
   const curId = player.current?.id;
-  const expandPlayer = useCallback((mode: PlayerParam) => {
+  // Every in-app open pushes an entry, so closing returns to the surface it was
+  // launched from — including the big player, when the lyrics view was opened
+  // from there.
+  const expandPlayer = useCallback((mode: PlayerParam, from?: PlayerParam) => {
     if (!curId) return;
-    pushedPlayer.current = true;
-    pushPlayer(curId, mode);
+    pushPlayer(curId, mode, from);
   }, [curId]);
-  const setPlayerMode = useCallback((mode: PlayerParam) => {
+  const lyricsUnavailable = useCallback(() => {
     if (!curId) return;
-    replacePlayer(curId, mode);
+    leaveLyricsForArtwork(curId);
   }, [curId]);
   const closePlayerView = useCallback(() => {
-    closePlayer(pushedPlayer.current);
+    closeToOrigin();
   }, []);
 
   // The player can now close itself: finishing the last song with an empty queue
@@ -219,15 +212,13 @@ export function App() {
     }
     if (!hadCurrent.current) return;
     hadCurrent.current = false;
-    if (playerParam !== null) closePlayerView();
-    // The visualizer is a route rather than an overlay, so the close above can't
-    // reach it — but it's just as much a full-screen player takeover, and leaving
-    // it up would strand the viewer on "Nothing is playing" with no way out but
-    // the X. Send them home so every full-screen surface dismisses the same way.
-    // navigate() directly, not closePlayerView: pushedPlayer tracks the overlay
-    // push, not this route.
-    else if (route.name === "visualizer") navigate("/");
-  }, [player.current, playerParam, closePlayerView, route.name]);
+    // Home, not the trigger point: this is playback ending, not the viewer
+    // dismissing a view they opened. Stepping back one entry could also land on
+    // another player state (the big player the lyrics view was opened from),
+    // which now has no song to show — and would leave a stale ?player= behind to
+    // re-open the overlay on the next play.
+    if (playerParam !== null || route.name === "visualizer") navigate("/");
+  }, [player.current, playerParam, route.name]);
 
   const flash = (msg: string) => {
     setToast(msg);
@@ -420,10 +411,12 @@ export function App() {
   // buttons; SongMenu's useMenuPlacement flips it upward above the docked bar.
   const playerMenu = (song: Song): ReactNode => (
     <span ref={playerMenuRef} style={{ position: "relative", display: "inline-flex" }}>
+      {/* iconBtn, not a copy of it: this sits in the mini bar's action row and
+          must carry the same muted tint as the rest of them. */}
       <button
         aria-label="more"
         onClick={() => setPlayerMenuOpen((o) => !o)}
-        style={{ display: "grid", placeItems: "center", width: 40, height: 40, borderRadius: 8, background: "none", border: "none", color: "var(--color-ink)", cursor: "pointer" }}
+        style={iconBtn}
       >
         <Icon name="moreVertical" size="20px" />
       </button>
@@ -492,7 +485,7 @@ export function App() {
 
       <input ref={uploadRef} type="file" accept=".mp3,audio/mpeg" onChange={onUpload} style={{ display: "none" }} disabled={uploading} />
 
-      <PlayerBar fav={fav} onShare={shareSong} renderMenu={playerMenu} alignmentEnabled={!!session?.alignmentEnabled} open={playerParam !== null} lyrics={playerParam === "lyrics"} onExpand={expandPlayer} onSetMode={setPlayerMode} onClose={closePlayerView} onCopyLink={copyPlayerLink} />
+      <PlayerBar fav={fav} onShare={shareSong} renderMenu={playerMenu} alignmentEnabled={!!session?.alignmentEnabled} open={playerParam !== null} lyrics={playerParam === "lyrics"} onExpand={expandPlayer} onLyricsUnavailable={lyricsUnavailable} onClose={closePlayerView} onCopyLink={copyPlayerLink} />
 
       {route.name === "visualizer" && <VisualizerView fav={fav} onShare={shareSong} />}
 

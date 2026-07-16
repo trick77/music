@@ -6,7 +6,7 @@ import { KaraokeView } from "./KaraokeView";
 import { KaraokeCard } from "./KaraokeCard";
 import { getAlign, postAlign, type AlignmentData, type Song } from "./api";
 import { navigate, type PlayerParam } from "./router";
-import { AirplayButton, Divider, Scrubber, StarButton, Transport, iconBtn, type Fav } from "./PlayerControls";
+import { AirplayButton, Divider, ImmersiveControls, IMMERSIVE_CONTROLS_RESERVE, Scrubber, StarButton, Transport, iconBtn, type Fav } from "./PlayerControls";
 import { useEscape } from "./useEscape";
 
 // PlayerBar renders the docked mini-player (whenever a track is loaded) and,
@@ -14,9 +14,10 @@ import { useEscape } from "./useEscape";
 // player store via usePlayer().
 // open/lyrics are derived from the URL (the source of truth for player-overlay
 // state) and passed in by App; the overlay writes changes back through onExpand
-// (push a history entry) / onSetMode (replace in place) / onClose. onCopyLink
-// copies the current deep link (the address bar itself while the overlay is open).
-export function PlayerBar({ fav, onShare, renderMenu, alignmentEnabled, open, lyrics, onExpand, onSetMode, onClose, onCopyLink }: { fav: Fav; onShare: (s: Song) => void; renderMenu?: (s: Song) => React.ReactNode; alignmentEnabled: boolean; open: boolean; lyrics: boolean; onExpand: (mode: PlayerParam) => void; onSetMode: (mode: PlayerParam) => void; onClose: () => void; onCopyLink: () => void }) {
+// (push a history entry, naming the state it was opened out of) /
+// onLyricsUnavailable / onClose. onCopyLink copies the current deep link (the
+// address bar itself while the overlay is open).
+export function PlayerBar({ fav, onShare, renderMenu, alignmentEnabled, open, lyrics, onExpand, onLyricsUnavailable, onClose, onCopyLink }: { fav: Fav; onShare: (s: Song) => void; renderMenu?: (s: Song) => React.ReactNode; alignmentEnabled: boolean; open: boolean; lyrics: boolean; onExpand: (mode: PlayerParam, from?: PlayerParam) => void; onLyricsUnavailable: () => void; onClose: () => void; onCopyLink: () => void }) {
   const p = usePlayer();
   const [align, setAlign] = useState<AlignmentData | null>(null);
   const song = p.current;
@@ -37,8 +38,8 @@ export function PlayerBar({ fav, onShare, renderMenu, alignmentEnabled, open, ly
   // session, since static lyrics are shown to everyone (karaoke sync is the only
   // signed-in-gated part, handled inside the body).
   useEffect(() => {
-    if (open && lyrics && song && !hasLyrics) onSetMode("full");
-  }, [open, lyrics, song, hasLyrics, onSetMode]);
+    if (open && lyrics && song && !hasLyrics) onLyricsUnavailable();
+  }, [open, lyrics, song, hasLyrics, onLyricsUnavailable]);
 
   // In lyrics mode, fetch the alignment and poll while it is still generating.
   // Gated on hasLyrics (not auth) so anon viewers also pull existing timing and get
@@ -65,6 +66,18 @@ export function PlayerBar({ fav, onShare, renderMenu, alignmentEnabled, open, ly
 
   // Escape leaves the expanded player — the same single destination its X goes to.
   useEscape(open, onClose);
+
+  // A full-screen takeover must not leave the page behind it scrollable. Besides
+  // the obvious wart — scrolling a page you can't see — that page's scrollbar
+  // narrows the viewport, and the docked controls are centred in it: they'd sit
+  // ~7px off from the visualizer's, which has no scrolling page under it. The two
+  // are meant to be pixel-identical, so the scrollbar can't be allowed to differ.
+  useEffect(() => {
+    if (!open) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => { document.body.style.overflow = prev; };
+  }, [open]);
 
   if (!p.current || !song) return null;
 
@@ -169,7 +182,9 @@ export function PlayerBar({ fav, onShare, renderMenu, alignmentEnabled, open, ly
                   plain lyrics; a signed-in viewer who can generate also gets the
                   needs/failed CTA over them — but never while a sync is generating
                   (no in-progress chrome). Static lyrics are the *only* untimed view. */}
-              <div style={{ flex: 1, minHeight: 0, width: "100%", marginTop: 72, marginBottom: 8 }}>
+              {/* The control row floats (absolute), so it can't push this body up:
+                  reserve its footprint here instead, for every karaoke state. */}
+              <div style={{ flex: 1, minHeight: 0, width: "100%", marginTop: 72, marginBottom: IMMERSIVE_CONTROLS_RESERVE }}>
                 {align?.status === "ready" && align.lines?.length ? (
                   <KaraokeView lines={align.lines} />
                 ) : alignStatus === "ready" ? (
@@ -184,23 +199,23 @@ export function PlayerBar({ fav, onShare, renderMenu, alignmentEnabled, open, ly
                   <KaraokeCard state="plain" lyrics={song.lyrics ?? ""} onGenerate={onGenerate} />
                 )}
               </div>
-              {/* Docked scrubber + transport stay driving playback. */}
-              <div style={{ width: "min(760px, 96vw)" }}>
-                <Scrubber positionMs={p.positionMs} durationMs={p.durationMs} onSeek={p.seek} />
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "1.5rem", marginTop: "0.75rem" }}>
-                  <Transport playing={p.playing} onPrev={p.prev} onToggle={p.toggle} onNext={p.next} canNext={p.queue.length > 0} size={26} />
-                  <Divider color="rgba(255,255,255,0.2)" />
-                  <StarButton song={song} fav={fav} size={24} />
-                  {/* No lyrics/visualizer buttons while the lyrics player is open:
-                      this view is left via the X, not swapped away in place. */}
-                  <AirplayButton available={p.airplayAvailable} active={p.airplayActive} onClick={p.showAirplayPicker} size={22} />
-                  <button aria-label="Share" onClick={onCopyLink} style={iconBtn}><Icon name="share" size="22px" /></button>
-                </div>
-              </div>
+              {/* Docked scrubber + transport stay driving playback — same block,
+                  same place as the visualizer's. */}
+              <ImmersiveControls positionMs={p.positionMs} durationMs={p.durationMs} onSeek={p.seek}>
+                <Transport playing={p.playing} onPrev={p.prev} onToggle={p.toggle} onNext={p.next} canNext={p.queue.length > 0} size={26} />
+                <Divider color="rgba(255,255,255,0.2)" />
+                <StarButton song={song} fav={fav} size={24} />
+                {/* No lyrics/visualizer buttons while the lyrics player is open:
+                    this view is left via the X, not swapped away in place. */}
+                <AirplayButton available={p.airplayAvailable} active={p.airplayActive} onClick={p.showAirplayPicker} size={22} />
+                <button aria-label="Share" onClick={onCopyLink} style={iconBtn}><Icon name="share" size="22px" /></button>
+              </ImmersiveControls>
             </>
           ) : (
             <>
-              <div style={{ width: "min(360px, 72vw)", aspectRatio: "1", borderRadius: 18, overflow: "hidden", background: "var(--color-active)", display: "grid", placeItems: "center", boxShadow: "0 24px 80px rgba(0,0,0,0.5)" }}>
+              {/* 432px = the old 360 + 20%. The vw cap is what makes it scale on a
+                  phone, where width — not the cap — is the binding constraint. */}
+              <div style={{ width: "min(432px, 72vw)", aspectRatio: "1", borderRadius: 18, overflow: "hidden", background: "var(--color-active)", display: "grid", placeItems: "center", boxShadow: "0 24px 80px rgba(0,0,0,0.5)" }}>
                 {song.coverArtId ? <img src={coverUrl(song.coverArtId, "card")} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <span style={{ fontFamily: "var(--font-serif)", fontSize: "4rem", color: "var(--color-muted)" }}>{coverInitial(song.title)}</span>}
               </div>
               {/* Title/artist type matches the lyrics player's now-playing chip. */}
@@ -216,8 +231,11 @@ export function PlayerBar({ fav, onShare, renderMenu, alignmentEnabled, open, ly
                 {!p.airplayActive && (
                   <button aria-label="Open visualizer" onClick={() => navigate("/visualizer")} style={iconBtn}><Icon name="visualizer" size="24px" /></button>
                 )}
+                {/* Pushes rather than swapping in place, so the lyrics player's X
+                    returns here — the big player it was opened from, which "full"
+                    names for the fallback when a track turns out to have no lyrics. */}
                 {hasLyrics && (
-                  <button aria-label="Show lyrics" aria-pressed={false} onClick={() => onSetMode("lyrics")} style={iconBtn}><Icon name="captions" size="25px" /></button>
+                  <button aria-label="Show lyrics" aria-pressed={false} onClick={() => onExpand("lyrics", "full")} style={iconBtn}><Icon name="captions" size="25px" /></button>
                 )}
                 <AirplayButton available={p.airplayAvailable} active={p.airplayActive} onClick={p.showAirplayPicker} size={22} />
                 <button aria-label="Share" onClick={onCopyLink} style={iconBtn}><Icon name="share" size="22px" /></button>

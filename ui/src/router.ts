@@ -34,10 +34,23 @@ export function parsePath(pathname: string): Route {
   return { name: "home" };
 }
 
+// Every entry we push carries this marker, so a close can tell an in-app entry
+// (something to return to) from a cold deep link (nothing behind it). Reading
+// history.length can't make that call: it counts the whole tab's history,
+// including pages from before this app was loaded.
+// `from` records the player state an entry was opened *out of*, which is what
+// lets the lyrics view fall back to the big player behind it instead of
+// rewriting itself into a second copy of it.
+type HistoryState = { appPushed?: boolean; from?: PlayerParam };
+
+function appState(from?: PlayerParam): HistoryState {
+  return from ? { appPushed: true, from } : { appPushed: true };
+}
+
 // navigate performs SPA navigation without a full reload and notifies listeners.
 export function navigate(path: string): void {
   if (path === window.location.pathname) return;
-  window.history.pushState({}, "", path);
+  window.history.pushState(appState(), "", path);
   window.dispatchEvent(new PopStateEvent("popstate"));
 }
 
@@ -72,26 +85,49 @@ function playerHref(id: string, param: PlayerParam): string {
 // useRoute listens for it and re-renders, re-reading location.search.
 
 // pushPlayer opens the player at a state, adding ONE history entry so the back
-// button (and the close button) return to where the user was.
-export function pushPlayer(id: string, param: PlayerParam): void {
-  window.history.pushState({}, "", playerHref(id, param));
+// button (and the close button) return to where the user was. `from` names the
+// player state it was opened out of, when it was opened out of one.
+export function pushPlayer(id: string, param: PlayerParam, from?: PlayerParam): void {
+  window.history.pushState(appState(from), "", playerHref(id, param));
   window.dispatchEvent(new PopStateEvent("popstate"));
 }
 
-// replacePlayer swaps the player state in place (no new history entry) — used for
-// artwork↔lyrics toggles and for following the now-playing song as the queue
-// advances, neither of which should stack the back stack.
+// replacePlayer swaps the player state in place (no new history entry) — used to
+// open the overlay on a deep link and to follow the now-playing song as the queue
+// advances, neither of which should stack the back stack. It carries the current
+// entry's marker across: replacing must not turn a deep-link entry into one that
+// looks in-app, or vice versa.
 export function replacePlayer(id: string, param: PlayerParam): void {
-  window.history.replaceState({}, "", playerHref(id, param));
+  window.history.replaceState(window.history.state, "", playerHref(id, param));
   window.dispatchEvent(new PopStateEvent("popstate"));
 }
 
-// closePlayer dismisses the overlay. When we pushed the entry (opened in-app) we
-// pop it so back-stack and history stay clean; when we arrived via a fresh deep
-// link there is nothing to pop, so we navigate Home — a real page — rather than
-// stripping the param and stranding the visitor on the bare /song/:id URL.
-export function closePlayer(pushed: boolean): void {
-  if (pushed) {
+// leaveLyricsForArtwork drops the lyrics view when the loaded track turns out to
+// have no lyrics (skipping to one, or a dishonest deep link).
+//
+// When this entry was pushed out of the big player, POP it: the artwork view is
+// already sitting behind us, and rewriting this entry into a second copy of it
+// would leave a duplicate that every later close has to step through — the X
+// would land on the twin and look dead. Otherwise (opened straight from the mini
+// bar, or a cold deep link) there's no artwork view behind to fall back to, so
+// rewrite in place and keep the player open.
+export function leaveLyricsForArtwork(id: string): void {
+  const state = window.history.state as HistoryState | null;
+  if (state?.appPushed && state.from === "full") {
+    window.history.back();
+    return;
+  }
+  replacePlayer(id, "full");
+}
+
+// closeToOrigin dismisses a full-screen surface (the player overlay, the
+// visualizer) back to wherever it was opened from — the big player it was
+// launched out of, or the page the mini bar was sitting on. When we didn't push
+// the entry there is nothing behind it (a cold deep link), so go Home: a real
+// page, rather than stranding the visitor on a bare /song/:id URL.
+export function closeToOrigin(): void {
+  const state = window.history.state as HistoryState | null;
+  if (state?.appPushed) {
     window.history.back();
     return;
   }

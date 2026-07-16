@@ -41,7 +41,7 @@ function render(alignmentEnabled: boolean, current: Song, open: boolean, lyrics:
       open={open}
       lyrics={lyrics}
       onExpand={() => {}}
-      onSetMode={() => {}}
+      onLyricsUnavailable={() => {}}
       onClose={() => {}}
       onCopyLink={() => {}}
     />,

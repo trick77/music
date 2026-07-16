@@ -1,10 +1,10 @@
 import { useEffect, useRef } from "react";
 import { player, usePlayer } from "./player";
 import { coverUrl } from "./cover";
-import { navigate } from "./router";
+import { closeToOrigin } from "./router";
 import { attach, resume, bands } from "./analyser";
 import { Icon } from "./Icon";
-import { Divider, Scrubber, StarButton, Transport, iconBtn, type Fav } from "./PlayerControls";
+import { Divider, ImmersiveControls, StarButton, Transport, iconBtn, type Fav } from "./PlayerControls";
 import { useEscape } from "./useEscape";
 import { type Song } from "./api";
 
@@ -143,11 +143,11 @@ export function VisualizerView({ fav, onShare }: { fav: Fav; onShare: (s: Song) 
     };
   }, []);
 
-  // Always return to Home, whatever the entry point (mini-bar, lyrics, artwork, or a
-  // direct /visualizer deep link). history.back() would land on whatever entry happens to
-  // sit under /visualizer — inconsistent, and a deep link has no back entry at all.
+  // Return to whatever opened the visualizer — the big player it was launched
+  // from, or the page the mini bar was sitting on. A cold /visualizer deep link
+  // has nothing behind it, so closeToOrigin sends that case Home instead.
   function close() {
-    navigate("/");
+    closeToOrigin();
   }
 
   // Escape leaves the visualizer, exactly as its X does.
@@ -210,17 +210,12 @@ export function VisualizerView({ fav, onShare }: { fav: Fav; onShare: (s: Song) 
           local to visualize while casting). No lyrics or artwork toggle: while the
           visualizer is open it is left via the X, not swapped away in place. */}
       {song && (
-        <div style={{ position: "absolute", bottom: "max(28px, 6vh)", left: 0, right: 0, display: "flex", justifyContent: "center", zIndex: 3 }}>
-          <div style={{ width: "min(760px, 96vw)" }}>
-            <Scrubber positionMs={p.positionMs} durationMs={p.durationMs} onSeek={p.seek} />
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "1.5rem", marginTop: "0.75rem" }}>
-              <Transport playing={p.playing} onPrev={p.prev} onToggle={p.toggle} onNext={p.next} canNext={p.queue.length > 0} size={26} />
-              <Divider color="rgba(255,255,255,0.2)" />
-              <StarButton song={song} fav={fav} size={24} />
-              <button aria-label="Share" onClick={() => onShare(song)} style={iconBtn}><Icon name="share" size="22px" /></button>
-            </div>
-          </div>
-        </div>
+        <ImmersiveControls positionMs={p.positionMs} durationMs={p.durationMs} onSeek={p.seek}>
+          <Transport playing={p.playing} onPrev={p.prev} onToggle={p.toggle} onNext={p.next} canNext={p.queue.length > 0} size={26} />
+          <Divider color="rgba(255,255,255,0.2)" />
+          <StarButton song={song} fav={fav} size={24} />
+          <button aria-label="Share" onClick={() => onShare(song)} style={iconBtn}><Icon name="share" size="22px" /></button>
+        </ImmersiveControls>
       )}
 
       {/* Empty state: opened with nothing playing. */}

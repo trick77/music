@@ -62,6 +62,32 @@ export function AirplayButton({ available, active, onClick, size = 20 }: { avail
   );
 }
 
+// The immersive views — the lyrics player and the visualizer — dock their
+// controls at the SAME spot, so switching between them never shifts the row
+// under the pointer. Both hosts are a full-viewport `position: fixed; inset: 0`
+// box, so one absolute offset lands identically in both by construction; that's
+// why this owns the positioning rather than leaving it to each caller.
+// The buttons differ between the two (AirPlay is local-only), so they come in as
+// children — the scrubber and the row's geometry do not.
+export const IMMERSIVE_CONTROLS_BOTTOM = "max(28px, 6vh)";
+
+// What a caller must keep clear at the bottom of its own content so nothing
+// renders under the floating row: the row's own height plus its offset.
+export const IMMERSIVE_CONTROLS_RESERVE = `calc(${IMMERSIVE_CONTROLS_BOTTOM} + 104px)`;
+
+export function ImmersiveControls({ positionMs, durationMs, onSeek, children }: { positionMs: number; durationMs: number; onSeek: (ms: number) => void; children: React.ReactNode }) {
+  return (
+    <div style={{ position: "absolute", bottom: IMMERSIVE_CONTROLS_BOTTOM, left: 0, right: 0, display: "flex", justifyContent: "center", zIndex: 3 }}>
+      <div data-immersive-controls style={{ width: "min(760px, 96vw)" }}>
+        <Scrubber positionMs={positionMs} durationMs={durationMs} onSeek={onSeek} />
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "1.5rem", marginTop: "0.75rem" }}>
+          {children}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function Scrubber({ positionMs, durationMs, onSeek, accent = "var(--color-accent-fill)" }: { positionMs: number; durationMs: number; onSeek: (ms: number) => void; accent?: string }) {
   const max = durationMs || 0;
   const pct = max > 0 ? Math.min(100, (positionMs / max) * 100) : 0;

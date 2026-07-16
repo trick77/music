@@ -155,9 +155,8 @@ export function PlayerBar({ fav, onShare, renderMenu, alignmentEnabled, open, ly
             position: "fixed",
             inset: 0,
             zIndex: 90,
-            background: song.coverArtId
-              ? `linear-gradient(180deg, rgba(20,20,18,0.6), rgba(20,20,18,0.96)), url(${coverUrl(song.coverArtId, "hero")}) center/cover`
-              : "var(--color-bg)",
+            overflow: "hidden",
+            background: "var(--color-bg)",
             display: "flex",
             flexDirection: "column",
             alignItems: "center",
@@ -165,6 +164,25 @@ export function PlayerBar({ fav, onShare, renderMenu, alignmentEnabled, open, ly
             padding: "2rem",
           }}
         >
+          {/* Cover backdrop on its own layer so the blur never touches the text above it.
+              Covers with big lettering would otherwise stay legible behind the title and lyrics.
+              scale() pushes the blur's transparent fringe outside the overlay's clip. */}
+          {song.coverArtId && (
+            <div
+              aria-hidden="true"
+              style={{
+                position: "absolute",
+                inset: 0,
+                // Negative z-index keeps it under the in-flow karaoke body, which is
+                // unpositioned and would otherwise paint below this absolute layer.
+                zIndex: -1,
+                background: `linear-gradient(180deg, rgba(20,20,18,0.6), rgba(20,20,18,0.96)), url(${coverUrl(song.coverArtId, "hero")}) center/cover`,
+                filter: "blur(28px)",
+                transform: "scale(1.12)",
+              }}
+            />
+          )}
+
           <button aria-label="Close player" onClick={onClose} style={{ ...iconBtn, position: "absolute", top: 16, right: 16, zIndex: 5 }}>
             <Icon name="close" size="24px" />
           </button>

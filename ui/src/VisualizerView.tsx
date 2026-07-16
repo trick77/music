@@ -14,13 +14,14 @@ const N = 28; // number of spectrum columns
 // VisualizerView is the full-screen, deep-linkable audio visualizer (route
 // /visualizer). Ambient composition: the album art fills the frame (a DOM layer
 // with the SAME treatment as the full-screen player — center/cover under a dark
-// gradient, no blur), and a slim heat-mapped LED spectrum sits along the bottom.
+// gradient, blurred), and a slim heat-mapped LED spectrum sits along the bottom.
 // Each column is a stack of discrete cells coloured by height (deep terracotta →
 // amber → near-white) with a bright cap cell on the slow-falling peak.
 //
-// The blurred cover is a DOM layer (GPU-composited once per song), NOT redrawn
-// each frame — the transparent <canvas> on top draws only the bars + peaks, so
-// clearRect never touches the expensive blur. Bars ride the real audio spectrum
+// The blur keeps busy cover lettering from competing with the title/artist that
+// sit over it. It stays cheap because the cover is a DOM layer (GPU-composited
+// once per song), NOT redrawn each frame — the transparent <canvas> on top draws
+// only the bars + peaks, so clearRect never touches the blur. Bars ride the real audio spectrum
 // via the shared AnalyserNode (analyser.ts). While AirPlay is active the sound is
 // on a remote speaker (nothing local to visualize), so we hide the bars and show
 // a note instead — mirroring the player bar, which hides the visualizer button
@@ -169,8 +170,10 @@ export function VisualizerView({ fav, onShare }: { fav: Fav; onShare: (s: Song) 
         background: "#141413",
       }}
     >
-      {/* Cover backdrop — IDENTICAL treatment to the full-screen player:
-          the hero art at center/cover under the same dark gradient scrim, no blur. */}
+      {/* Cover backdrop — IDENTICAL treatment to the full-screen player: the hero
+          art at center/cover under the same dark gradient scrim, blurred so cover
+          lettering can't compete with the title. scale() pushes the blur's
+          transparent fringe outside the clip (the parent is overflow:hidden). */}
       <div
         aria-hidden="true"
         style={{
@@ -179,6 +182,7 @@ export function VisualizerView({ fav, onShare }: { fav: Fav; onShare: (s: Song) 
           background: song?.coverArtId
             ? `linear-gradient(180deg, rgba(20,20,18,0.6), rgba(20,20,18,0.96)), url(${coverUrl(song.coverArtId, "hero")}) center/cover`
             : "var(--color-bg)",
+          ...(song?.coverArtId ? { filter: "blur(28px)", transform: "scale(1.12)" } : null),
         }}
       />
 

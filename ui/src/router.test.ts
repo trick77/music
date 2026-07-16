@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
-import { parsePath, parsePlayerParam, pushPlayer, replacePlayer, closePlayer } from "./router";
+import { parsePath, parsePlayerParam, pushPlayer, replacePlayer, closeToOrigin } from "./router";
 
 describe("parsePath", () => {
   it("maps root to home", () => {
@@ -60,16 +60,22 @@ describe("player URL helpers", () => {
   let back: ReturnType<typeof vi.fn>;
   let dispatchEvent: ReturnType<typeof vi.fn>;
 
+  // state is what history.state would hold on the current entry: our marker when
+  // we pushed the entry ourselves, null on a cold deep link.
+  const stubWindow = (state: unknown) => {
+    vi.stubGlobal("window", {
+      location: { pathname: "/song/abc", search: "?player=lyrics" },
+      history: { pushState, replaceState, back, state },
+      dispatchEvent,
+    });
+  };
+
   beforeEach(() => {
     pushState = vi.fn();
     replaceState = vi.fn();
     back = vi.fn();
     dispatchEvent = vi.fn();
-    vi.stubGlobal("window", {
-      location: { pathname: "/song/abc", search: "?player=lyrics" },
-      history: { pushState, replaceState, back },
-      dispatchEvent,
-    });
+    stubWindow({ appPushed: true });
     vi.stubGlobal("PopStateEvent", class {});
   });
 
@@ -77,32 +83,51 @@ describe("player URL helpers", () => {
     vi.unstubAllGlobals();
   });
 
-  it("pushPlayer pushes the song deep link and notifies listeners", () => {
+  it("pushPlayer pushes the song deep link, marked as ours, and notifies listeners", () => {
     pushPlayer("abc", "lyrics");
-    expect(pushState).toHaveBeenCalledWith({}, "", "/song/abc?player=lyrics");
+    // The marker is what lets the close tell an in-app open from a deep link.
+    expect(pushState).toHaveBeenCalledWith({ appPushed: true }, "", "/song/abc?player=lyrics");
     expect(replaceState).not.toHaveBeenCalled();
     expect(dispatchEvent).toHaveBeenCalledTimes(1);
   });
 
   it("replacePlayer replaces in place (no new history entry)", () => {
     replacePlayer("abc", "full");
-    expect(replaceState).toHaveBeenCalledWith({}, "", "/song/abc?player=full");
+    expect(replaceState).toHaveBeenCalledWith({ appPushed: true }, "", "/song/abc?player=full");
     expect(pushState).not.toHaveBeenCalled();
     expect(dispatchEvent).toHaveBeenCalledTimes(1);
   });
 
-  it("closePlayer pops the pushed entry when we opened it in-app", () => {
-    closePlayer(true);
+  it("replacePlayer carries the entry's marker across, rather than inventing one", () => {
+    // A deep-link entry replaced in place must stay a deep-link entry, or its
+    // close would try to go back to a page the visitor never came from.
+    stubWindow(null);
+    replacePlayer("abc", "full");
+    expect(replaceState).toHaveBeenCalledWith(null, "", "/song/abc?player=full");
+  });
+
+  it("closeToOrigin returns to the trigger point when we pushed the entry", () => {
+    closeToOrigin();
     expect(back).toHaveBeenCalledTimes(1);
     expect(replaceState).not.toHaveBeenCalled();
     expect(dispatchEvent).not.toHaveBeenCalled();
   });
 
-  it("closePlayer navigates Home when arrived via a fresh deep link", () => {
-    closePlayer(false);
+  it("closeToOrigin navigates Home when arrived via a fresh deep link", () => {
+    // Nothing behind the entry to return to — going back would leave the app.
+    stubWindow(null);
+    closeToOrigin();
     expect(back).not.toHaveBeenCalled();
     expect(replaceState).not.toHaveBeenCalled();
-    expect(pushState).toHaveBeenCalledWith({}, "", "/");
+    expect(pushState).toHaveBeenCalledWith({ appPushed: true }, "", "/");
     expect(dispatchEvent).toHaveBeenCalledTimes(1);
+  });
+
+  it("closeToOrigin treats a foreign history entry as a deep link", () => {
+    // Another app's pushState (or a browser-restored entry) is not ours to pop.
+    stubWindow({ someoneElse: true });
+    closeToOrigin();
+    expect(back).not.toHaveBeenCalled();
+    expect(pushState).toHaveBeenCalledWith({ appPushed: true }, "", "/");
   });
 });

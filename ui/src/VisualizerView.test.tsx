@@ -37,20 +37,18 @@ function song(over: Partial<Song> = {}): Song {
 function render(current: Song | null) {
   h.current = current;
   return renderToStaticMarkup(
-    <VisualizerView fav={{ has: () => false, toggle: () => {} }} onShare={() => {}} onShowLyrics={() => {}} />,
+    <VisualizerView fav={{ has: () => false, toggle: () => {} }} onShare={() => {}} />,
   );
 }
 
 describe("VisualizerView control row", () => {
-  it("when the song has lyrics, then it offers the karaoke button", () => {
-    const html = render(song());
-    expect(html).toContain('aria-label="Show lyrics"');
+  it("when the visualizer is open, then it offers no lyrics button — the X is the way out", () => {
+    // Nothing swaps views in place here: the visualizer is left via its X (or Esc).
+    expect(render(song())).not.toContain('aria-label="Show lyrics"');
   });
 
-  it("when the song has no lyrics, then the karaoke button is absent", () => {
-    // Same gate as the player: nothing to show, so don't offer the trip.
-    expect(render(song({ lyrics: "" }))).not.toContain('aria-label="Show lyrics"');
-    expect(render(song({ lyrics: "   " }))).not.toContain('aria-label="Show lyrics"');
+  it("when the visualizer is open, then it always offers a close X", () => {
+    expect(render(song())).toContain('aria-label="Close visualizer"');
   });
 
   // markup of a single element, so an assertion about one control can't be satisfied
@@ -59,15 +57,6 @@ describe("VisualizerView control row", () => {
     const start = html.lastIndexOf("<" + tag, html.indexOf(match));
     return html.slice(start, html.indexOf("</" + tag + ">", start));
   }
-
-  it("when rendering the karaoke button, then it is a plain action, not the accent toggle", () => {
-    // It navigates to the lyrics player rather than toggling a view in place, so it
-    // must not borrow the player's accent-pressed toggle styling.
-    const btn = el(render(song()), 'aria-label="Show lyrics"');
-    expect(btn).toContain("color:#fff");
-    expect(btn).not.toContain("aria-pressed");
-    expect(btn).not.toContain("--color-accent-strong");
-  });
 
   it("when a song is playing, then a divider separates transport from the actions", () => {
     const html = render(song());

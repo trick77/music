@@ -4,6 +4,7 @@ import { reorder, removeAt } from "./queue";
 import { formatDuration } from "./format";
 import { Icon } from "./Icon";
 import { t } from "./ui";
+import { useEscape } from "./useEscape";
 
 type Props = {
   queue: Song[];
@@ -15,6 +16,7 @@ type Props = {
 
 export function QueueDrawer({ queue, nowPlaying, onChange, onPlay, onClose }: Props) {
   const [drag, setDrag] = useState<number | null>(null);
+  useEscape(true, onClose);
   return (
     <div style={{ position: "fixed", top: 0, right: 0, bottom: 0, width: 340, maxWidth: "90vw", zIndex: 60, background: "var(--color-panel)", borderLeft: "1px solid var(--color-border)", padding: "1rem", overflowY: "auto" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.75rem" }}>

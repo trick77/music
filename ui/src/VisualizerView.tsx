@@ -5,6 +5,7 @@ import { navigate } from "./router";
 import { attach, resume, bands } from "./analyser";
 import { Icon } from "./Icon";
 import { Divider, Scrubber, StarButton, Transport, iconBtn, type Fav } from "./PlayerControls";
+import { useEscape } from "./useEscape";
 import { type Song } from "./api";
 
 const N = 28; // number of spectrum columns
@@ -23,11 +24,10 @@ const N = 28; // number of spectrum columns
 // on a remote speaker (nothing local to visualize), so we hide the bars and show
 // a note instead — mirroring the player bar, which hides the visualizer button
 // while AirPlay is active.
-export function VisualizerView({ fav, onShare, onShowLyrics }: { fav: Fav; onShare: (s: Song) => void; onShowLyrics: () => void }) {
+export function VisualizerView({ fav, onShare }: { fav: Fav; onShare: (s: Song) => void }) {
   const p = usePlayer();
   const song = p.current;
   const airplay = p.airplayActive;
-  const hasLyrics = !!song?.lyrics && song.lyrics.trim() !== "";
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const airplayRef = useRef(airplay);
@@ -150,6 +150,9 @@ export function VisualizerView({ fav, onShare, onShowLyrics }: { fav: Fav; onSha
     navigate("/");
   }
 
+  // Escape leaves the visualizer, exactly as its X does.
+  useEscape(true, close);
+
   return (
     <div
       style={{
@@ -180,7 +183,7 @@ export function VisualizerView({ fav, onShare, onShowLyrics }: { fav: Fav; onSha
       <button
         aria-label="Close visualizer"
         onClick={close}
-        style={{ position: "absolute", top: 16, right: 16, zIndex: 3, display: "grid", placeItems: "center", width: 40, height: 40, borderRadius: 8, background: "none", border: "none", color: "#fff", cursor: "pointer" }}
+        style={{ ...iconBtn, position: "absolute", top: 16, right: 16, zIndex: 3 }}
       >
         <Icon name="close" size="24px" />
       </button>
@@ -204,10 +207,8 @@ export function VisualizerView({ fav, onShare, onShowLyrics }: { fav: Fav; onSha
       )}
 
       {/* Full transport — same controls as the lyrics player, minus AirPlay (nothing
-          local to visualize while casting) and the artwork toggle (the X closes here).
-          The lyrics button leaves for the lyrics player rather than toggling a view in
-          place, so it stays a plain white action — not the accent-pressed toggle the
-          player uses for artwork↔lyrics. */}
+          local to visualize while casting). No lyrics or artwork toggle: while the
+          visualizer is open it is left via the X, not swapped away in place. */}
       {song && (
         <div style={{ position: "absolute", bottom: "max(28px, 6vh)", left: 0, right: 0, display: "flex", justifyContent: "center", zIndex: 3 }}>
           <div style={{ width: "min(760px, 96vw)" }}>
@@ -216,10 +217,7 @@ export function VisualizerView({ fav, onShare, onShowLyrics }: { fav: Fav; onSha
               <Transport playing={p.playing} onPrev={p.prev} onToggle={p.toggle} onNext={p.next} canNext={p.queue.length > 0} size={26} />
               <Divider color="rgba(255,255,255,0.2)" />
               <StarButton song={song} fav={fav} size={24} />
-              {hasLyrics && (
-                <button aria-label="Show lyrics" onClick={onShowLyrics} style={{ ...iconBtn, color: "#fff" }}><Icon name="captions" size="25px" /></button>
-              )}
-              <button aria-label="Share" onClick={() => onShare(song)} style={{ ...iconBtn, color: "#fff" }}><Icon name="share" size="22px" /></button>
+              <button aria-label="Share" onClick={() => onShare(song)} style={iconBtn}><Icon name="share" size="22px" /></button>
             </div>
           </div>
         </div>

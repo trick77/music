@@ -62,14 +62,14 @@ flows straight to the render.
 
 ### Coupling guards (global overlay bound to a per-song route)
 
-Because opening routes to `/song/:nowPlayingId`, two side-effects are guarded:
+Because opening routes to `/song/:nowPlayingId`, a side-effect is guarded:
 
 1. **`SongPage`** plays its song only when it isn't already the now-playing track —
    otherwise expanding the player would re-enter `SongPage` and toggle playback to a
    pause.
-2. **Session restore** (last track, no autoplay) is skipped on a `/song/:id` landing —
-   that page plays its own song, and seeding the resumed track first would let the
-   resync effect hijack the URL to it.
+
+(Session restore of the last track was removed: a reload now always starts with an
+empty player, so there is no restored track for the resync effect to hijack.)
 
 ### Components touched
 
@@ -105,7 +105,7 @@ param to `=full`, so the link stays honest. No error.
 - **Playwright:**
   1. Expand from `/library` → URL `/song/:id?player=full`, playback still playing.
   2. Toggle lyrics → `?player=lyrics`, no extra history entry; Back closes, returns to `/library`.
-  3. Deep link `/song/:id?player=lyrics` (has lyrics) → lyrics view; owner-with-resume lands on `:id`, not the resumed track.
+  3. Deep link `/song/:id?player=lyrics` (has lyrics) → lyrics view.
   4. In-player Share copies the current deep URL.
   5. `?player=lyrics` on a no-lyrics song → artwork, URL downgrades to `?player=full`.
   6. Regression: normal in-app lyrics toggle still opens the karaoke view.

@@ -18,7 +18,7 @@ vi.mock("./player", () => ({
     airplayAvailable: false,
     airplayActive: false,
     play() {}, toggle() {}, stop() {}, next() {}, prev() {}, seek() {},
-    setQueue() {}, restore() {}, remove() {}, patchSong() {}, showAirplayPicker() {},
+    setQueue() {}, remove() {}, patchSong() {}, showAirplayPicker() {},
   }),
 }));
 vi.mock("./analyser", () => ({ attach: () => {}, resume: () => {}, bands: (n: number) => new Array(n).fill(0) }));

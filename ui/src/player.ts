@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { streamUrl, reportPlay, type Song } from "./api";
 import { coverUrl } from "./cover";
-import { saveResume, loadResume, clearResume, isResumeFresh, type ResumeState } from "./resume";
 
 export type PlayerState = {
   current: Song | null;
@@ -124,7 +123,6 @@ const listeners = new Set<Listener>();
 let audio: HTMLAudioElement | null = null;
 let session = { reported: false };
 let pendingSeekMs = 0;
-let lastPersist = 0;
 
 function emit() {
   syncNextAction(); // keep the OS "next track" control in step with the queue
@@ -134,26 +132,6 @@ function emit() {
 function set(patch: Partial<PlayerState>) {
   state = { ...state, ...patch };
   emit();
-}
-
-function resumeStore() {
-  return window.localStorage;
-}
-
-function persist(songId: string, positionMs: number) {
-  const now = Date.now();
-  if (now - lastPersist < 4000) return; // throttle disk writes
-  lastPersist = now;
-  saveResume(resumeStore(), { songId, positionMs, reported: session.reported, savedAt: now } satisfies ResumeState);
-}
-
-// persistNow writes resume state immediately, bypassing the throttle. Used the
-// instant a play is reported so the saved `reported` flag can't lag behind a
-// tab close and let a resumed listen re-count (spec §9 integrity).
-function persistNow(songId: string, positionMs: number) {
-  const now = Date.now();
-  lastPersist = now;
-  saveResume(resumeStore(), { songId, positionMs, reported: session.reported, savedAt: now } satisfies ResumeState);
 }
 
 function hasMediaSession(): boolean {
@@ -281,9 +259,6 @@ function onTimeUpdate() {
   set({ positionMs });
   if (shouldReport(session, qualifiesForPlay(positionMs, state.durationMs))) {
     void reportPlay(state.current.id);
-    persistNow(state.current.id, positionMs); // save reported=true at once, no throttle lag
-  } else {
-    persist(state.current.id, positionMs);
   }
   updatePositionState();
 }
@@ -356,13 +331,12 @@ export const player = {
       void el.play().catch(() => {});
     } else el.pause();
   },
-  // stop is the user-facing "close the player": halt audio, forget the track, and
-  // wipe the resume state so restore() won't reseed it on the next load. The dock
-  // self-unmounts once current is null (PlayerBar's `if (!p.current) return null`).
+  // stop is the user-facing "close the player": halt audio and forget the track.
+  // The dock self-unmounts once current is null (PlayerBar's `if (!p.current)
+  // return null`).
   stop() {
     if (!state.current) return;
     getAudio().pause();
-    clearResume(resumeStore());
     clearMediaSession(); // matters more now that stop() also runs when the last song ends
     set({ current: null, queue: [], history: [], playing: false, positionMs: 0, durationMs: 0 });
   },
@@ -371,8 +345,7 @@ export const player = {
     // control funnel through here, so finishing the last song tidies the dock away
     // instead of parking it at 0:00. The UI greys Next out when the queue is empty
     // (Transport's canNext), so a deliberate press can't reach this — `ended` is the
-    // real caller. stop() clears resume state, which is right: the song finished,
-    // there's no position worth reopening at.
+    // real caller.
     if (state.queue.length === 0) {
       player.stop();
       return;
@@ -409,29 +382,6 @@ export const player = {
   showAirplayPicker() {
     getAudio().webkitShowPlaybackTargetPicker?.();
   },
-  // restore seeds the last track WITHOUT autoplay (spec §15a: no surprise
-  // autoplay). The saved position is only resumed within RESUME_WINDOW_MS of the
-  // last activity (accidental close / short break); after a longer gap the track
-  // loads at 0:00 so you don't reopen parked mid-song. Playback resumes from the
-  // restored position on the next explicit play/toggle.
-  restore(songs: Song[]) {
-    if (state.current) return; // already playing something
-    const saved = loadResume(resumeStore());
-    if (!saved) return;
-    const song = songs.find((s) => s.id === saved.songId);
-    if (!song) return;
-    const resumeMs = isResumeFresh(saved, Date.now()) ? saved.positionMs : 0;
-    set({ current: song, positionMs: resumeMs, durationMs: song.durationMs || 0, playing: false });
-    // A resumed listen must not re-count. Prefer the persisted `reported` flag
-    // (written the instant the play was counted); fall back to the position
-    // check for older saved state. Resuming an unreported, sub-threshold
-    // position still counts once the threshold is later crossed (a real play).
-    session = { reported: saved.reported ?? qualifiesForPlay(saved.positionMs, song.durationMs || 0) };
-    pendingSeekMs = resumeMs; // 0 when stale → loadedmetadata handler won't seek
-    const el = getAudio();
-    el.src = streamUrl(song.id);
-    setMediaMetadata(song);
-  },
 };
 
 // usePlayer subscribes a component to the player singleton.
@@ -451,7 +401,6 @@ export function usePlayer() {
     prev: player.prev,
     seek: player.seek,
     setQueue: player.setQueue,
-    restore: player.restore,
     remove: player.remove,
     patchSong: player.patchSong,
     showAirplayPicker: player.showAirplayPicker,

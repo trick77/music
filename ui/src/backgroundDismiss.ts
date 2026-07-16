@@ -9,7 +9,7 @@ import { useRef } from "react";
 // around and between them. A button is caught by the element selectors below; the
 // gaps beside/between them are covered by marking the whole docked control cluster
 // `data-player-ui`, so a near-miss while reaching for pause doesn't dismiss.
-export const NO_DISMISS_SELECTOR = 'button, a, input, select, textarea, label, [role="button"], [data-player-ui]';
+export const NO_DISMISS_SELECTOR = 'button, a, input, [role="button"], [data-player-ui]';
 
 // Duck-typed so the rule stays unit-testable without a DOM; the real caller
 // always passes an Element.
@@ -46,11 +46,23 @@ export function useBackgroundDismiss(onDismiss: () => void) {
   const press = useRef<Press | null>(null);
   return {
     onPointerDown: (e: React.PointerEvent) => {
-      press.current = { x: e.clientX, y: e.clientY, background: isBackgroundTarget(e.target) };
+      // Only a primary press can dismiss. Anything else (secondary/middle button,
+      // a second finger) clears the record rather than leaving a stale one behind
+      // for some later click to consume.
+      press.current = e.isPrimary && e.button === 0
+        ? { x: e.clientX, y: e.clientY, background: isBackgroundTarget(e.target) }
+        : null;
     },
+    // A press that never becomes a click — a touch pan, a drag off-window — must
+    // not leave its record armed.
+    onPointerCancel: () => { press.current = null; },
     onClick: (e: React.MouseEvent) => {
       const p = press.current;
       press.current = null;
+      // detail 0 = keyboard-synthesized (Enter/Space on a focused control). Those
+      // report clientX/clientY 0,0, which lands on the full-screen root and would
+      // read as a background tap. Esc is the keyboard way out, not this.
+      if (e.detail === 0) return;
       // NOT e.target: a click's target is the nearest common ancestor of the
       // pressed and released elements, so pressing beside a button and releasing
       // on it reports the root — which would read as background and dismiss

@@ -232,25 +232,25 @@ export function PlayerBar({ fav, onShare, renderMenu, alignmentEnabled, open, ly
                   or a tap that lands between them closes the player. The karaoke
                   and visualizer band gets this for free via ImmersiveControls. */}
               <div data-player-ui style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
-              <div style={{ width: "min(440px, 86vw)", marginTop: "1.5rem" }}>
-                <Scrubber positionMs={p.positionMs} durationMs={p.durationMs} onSeek={p.seek} />
-              </div>
-              <div style={{ display: "flex", alignItems: "center", gap: "1.5rem", marginTop: "1.25rem" }}>
-                <Transport playing={p.playing} onPrev={p.prev} onToggle={p.toggle} onNext={p.next} canNext={p.queue.length > 0} size={26} />
-                <Divider color="rgba(255,255,255,0.2)" />
-                <StarButton song={song} fav={fav} size={24} />
-                {!p.airplayActive && (
-                  <button aria-label="Open visualizer" onClick={() => navigate("/visualizer")} style={iconBtn}><Icon name="visualizer" size="24px" /></button>
-                )}
-                {/* Pushes rather than swapping in place, so the lyrics player's X
-                    returns here — the big player it was opened from, which "full"
-                    names for the fallback when a track turns out to have no lyrics. */}
-                {hasLyrics && (
-                  <button aria-label="Show lyrics" aria-pressed={false} onClick={() => onExpand("lyrics", "full")} style={iconBtn}><Icon name="captions" size="25px" /></button>
-                )}
-                <AirplayButton available={p.airplayAvailable} active={p.airplayActive} onClick={p.showAirplayPicker} size={22} />
-                <button aria-label="Share" onClick={onCopyLink} style={iconBtn}><Icon name="share" size="22px" /></button>
-              </div>
+                <div style={{ width: "min(440px, 86vw)", marginTop: "1.5rem" }}>
+                  <Scrubber positionMs={p.positionMs} durationMs={p.durationMs} onSeek={p.seek} />
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: "1.5rem", marginTop: "1.25rem" }}>
+                  <Transport playing={p.playing} onPrev={p.prev} onToggle={p.toggle} onNext={p.next} canNext={p.queue.length > 0} size={26} />
+                  <Divider color="rgba(255,255,255,0.2)" />
+                  <StarButton song={song} fav={fav} size={24} />
+                  {!p.airplayActive && (
+                    <button aria-label="Open visualizer" onClick={() => navigate("/visualizer")} style={iconBtn}><Icon name="visualizer" size="24px" /></button>
+                  )}
+                  {/* Pushes rather than swapping in place, so the lyrics player's X
+                      returns here — the big player it was opened from, which "full"
+                      names for the fallback when a track turns out to have no lyrics. */}
+                  {hasLyrics && (
+                    <button aria-label="Show lyrics" aria-pressed={false} onClick={() => onExpand("lyrics", "full")} style={iconBtn}><Icon name="captions" size="25px" /></button>
+                  )}
+                  <AirplayButton available={p.airplayAvailable} active={p.airplayActive} onClick={p.showAirplayPicker} size={22} />
+                  <button aria-label="Share" onClick={onCopyLink} style={iconBtn}><Icon name="share" size="22px" /></button>
+                </div>
               </div>
             </>
           )}

@@ -33,7 +33,7 @@ import { t } from "./ui";
 export function UploadToast({ message, uploading, pct, bottom }: { message: string; uploading: boolean; pct: number; bottom: number }) {
   const finalizing = uploading && pct >= 100;
   return (
-    <div style={{ position: "fixed", bottom, left: "50%", transform: "translateX(-50%)", display: "flex", flexDirection: "column", gap: "0.4rem", background: "var(--color-active)", border: "1px solid var(--color-border)", borderRadius: uploading ? 14 : 999, padding: uploading ? "0.55rem 0.9rem" : "0.4rem 1rem", ...t.label, zIndex: 95, minWidth: uploading ? 260 : undefined, maxWidth: "92vw" }}>
+    <div style={{ position: "fixed", bottom: `calc(${bottom}px + var(--tabbar-h) + var(--safe-b))`, left: "50%", transform: "translateX(-50%)", display: "flex", flexDirection: "column", gap: "0.4rem", background: "var(--color-active)", border: "1px solid var(--color-border)", borderRadius: uploading ? 14 : 999, padding: uploading ? "0.55rem 0.9rem" : "0.4rem 1rem", ...t.label, zIndex: 95, minWidth: uploading ? 260 : undefined, maxWidth: "92vw" }}>
       <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
         {finalizing && <Icon name="spinner" size="15px" style={{ animation: "app-spin 0.8s linear infinite" }} />}
         <span>{message}</span>
@@ -446,7 +446,7 @@ export function App() {
     <div className="app-shell" style={{ minHeight: "100vh" }}>
       <Rail route={route} authenticated={authed} studioEnabled={!!session?.studioEnabled} authMode={session?.authMode} username={session?.username ?? ""} playerActive={!!player.current} onUpload={triggerUpload} onQueue={() => setShowQueue((v) => !v)} />
 
-      <div style={{ maxWidth: 1080, margin: "0 auto", padding: "1.5rem 1.25rem 9rem" }}>
+      <div className="page-shell">
         {route.name === "home" ? (
           <Home authenticated={authed} onPlay={onPlay} onShare={shareSong} onUpload={triggerUpload} renderRowActions={rowActions} reloadKey={feedVersion} />
         ) : route.name === "search" ? (

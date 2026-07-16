@@ -151,7 +151,9 @@ export function Rail({ route, authenticated, studioEnabled = false, authMode, us
           backdropFilter: "blur(12px)",
           borderTop: "1px solid var(--color-border)",
           zIndex: 55,
-          paddingBottom: "env(safe-area-inset-bottom, 0)",
+          // Height (incl. this inset) is pinned in .tabbar-mobile, so the dock
+          // can offset itself above the bar exactly. See index.css.
+          paddingBottom: "var(--safe-b)",
         }}
       >
         {ITEMS.map(tabItem)}

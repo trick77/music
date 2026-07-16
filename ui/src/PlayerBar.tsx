@@ -107,7 +107,9 @@ export function PlayerBar({ fav, onShare, renderMenu, alignmentEnabled, open, ly
           position: "fixed",
           left: 0,
           right: 0,
-          bottom: 0,
+          // `bottom` and the safe-area padding live in .player-dock (index.css):
+          // on phones the dock stands on the tab bar rather than on the floor,
+          // and an inline bottom would win over that media query.
           background: "color-mix(in srgb, var(--color-panel) 92%, transparent)",
           backdropFilter: "blur(14px)",
           zIndex: 60,

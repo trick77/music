@@ -292,6 +292,22 @@ html {
   }
 }
 
+/* The bottom furniture, defined once. On phones the tab bar sits on the floor and
+   the docked player stacks on top of it; everything anchored down there — the
+   dock, the page's scroll reserve, the upload toast — offsets itself by these
+   instead of hardcoding its own copy. --tabbar-h is 0 above the phone
+   breakpoint, where navigation is the left rail and the dock owns the floor, so
+   the same expressions stay correct on desktop without a second rule. */
+:root {
+  --tabbar-h: 0px;
+  --safe-b: env(safe-area-inset-bottom, 0px);
+}
+@media (max-width: 720px) {
+  :root {
+    --tabbar-h: 57px;
+  }
+}
+
 /* Desktop icon rail vs. mobile bottom tab bar. */
 .rail-desktop {
   display: flex;
@@ -303,9 +319,27 @@ html {
   .rail-desktop {
     display: none;
   }
+  /* Height is pinned to the token rather than left to the content, so the dock's
+     offset above it is exact by construction. The inset sits below that row.
+     The trade: the bar no longer grows with its content, so a raised browser
+     default font size (the rem-based label and padding scale, the 22px icon does
+     not) or a second line of label would spill over the border instead of
+     stretching the bar. Content wants ~57.5px at a 16px root and ~66px at 20px.
+     If that becomes real, the fix is to measure the bar and feed the dock — not
+     to swap in min-height, which silently breaks the offset the dock relies on. */
   .tabbar-mobile {
     display: flex;
+    height: calc(var(--tabbar-h) + var(--safe-b));
   }
+}
+
+/* The page's scroll reserve: 9rem of clearance for the dock, plus the tab bar
+   the dock now stands on. Without this the last row of every list would sit
+   under the bottom furniture with no scroll left to reach it. */
+.page-shell {
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 1.5rem 1.25rem calc(9rem + var(--tabbar-h) + var(--safe-b));
 }
 
 /* Top-ten row: 4-col grid (rank | cover | title | actions) on tablet+/desktop;
@@ -330,10 +364,28 @@ html {
   .top-rank { display: none; }
   .top-genres { display: none; }
 }
-/* Docked mini-player: instead of a hard border, the scrolling page fades into
-   the dock through a soft gradient just above it (all viewports). The fade
-   starts past the fixed 64px desktop rail so it never dims the rail's lowest
-   icons; on phones the rail becomes a bottom tab bar, so it runs full-width. */
+/* Docked mini-player. It owns the floor on desktop, where it must clear the home
+   indicator itself. On a phone the tab bar is already down there, so the dock
+   stands on top of it — anything else buries the whole navigation (and the tag
+   editor's Save) under the dock the moment a track is loaded, which is the
+   normal state for a returning user. The tab bar's height already includes the
+   inset, so offsetting by both would double-count it: the dock drops its own
+   padding there instead. */
+.player-dock {
+  bottom: 0;
+  padding-bottom: var(--safe-b);
+}
+@media (max-width: 720px) {
+  .player-dock {
+    bottom: calc(var(--tabbar-h) + var(--safe-b));
+    padding-bottom: 0;
+  }
+}
+
+/* Instead of a hard border, the scrolling page fades into the dock through a
+   soft gradient just above it (all viewports). The fade starts past the fixed
+   64px desktop rail so it never dims the rail's lowest icons; on phones the rail
+   becomes a bottom tab bar, so it runs full-width. */
 .player-dock::before {
   content: "";
   position: absolute;
@@ -446,7 +498,12 @@ select.ui-control {
    large touchscreen desktop (>1024px) keeps the centered modal. */
 @media (max-width: 720px),
        (min-width: 721px) and (max-width: 1024px) and (pointer: coarse) {
-  .ui-overlay { padding: 0; }
+  /* Full-screen here means a takeover: lift it over the docked player (z 60) it
+     would otherwise sit under, which used to bury the pinned footer — Save and
+     Cancel were unreachable with a track loaded. Stays below the player overlay
+     (90), which no dialog opens from. On desktop the modal is centred and the
+     dock is nowhere near it, so the stacking order is left alone there. */
+  .ui-overlay { padding: 0; z-index: 70; }
   .ui-modal {
     width: 100%;
     max-height: none;

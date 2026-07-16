@@ -37,3 +37,18 @@ describe("UploadToast", () => {
     expect(html).toContain("app-upload-indef");
   });
 });
+
+// The mobile tab bar and the docked player stack at the bottom of a phone
+// screen. Everything anchored down there derives its offset from the shared
+// --tabbar-h / --safe-b tokens, so the toast can't end up behind the nav.
+describe("UploadToast bottom offset", () => {
+  it("when a track is docked, then the toast clears the dock and the mobile tab bar", () => {
+    const html = renderToStaticMarkup(<UploadToast message="Added" uploading={false} pct={0} bottom={120} />);
+    expect(html).toContain("bottom:calc(120px + var(--tabbar-h) + var(--safe-b))");
+  });
+
+  it("when nothing is docked, then it still clears the mobile tab bar", () => {
+    const html = renderToStaticMarkup(<UploadToast message="Added" uploading={false} pct={0} bottom={80} />);
+    expect(html).toContain("bottom:calc(80px + var(--tabbar-h) + var(--safe-b))");
+  });
+});

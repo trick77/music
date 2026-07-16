@@ -75,6 +75,36 @@ html {
   font-feature-settings: "tnum" 1;
 }
 
+/* The seek bar's track is 4px tall by design — its TOUCH TARGET must not be.
+   Padding grows the input's box while the negative margin cancels the layout
+   effect, so the thin track stays exactly where it was and the tap area becomes
+   38px. 17px is the ceiling, not a preference: the docked player leaves 19px
+   above the track and 17px below it before the transport row, and a target that
+   reached the 40px control minimum would start stealing taps from Play. */
+.scrubber-input {
+  box-sizing: content-box;
+  height: 4px;
+  padding: 17px 0;
+  margin: -17px 0;
+}
+
+/* Row icons are drawn at 32px to keep list rows dense; the hit area is grown to
+   40px with a pseudo-element instead of the box, so the target meets the design
+   system's minimum without widening the row (the title column has nothing to
+   spare on a phone).
+   Library rows space these 14.4px apart, so the halos there can't touch. Home's
+   top-rows sit 5.6px apart, where they do overlap by ~2.4px: the ⋯ is later in
+   the DOM and takes that sliver, which leaves the star a 39x41 target that is
+   simply asymmetric (5px into the row on its left, 2px on its right). Both
+   buttons stay unambiguous at their own centres, so this is a shrug, not a bug —
+   but it's why the halo is 4px and not more. */
+.iconbtn-sm { position: relative; }
+.iconbtn-sm::after {
+  content: "";
+  position: absolute;
+  inset: -4px;
+}
+
 /* Horizontal rails scroll without a visible scrollbar. */
 .hscroll {
   overflow-x: auto;
@@ -143,6 +173,7 @@ html {
   z-index: 3;
 }
 .hero-dots button {
+  position: relative;
   width: 8px;
   height: 8px;
   padding: 0;
@@ -151,6 +182,21 @@ html {
   background: rgba(255, 255, 255, 0.4);
   cursor: pointer;
   transition: background 0.25s;
+}
+/* An 8px dot is not a tap target. The halo grows it to 16x40 without moving the
+   dot: 40 tall because nothing sits above or below it inside the hero, but only
+   +4px per side horizontally — the dots are 8px apart, so a wider halo would
+   overlap its neighbour's and the wrong slide would win the tap. A dot target
+   that reaches 40px WIDE needs the dots spaced further apart, which is a
+   deliberate design call, not something to sneak in behind a hit-area fix.
+   The -16px and .hero-dots' `bottom: 16px` are a pair: the halo's lower edge
+   lands exactly on the hero's (overflow-hidden) bottom edge, so it can't spill
+   onto the section below — and lowering that offset would silently clip the
+   target instead of failing loudly. Move one, re-measure the other. */
+.hero-dots button::after {
+  content: "";
+  position: absolute;
+  inset: -16px -4px;
 }
 .hero-dots button[aria-current="true"] {
   background: var(--color-accent-strong);
@@ -202,9 +248,22 @@ html {
 
 /* Genre links in the featured-song eyebrow — accent-tinted, underline on hover/focus. */
 .hero-genre {
+  position: relative;
   color: var(--color-accent-strong);
   text-decoration: none;
   cursor: pointer;
+}
+/* The eyebrow's genre link is 14px of text. The halo grows it to 30px, not the
+   40px the other targets get: a song can carry several genres, and at a narrow
+   width the eyebrow wraps them onto lines ~16.5px apart. A halo tall enough for
+   40px reaches into the line above, and the later link in the DOM wins that
+   band — tapping one genre would open a different one. 8px per side is the most
+   that keeps every line's target its own. (Spacing the lines out instead would
+   move the visual, which is the one thing a hit-area fix must not do.) */
+.hero-genre::after {
+  content: "";
+  position: absolute;
+  inset: -8px -6px;
 }
 .hero-genre:hover,
 .hero-genre:focus-visible {

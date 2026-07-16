@@ -22,6 +22,14 @@ clay accent. Tokens live in `ui/src/index.css` (`@theme`); shared primitives liv
 | `--text-label` | 0.8125rem / 13px | Field labels, helper/muted text (sans, muted, wt 500) |
 | `--text-micro` | 0.6875rem / 11px | Uppercase badges/ribbons (sans, +letter-spacing) |
 
+**One exception, and only for text inputs:** `--text-input` is `--text-ui` (15px) on a fine
+pointer and **16px on `(pointer: coarse)`**. iOS Safari zooms the page in whenever a focused
+input renders under 16px and never zooms back out, so a touch device gets the bump and keeps a
+stable viewport; everything else — including read-only text that merely looks like a field —
+stays on the scale. Fields must take their size from `--text-input` (via `.ui-control`,
+`controlStyle`, or the token directly), never from `--text-ui`: an inline `font-size` would
+out-specify a media query written against the element.
+
 Immersive hero headings may use `clamp()` between the scale endpoints (fluid over artwork).
 
 ### Spacing scale
@@ -55,7 +63,8 @@ one intentional literal.
 ## Components
 
 - **Form controls** (select / input / textarea): `min-height 40px`, `padding 0 12px` (textarea
-  `10px 12px`), `font 15px`, `radius 10px`, `bg --color-panel`, `1px --color-border`. Focus =
+  `10px 12px`), `font --text-input` (15px; 16px on touch — see the type scale), `radius 10px`,
+  `bg --color-panel`, `1px --color-border`. Focus =
   2px **accent fill** ring. Textareas resize vertically. Selects drop the native appearance for
   a custom lucide `chevron-down` (`--color-muted`, right 12px).
 - **Field label**: 13px, `--color-muted`, wt 500, `margin-bottom 6px`. One label style everywhere
@@ -102,7 +111,8 @@ one intentional literal.
     height − 32px) rather than `90dvh`, so a *very tall* dialog may run ~7% taller and its gutter
     is a flat 16px instead of a proportional ~54px. Accepted: it spends the visible band where the
     band is scarce, and no current dialog is tall enough to reach either cap on a desktop window.
-- **Search field**: 999px pill, leading search icon, borderless 15px input.
+- **Search field**: 999px pill, leading search icon, borderless `--text-input` input (15px;
+  16px on touch).
 - **Cards / tiles**: cover art falls back to a serif monogram on `--color-active`. Ribbons =
   `rgba(0,0,0,.5)` 999px 11px + accent-text dot. Chips = active 999px 13px with ✕. Dashed tile =
   "add" affordance. Tinted CTA = accent-text on `color-mix(accent-text 12%)`.
@@ -208,5 +218,12 @@ never scrolls sideways.
 **One documented exception:** `.ui-modal` also goes full-screen on touch tablets up to 1024px
 (`(min-width: 721px) and (max-width: 1024px) and (pointer: coarse)` — iPad portrait/landscape),
 where a centered dialog leaves the footer cramped against the viewport edge. A large *touchscreen
-desktop* (>1024px) keeps the centered modal. This is the only place a second breakpoint is
-sanctioned; don't add more.
+desktop* (>1024px) keeps the centered modal.
+
+Two further `(pointer: coarse)` rules are sanctioned, both keyed on input capability rather than
+viewport size — a mouse-driven touchscreen laptop reports `fine` and is unaffected:
+- `--text-input` → 16px, which is what stops iOS zooming a focused field (see the type scale).
+- `.rail-more` (the rails' ‹/› nudge buttons) → hidden: a rail is swipeable on touch, so they are
+  clutter there. The edge fade still signals off-screen content.
+
+That is the full list; don't add more.

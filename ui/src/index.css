@@ -66,6 +66,23 @@ html {
   color-scheme: dark;
 }
 
+/* Text inputs follow the UI step of the type scale — except on a touch screen,
+   where iOS Safari zooms the whole page in whenever you focus an input rendering
+   under 16px, and never zooms back out. The type scale has no 16px step (--text-ui
+   is 15px), so this is a deliberate one-off: a pointer-coarse-only bump that buys
+   the phone a stable viewport. Desktop keeps the scale exactly.
+   Inputs pick this up through .ui-control (which nearly all of them use) and
+   through controlStyle in ui.tsx, so an inline font-size can't out-specify the
+   media query. */
+:root {
+  --text-input: var(--text-ui);
+}
+@media (pointer: coarse) {
+  :root {
+    --text-input: 16px;
+  }
+}
+
 /* ── Phase 6 immersive utilities ─────────────────────────────────────────── */
 
 /* Rank numbers use Anthropic Sans with tabular figures (spec §15). */
@@ -228,6 +245,15 @@ html {
 }
 .rail-more-right {
   right: 6px;
+}
+/* A rail is swipeable on a touch screen, so the nudge buttons are pure clutter
+   there — and at 34px they miss the 40px target anyway. They stay for pointers
+   that can't swipe. The edge fade still signals that more is off-screen, so
+   nothing is lost. */
+@media (pointer: coarse) {
+  .rail-more {
+    display: none;
+  }
 }
 
 /* Frosted glass panel used by immersive detail/hero copy. */
@@ -497,7 +523,7 @@ body {
   border-radius: var(--radius-ui);
   color: var(--color-ink);
   font-family: var(--font-sans);
-  font-size: var(--text-ui);
+  font-size: var(--text-input);
   outline: none;
 }
 .ui-control:focus-visible {

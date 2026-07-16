@@ -1,14 +1,16 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import type { Song } from "./api";
 
-// Records the order of the two calls that must not be swapped: the analyser tap
-// (prime) has to run BEFORE el.play(), so the element is rerouted into the graph
-// while still paused (seamless) rather than mid-playback (the first-open glitch).
+// Records the calls the play path makes. The invariant under test: playing must
+// NEVER tap the element into the Web Audio graph. createMediaElementSource()
+// pulls the <audio> out of the browser's normal output and into our graph, and
+// WebKit interrupts the AudioContext when an iPhone locks — so a tapped element
+// goes silent on the lock screen (timer keeps advancing, no sound, returns on
+// unlock). Only the visualizer may tap, and only when actually opened.
 const { order } = vi.hoisted(() => ({ order: [] as string[] }));
 
 vi.mock("./analyser", () => ({
-  prime: vi.fn(() => order.push("prime")),
-  attach: vi.fn(),
+  attach: vi.fn(() => order.push("attach")),
   resume: vi.fn(),
   bands: vi.fn(() => []),
   isAttached: vi.fn(() => false),
@@ -58,23 +60,37 @@ describe("player play path", () => {
   });
   afterEach(() => vi.unstubAllGlobals());
 
-  it("primes the analyser before el.play() on first play", async () => {
+  it("plays without tapping the element into the Web Audio graph", async () => {
     const { player } = await import("./player");
 
     player.play(song("a"));
 
-    expect(order).toEqual(["prime", "play"]);
+    expect(order).toEqual(["play"]);
   });
 
-  it("primes the analyser before el.play() when resuming from pause via toggle", async () => {
+  it("does not tap the element when resuming from pause via toggle", async () => {
     const { player } = await import("./player");
 
-    player.play(song("a")); // start (prime + play)
+    player.play(song("a")); // start
     order.length = 0;
-    player.toggle(); // pause — no prime, no play
-    player.toggle(); // resume — must prime before play
+    player.toggle(); // pause — no play
+    player.toggle(); // resume — plays, still untapped
 
-    expect(order).toEqual(["prime", "play"]);
+    expect(order).toEqual(["play"]);
+  });
+
+  // The tap itself (attach → createMediaElementSource) is what breaks lock-screen
+  // audio, so the play path must never reach it. Asserted separately from the call
+  // order above: a future refactor could reintroduce the tap without disturbing it.
+  it("never taps the element from the play path, so lock-screen audio survives", async () => {
+    const { player } = await import("./player");
+    const { attach } = await import("./analyser");
+
+    player.play(song("a"));
+    player.toggle(); // pause
+    player.toggle(); // resume
+
+    expect(attach).not.toHaveBeenCalled();
   });
 });
 

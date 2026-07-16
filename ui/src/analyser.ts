@@ -43,10 +43,16 @@ function ensureAnalyser(): AnalyserNode | null {
 // Audio still reaches the speakers because the analyser is wired to destination.
 //
 // createMediaElementSource pulls the element out of the browser's default output
-// and into our graph. On an *already-playing* element that reroute cuts the sound
-// out for a moment — so the real fix is to tap before playback starts (see
-// prime()); by the time the visualizer calls attach() the element is already
-// tapped and this is a no-op.
+// and into our graph. Two consequences worth knowing before calling this from
+// anywhere new:
+//   1. On an *already-playing* element the reroute cuts the sound out for a
+//      moment — the visible first-open equalizer stutter. Unavoidable here.
+//   2. A tapped element goes SILENT on an iPhone lock screen: WebKit interrupts
+//      the AudioContext and hands the hardware back to the system, so playback
+//      dead-ends in the suspended graph (currentTime keeps advancing, sound
+//      returns on unlock).
+// (2) is much worse than (1), so only the visualizer taps, and only when opened.
+// Never call this from the play path.
 export function attach(el: HTMLMediaElement | null): void {
   if (!el || sourceEl) return;
   const a = ensureAnalyser();
@@ -60,19 +66,17 @@ export function attach(el: HTMLMediaElement | null): void {
   sourceEl = el;
 }
 
-// prime taps the element into the graph BEFORE it starts playing and un-suspends
-// the context, so audio flows the instant play() begins. Rerouting a paused
-// element is seamless; rerouting a playing one glitches — call this from the play
-// path, inside the user gesture, right before el.play(). Idempotent.
-export function prime(el: HTMLMediaElement | null): void {
-  attach(el);
-  resume();
-}
-
 // resume un-suspends the context. Browsers start it suspended until a user
 // gesture; the play button already provided one before the visualizer opens.
+//
+// "interrupted" is a non-standard WebKit state used on iOS (e.g. after a lock or
+// a phone call) that the spec's "suspended" doesn't cover, so it's matched here
+// too. Note this only restores the analyser once the user is back — iOS refuses
+// to resume an interrupted context while the screen is still locked. Keeping the
+// play path untapped is what actually preserves lock-screen audio.
 export function resume(): void {
-  if (ctx && ctx.state === "suspended") void ctx.resume();
+  const s = ctx?.state as AudioContextState | "interrupted" | undefined;
+  if (ctx && (s === "suspended" || s === "interrupted")) void ctx.resume();
 }
 
 export function isAttached(): boolean {

@@ -203,3 +203,23 @@ describe("PlayerBar visualizer/lyrics buttons", () => {
     expect(mini).toContain('aria-label="Show lyrics"');
   });
 });
+
+describe("expanded player tap-to-close", () => {
+  it("when the big player is open, then its scrubber and transport are marked no-dismiss", () => {
+    // Tapping the background closes the player (backgroundDismiss.ts); the
+    // control cluster must be excluded so near-misses around the buttons don't.
+    const html = render(false, song(), true, false);
+    const markers = html.match(/data-player-ui/g) ?? [];
+    expect(markers.length).toBe(1); // ONE cluster wrapping both rows — covers the gap between them
+  });
+
+  it("when the karaoke player is open, then its docked control band is marked no-dismiss", () => {
+    const html = render(false, song({ alignmentStatus: "" }), true, true);
+    expect(html).toContain("data-player-ui");
+  });
+
+  it("when the player is collapsed, then the mini bar carries no dismiss zone", () => {
+    // The mini bar isn't an immersive view — nothing there closes on a tap.
+    expect(render(false, song(), false, false)).not.toContain("data-player-ui");
+  });
+});

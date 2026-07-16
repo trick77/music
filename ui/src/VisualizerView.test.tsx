@@ -73,3 +73,11 @@ describe("VisualizerView control row", () => {
     expect(html).not.toContain("data-divider");
   });
 });
+
+describe("VisualizerView tap-to-close", () => {
+  it("when the visualizer renders, then its control band is marked no-dismiss", () => {
+    // The band — not just the buttons — so a tap that misses pause by a few
+    // pixels doesn't close the view. The rule itself lives in backgroundDismiss.
+    expect(render(song())).toContain("data-player-ui");
+  });
+});

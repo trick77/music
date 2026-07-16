@@ -77,7 +77,10 @@ export const IMMERSIVE_CONTROLS_RESERVE = `calc(${IMMERSIVE_CONTROLS_BOTTOM} + 1
 
 export function ImmersiveControls({ positionMs, durationMs, onSeek, children }: { positionMs: number; durationMs: number; onSeek: (ms: number) => void; children: React.ReactNode }) {
   return (
-    <div style={{ position: "absolute", bottom: IMMERSIVE_CONTROLS_BOTTOM, left: 0, right: 0, display: "flex", justifyContent: "center", zIndex: 3 }}>
+    // data-player-ui marks the whole band — not just the buttons — as no-dismiss,
+    // so a tap that misses pause by a few pixels doesn't close the view around it
+    // (see backgroundDismiss.ts).
+    <div data-player-ui style={{ position: "absolute", bottom: IMMERSIVE_CONTROLS_BOTTOM, left: 0, right: 0, display: "flex", justifyContent: "center", zIndex: 3 }}>
       <div data-immersive-controls style={{ width: "min(760px, 96vw)" }}>
         <Scrubber positionMs={positionMs} durationMs={durationMs} onSeek={onSeek} />
         <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "1.5rem", marginTop: "0.75rem" }}>

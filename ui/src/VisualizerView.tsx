@@ -2,6 +2,7 @@ import { useEffect, useRef } from "react";
 import { player, usePlayer } from "./player";
 import { coverUrl } from "./cover";
 import { closeToOrigin } from "./router";
+import { useBackgroundDismiss } from "./backgroundDismiss";
 import { attach, resume, bands } from "./analyser";
 import { Icon } from "./Icon";
 import { Divider, ImmersiveControls, StarButton, Transport, iconBtn, type Fav } from "./PlayerControls";
@@ -153,8 +154,13 @@ export function VisualizerView({ fav, onShare }: { fav: Fav; onShare: (s: Song) 
   // Escape leaves the visualizer, exactly as its X does.
   useEscape(true, close);
 
+  // So does tapping the background — the bars and the cover art behind them are
+  // all backdrop here; only the control band is excluded.
+  const dismiss = useBackgroundDismiss(close);
+
   return (
     <div
+      {...dismiss}
       style={{
         position: "fixed",
         inset: 0,

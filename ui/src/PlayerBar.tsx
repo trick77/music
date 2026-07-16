@@ -8,6 +8,7 @@ import { getAlign, postAlign, type AlignmentData, type Song } from "./api";
 import { navigate, type PlayerParam } from "./router";
 import { AirplayButton, Divider, ImmersiveControls, IMMERSIVE_CONTROLS_RESERVE, Scrubber, StarButton, Transport, iconBtn, type Fav } from "./PlayerControls";
 import { useEscape } from "./useEscape";
+import { useBackgroundDismiss } from "./backgroundDismiss";
 
 // PlayerBar renders the docked mini-player (whenever a track is loaded) and,
 // when expanded, the full-screen player. Both are driven entirely by the
@@ -66,6 +67,10 @@ export function PlayerBar({ fav, onShare, renderMenu, alignmentEnabled, open, ly
 
   // Escape leaves the expanded player — the same single destination its X goes to.
   useEscape(open, onClose);
+
+  // Tapping the background does the same. Artwork, title and lyrics all count as
+  // background; the controls and the band around them never dismiss.
+  const backgroundDismiss = useBackgroundDismiss(onClose);
 
   // A full-screen takeover must not leave the page behind it scrollable. Besides
   // the obvious wart — scrolling a page you can't see — that page's scrollbar
@@ -145,6 +150,7 @@ export function PlayerBar({ fav, onShare, renderMenu, alignmentEnabled, open, ly
 
       {open && (
         <div
+          {...backgroundDismiss}
           style={{
             position: "fixed",
             inset: 0,
@@ -221,6 +227,11 @@ export function PlayerBar({ fav, onShare, renderMenu, alignmentEnabled, open, ly
               {/* Title/artist type matches the lyrics player's now-playing chip. */}
               <h2 style={{ margin: "1.5rem 0 0.25rem", fontFamily: "var(--font-serif)", fontWeight: 700, fontSize: "clamp(1.1rem, 3vw, 1.6rem)", color: "#fff", textAlign: "center" }}>{song.title}</h2>
               <p style={{ margin: 0, fontFamily: "var(--font-sans)", fontSize: "var(--text-ui)", color: "rgba(255,255,255,0.72)" }}>{song.artistName}</p>
+              {/* One data-player-ui wrapper around BOTH rows, not one per row: it
+                  has to cover the gap between the scrubber and the transport too,
+                  or a tap that lands between them closes the player. The karaoke
+                  and visualizer band gets this for free via ImmersiveControls. */}
+              <div data-player-ui style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
               <div style={{ width: "min(440px, 86vw)", marginTop: "1.5rem" }}>
                 <Scrubber positionMs={p.positionMs} durationMs={p.durationMs} onSeek={p.seek} />
               </div>
@@ -239,6 +250,7 @@ export function PlayerBar({ fav, onShare, renderMenu, alignmentEnabled, open, ly
                 )}
                 <AirplayButton available={p.airplayAvailable} active={p.airplayActive} onClick={p.showAirplayPicker} size={22} />
                 <button aria-label="Share" onClick={onCopyLink} style={iconBtn}><Icon name="share" size="22px" /></button>
+              </div>
               </div>
             </>
           )}

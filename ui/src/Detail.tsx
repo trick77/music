@@ -14,6 +14,7 @@ import { genreLabel } from "./titleCase";
 import { Glyph } from "./Glyph";
 import { Icon } from "./Icon";
 import { GenreEditor } from "./GenreEditor";
+import { UnpublishedBadge } from "./ui";
 
 export type DetailKind = "genre" | "artist";
 
@@ -156,8 +157,9 @@ export function Detail({ kind, id, authenticated, studioEnabled, imageGenEnabled
               </button>
               <button onClick={() => onPlay(s, songs.slice(i + 1))} style={{ ...linkBtn, textAlign: "left", minWidth: 0 }}>
                 <div style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: current?.id === s.id ? "var(--color-accent-strong)" : undefined }}>{s.title}</div>
-                <div style={{ display: "flex", alignItems: "center", gap: "0.6rem", color: "var(--color-muted)", fontSize: "var(--text-label)" }}>
+                <div className="row-meta" style={{ display: "flex", alignItems: "center", gap: "0.6rem", color: "var(--color-muted)", fontSize: "var(--text-label)" }}>
                   <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.artistName}</span>
+                  <UnpublishedBadge show={authenticated && !s.published} placement="meta" />
                 </div>
               </button>
               <span style={{ display: "flex", alignItems: "center", gap: "0.35rem" }}>{renderRowActions(s)}</span>

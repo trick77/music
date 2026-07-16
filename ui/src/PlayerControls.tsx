@@ -8,6 +8,9 @@ import { type Song } from "./api";
 
 export type Fav = { has: (id: string) => boolean; toggle: (id: string) => void };
 
+// Action icons sit muted by default — the same tint the star carries when it's
+// off — so the transport stays the one bright thing in every control row. The
+// transport opts back up to ink explicitly.
 export const iconBtn: React.CSSProperties = {
   display: "grid",
   placeItems: "center",
@@ -16,7 +19,7 @@ export const iconBtn: React.CSSProperties = {
   borderRadius: 8,
   background: "none",
   border: "none",
-  color: "var(--color-ink)",
+  color: "var(--color-muted)",
   cursor: "pointer",
 };
 
@@ -45,14 +48,14 @@ export function StarButton({ song, fav, size = 20 }: { song: Song; fav: Fav; siz
 // AirplayButton renders only when Safari reports an AirPlay target on the network
 // (available); it opens the native picker and highlights while audio is routed to
 // a device (active). Absent in non-Safari browsers, where available stays false.
-export function AirplayButton({ available, active, onClick, size = 20, color = "var(--color-ink)" }: { available: boolean; active: boolean; onClick: () => void; size?: number; color?: string }) {
+export function AirplayButton({ available, active, onClick, size = 20 }: { available: boolean; active: boolean; onClick: () => void; size?: number }) {
   if (!available) return null;
   return (
     <button
       aria-label="AirPlay"
       aria-pressed={active}
       onClick={onClick}
-      style={{ ...iconBtn, color: active ? "var(--color-accent-strong)" : color }}
+      style={active ? { ...iconBtn, color: "var(--color-accent-strong)" } : iconBtn}
     >
       <Icon name="airplay" size={`${size}px`} />
     </button>
@@ -86,7 +89,7 @@ export function Scrubber({ positionMs, durationMs, onSeek, accent = "var(--color
 export function Transport({ playing, onPrev, onToggle, onNext, canNext = true, size = 22 }: { playing: boolean; onPrev: () => void; onToggle: () => void; onNext: () => void; canNext?: boolean; size?: number }) {
   return (
     <div style={{ display: "flex", alignItems: "center", gap: "0.4rem" }}>
-      <button aria-label="Previous" onClick={onPrev} style={iconBtn}><Glyph name="prev" size={size - 2} /></button>
+      <button aria-label="Previous" onClick={onPrev} style={{ ...iconBtn, color: "var(--color-ink)" }}><Glyph name="prev" size={size - 2} /></button>
       <button
         aria-label={playing ? "Pause" : "Play"}
         onClick={onToggle}
@@ -98,7 +101,7 @@ export function Transport({ playing, onPrev, onToggle, onNext, canNext = true, s
         aria-label="Next"
         onClick={onNext}
         disabled={!canNext}
-        style={canNext ? iconBtn : { ...iconBtn, color: "var(--color-muted)", cursor: "default" }}
+        style={canNext ? { ...iconBtn, color: "var(--color-ink)" } : { ...iconBtn, cursor: "default", opacity: 0.45 }}
       >
         <Glyph name="next" size={size - 2} />
       </button>

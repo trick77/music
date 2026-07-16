@@ -5,6 +5,7 @@ import { IMAGE_ACCEPT, useImageDrop } from "./imageDrop";
 import { Icon } from "./Icon";
 import { Button, controlClass, fieldLabel, t, Spinner, Overlay } from "./ui";
 import { titleCase, genreLabel } from "./titleCase";
+import { useEscape } from "./useEscape";
 import {
   formatDuration, formatFileSize, formatDateAdded, formatLastPlayed,
   formatBitrate, formatSampleRate, formatChannels,
@@ -104,11 +105,8 @@ export function TagEditor({ song, onClose, onSaved }: Props) {
         : song.coverArtId ? coverUrl(song.coverArtId) : null;
 
   // Esc closes the dialog (unless a save is in flight), matching the other modals.
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape" && !saving) onClose(); };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [onClose, saving]);
+  // Registered even mid-save so the press stops here rather than reaching past it.
+  useEscape(true, () => { if (!saving) onClose(); });
 
   // Release the staged file's object URL once it's superseded or the editor closes.
   useEffect(() => {

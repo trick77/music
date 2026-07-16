@@ -1,5 +1,6 @@
 import { useEffect, useRef, type ReactNode } from "react";
 import { Spinner, buttonStyle } from "./ui";
+import { useEscape } from "./useEscape";
 
 // ConfirmDialog is a reusable modal confirmation on the elevated surface, over the
 // loom-style blurred backdrop. Escape or the backdrop cancels; the confirm button
@@ -30,13 +31,9 @@ export function ConfirmDialog({
   useEffect(() => {
     confirmRef.current?.focus();
   }, []);
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && !busy) onCancel();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [onCancel, busy]);
+  // Registered whenever the dialog is up, busy or not: a visible modal must keep
+  // swallowing Escape, or the press falls through to the surface underneath it.
+  useEscape(true, () => { if (!busy) onCancel(); });
 
   return (
     <div

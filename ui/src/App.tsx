@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { getSession, listSongs, uploadSong, setPublished, deleteSong, postAlign, type Session, type Song } from "./api";
 import { TagEditor } from "./TagEditor";
+import { useEscape } from "./useEscape";
 import { Library } from "./Library";
 import { QueueDrawer } from "./QueueDrawer";
 import { SongMenu } from "./SongMenu";
@@ -96,19 +97,17 @@ export function App() {
   // block for position:fixed descendants, so that backdrop is clamped to the thin
   // bar box instead of covering the viewport. Close on an outside pointer-down or
   // Escape instead. (List rows have no such ancestor, so their backdrop still works.)
+  // Escape goes through the shared stack so an open menu swallows the press
+  // instead of also closing the player overlay underneath it.
   useEffect(() => {
     if (!playerMenuOpen) return;
     const onDown = (e: MouseEvent) => {
       if (!playerMenuRef.current?.contains(e.target as Node)) setPlayerMenuOpen(false);
     };
-    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setPlayerMenuOpen(false); };
     document.addEventListener("mousedown", onDown);
-    document.addEventListener("keydown", onKey);
-    return () => {
-      document.removeEventListener("mousedown", onDown);
-      document.removeEventListener("keydown", onKey);
-    };
+    return () => document.removeEventListener("mousedown", onDown);
   }, [playerMenuOpen]);
+  useEscape(playerMenuOpen, useCallback(() => setPlayerMenuOpen(false), []));
 
   const refresh = () => listSongs().then(setSongs).catch(() => {});
 
@@ -193,15 +192,6 @@ export function App() {
     if (!curId) return;
     pushedPlayer.current = true;
     pushPlayer(curId, mode);
-  }, [curId]);
-  // Leaving the visualizer for the lyrics player deliberately does NOT mark the
-  // overlay as pushed: closing it then lands Home, the same single destination
-  // every other entry point closes to, instead of reopening the visualizer the
-  // viewer already left.
-  const showLyricsFromVisualizer = useCallback(() => {
-    if (!curId) return;
-    pushedPlayer.current = false;
-    pushPlayer(curId, "lyrics");
   }, [curId]);
   const setPlayerMode = useCallback((mode: PlayerParam) => {
     if (!curId) return;
@@ -504,7 +494,7 @@ export function App() {
 
       <PlayerBar fav={fav} onShare={shareSong} renderMenu={playerMenu} alignmentEnabled={!!session?.alignmentEnabled} open={playerParam !== null} lyrics={playerParam === "lyrics"} onExpand={expandPlayer} onSetMode={setPlayerMode} onClose={closePlayerView} onCopyLink={copyPlayerLink} />
 
-      {route.name === "visualizer" && <VisualizerView fav={fav} onShare={shareSong} onShowLyrics={showLyricsFromVisualizer} />}
+      {route.name === "visualizer" && <VisualizerView fav={fav} onShare={shareSong} />}
 
       {showQueue && (
         <QueueDrawer

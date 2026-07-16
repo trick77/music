@@ -166,3 +166,40 @@ describe("PlayerBar transport divider", () => {
     expect(white(html)).toBe(1);
   });
 });
+
+describe("PlayerBar visualizer/lyrics buttons", () => {
+  // The mini bar renders first, the expanded overlay after it, so the overlay is
+  // everything from its close X onwards. Splitting there keeps an assertion about
+  // one surface from being satisfied by the other's copy of the same button.
+  const split = (html: string) => {
+    const at = html.indexOf('aria-label="Close player"');
+    return at === -1 ? { mini: html, overlay: "" } : { mini: html.slice(0, at), overlay: html.slice(at) };
+  };
+  const orderedVisThenLyrics = (row: string) => {
+    const vis = row.indexOf('aria-label="Open visualizer"');
+    const lyr = row.indexOf('aria-label="Show lyrics"');
+    expect(vis).toBeGreaterThan(-1);
+    expect(lyr).toBeGreaterThan(vis);
+  };
+
+  it("when the mini bar renders, then the visualizer sits left of the lyrics button", () => {
+    orderedVisThenLyrics(split(render(false, song(), false, false)).mini);
+  });
+
+  it("when the artwork player is open, then the visualizer sits left of the lyrics button", () => {
+    orderedVisThenLyrics(split(render(false, song(), true, false)).overlay);
+  });
+
+  it("when the karaoke player is open, then its row offers neither button — the X is the way out", () => {
+    // The overlay row holds no lyrics/visualizer/artwork toggle: it is left via
+    // the X (or Esc), not swapped away in place. The mini bar below is unaffected.
+    const { overlay, mini } = split(render(false, song(), true, true));
+    expect(overlay).not.toContain('aria-label="Open visualizer"');
+    expect(overlay).not.toContain('aria-label="Show lyrics"');
+    expect(overlay).not.toContain('aria-label="Show artwork"');
+    expect(overlay).toContain('aria-label="Close player"');
+    // The mini bar underneath is untouched — it still launches both views.
+    expect(mini).toContain('aria-label="Open visualizer"');
+    expect(mini).toContain('aria-label="Show lyrics"');
+  });
+});

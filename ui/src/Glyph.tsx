@@ -1,7 +1,7 @@
 import type { CSSProperties } from "react";
 import {
   House, Search, Disc3, Library, Upload, Sparkles,
-  Play, Pause, SkipForward, SkipBack, Plus, ListMusic, ListVideo, User,
+  Play, Pause, SkipForward, SkipBack, Plus, ListEnd, ListVideo, User,
   type LucideIcon,
 } from "lucide-react";
 
@@ -24,7 +24,7 @@ const COMPONENTS = {
   next: SkipForward,
   prev: SkipBack,
   plus: Plus,
-  queue: ListMusic,
+  queue: ListEnd, // same mark the "Add to queue" menu item uses (Icon.openItems)
   playlist: ListVideo,
   user: User,
 } satisfies Record<string, LucideIcon>;

@@ -6,6 +6,7 @@ import { Icon } from "./Icon";
 import { navigate } from "./router";
 import { Button, controlClass, fieldLabel, t } from "./ui";
 import { genreLabel } from "./titleCase";
+import { useEscape } from "./useEscape";
 
 type Props = { detail: GenreDetail; studioEnabled: boolean; imageGenEnabled: boolean; onClose: () => void; onChanged: () => void };
 
@@ -19,6 +20,8 @@ export function GenreEditor({ detail, studioEnabled, imageGenEnabled, onClose, o
   const [name, setName] = useState(genreLabel(detail.genre.name));
   const [err, setErr] = useState<string | null>(null);
   const genreId = detail.genre.id;
+
+  useEscape(true, onClose);
 
   const refresh = () => onChanged();
 

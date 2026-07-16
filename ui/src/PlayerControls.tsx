@@ -78,7 +78,12 @@ export const IMMERSIVE_CONTROLS_RESERVE = `calc(${IMMERSIVE_CONTROLS_BOTTOM} + 1
 export function ImmersiveControls({ positionMs, durationMs, onSeek, children }: { positionMs: number; durationMs: number; onSeek: (ms: number) => void; children: React.ReactNode }) {
   return (
     <div style={{ position: "absolute", bottom: IMMERSIVE_CONTROLS_BOTTOM, left: 0, right: 0, display: "flex", justifyContent: "center", zIndex: 3 }}>
-      <div data-immersive-controls style={{ width: "min(760px, 96vw)" }}>
+      {/* data-player-ui marks the control box — not just the buttons — as
+          no-dismiss, so a tap that misses pause by a few pixels, or lands in the
+          gap between scrubber and transport, doesn't close the view around it
+          (see backgroundDismiss.ts). It sits on the box rather than the
+          full-width row so the empty corners either side stay dismissable. */}
+      <div data-player-ui data-immersive-controls style={{ width: "min(760px, 96vw)" }}>
         <Scrubber positionMs={positionMs} durationMs={durationMs} onSeek={onSeek} />
         <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "1.5rem", marginTop: "0.75rem" }}>
           {children}

@@ -48,11 +48,53 @@ class TestApplyConsensus:
 
         out = apply_consensus(given, [280.54, 281.19])
 
-        assert out[0]["words"][0]["start"] == 280.54
+        # capped at "corner" (280.46) to stay monotonic — still recovers 1.48s of the
+        # 1.56s error, and the cap is itself within threshold of the true onset
+        assert out[0]["words"][0]["start"] == 280.46
         # end must move out with the start, never leaving an inverted span
-        assert out[0]["words"][0]["end"] >= 280.54
+        assert out[0]["words"][0]["end"] >= 280.46
         # "corner" disagreed by only 0.73s (< threshold) -> untouched
         assert out[0]["words"][1]["start"] == 280.46
+
+    def test_a_corrected_start_never_passes_the_next_word(self):
+        # Only the worst word of a smeared run usually clears the threshold. Moving it
+        # to the alt onset unchecked would put it AFTER its neighbour, and the frontend
+        # sweeps by start time — it would light the words out of order.
+        given = [line("Every corner", [("Every", 278.98, 280.44), ("corner", 280.46, 281.72)])]
+
+        out = apply_consensus(given, [281.90, None])
+
+        assert out[0]["words"][0]["start"] <= out[0]["words"][1]["start"]
+
+    def test_starts_stay_monotonic_across_the_whole_line(self):
+        given = [line("a b c", [("a", 10.0, 10.2), ("b", 12.0, 12.2), ("c", 12.4, 12.6)])]
+
+        out = apply_consensus(given, [13.5, None, None])
+
+        got = [w["start"] for w in out[0]["words"]]
+        assert got == sorted(got), f"non-monotonic word starts: {got}"
+
+    def test_untimed_words_are_left_untimed(self):
+        # grouping.py leaves a line untimed (None) when nothing matched; the frontend
+        # relies on that to never activate the line. There is no primary opinion to
+        # disagree with, so consensus must not invent one.
+        given = [
+            {
+                "text": "unknown line",
+                "start": None,
+                "end": None,
+                "words": [
+                    {"w": "unknown", "start": None, "end": None, "conf": 0.0},
+                    {"w": "line", "start": None, "end": None, "conf": 0.0},
+                ],
+            }
+        ]
+
+        out = apply_consensus(given, [123.4, 124.5])
+
+        assert out[0]["words"][0]["start"] is None
+        assert out[0]["words"][1]["start"] is None
+        assert out[0]["start"] is None
 
     def test_keeps_primary_when_the_second_aligner_is_the_earlier_one(self):
         # MMS dragged this line 29s back into an instrumental gap; WhisperX was right.
@@ -102,8 +144,8 @@ class TestApplyConsensus:
 
         out = apply_consensus(given, [280.54])
 
-        assert out[0]["words"][0]["start"] == 280.54
-        assert out[0]["words"][1]["start"] == 280.46
+        assert out[0]["words"][0]["start"] == 280.46  # capped at "corner" to stay monotonic
+        assert out[0]["words"][1]["start"] == 280.46  # no alt for it -> untouched
 
     def test_threshold_boundary_is_exclusive(self):
         given = [line("word", [("word", 100.0, 100.5)])]

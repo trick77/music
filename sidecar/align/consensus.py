@@ -102,33 +102,49 @@ def _model(bundle, device):
 def apply_consensus(grouped, alt_starts, threshold=CONSENSUS_THRESHOLD):
     """Take the LATER start wherever the two aligners disagree by > threshold.
 
-    `alt_starts` is positional over the flattened source words of `grouped` — the
-    same order group_words_into_lines emits, one entry per source word.
+    `alt_starts` is positional over the flattened source words of `grouped`, which
+    group_words_into_lines emits as exactly one entry per source word, in source
+    order — the same order as `[w for ln in lines for w in ln.split()]`.
 
     Only a *later* second opinion can win: if the second aligner is the earlier of
-    the two it is the one that smeared, and the primary stands. A word's end is
-    pushed out with its start so the span can never invert; line bounds are then
-    recomputed from the words they contain.
+    the two it is the one that smeared, and the primary stands.
+
+    A corrected start is capped at the next word's start, because typically only the
+    worst word of a smeared run clears the threshold: moving it to the second
+    aligner's onset unchecked would push it PAST its neighbour, and the frontend
+    sweeps words by start time, so it would light them out of order. The cap keeps
+    timings monotonic and still recovers nearly all of the error (the neighbour's own
+    start is, by construction, within `threshold` of the true onset).
+
+    Words the primary never timed (start is None — grouping's "we don't know", which
+    the frontend renders by never activating the line) are left alone: there is no
+    primary opinion to disagree with.
     """
+    words = [w for line in grouped for w in line["words"]]
+    starts = [w["start"] for w in words]
     moved = 0
-    i = 0
+
+    for i, w in enumerate(words):
+        alt = alt_starts[i] if i < len(alt_starts) else None
+        start = starts[i]
+        if alt is None or start is None:
+            continue
+        if alt - float(start) <= threshold:
+            continue  # agreement, jitter, or the alt is the smeared one
+        nxt = next((s for s in starts[i + 1:] if s is not None), None)
+        new = min(alt, float(nxt)) if nxt is not None else alt
+        if new <= float(start):
+            continue  # the cap left nothing to gain; never move a word earlier
+        w["start"] = new
+        if w["end"] is None or float(w["end"]) < new:
+            w["end"] = new
+        moved += 1
+
     for line in grouped:
-        for w in line["words"]:
-            alt = alt_starts[i] if i < len(alt_starts) else None
-            i += 1
-            if alt is None:
-                continue
-            start = float(w["start"])
-            if alt - start <= threshold:
-                continue  # agreement, jitter, or the alt is the smeared one
-            w["start"] = alt
-            if float(w["end"]) < alt:
-                w["end"] = alt
-            moved += 1
-        words = line["words"]
-        if words:
-            line["start"] = min(float(x["start"]) for x in words)
-            line["end"] = max(float(x["end"]) for x in words)
+        timed = [x for x in line["words"] if x["start"] is not None]
+        if timed:
+            line["start"] = timed[0]["start"]
+            line["end"] = timed[-1]["end"]
     if moved:
         log.info("consensus: corrected %d back-smeared word start(s)", moved)
     return grouped

@@ -14,9 +14,10 @@ import { useEscape } from "./useEscape";
 // player store via usePlayer().
 // open/lyrics are derived from the URL (the source of truth for player-overlay
 // state) and passed in by App; the overlay writes changes back through onExpand
-// (push a history entry) / onSetMode (replace in place) / onClose. onCopyLink
-// copies the current deep link (the address bar itself while the overlay is open).
-export function PlayerBar({ fav, onShare, renderMenu, alignmentEnabled, open, lyrics, onExpand, onSetMode, onClose, onCopyLink }: { fav: Fav; onShare: (s: Song) => void; renderMenu?: (s: Song) => React.ReactNode; alignmentEnabled: boolean; open: boolean; lyrics: boolean; onExpand: (mode: PlayerParam) => void; onSetMode: (mode: PlayerParam) => void; onClose: () => void; onCopyLink: () => void }) {
+// (push a history entry, naming the state it was opened out of) /
+// onLyricsUnavailable / onClose. onCopyLink copies the current deep link (the
+// address bar itself while the overlay is open).
+export function PlayerBar({ fav, onShare, renderMenu, alignmentEnabled, open, lyrics, onExpand, onLyricsUnavailable, onClose, onCopyLink }: { fav: Fav; onShare: (s: Song) => void; renderMenu?: (s: Song) => React.ReactNode; alignmentEnabled: boolean; open: boolean; lyrics: boolean; onExpand: (mode: PlayerParam, from?: PlayerParam) => void; onLyricsUnavailable: () => void; onClose: () => void; onCopyLink: () => void }) {
   const p = usePlayer();
   const [align, setAlign] = useState<AlignmentData | null>(null);
   const song = p.current;
@@ -37,8 +38,8 @@ export function PlayerBar({ fav, onShare, renderMenu, alignmentEnabled, open, ly
   // session, since static lyrics are shown to everyone (karaoke sync is the only
   // signed-in-gated part, handled inside the body).
   useEffect(() => {
-    if (open && lyrics && song && !hasLyrics) onSetMode("full");
-  }, [open, lyrics, song, hasLyrics, onSetMode]);
+    if (open && lyrics && song && !hasLyrics) onLyricsUnavailable();
+  }, [open, lyrics, song, hasLyrics, onLyricsUnavailable]);
 
   // In lyrics mode, fetch the alignment and poll while it is still generating.
   // Gated on hasLyrics (not auth) so anon viewers also pull existing timing and get
@@ -65,6 +66,18 @@ export function PlayerBar({ fav, onShare, renderMenu, alignmentEnabled, open, ly
 
   // Escape leaves the expanded player — the same single destination its X goes to.
   useEscape(open, onClose);
+
+  // A full-screen takeover must not leave the page behind it scrollable. Besides
+  // the obvious wart — scrolling a page you can't see — that page's scrollbar
+  // narrows the viewport, and the docked controls are centred in it: they'd sit
+  // ~7px off from the visualizer's, which has no scrolling page under it. The two
+  // are meant to be pixel-identical, so the scrollbar can't be allowed to differ.
+  useEffect(() => {
+    if (!open) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => { document.body.style.overflow = prev; };
+  }, [open]);
 
   if (!p.current || !song) return null;
 
@@ -200,7 +213,9 @@ export function PlayerBar({ fav, onShare, renderMenu, alignmentEnabled, open, ly
             </>
           ) : (
             <>
-              <div style={{ width: "min(360px, 72vw)", aspectRatio: "1", borderRadius: 18, overflow: "hidden", background: "var(--color-active)", display: "grid", placeItems: "center", boxShadow: "0 24px 80px rgba(0,0,0,0.5)" }}>
+              {/* 432px = the old 360 + 20%. The vw cap is what makes it scale on a
+                  phone, where width — not the cap — is the binding constraint. */}
+              <div style={{ width: "min(432px, 72vw)", aspectRatio: "1", borderRadius: 18, overflow: "hidden", background: "var(--color-active)", display: "grid", placeItems: "center", boxShadow: "0 24px 80px rgba(0,0,0,0.5)" }}>
                 {song.coverArtId ? <img src={coverUrl(song.coverArtId, "card")} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <span style={{ fontFamily: "var(--font-serif)", fontSize: "4rem", color: "var(--color-muted)" }}>{coverInitial(song.title)}</span>}
               </div>
               {/* Title/artist type matches the lyrics player's now-playing chip. */}
@@ -217,9 +232,10 @@ export function PlayerBar({ fav, onShare, renderMenu, alignmentEnabled, open, ly
                   <button aria-label="Open visualizer" onClick={() => navigate("/visualizer")} style={iconBtn}><Icon name="visualizer" size="24px" /></button>
                 )}
                 {/* Pushes rather than swapping in place, so the lyrics player's X
-                    returns here — the big player it was opened from. */}
+                    returns here — the big player it was opened from, which "full"
+                    names for the fallback when a track turns out to have no lyrics. */}
                 {hasLyrics && (
-                  <button aria-label="Show lyrics" aria-pressed={false} onClick={() => onExpand("lyrics")} style={iconBtn}><Icon name="captions" size="25px" /></button>
+                  <button aria-label="Show lyrics" aria-pressed={false} onClick={() => onExpand("lyrics", "full")} style={iconBtn}><Icon name="captions" size="25px" /></button>
                 )}
                 <AirplayButton available={p.airplayAvailable} active={p.airplayActive} onClick={p.showAirplayPicker} size={22} />
                 <button aria-label="Share" onClick={onCopyLink} style={iconBtn}><Icon name="share" size="22px" /></button>

@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
-import { parsePath, parsePlayerParam, pushPlayer, replacePlayer, closeToOrigin } from "./router";
+import { parsePath, parsePlayerParam, pushPlayer, replacePlayer, closeToOrigin, leaveLyricsForArtwork } from "./router";
 
 describe("parsePath", () => {
   it("maps root to home", () => {
@@ -129,5 +129,35 @@ describe("player URL helpers", () => {
     closeToOrigin();
     expect(back).not.toHaveBeenCalled();
     expect(pushState).toHaveBeenCalledWith({ appPushed: true }, "", "/");
+  });
+
+  it("pushPlayer records the state it was opened out of", () => {
+    pushPlayer("abc", "lyrics", "full");
+    expect(pushState).toHaveBeenCalledWith({ appPushed: true, from: "full" }, "", "/song/abc?player=lyrics");
+  });
+
+  it("leaveLyricsForArtwork pops back to the big player it was opened from", () => {
+    // Rewriting in place would leave a second ?player=full entry stacked on the
+    // real one, and the next X would land on the twin and look dead.
+    stubWindow({ appPushed: true, from: "full" });
+    leaveLyricsForArtwork("abc");
+    expect(back).toHaveBeenCalledTimes(1);
+    expect(replaceState).not.toHaveBeenCalled();
+  });
+
+  it("leaveLyricsForArtwork rewrites in place when opened straight from the mini bar", () => {
+    // Nothing to fall back to — going back would close the player the viewer is
+    // still using, rather than dropping them onto the artwork.
+    stubWindow({ appPushed: true });
+    leaveLyricsForArtwork("abc");
+    expect(back).not.toHaveBeenCalled();
+    expect(replaceState).toHaveBeenCalledWith({ appPushed: true }, "", "/song/abc?player=full");
+  });
+
+  it("leaveLyricsForArtwork rewrites in place on a dishonest deep link", () => {
+    stubWindow(null);
+    leaveLyricsForArtwork("abc");
+    expect(back).not.toHaveBeenCalled();
+    expect(replaceState).toHaveBeenCalledWith(null, "", "/song/abc?player=full");
   });
 });

@@ -14,10 +14,11 @@ import { PlaylistsPage } from "./PlaylistsPage";
 import { PlaylistPage } from "./PlaylistPage";
 import { Rail } from "./Rail";
 import { PlayerBar } from "./PlayerBar";
+import { iconBtn } from "./PlayerControls";
 import { VisualizerView } from "./VisualizerView";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { usePlayer } from "./player";
-import { useRoute, navigate, parsePlayerParam, pushPlayer, replacePlayer, closeToOrigin, type PlayerParam } from "./router";
+import { useRoute, navigate, parsePlayerParam, pushPlayer, replacePlayer, leaveLyricsForArtwork, closeToOrigin, type PlayerParam } from "./router";
 import { useFavorites } from "./favorites";
 import { addToQueue, playNext } from "./queue";
 import { songShareUrl, lyricsShareUrl, copyText } from "./share";
@@ -181,13 +182,13 @@ export function App() {
   // Every in-app open pushes an entry, so closing returns to the surface it was
   // launched from — including the big player, when the lyrics view was opened
   // from there.
-  const expandPlayer = useCallback((mode: PlayerParam) => {
+  const expandPlayer = useCallback((mode: PlayerParam, from?: PlayerParam) => {
     if (!curId) return;
-    pushPlayer(curId, mode);
+    pushPlayer(curId, mode, from);
   }, [curId]);
-  const setPlayerMode = useCallback((mode: PlayerParam) => {
+  const lyricsUnavailable = useCallback(() => {
     if (!curId) return;
-    replacePlayer(curId, mode);
+    leaveLyricsForArtwork(curId);
   }, [curId]);
   const closePlayerView = useCallback(() => {
     closeToOrigin();
@@ -410,10 +411,12 @@ export function App() {
   // buttons; SongMenu's useMenuPlacement flips it upward above the docked bar.
   const playerMenu = (song: Song): ReactNode => (
     <span ref={playerMenuRef} style={{ position: "relative", display: "inline-flex" }}>
+      {/* iconBtn, not a copy of it: this sits in the mini bar's action row and
+          must carry the same muted tint as the rest of them. */}
       <button
         aria-label="more"
         onClick={() => setPlayerMenuOpen((o) => !o)}
-        style={{ display: "grid", placeItems: "center", width: 40, height: 40, borderRadius: 8, background: "none", border: "none", color: "var(--color-ink)", cursor: "pointer" }}
+        style={iconBtn}
       >
         <Icon name="moreVertical" size="20px" />
       </button>
@@ -482,7 +485,7 @@ export function App() {
 
       <input ref={uploadRef} type="file" accept=".mp3,audio/mpeg" onChange={onUpload} style={{ display: "none" }} disabled={uploading} />
 
-      <PlayerBar fav={fav} onShare={shareSong} renderMenu={playerMenu} alignmentEnabled={!!session?.alignmentEnabled} open={playerParam !== null} lyrics={playerParam === "lyrics"} onExpand={expandPlayer} onSetMode={setPlayerMode} onClose={closePlayerView} onCopyLink={copyPlayerLink} />
+      <PlayerBar fav={fav} onShare={shareSong} renderMenu={playerMenu} alignmentEnabled={!!session?.alignmentEnabled} open={playerParam !== null} lyrics={playerParam === "lyrics"} onExpand={expandPlayer} onLyricsUnavailable={lyricsUnavailable} onClose={closePlayerView} onCopyLink={copyPlayerLink} />
 
       {route.name === "visualizer" && <VisualizerView fav={fav} onShare={shareSong} />}
 

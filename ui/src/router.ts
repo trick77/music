@@ -38,10 +38,13 @@ export function parsePath(pathname: string): Route {
 // (something to return to) from a cold deep link (nothing behind it). Reading
 // history.length can't make that call: it counts the whole tab's history,
 // including pages from before this app was loaded.
-type HistoryState = { appPushed?: boolean };
+// `from` records the player state an entry was opened *out of*, which is what
+// lets the lyrics view fall back to the big player behind it instead of
+// rewriting itself into a second copy of it.
+type HistoryState = { appPushed?: boolean; from?: PlayerParam };
 
-function appState(): HistoryState {
-  return { appPushed: true };
+function appState(from?: PlayerParam): HistoryState {
+  return from ? { appPushed: true, from } : { appPushed: true };
 }
 
 // navigate performs SPA navigation without a full reload and notifies listeners.
@@ -82,9 +85,10 @@ function playerHref(id: string, param: PlayerParam): string {
 // useRoute listens for it and re-renders, re-reading location.search.
 
 // pushPlayer opens the player at a state, adding ONE history entry so the back
-// button (and the close button) return to where the user was.
-export function pushPlayer(id: string, param: PlayerParam): void {
-  window.history.pushState(appState(), "", playerHref(id, param));
+// button (and the close button) return to where the user was. `from` names the
+// player state it was opened out of, when it was opened out of one.
+export function pushPlayer(id: string, param: PlayerParam, from?: PlayerParam): void {
+  window.history.pushState(appState(from), "", playerHref(id, param));
   window.dispatchEvent(new PopStateEvent("popstate"));
 }
 
@@ -96,6 +100,24 @@ export function pushPlayer(id: string, param: PlayerParam): void {
 export function replacePlayer(id: string, param: PlayerParam): void {
   window.history.replaceState(window.history.state, "", playerHref(id, param));
   window.dispatchEvent(new PopStateEvent("popstate"));
+}
+
+// leaveLyricsForArtwork drops the lyrics view when the loaded track turns out to
+// have no lyrics (skipping to one, or a dishonest deep link).
+//
+// When this entry was pushed out of the big player, POP it: the artwork view is
+// already sitting behind us, and rewriting this entry into a second copy of it
+// would leave a duplicate that every later close has to step through — the X
+// would land on the twin and look dead. Otherwise (opened straight from the mini
+// bar, or a cold deep link) there's no artwork view behind to fall back to, so
+// rewrite in place and keep the player open.
+export function leaveLyricsForArtwork(id: string): void {
+  const state = window.history.state as HistoryState | null;
+  if (state?.appPushed && state.from === "full") {
+    window.history.back();
+    return;
+  }
+  replacePlayer(id, "full");
 }
 
 // closeToOrigin dismisses a full-screen surface (the player overlay, the

@@ -303,7 +303,9 @@ here yet" anonymous), and the **queue** (up-next, drag-reorder) + per-song **"�
   worker for basic installability (PWA); real offline caching is out of scope.
 - **Image sizing:** generate sized variants (thumbnail / card / hero) for cover art and fanart —
   reuse loom's `backend/internal/imagescale` package — so pages don't load full-res everywhere.
-- **Resume playback:** persist the current track + position (client-side) and restore on reload.
+- **Resume playback:** ~~persist the current track + position (client-side) and restore on reload.~~
+  Removed 2026-07-16: a reload starts with an empty player (no dock, nothing loaded). Nothing about
+  playback is persisted client-side any more.
 - **Shared-link previews:** emit Open Graph / Twitter meta (title, artist, cover/fanart image) on
   song/playlist/genre routes so shared links render with art in chat apps.
 - **Destructive actions:** delete song / playlist / genre-image require a confirm step.

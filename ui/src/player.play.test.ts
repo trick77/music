@@ -16,13 +16,36 @@ vi.mock("./analyser", () => ({
   isAttached: vi.fn(() => false),
 }));
 
+// The timeupdate ticks the persistence tests drive make reportPlay reachable; it
+// would otherwise hit the network. Everything else in ./api stays real.
+const { reportPlayMock } = vi.hoisted(() => ({ reportPlayMock: vi.fn(() => Promise.resolve()) }));
+
+vi.mock("./api", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("./api")>()),
+  reportPlay: reportPlayMock,
+}));
+
+// The player creates its audio element internally, so tests reach it through here.
+const audioInstances: MockAudio[] = [];
+
 class MockAudio {
+  constructor() {
+    audioInstances.push(this);
+  }
   paused = true;
   src = "";
   currentTime = 0;
   preload = "";
   duration = 0;
-  addEventListener = vi.fn();
+  // Keyed by type but holding every listener: dropping a second one would hide a
+  // handler rather than fail loudly.
+  handlers: Record<string, Array<() => void>> = {};
+  addEventListener = vi.fn((type: string, fn: () => void) => {
+    (this.handlers[type] ??= []).push(fn);
+  });
+  fire(type: string) {
+    for (const fn of this.handlers[type] ?? []) fn();
+  }
   pause = vi.fn(() => {
     this.paused = true;
   });
@@ -33,30 +56,27 @@ class MockAudio {
   });
 }
 
-function song(id: string): Song {
-  return { id, title: id, artist: "", album: "", durationMs: 1000 } as unknown as Song;
+// A listen counts at >=30s OR >=50% of the track (qualifiesForPlay). Tests that
+// mean to exercise the 30s rule need a track long enough that the 50% rule can't
+// fire first — a 1s fixture would qualify on the very first tick.
+const LONG_TRACK_MS = 5 * 60 * 1000;
+
+function song(id: string, durationMs = 1000): Song {
+  return { id, title: id, artist: "", album: "", durationMs } as unknown as Song;
 }
 
-// stop() clears resume state via window.localStorage; these tests run in the node
-// environment, where window is undefined. A minimal store keeps that path real
-// rather than mocked away.
-function stubWindow() {
-  const store = new Map<string, string>();
-  vi.stubGlobal("window", {
-    localStorage: {
-      getItem: (k: string) => store.get(k) ?? null,
-      setItem: (k: string, v: string) => void store.set(k, v),
-      removeItem: (k: string) => void store.delete(k),
-    },
-  });
-}
+// Shared module-level state, reset for every test in the file so no block
+// depends on running after another.
+beforeEach(() => {
+  order.length = 0;
+  audioInstances.length = 0;
+  reportPlayMock.mockClear();
+});
 
 describe("player play path", () => {
   beforeEach(() => {
-    order.length = 0;
     vi.resetModules(); // fresh audio-element singleton per test
     vi.stubGlobal("Audio", MockAudio);
-    stubWindow();
   });
   afterEach(() => vi.unstubAllGlobals());
 
@@ -100,10 +120,8 @@ describe("player play path", () => {
 // (Transport's canNext) before it can reach here.
 describe("player end of queue", () => {
   beforeEach(() => {
-    order.length = 0;
     vi.resetModules();
     vi.stubGlobal("Audio", MockAudio);
-    stubWindow();
   });
   afterEach(() => vi.unstubAllGlobals());
 
@@ -130,21 +148,70 @@ describe("player end of queue", () => {
 
     expect(player.getState().current).toBeNull();
   });
+});
 
-  it("wipes resume state on close so the finished song is not reopened", async () => {
+// A reload starts with an empty player: nothing about playback is persisted, so
+// there is nothing to reseed the dock from. Playing a track used to write
+// `music.resume` to localStorage every few seconds; a regression that brings any
+// of that back would fail here.
+describe("player persistence", () => {
+  // Asserted against as a whole: the old code both wrote (persist) and cleared
+  // (clearResume on stop) the key, so a regression could surface as setItem OR
+  // removeItem — and a returning restore() would read via getItem.
+  let store: { getItem: ReturnType<typeof vi.fn>; setItem: ReturnType<typeof vi.fn>; removeItem: ReturnType<typeof vi.fn> };
+
+  beforeEach(() => {
+    vi.resetModules();
+    vi.stubGlobal("Audio", MockAudio);
+    store = { getItem: vi.fn(() => null), setItem: vi.fn(), removeItem: vi.fn() };
+    vi.stubGlobal("window", { localStorage: store });
+  });
+  afterEach(() => vi.unstubAllGlobals());
+
+  // Drives real timeupdate ticks: the write path only ever ran from there, so a
+  // test that never fires one would pass against a player that still persists.
+  async function playTo(seconds: number) {
     const { player } = await import("./player");
-    const { loadResume, saveResume } = await import("./resume");
+    player.play(song("a", LONG_TRACK_MS));
+    const el = audioInstances[0];
+    for (let t = 1; t <= seconds; t++) {
+      el.currentTime = t;
+      el.fire("timeupdate");
+    }
+    return player;
+  }
 
-    player.play(song("a"));
-    // Seed resume state explicitly: nothing writes it here otherwise (persist()
-    // only runs from a timeupdate, which MockAudio never fires), so without this
-    // the store is already empty and the assertion would pass against a stop()
-    // that never cleared anything.
-    saveResume(window.localStorage, { songId: "a", positionMs: 42000, reported: false, savedAt: Date.now() });
-    expect(loadResume(window.localStorage)).not.toBeNull();
+  it("never touches storage while playing, even past the 30s counting threshold", async () => {
+    await playTo(35);
 
-    player.next(); // empty queue → close
+    expect(store.setItem).not.toHaveBeenCalled();
+    expect(store.removeItem).not.toHaveBeenCalled();
+    expect(store.getItem).not.toHaveBeenCalled();
+  });
 
-    expect(loadResume(window.localStorage)).toBeNull();
+  it("still counts the listen exactly once, and only once the threshold is crossed", async () => {
+    // Guards the ticks the storage assertions ride on: if the fixture ever let
+    // the 50%-of-track rule fire early, this catches it at 29s.
+    const player = await playTo(29);
+    expect(reportPlayMock).not.toHaveBeenCalled();
+
+    const el = audioInstances[0];
+    for (let t = 30; t <= 40; t++) {
+      el.currentTime = t;
+      el.fire("timeupdate");
+    }
+
+    expect(reportPlayMock).toHaveBeenCalledTimes(1);
+    expect(store.setItem).not.toHaveBeenCalled();
+    expect(player.getState().current?.id).toBe("a");
+  });
+
+  it("leaves storage untouched when the player is closed", async () => {
+    const player = await playTo(35);
+
+    player.stop(); // used to clearResume() → removeItem
+
+    expect(store.removeItem).not.toHaveBeenCalled();
+    expect(store.setItem).not.toHaveBeenCalled();
   });
 });

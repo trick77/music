@@ -78,7 +78,6 @@ export function App() {
   // user had switched to the "All songs" pill while sitting on /unpublished.
   const [tabResetKey, setTabResetKey] = useState(0);
   const uploadRef = useRef<HTMLInputElement>(null);
-  const restored = useRef(false);
   // Fires once per mount so auto-opening the full player on a bare /song/:id landing
   // doesn't re-trigger after the user closes it (close strips the param to a bare URL).
   const songOpened = useRef(false);
@@ -125,17 +124,6 @@ export function App() {
       .catch(() => setSession({ authenticated: false, username: "", imageGenEnabled: false, studioEnabled: false, chatEnabled: false, alignmentEnabled: false, imageModels: [], defaultImageModel: "", authMode: "" }));
     refresh();
   }, []);
-
-  // Restore the last track + position once songs are available — WITHOUT
-  // autoplay (spec §15a). Runs once. Skipped on a /song/:id landing: that page
-  // plays its own song, and seeding the resumed track first would briefly make it
-  // the now-playing song and let the deep-link resync hijack the URL to it.
-  useEffect(() => {
-    if (restored.current || songs.length === 0) return;
-    restored.current = true;
-    if (route.name === "song") return;
-    player.restore(songs);
-  }, [songs, player, route.name]);
 
   // Landing on a /song/:id share link opens the existing full-screen player over
   // Home. Runs once per mount (cold landing). Cue the song for ANY variant so the

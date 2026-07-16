@@ -18,6 +18,7 @@ from demucs.separate import main as demucs_main
 from fastapi import FastAPI, File, Form, UploadFile
 from fastapi.responses import JSONResponse
 
+from consensus import alignable, apply_consensus, word_starts
 from grouping import group_words_into_lines
 from language import detect_language
 
@@ -104,4 +105,22 @@ async def align(audio: UploadFile = File(...), lyrics: str = Form(...), language
         for w in aligned.get("word_segments", [])
         if w.get("start") is not None and w.get("end") is not None
     ]
-    return {"engine": ENGINE, "language": lang, "lines": group_words_into_lines(lines, flat)}
+    grouped = group_words_into_lines(lines, flat)
+
+    # 4) Second opinion. A forced aligner must place every word somewhere, so a word
+    # preceded by a pause can latch onto quiet non-lead audio (a breath, an ad-lib, a
+    # reverb tail) and start up to ~1.5s before it is actually sung — which the karaoke
+    # shows as a word lighting up while the previous line is still ringing. The failure
+    # only ever runs EARLY, and two independent aligners smear on different words, so
+    # where they disagree the later start is the honest one. See consensus.py.
+    #
+    # Never fatal: a second opinion is a repair, and a song aligned without it is far
+    # better than a 500. Best-effort by design.
+    source_words = [w for ln in lines for w in ln.split()]
+    if alignable(source_words):
+        try:
+            grouped = apply_consensus(grouped, word_starts(wav, source_words, DEVICE))
+        except Exception:
+            log.warning("consensus aligner failed; keeping primary alignment", exc_info=True)
+
+    return {"engine": ENGINE, "language": lang, "lines": grouped}

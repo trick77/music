@@ -47,7 +47,7 @@ export function Search({ onPlay }: { onPlay: (s: Song, tail: Song[]) => void }) 
           value={q}
           onChange={(e) => setQ(e.target.value)}
           placeholder="Search songs, artists, genres, playlists…"
-          style={{ flex: 1, background: "none", border: "none", color: "var(--color-ink)", fontSize: "var(--text-ui)", outline: "none" }}
+          style={{ flex: 1, background: "none", border: "none", color: "var(--color-ink)", fontSize: "var(--text-input)", outline: "none" }}
         />
       </div>
 

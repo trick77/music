@@ -34,7 +34,7 @@ export const controlStyle: CSSProperties = {
   width: "100%", minHeight: 40, padding: "0 12px",
   background: "var(--color-panel)", border: "1px solid var(--color-border)",
   borderRadius: "var(--radius-ui)", color: "var(--color-ink)",
-  fontFamily: "var(--font-sans)", fontSize: "var(--text-ui)", outline: "none",
+  fontFamily: "var(--font-sans)", fontSize: "var(--text-input)", outline: "none",
 };
 
 export type ButtonVariant = "primary" | "secondary" | "ghost" | "danger";

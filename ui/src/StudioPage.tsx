@@ -57,12 +57,18 @@ export function ResultCard({ name, note, count, text, monospace = false, onChang
         </span>
       </div>
       {onChange ? (
+        // fontSize overrides boxStyle's: an editable field must follow
+        // --text-input, or iOS zooms the page in the moment it takes focus (see
+        // index.css). It can't move into boxStyle — that object is also spread
+        // onto the read-only box below, which is display text and belongs on the
+        // type scale. A monospace card that ever became editable would need the
+        // same treatment.
         <textarea
           value={text}
           onChange={(e) => onChange(e.target.value)}
           aria-label={`${name} (editable)`}
           spellCheck={false}
-          style={{ ...boxStyle, width: "100%", boxSizing: "border-box", minHeight: 260, resize: "vertical", outline: "none" }}
+          style={{ ...boxStyle, fontSize: "var(--text-input)", width: "100%", boxSizing: "border-box", minHeight: 260, resize: "vertical", outline: "none" }}
         />
       ) : (
         <div style={boxStyle}>{text}</div>

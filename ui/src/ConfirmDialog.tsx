@@ -31,7 +31,9 @@ export function ConfirmDialog({
   useEffect(() => {
     confirmRef.current?.focus();
   }, []);
-  useEscape(!busy, onCancel);
+  // Registered whenever the dialog is up, busy or not: a visible modal must keep
+  // swallowing Escape, or the press falls through to the surface underneath it.
+  useEscape(true, () => { if (!busy) onCancel(); });
 
   return (
     <div

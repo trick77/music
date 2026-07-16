@@ -204,7 +204,7 @@ export function PlayerBar({ fav, onShare, renderMenu, alignmentEnabled, open, ly
                 {song.coverArtId ? <img src={coverUrl(song.coverArtId, "card")} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <span style={{ fontFamily: "var(--font-serif)", fontSize: "4rem", color: "var(--color-muted)" }}>{coverInitial(song.title)}</span>}
               </div>
               {/* Title/artist type matches the lyrics player's now-playing chip. */}
-              <h2 style={{ margin: "1.5rem 0 0.25rem", fontFamily: "var(--font-serif)", fontWeight: 700, color: "#fff", textAlign: "center" }}>{song.title}</h2>
+              <h2 style={{ margin: "1.5rem 0 0.25rem", fontFamily: "var(--font-serif)", fontWeight: 700, fontSize: "clamp(1.1rem, 3vw, 1.6rem)", color: "#fff", textAlign: "center" }}>{song.title}</h2>
               <p style={{ margin: 0, fontFamily: "var(--font-sans)", fontSize: "var(--text-ui)", color: "rgba(255,255,255,0.72)" }}>{song.artistName}</p>
               <div style={{ width: "min(440px, 86vw)", marginTop: "1.5rem" }}>
                 <Scrubber positionMs={p.positionMs} durationMs={p.durationMs} onSeek={p.seek} />

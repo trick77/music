@@ -105,7 +105,8 @@ export function TagEditor({ song, onClose, onSaved }: Props) {
         : song.coverArtId ? coverUrl(song.coverArtId) : null;
 
   // Esc closes the dialog (unless a save is in flight), matching the other modals.
-  useEscape(!saving, onClose);
+  // Registered even mid-save so the press stops here rather than reaching past it.
+  useEscape(true, () => { if (!saving) onClose(); });
 
   // Release the staged file's object URL once it's superseded or the editor closes.
   useEffect(() => {

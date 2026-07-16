@@ -48,14 +48,14 @@ export function StarButton({ song, fav, size = 20 }: { song: Song; fav: Fav; siz
 // AirplayButton renders only when Safari reports an AirPlay target on the network
 // (available); it opens the native picker and highlights while audio is routed to
 // a device (active). Absent in non-Safari browsers, where available stays false.
-export function AirplayButton({ available, active, onClick, size = 20, color = "var(--color-muted)" }: { available: boolean; active: boolean; onClick: () => void; size?: number; color?: string }) {
+export function AirplayButton({ available, active, onClick, size = 20 }: { available: boolean; active: boolean; onClick: () => void; size?: number }) {
   if (!available) return null;
   return (
     <button
       aria-label="AirPlay"
       aria-pressed={active}
       onClick={onClick}
-      style={{ ...iconBtn, color: active ? "var(--color-accent-strong)" : color }}
+      style={active ? { ...iconBtn, color: "var(--color-accent-strong)" } : iconBtn}
     >
       <Icon name="airplay" size={`${size}px`} />
     </button>

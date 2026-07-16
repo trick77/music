@@ -193,9 +193,13 @@ describe("PlayerBar visualizer/lyrics buttons", () => {
   it("when the karaoke player is open, then its row offers neither button — the X is the way out", () => {
     // The overlay row holds no lyrics/visualizer/artwork toggle: it is left via
     // the X (or Esc), not swapped away in place. The mini bar below is unaffected.
-    const { overlay } = split(render(false, song(), true, true));
+    const { overlay, mini } = split(render(false, song(), true, true));
     expect(overlay).not.toContain('aria-label="Open visualizer"');
+    expect(overlay).not.toContain('aria-label="Show lyrics"');
     expect(overlay).not.toContain('aria-label="Show artwork"');
     expect(overlay).toContain('aria-label="Close player"');
+    // The mini bar underneath is untouched — it still launches both views.
+    expect(mini).toContain('aria-label="Open visualizer"');
+    expect(mini).toContain('aria-label="Show lyrics"');
   });
 });

@@ -16,14 +16,13 @@ vi.mock("./analyser", () => ({
   isAttached: vi.fn(() => false),
 }));
 
-// reportPlay would otherwise hit the network once a listen crosses the counting
-// threshold; streamUrl only feeds el.src.
+// The timeupdate ticks the persistence tests drive make reportPlay reachable; it
+// would otherwise hit the network. Everything else in ./api stays real.
 const { reportPlayMock } = vi.hoisted(() => ({ reportPlayMock: vi.fn(() => Promise.resolve()) }));
 
 vi.mock("./api", async (importOriginal) => ({
   ...(await importOriginal<typeof import("./api")>()),
   reportPlay: reportPlayMock,
-  streamUrl: (id: string) => `/api/songs/${id}/stream`,
 }));
 
 // The player creates its audio element internally, so tests reach it through here.
@@ -38,10 +37,15 @@ class MockAudio {
   currentTime = 0;
   preload = "";
   duration = 0;
-  handlers: Record<string, () => void> = {};
+  // Keyed by type but holding every listener: dropping a second one would hide a
+  // handler rather than fail loudly.
+  handlers: Record<string, Array<() => void>> = {};
   addEventListener = vi.fn((type: string, fn: () => void) => {
-    this.handlers[type] = fn;
+    (this.handlers[type] ??= []).push(fn);
   });
+  fire(type: string) {
+    for (const fn of this.handlers[type] ?? []) fn();
+  }
   pause = vi.fn(() => {
     this.paused = true;
   });
@@ -52,13 +56,25 @@ class MockAudio {
   });
 }
 
-function song(id: string): Song {
-  return { id, title: id, artist: "", album: "", durationMs: 1000 } as unknown as Song;
+// A listen counts at >=30s OR >=50% of the track (qualifiesForPlay). Tests that
+// mean to exercise the 30s rule need a track long enough that the 50% rule can't
+// fire first — a 1s fixture would qualify on the very first tick.
+const LONG_TRACK_MS = 5 * 60 * 1000;
+
+function song(id: string, durationMs = 1000): Song {
+  return { id, title: id, artist: "", album: "", durationMs } as unknown as Song;
 }
+
+// Shared module-level state, reset for every test in the file so no block
+// depends on running after another.
+beforeEach(() => {
+  order.length = 0;
+  audioInstances.length = 0;
+  reportPlayMock.mockClear();
+});
 
 describe("player play path", () => {
   beforeEach(() => {
-    order.length = 0;
     vi.resetModules(); // fresh audio-element singleton per test
     vi.stubGlobal("Audio", MockAudio);
   });
@@ -104,7 +120,6 @@ describe("player play path", () => {
 // (Transport's canNext) before it can reach here.
 describe("player end of queue", () => {
   beforeEach(() => {
-    order.length = 0;
     vi.resetModules();
     vi.stubGlobal("Audio", MockAudio);
   });
@@ -140,52 +155,63 @@ describe("player end of queue", () => {
 // `music.resume` to localStorage every few seconds; a regression that brings any
 // of that back would fail here.
 describe("player persistence", () => {
-  let setItem: ReturnType<typeof vi.fn>;
+  // Asserted against as a whole: the old code both wrote (persist) and cleared
+  // (clearResume on stop) the key, so a regression could surface as setItem OR
+  // removeItem — and a returning restore() would read via getItem.
+  let store: { getItem: ReturnType<typeof vi.fn>; setItem: ReturnType<typeof vi.fn>; removeItem: ReturnType<typeof vi.fn> };
 
   beforeEach(() => {
-    order.length = 0;
-    audioInstances.length = 0;
-    reportPlayMock.mockClear();
     vi.resetModules();
     vi.stubGlobal("Audio", MockAudio);
-    setItem = vi.fn();
-    vi.stubGlobal("window", {
-      localStorage: { getItem: vi.fn(() => null), setItem, removeItem: vi.fn() },
-    });
+    store = { getItem: vi.fn(() => null), setItem: vi.fn(), removeItem: vi.fn() };
+    vi.stubGlobal("window", { localStorage: store });
   });
   afterEach(() => vi.unstubAllGlobals());
 
   // Drives real timeupdate ticks: the write path only ever ran from there, so a
   // test that never fires one would pass against a player that still persists.
-  async function playPast(seconds: number) {
+  async function playTo(seconds: number) {
     const { player } = await import("./player");
-    player.play(song("a"));
+    player.play(song("a", LONG_TRACK_MS));
     const el = audioInstances[0];
     for (let t = 1; t <= seconds; t++) {
       el.currentTime = t;
-      el.handlers.timeupdate?.();
+      el.fire("timeupdate");
     }
     return player;
   }
 
-  it("never writes playback state to storage, even past the play-count threshold", async () => {
-    await playPast(35); // 35s > the 30s counting threshold
+  it("never touches storage while playing, even past the 30s counting threshold", async () => {
+    await playTo(35);
 
-    expect(setItem).not.toHaveBeenCalled();
+    expect(store.setItem).not.toHaveBeenCalled();
+    expect(store.removeItem).not.toHaveBeenCalled();
+    expect(store.getItem).not.toHaveBeenCalled();
   });
 
-  it("still counts the listen exactly once while persisting nothing", async () => {
-    await playPast(35);
+  it("still counts the listen exactly once, and only once the threshold is crossed", async () => {
+    // Guards the ticks the storage assertions ride on: if the fixture ever let
+    // the 50%-of-track rule fire early, this catches it at 29s.
+    const player = await playTo(29);
+    expect(reportPlayMock).not.toHaveBeenCalled();
+
+    const el = audioInstances[0];
+    for (let t = 30; t <= 40; t++) {
+      el.currentTime = t;
+      el.fire("timeupdate");
+    }
 
     expect(reportPlayMock).toHaveBeenCalledTimes(1);
-    expect(setItem).not.toHaveBeenCalled();
+    expect(store.setItem).not.toHaveBeenCalled();
+    expect(player.getState().current?.id).toBe("a");
   });
 
   it("leaves storage untouched when the player is closed", async () => {
-    const player = await playPast(35);
+    const player = await playTo(35);
 
-    player.stop();
+    player.stop(); // used to clearResume() → removeItem
 
-    expect(setItem).not.toHaveBeenCalled();
+    expect(store.removeItem).not.toHaveBeenCalled();
+    expect(store.setItem).not.toHaveBeenCalled();
   });
 });

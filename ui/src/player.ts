@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 import { streamUrl, reportPlay, type Song } from "./api";
 import { coverUrl } from "./cover";
 import { saveResume, loadResume, clearResume, isResumeFresh, type ResumeState } from "./resume";
-import { prime } from "./analyser";
 
 export type PlayerState = {
   current: Song | null;
@@ -297,11 +296,8 @@ function loadCurrent(autoplay: boolean) {
   el.src = streamUrl(state.current.id);
   el.currentTime = 0;
   setMediaMetadata(state.current);
-  // Tap the element into the analyser graph BEFORE it plays: rerouting a paused
-  // element is seamless, rerouting a playing one glitches (the first-open
-  // equalizer stutter). Idempotent, so this only does real work on first play.
+  // Deliberately does NOT tap the element into the analyser graph. See toggle().
   if (autoplay) {
-    prime(el);
     void el.play().catch(() => {});
   }
 }
@@ -351,7 +347,12 @@ export const player = {
     if (!state.current) return;
     const el = getAudio();
     if (el.paused) {
-      prime(el); // tap before playback resumes — before el.play() (see loadCurrent)
+      // Do NOT tap the element into the Web Audio graph here. createMediaElementSource()
+      // pulls the <audio> out of the browser's normal output path; WebKit then interrupts
+      // the AudioContext when an iPhone locks, so playback goes silent on the lock screen
+      // (currentTime keeps advancing, sound returns on unlock). Only VisualizerView taps,
+      // and only once actually opened. Priming here (f3e42be) fixed a cosmetic first-open
+      // equalizer stutter at the cost of lock-screen audio for everyone — a bad trade.
       void el.play().catch(() => {});
     } else el.pause();
   },

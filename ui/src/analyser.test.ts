@@ -5,7 +5,9 @@ import { bandEdges } from "./analyser";
 // we care about; resume() records that the context was un-suspended.
 let lastCtx: MockAudioContext;
 let lastAnalyser: MockAnalyser;
-let initialState: "suspended" | "running" = "suspended"; // starting ctx state a test opts into
+// "interrupted" is WebKit's non-standard state on iOS (lock screen, phone call).
+type CtxState = "suspended" | "running" | "interrupted";
+let initialState: CtxState = "suspended"; // starting ctx state a test opts into
 
 // Fills a caller-provided Uint8Array in place, mirroring getByteFrequencyData.
 type FreqFiller = (arr: Uint8Array) => void;
@@ -22,7 +24,7 @@ interface MockAnalyser {
 }
 
 class MockAudioContext {
-  state: "suspended" | "running" = "suspended";
+  state: CtxState = "suspended";
   destination = {};
   createMediaElementSource = vi.fn(() => ({ connect: vi.fn() }));
   resume = vi.fn(() => {
@@ -52,7 +54,7 @@ class MockAudioContext {
 // Fresh module state per test (analyser.ts holds module-level singletons). The
 // module creates the context itself; MockAudioContext's constructor captures the
 // instance into lastCtx so the test can inspect its calls.
-async function freshAnalyser(state: "suspended" | "running" = "suspended") {
+async function freshAnalyser(state: CtxState = "suspended") {
   vi.resetModules();
   initialState = state;
   freqFiller = () => {}; // reset to silence unless a test opts in
@@ -160,26 +162,46 @@ describe("attach", () => {
   });
 });
 
-describe("prime", () => {
+describe("resume", () => {
   beforeEach(() => vi.unstubAllGlobals());
 
-  it("taps the element and un-suspends the context so audio flows on play", async () => {
-    const { prime, isAttached } = await freshAnalyser();
+  it("un-suspends a suspended context", async () => {
+    const { attach, resume } = await freshAnalyser("suspended");
+    attach(el); // creates the context
 
-    prime(el);
+    resume();
 
-    expect(lastCtx.createMediaElementSource).toHaveBeenCalledTimes(1);
     expect(lastCtx.resume).toHaveBeenCalled();
     expect(lastCtx.state).toBe("running");
-    expect(isAttached()).toBe(true);
   });
 
-  it("is a no-op on a null element", async () => {
-    const { prime, isAttached } = await freshAnalyser();
+  // iOS parks the context in "interrupted" (not "suspended") after a lock screen
+  // or phone call. Matching only the spec's "suspended" left the visualizer dead
+  // on return; the analyser must come back once the user is.
+  it("un-suspends a context left interrupted by iOS", async () => {
+    const { attach, resume } = await freshAnalyser("interrupted");
+    attach(el);
 
-    prime(null);
+    resume();
+
+    expect(lastCtx.resume).toHaveBeenCalled();
+    expect(lastCtx.state).toBe("running");
+  });
+
+  it("leaves an already-running context alone", async () => {
+    const { attach, resume } = await freshAnalyser("running");
+    attach(el);
+
+    resume();
+
+    expect(lastCtx.resume).not.toHaveBeenCalled();
+  });
+
+  it("is a no-op when no context exists yet", async () => {
+    const { resume } = await freshAnalyser();
+
+    resume();
 
     expect(lastCtx).toBeUndefined();
-    expect(isAttached()).toBe(false);
   });
 });

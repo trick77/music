@@ -26,21 +26,40 @@ export function isBackgroundTarget(target: unknown): boolean {
   return !target.closest(NO_DISMISS_SELECTOR);
 }
 
+// How far the pointer may travel between press and release and still count as a
+// tap. Anything further is a drag — scrubbing, or selecting a line of lyrics —
+// and a drag must never dismiss.
+export const TAP_SLOP_PX = 5;
+
+export type Press = { x: number; y: number; background: boolean };
+
+// shouldDismiss decides a completed press→release gesture. Pure, so the rule is
+// testable without a DOM: both ends must be background, and the pointer must
+// have stayed put.
+export function shouldDismiss(press: Press | null, release: Press): boolean {
+  if (!press || !press.background || !release.background) return false;
+  return Math.hypot(release.x - press.x, release.y - press.y) <= TAP_SLOP_PX;
+}
+
 // useBackgroundDismiss returns props for an immersive view's root element.
-//
-// Dismissal needs BOTH the press and the release to land on background. Without
-// that, dragging the seek slider and letting go over the backdrop — an easy miss
-// on a touch screen — would close the view mid-scrub.
 export function useBackgroundDismiss(onDismiss: () => void) {
-  const pressedBackground = useRef(false);
+  const press = useRef<Press | null>(null);
   return {
     onPointerDown: (e: React.PointerEvent) => {
-      pressedBackground.current = isBackgroundTarget(e.target);
+      press.current = { x: e.clientX, y: e.clientY, background: isBackgroundTarget(e.target) };
     },
     onClick: (e: React.MouseEvent) => {
-      const dismiss = pressedBackground.current && isBackgroundTarget(e.target);
-      pressedBackground.current = false;
-      if (dismiss) onDismiss();
+      const p = press.current;
+      press.current = null;
+      // NOT e.target: a click's target is the nearest common ancestor of the
+      // pressed and released elements, so pressing beside a button and releasing
+      // on it reports the root — which would read as background and dismiss
+      // instead of pressing the button. Resolve what is actually under the
+      // release point.
+      const released = typeof document !== "undefined" ? document.elementFromPoint(e.clientX, e.clientY) : null;
+      if (shouldDismiss(p, { x: e.clientX, y: e.clientY, background: isBackgroundTarget(released ?? e.target) })) {
+        onDismiss();
+      }
     },
   };
 }

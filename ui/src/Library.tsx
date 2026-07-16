@@ -5,7 +5,7 @@ import { fanartUrl } from "./fanart";
 import { formatDuration } from "./format";
 import { navigate } from "./router";
 import { Glyph } from "./Glyph";
-import { t } from "./ui";
+import { t, UnpublishedBadge } from "./ui";
 import { genreLabel } from "./titleCase";
 import { usePlayer } from "./player";
 import { SongCover } from "./SongCover";
@@ -149,8 +149,9 @@ export function Library({ songs, favoriteIds, authenticated, studioEnabled = fal
 
               <span style={{ minWidth: 0, flex: 1 }}>
                 <span style={{ display: "block", color: isPlaying ? "var(--color-accent-strong)" : "var(--color-ink)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{song.title}</span>
-                <span style={{ display: "flex", alignItems: "center", gap: "0.6rem", ...t.label }}>
+                <span className="row-meta" style={{ display: "flex", alignItems: "center", gap: "0.6rem", ...t.label }}>
                   <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{song.artistName}</span>
+                  <UnpublishedBadge show={authenticated && !song.published} placement="meta" />
                 </span>
               </span>
               <span style={{ color: "var(--color-muted)", fontVariantNumeric: "tabular-nums", flexShrink: 0 }}>{formatDuration(song.durationMs)}</span>

@@ -342,6 +342,21 @@ html {
   padding: 1.5rem 1.25rem calc(9rem + var(--tabbar-h) + var(--safe-b));
 }
 
+/* The Unpublished pill sits with the row actions where the row is wide enough,
+   and on the meta line under the title on phones — an actions-side pill costs
+   ~90px of a ~308px row, and the title is the only part that can give, so it
+   collapsed to nothing. Both are in the markup; these rules pick one. */
+.row-badge-meta { display: none; }
+@media (max-width: 720px) {
+  .row-badge-actions { display: none; }
+  .row-badge-meta { display: inline-block; }
+  /* The pill can't shrink (a truncated word reads as "…opens more UI" here) and
+     the artist mustn't be the one to give — a phone row's meta line is ~110px,
+     which the pill alone would take. Let it wrap onto its own line instead: one
+     extra line, only on the rows that carry a badge. */
+  .row-meta { flex-wrap: wrap; }
+}
+
 /* Top-ten row: 4-col grid (rank | cover | title | actions) on tablet+/desktop;
    phones drop the rank number to give the title/artist more room. iPad (≥721px)
    keeps the full layout. The chart shows RANK ONLY — never a play count; the

@@ -106,7 +106,8 @@ export function Scrubber({ positionMs, durationMs, onSeek, accent = "var(--color
         value={Math.min(positionMs, max || 1)}
         onChange={(e) => onSeek(Number(e.target.value))}
         aria-label="Seek"
-        style={{ flex: 1, accentColor: accent, background: "transparent", height: 4 }}
+        className="scrubber-input"
+        style={{ flex: 1, accentColor: accent, background: "transparent" }}
       />
       <span className="rank-num" style={{ fontSize: "var(--text-label)", color: "var(--color-muted)", minWidth: 36 }}>{formatDuration(max)}</span>
       <span style={{ display: "none" }}>{pct}</span>

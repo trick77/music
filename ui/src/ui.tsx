@@ -34,7 +34,7 @@ export const controlStyle: CSSProperties = {
   width: "100%", minHeight: 40, padding: "0 12px",
   background: "var(--color-panel)", border: "1px solid var(--color-border)",
   borderRadius: "var(--radius-ui)", color: "var(--color-ink)",
-  fontFamily: "var(--font-sans)", fontSize: "var(--text-ui)", outline: "none",
+  fontFamily: "var(--font-sans)", fontSize: "var(--text-input)", outline: "none",
 };
 
 export type ButtonVariant = "primary" | "secondary" | "ghost" | "danger";
@@ -173,5 +173,31 @@ export function Overlay({ onClick, children }: { onClick?: () => void; children:
     <div className="ui-overlay" style={useVisualViewportBox()} onClick={onClick}>
       {children}
     </div>
+  );
+}
+
+/**
+ * UnpublishedBadge — marks a song only signed-in viewers can see.
+ *
+ * It renders in one of two places depending on the room available, and CSS picks
+ * which (see .row-badge-* in index.css). On a wide row it sits with the row
+ * actions. A phone row has no width to spare there: the pill is ~90px of a
+ * ~308px row whose title is the only flexible part, so an actions-side badge
+ * squeezed the title to *zero* — rows showed a cover, a duration and a badge,
+ * and no song name at all. On phones it rides the meta line under the title
+ * instead, where it costs the title nothing.
+ *
+ * Both placements are rendered and one is hidden, so the row hosts don't each
+ * need to know the breakpoint.
+ */
+export function UnpublishedBadge({ show, placement }: { show: boolean; placement: "actions" | "meta" }) {
+  if (!show) return null;
+  return (
+    <span
+      className={placement === "meta" ? "row-badge-meta" : "row-badge-actions"}
+      style={{ ...t.micro, border: "1px solid var(--color-border)", borderRadius: 999, padding: "0.1rem 0.45rem", whiteSpace: "nowrap", flexShrink: 0 }}
+    >
+      Unpublished
+    </span>
   );
 }

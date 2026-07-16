@@ -117,7 +117,12 @@ export function PlayerBar({ fav, onShare, renderMenu, alignmentEnabled, open, ly
       >
         {/* Scrubber gets top breathing room so the position knob doesn't kiss the
             page above; the soft fade (.player-dock::before) replaces the old hard
-            border between the scrolling page and the dock. */}
+            border between the scrolling page and the dock.
+            Keep the scrubber BEFORE the transport row: the seek input's tap area
+            is padded out past its 4px track (.scrubber-input) and just reaches
+            this row, and it's paint order — later sibling on top — that lets Play
+            keep its own top edge. Reordering these two would hand those pixels to
+            the scrubber, and tapping the top of Play would seek instead. */}
         <div style={{ paddingTop: "0.7rem" }}>
           <Scrubber positionMs={p.positionMs} durationMs={p.durationMs} onSeek={p.seek} />
         </div>

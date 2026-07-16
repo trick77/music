@@ -14,7 +14,7 @@ import { shuffle } from "./player";
 import { Glyph } from "./Glyph";
 import { Icon } from "./Icon";
 import { RefineRow } from "./StudioShared";
-import { Button, Spinner, controlClass, fieldLabel, t } from "./ui";
+import { Button, Spinner, controlClass, fieldLabel, t, UnpublishedBadge } from "./ui";
 
 type Props = {
   id: string;
@@ -614,8 +614,9 @@ export function PlaylistPageView({ playlist, authenticated, onPlay, onShare, ren
               </button>
               <button onClick={() => onPlay(s, songs.slice(i + 1))} style={{ ...linkBtn, textAlign: "left", minWidth: 0 }}>
                 <div style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.title}</div>
-                <div style={{ display: "flex", alignItems: "center", gap: "0.6rem", color: "var(--color-muted)", fontSize: "var(--text-label)" }}>
+                <div className="row-meta" style={{ display: "flex", alignItems: "center", gap: "0.6rem", color: "var(--color-muted)", fontSize: "var(--text-label)" }}>
                   <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.artistName}</span>
+                  <UnpublishedBadge show={authenticated && !s.published} placement="meta" />
                 </div>
               </button>
               <span style={{ display: "flex", alignItems: "center", gap: "0.35rem" }}>{renderRowActions(s)}</span>

@@ -23,7 +23,7 @@ import { useFavorites } from "./favorites";
 import { addToQueue, playNext } from "./queue";
 import { songShareUrl, lyricsShareUrl, copyText } from "./share";
 import { Icon } from "./Icon";
-import { t } from "./ui";
+import { t, UnpublishedBadge } from "./ui";
 
 // UploadToast is the bottom-center feedback pill. As a plain flash it stays a
 // rounded pill; during an upload it expands to show a determinate progress bar
@@ -341,20 +341,10 @@ export function App() {
   const rowActions = (song: Song): ReactNode => (
     <>
       {/* Unpublished songs are visible only to logged-in users; badge them so
-          a signed-in viewer can tell them apart from published ones. */}
-      {authed && !song.published && (
-        <span
-          style={{
-            ...t.micro,
-            border: "1px solid var(--color-border)",
-            borderRadius: 999,
-            padding: "0.1rem 0.45rem",
-            whiteSpace: "nowrap",
-          }}
-        >
-          Unpublished
-        </span>
-      )}
+          a signed-in viewer can tell them apart from published ones. The phone
+          placement of this pill lives on the row's meta line — see
+          UnpublishedBadge. */}
+      <UnpublishedBadge show={authed && !song.published} placement="actions" />
       <button
         aria-label="favorite"
         className="iconbtn-sm"

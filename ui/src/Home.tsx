@@ -7,7 +7,7 @@ import { Glyph } from "./Glyph";
 import { Hero, type GenreLink } from "./Hero";
 import { Chapter } from "./Chapter";
 import { HScrollRail } from "./HScrollRail";
-import { Button, t } from "./ui";
+import { Button, t, UnpublishedBadge } from "./ui";
 import { usePlayer } from "./player";
 import { SongCover } from "./SongCover";
 
@@ -153,8 +153,9 @@ export function Home({ authenticated, onPlay, onShare, onUpload, renderRowAction
                     <div style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: current?.id === s.id ? "var(--color-accent-strong)" : undefined }}>{s.title}</div>
                   </button>
                   {/* Meta line: artist (still a play target) trailed by the genre pills. */}
-                  <div style={{ display: "flex", alignItems: "center", gap: "0.4rem", minWidth: 0 }}>
+                  <div className="row-meta" style={{ display: "flex", alignItems: "center", gap: "0.4rem", minWidth: 0 }}>
                     <button onClick={() => onPlay(s, topTail(i))} style={{ ...t.label, padding: 0, border: "none", background: "none", cursor: "pointer", textAlign: "left", minWidth: 0, flexShrink: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.artistName}</button>
+                    <UnpublishedBadge show={authenticated && !s.published} placement="meta" />
                     {renderGenreChips(s)}
                   </div>
                 </div>

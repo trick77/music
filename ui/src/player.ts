@@ -122,7 +122,6 @@ let state: PlayerState = {
 const listeners = new Set<Listener>();
 let audio: HTMLAudioElement | null = null;
 let session = { reported: false };
-let pendingSeekMs = 0;
 
 function emit() {
   syncNextAction(); // keep the OS "next track" control in step with the queue
@@ -218,10 +217,6 @@ function getAudio(): HTMLAudioElement {
   el.addEventListener("timeupdate", onTimeUpdate);
   el.addEventListener("loadedmetadata", () => {
     set({ durationMs: (el.duration || 0) * 1000 });
-    if (pendingSeekMs > 0) {
-      el.currentTime = pendingSeekMs / 1000;
-      pendingSeekMs = 0;
-    }
     updatePositionState();
   });
   el.addEventListener("ended", () => player.next());

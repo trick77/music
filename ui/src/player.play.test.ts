@@ -16,13 +16,32 @@ vi.mock("./analyser", () => ({
   isAttached: vi.fn(() => false),
 }));
 
+// reportPlay would otherwise hit the network once a listen crosses the counting
+// threshold; streamUrl only feeds el.src.
+const { reportPlayMock } = vi.hoisted(() => ({ reportPlayMock: vi.fn(() => Promise.resolve()) }));
+
+vi.mock("./api", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("./api")>()),
+  reportPlay: reportPlayMock,
+  streamUrl: (id: string) => `/api/songs/${id}/stream`,
+}));
+
+// The player creates its audio element internally, so tests reach it through here.
+const audioInstances: MockAudio[] = [];
+
 class MockAudio {
+  constructor() {
+    audioInstances.push(this);
+  }
   paused = true;
   src = "";
   currentTime = 0;
   preload = "";
   duration = 0;
-  addEventListener = vi.fn();
+  handlers: Record<string, () => void> = {};
+  addEventListener = vi.fn((type: string, fn: () => void) => {
+    this.handlers[type] = fn;
+  });
   pause = vi.fn(() => {
     this.paused = true;
   });
@@ -113,5 +132,60 @@ describe("player end of queue", () => {
     player.next(); // past the last song → close
 
     expect(player.getState().current).toBeNull();
+  });
+});
+
+// A reload starts with an empty player: nothing about playback is persisted, so
+// there is nothing to reseed the dock from. Playing a track used to write
+// `music.resume` to localStorage every few seconds; a regression that brings any
+// of that back would fail here.
+describe("player persistence", () => {
+  let setItem: ReturnType<typeof vi.fn>;
+
+  beforeEach(() => {
+    order.length = 0;
+    audioInstances.length = 0;
+    reportPlayMock.mockClear();
+    vi.resetModules();
+    vi.stubGlobal("Audio", MockAudio);
+    setItem = vi.fn();
+    vi.stubGlobal("window", {
+      localStorage: { getItem: vi.fn(() => null), setItem, removeItem: vi.fn() },
+    });
+  });
+  afterEach(() => vi.unstubAllGlobals());
+
+  // Drives real timeupdate ticks: the write path only ever ran from there, so a
+  // test that never fires one would pass against a player that still persists.
+  async function playPast(seconds: number) {
+    const { player } = await import("./player");
+    player.play(song("a"));
+    const el = audioInstances[0];
+    for (let t = 1; t <= seconds; t++) {
+      el.currentTime = t;
+      el.handlers.timeupdate?.();
+    }
+    return player;
+  }
+
+  it("never writes playback state to storage, even past the play-count threshold", async () => {
+    await playPast(35); // 35s > the 30s counting threshold
+
+    expect(setItem).not.toHaveBeenCalled();
+  });
+
+  it("still counts the listen exactly once while persisting nothing", async () => {
+    await playPast(35);
+
+    expect(reportPlayMock).toHaveBeenCalledTimes(1);
+    expect(setItem).not.toHaveBeenCalled();
+  });
+
+  it("leaves storage untouched when the player is closed", async () => {
+    const player = await playPast(35);
+
+    player.stop();
+
+    expect(setItem).not.toHaveBeenCalled();
   });
 });

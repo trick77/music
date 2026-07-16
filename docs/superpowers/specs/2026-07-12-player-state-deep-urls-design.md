@@ -76,8 +76,8 @@ empty player, so there is no restored track for the resync effect to hijack.)
 - **`router.ts`** — `parsePlayerParam` (kept); `pushPlayer` / `replacePlayer` /
   `closePlayer` (new); `clearPlayerParam` removed.
 - **`App.tsx`** — derive `playerParam`; `pushedPlayer` ref; reset + resync effects;
-  `expandPlayer` / `setPlayerMode` / `closePlayerView` / `copyPlayerLink`; restore &
-  `SongPage` guards.
+  `expandPlayer` / `setPlayerMode` / `closePlayerView` / `copyPlayerLink`; `SongPage`
+  guard.
 - **`PlayerBar.tsx`** — `open` / `lyrics` props + callbacks replace internal `full` /
   `lyricsMode` state; downgrade effect; in-player Share copies the live URL.
 - **`share.ts` / `SongMenu.tsx`** — `lyricsShareUrl` + row-menu "Copy lyrics link" kept

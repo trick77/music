@@ -300,7 +300,6 @@ html {
    the same expressions stay correct on desktop without a second rule. */
 :root {
   --tabbar-h: 0px;
-  --dock-h: 94px;
   --safe-b: env(safe-area-inset-bottom, 0px);
 }
 @media (max-width: 720px) {
@@ -321,7 +320,13 @@ html {
     display: none;
   }
   /* Height is pinned to the token rather than left to the content, so the dock's
-     offset above it is exact by construction. The inset sits below that row. */
+     offset above it is exact by construction. The inset sits below that row.
+     The trade: the bar no longer grows with its content, so a raised browser
+     default font size (the rem-based label and padding scale, the 22px icon does
+     not) or a second line of label would spill over the border instead of
+     stretching the bar. Content wants ~57.5px at a 16px root and ~66px at 20px.
+     If that becomes real, the fix is to measure the bar and feed the dock — not
+     to swap in min-height, which silently breaks the offset the dock relies on. */
   .tabbar-mobile {
     display: flex;
     height: calc(var(--tabbar-h) + var(--safe-b));

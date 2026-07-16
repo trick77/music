@@ -75,8 +75,28 @@ export function MenuItem({ icon, danger, href, onClick, children, trailing }: Me
   return <button type="button" style={style} onClick={onClick} {...handlers}>{inner}</button>;
 }
 
+// usableBottom is the y below which the fixed bottom furniture — the docked
+// player, and on phones the tab bar under it — covers the page. Menus flip
+// against this rather than the raw viewport floor, or one opened on a mid-list
+// row lands underneath the dock: painted over, and tapping "Delete song" scrubs
+// the track behind it instead.
+//
+// Measured from the elements rather than computed from the --tabbar-h/--safe-b
+// tokens, because a custom property holding env(safe-area-inset-bottom) hands
+// back that text unresolved, not a number.
+export function usableBottom(): number {
+  let floor = window.innerHeight;
+  for (const sel of [".player-dock", ".tabbar-mobile"]) {
+    const el = document.querySelector(sel);
+    if (!el) continue;
+    const r = el.getBoundingClientRect();
+    if (r.height > 0) floor = Math.min(floor, r.top); // display:none measures 0 — desktop's tab bar
+  }
+  return floor;
+}
+
 // useMenuPlacement flips a menu above its trigger when it would overflow the
-// viewport bottom, so a menu opened on a bottom row is never truncated (loom).
+// usable area, so a menu opened on a bottom row is never truncated (loom).
 export function useMenuPlacement<T extends HTMLElement>() {
   const menuRef = useRef<T>(null);
   const [dropUp, setDropUp] = useState(false);
@@ -84,7 +104,7 @@ export function useMenuPlacement<T extends HTMLElement>() {
     const el = menuRef.current;
     if (!el) return;
     const rect = el.getBoundingClientRect();
-    setDropUp(rect.bottom > window.innerHeight - 8 && rect.top - rect.height > 8);
+    setDropUp(rect.bottom > usableBottom() - 8 && rect.top - rect.height > 8);
   }, []);
   return { menuRef, dropUp };
 }

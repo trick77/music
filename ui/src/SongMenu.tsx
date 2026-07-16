@@ -21,7 +21,13 @@ export function SongMenu(p: Props) {
   const { menuRef, dropUp } = useMenuPlacement<HTMLDivElement>();
   return (
     <>
-      <div onClick={p.onClose} style={{ position: "fixed", inset: 0, zIndex: 40 }} />
+      {/* Above the docked player (60) and the mobile tab bar (55), not under them.
+          useMenuPlacement keeps the menu clear of both where it can, but on a
+          short phone a tall menu has room neither below its row nor above it and
+          stays put — painting over the dock is then the difference between a
+          reachable menu and one whose items silently drive the player behind it.
+          The scrim goes up with it so the first tap anywhere dismisses. */}
+      <div onClick={p.onClose} style={{ position: "fixed", inset: 0, zIndex: 65 }} />
       <div
         ref={menuRef}
         role="menu"
@@ -29,7 +35,7 @@ export function SongMenu(p: Props) {
           position: "absolute",
           right: 0,
           ...(dropUp ? { bottom: "100%", marginBottom: 4 } : { top: "100%", marginTop: 4 }),
-          zIndex: 41,
+          zIndex: 66,
           ...menuSurface,
         }}
       >

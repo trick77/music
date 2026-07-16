@@ -66,6 +66,45 @@ class TestApplyConsensus:
 
         assert out[0]["words"][0]["start"] <= out[0]["words"][1]["start"]
 
+    def test_two_adjacent_words_both_correcting_stay_ordered(self):
+        # The cap exists for smeared RUNS, not lone words: when neighbours both clear
+        # the threshold they must not swap. Each is capped against the ORIGINAL next
+        # start, and words only ever move forward, so the pair stays ordered.
+        given = [line("a b c", [("a", 100.0, 100.2), ("b", 100.4, 100.6), ("c", 103.0, 103.2)])]
+
+        out = apply_consensus(given, [102.5, 102.8, None])
+
+        got = [w["start"] for w in out[0]["words"]]
+        assert got == sorted(got), f"non-monotonic word starts: {got}"
+
+    def test_cap_uses_the_next_word_even_across_a_line_boundary(self):
+        # The flattened word list spans lines, so a line's LAST word is capped by the
+        # first word of the NEXT line — otherwise a correction could jump the boundary
+        # and light the next line's opening word before its own.
+        given = [
+            line("first line", [("first", 10.0, 10.2), ("line", 10.4, 10.6)]),
+            line("second line", [("second", 11.0, 11.2), ("line", 11.4, 11.6)]),
+        ]
+
+        out = apply_consensus(given, [None, 12.5, None, None])
+
+        assert out[0]["words"][1]["start"] == 11.0  # capped at the next line's first word
+        flat = [w["start"] for l in out for w in l["words"]]
+        assert flat == sorted(flat), f"non-monotonic across lines: {flat}"
+
+    def test_cap_skips_over_untimed_words_to_the_next_timed_one(self):
+        given = [
+            line("a b", [("a", 50.0, 50.2), ("b", 50.4, 50.6)]),
+        ]
+        given[0]["words"][1]["start"] = None  # untimed neighbour
+        given[0]["words"][1]["end"] = None
+        given.append(line("c", [("c", 55.0, 55.2)]))
+
+        out = apply_consensus(given, [60.0, None, None])
+
+        # capped at "c" (the next TIMED start), not at the untimed None
+        assert out[0]["words"][0]["start"] == 55.0
+
     def test_starts_stay_monotonic_across_the_whole_line(self):
         given = [line("a b c", [("a", 10.0, 10.2), ("b", 12.0, 12.2), ("c", 12.4, 12.6)])]
 

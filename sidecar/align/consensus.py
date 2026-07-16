@@ -46,10 +46,14 @@ def normalize(word):
 def alignable(words):
     """True when the second aligner can be trusted with this word list.
 
-    MMS_FA romanizes non-Latin scripts via uroman, which we do not ship; and a
-    lyric that strips to mostly-empty tokens would align to noise. Rather than
-    feed it garbage and get a confidently wrong second opinion, we decline and
-    keep the primary alignment untouched.
+    A lyric that strips to mostly-empty tokens (a non-Latin script; a line that is
+    all digits or symbols) would align to noise. Rather than feed it garbage and get
+    a confidently wrong second opinion, decline and keep the primary alignment.
+
+    NOTE this is a floor, not the whole guard: it only catches words that strip to
+    NOTHING. Latin-with-diacritics survives stripping while being silently mangled
+    (café -> caf), so callers must ALSO gate on language — see app.py. MMS_FA
+    romanizes those via uroman, which we do not ship.
     """
     if not words:
         return False

@@ -116,8 +116,14 @@ async def align(audio: UploadFile = File(...), lyrics: str = Form(...), language
     #
     # Never fatal: a second opinion is a repair, and a song aligned without it is far
     # better than a 500. Best-effort by design.
+    # English only: the second aligner's token set is a-z plus the apostrophe, which
+    # SILENTLY MANGLES the Latin-with-diacritics languages language.py detects
+    # (café -> caf, straße -> strae). Those strip to non-empty, so alignable() cannot
+    # catch them — and a second opinion built from corrupted tokens could override a
+    # perfectly good primary start. Widening this needs real romanization (uroman,
+    # which we don't ship) and per-language evidence, not a wider regex.
     source_words = [w for ln in lines for w in ln.split()]
-    if alignable(source_words):
+    if lang == "en" and alignable(source_words):
         try:
             grouped = apply_consensus(grouped, word_starts(wav, source_words, DEVICE))
         except Exception:

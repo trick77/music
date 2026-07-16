@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { listGenres, type GenreSummary, type Song } from "./api";
 import { coverUrl, coverInitial } from "./cover";
 import { fanartUrl } from "./fanart";
@@ -34,6 +34,17 @@ export function Library({ songs, favoriteIds, authenticated, studioEnabled = fal
   // Pill clicks change `tab` locally without touching `initialTab`, so they aren't
   // clobbered by this effect.
   useEffect(() => { setTab(initialTab); }, [initialTab, tabResetKey]);
+  // Keep the selected pill on screen: landing on /unpublished scrolls the strip
+  // to it rather than leaving the active pill off the right edge. `nearest` does
+  // NOT mean "never scrolls an ancestor" — with the pill off screen it still
+  // scrolls the page, just to the closest edge instead of centring. That is the
+  // wanted behaviour here: switching tabs from far down a list brings the top of
+  // the new list into view. `authenticated` is a dep because it adds/removes the
+  // Unpublished pill, which shifts the others along.
+  const activeTabRef = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    activeTabRef.current?.scrollIntoView({ inline: "nearest", block: "nearest" });
+  }, [tab, authenticated]);
   const [genres, setGenres] = useState<GenreSummary[]>([]);
   const [needsArtworkOnly, setNeedsArtworkOnly] = useState(false);
   useEffect(() => { if (tab === "genres") listGenres().then(setGenres).catch(() => setGenres([])); }, [tab]);
@@ -49,11 +60,19 @@ export function Library({ songs, favoriteIds, authenticated, studioEnabled = fal
 
   return (
     <div>
-      <div style={{ display: "flex", gap: "0.4rem", marginBottom: "1.25rem" }}>
+      {/* The pills scroll rather than wrap: four of them are ~387px, so on a phone
+          the last one ("Genres") hung off the right edge — half of it tappable,
+          the rest unreachable, and the whole page scrolled sideways to reach it.
+          `.hscroll` is the same idiom the cover rails use (no visible scrollbar,
+          momentum on touch), and the strip keeps the overflow to itself.
+          The 3px of vertical padding is room for a focused pill's ring: a scroll
+          container clips at its padding box, and without it the ring's top and
+          bottom arcs are cut off. The margin gives that 3px back. */}
+      <div className="hscroll" style={{ display: "flex", gap: "0.4rem", padding: "3px 0", marginBottom: "calc(1.25rem - 3px)" }}>
         {tabs.map((t) => (
-          <button key={t} onClick={() => setTab(t)}
+          <button key={t} ref={t === tab ? activeTabRef : undefined} onClick={() => setTab(t)}
             style={{ padding: "7px 14px", borderRadius: 999, cursor: "pointer", fontSize: "var(--text-ui)",
-              border: "1px solid transparent",
+              border: "1px solid transparent", flexShrink: 0, whiteSpace: "nowrap",
               background: tab === t ? "var(--color-accent-fill)" : "transparent",
               color: tab === t ? "var(--color-ink)" : "var(--color-muted)" }}>
             {t === "all" ? "All songs" : t === "favorites" ? "Favorites" : t === "unpublished" ? "Unpublished" : "Genres"}

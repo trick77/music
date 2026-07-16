@@ -5,10 +5,38 @@ import (
 	"embed"
 	"io/fs"
 	"net/http"
+	"strings"
 )
 
 //go:embed all:dist
 var distFS embed.FS
+
+// AssetsPrefix is the path Vite emits content-hashed bundles under. A file there
+// is immutable by construction: its name changes whenever its bytes do. Static
+// files from ui/public/ (sw.js, manifest, icons) land at the dist ROOT, not here,
+// and so stay revalidated — do not add an unhashed ui/public/assets/, as anything
+// under this prefix is cached for a year and cannot be recalled.
+const AssetsPrefix = "/assets/"
+
+// CacheControl returns the Cache-Control value for an embedded asset path.
+//
+// Files served from embed.FS carry a ZERO ModTime, so http.ServeContent emits no
+// Last-Modified, and net/http never generates an ETag. With no validator and no
+// Cache-Control, a browser is free to apply *heuristic* caching and re-use a
+// response for an unbounded time — Safari does, which pins clients to a stale
+// index.html and therefore a stale bundle long after a deploy. Being explicit is
+// what stops a shipped fix from silently never reaching anyone.
+func CacheControl(path string) string {
+	if strings.HasPrefix(path, AssetsPrefix) {
+		// Content-hashed: a changed build yields a new URL, so this can never go
+		// stale and is safe to keep out of revalidation entirely.
+		return "public, max-age=31536000, immutable"
+	}
+	// index.html (and the SPA fallback, sw.js, manifest) name the hashed bundles,
+	// so they must be revalidated on every load or the new hashes are never seen.
+	// "no-cache" still permits storing — it forces revalidation, not refetching.
+	return "no-cache"
+}
 
 // SPAHandler serves the embedded dist directory; unknown paths fall back to
 // index.html so client-side routing works.
@@ -23,6 +51,9 @@ func SPAHandler() http.Handler {
 			r = r.Clone(r.Context())
 			r.URL.Path = "/"
 		}
+		// Keyed on the (possibly rewritten) path: an unknown route now serves the
+		// index shell and must get the shell's no-cache, not an asset's immutable.
+		w.Header().Set("Cache-Control", CacheControl(r.URL.Path))
 		fileServer.ServeHTTP(w, r)
 	})
 }

@@ -151,5 +151,8 @@ func serveShell(w http.ResponseWriter, shell []byte, tags string) {
 		out = tags + s
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	// Same shell, same rule as the SPA handler: this response names the hashed
+	// bundles, so it must be revalidated or a client keeps booting an old build.
+	w.Header().Set("Cache-Control", "no-cache")
 	w.Write([]byte(out))
 }

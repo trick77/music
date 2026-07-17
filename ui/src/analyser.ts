@@ -25,10 +25,26 @@ function ensureAnalyser(): AnalyserNode | null {
     // high value (0.8) flattens a ~50ms kick before we ever read it; the visual
     // envelope is instead owned by ease() in VisualizerView.
     a.smoothingTimeConstant = 0.4;
-    // Dynamic range tuned for music: without this, typical loud tracks peg most
-    // bins at 255 (bars stuck at max). -20 dBFS maps to full height, -82 to zero.
-    a.minDecibels = -82;
-    a.maxDecibels = -20;
+    // The window music is mapped through: -25 dBFS is full height, -66 is zero.
+    // These are measured, not guessed. Sampling getFloatFrequencyData over three
+    // real tracks (metal / classic rock / ambient guitar) at 28 bands:
+    //   - per-band peaks live in roughly -66..-25 dBFS, so the old -82 floor spent
+    //     17 dB of the window on air. That squeezed every bar's real motion into
+    //     the top third and left the bottom permanently lit — the "shimmering
+    //     block" this window exists to fix. Narrowing 62 dB -> 41 dB multiplies
+    //     each bar's swing by ~1.5x: measured off the rendered canvas on the worst
+    //     case (a compressed metal master), a bar's swing goes 4 -> 6 of 18 cells
+    //     and its permanently-lit floor 8 -> 6.
+    //   - a band's energy only varies ~17-33 dB over time, which is why the span,
+    //     not the ceiling, is the lever: peaks already reached the top before.
+    // Kept deliberately conservative at the floor. -62 measured slightly livelier
+    // but sits right at the cliff: a master only 4 dB quieter starts dropping
+    // whole bands to permanent dark. -66 leaves that headroom and still lights
+    // every band on all three tracks.
+    // Still linear-in-dB and absolute (no per-band AGC), so a quiet passage stays
+    // visibly quieter than a loud one instead of being auto-gained up to match.
+    a.minDecibels = -66;
+    a.maxDecibels = -25;
     a.connect(ctx.destination);
     freq = new Uint8Array(a.frequencyBinCount);
     analyser = a;

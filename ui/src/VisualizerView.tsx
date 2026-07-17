@@ -182,7 +182,7 @@ export function VisualizerView({ fav, onShare }: { fav: Fav; onShare: (s: Song) 
           background: song?.coverArtId
             ? `linear-gradient(180deg, rgba(20,20,18,0.6), rgba(20,20,18,0.96)), url(${coverUrl(song.coverArtId, "hero")}) center/cover`
             : "var(--color-bg)",
-          ...(song?.coverArtId ? { filter: "blur(28px)", transform: "scale(1.12)" } : null),
+          ...(song?.coverArtId ? { filter: "blur(14px)", transform: "scale(1.12)" } : null),
         }}
       />
 

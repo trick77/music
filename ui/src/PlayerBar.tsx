@@ -184,7 +184,7 @@ export function PlayerBar({ fav, onShare, renderMenu, alignmentEnabled, open, ly
                 // unpositioned and would otherwise paint below this absolute layer.
                 zIndex: -1,
                 background: `linear-gradient(180deg, rgba(20,20,18,0.6), rgba(20,20,18,0.96)), url(${coverUrl(song.coverArtId, "hero")}) center/cover`,
-                filter: "blur(28px)",
+                filter: "blur(14px)",
                 transform: "scale(1.12)",
               }}
             />

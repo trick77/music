@@ -59,10 +59,9 @@ func withShareMeta(repo *library.Repo, shell []byte, spa http.Handler, hasFile f
 // advertised so clients lay out the card without fetching the image first.
 func defaultMeta(r *http.Request) string {
 	base := baseURL(r)
-	tags := buildMeta("website", "Music", "Stream your music library.", base+"/og-card.png", base+r.URL.Path)
-	tags += `<meta property="og:image:width" content="1200">` + "\n"
-	tags += `<meta property="og:image:height" content="630">` + "\n"
-	return tags
+	// The default card is the static 1.91:1 og-card.png (unchanged); song/playlist
+	// cards are the 1200x1200 rendered cards.
+	return buildMeta("website", "Music", "Stream your music library.", base+"/og-card.png", base+r.URL.Path, 1200, 630)
 }
 
 // shareID returns the id for an exact "/prefix/{id}" path (no further segments).
@@ -85,8 +84,8 @@ func songMeta(ctx context.Context, repo *library.Repo, r *http.Request, id strin
 	if err != nil || song == nil || !song.Published {
 		return "", false
 	}
-	img := coverPreviewURL(r, song.CoverArtID)
-	return buildMeta("music.song", song.Title, song.ArtistName, img, baseURL(r)+r.URL.Path), true
+	img := baseURL(r) + "/api/share/song/" + id + "/card.jpg"
+	return buildMeta("music.song", song.Title, song.ArtistName, img, baseURL(r)+r.URL.Path, 1200, 1200), true
 }
 
 func playlistMeta(ctx context.Context, repo *library.Repo, r *http.Request, id string) (string, bool) {
@@ -103,29 +102,16 @@ func playlistMeta(ctx context.Context, repo *library.Repo, r *http.Request, id s
 		noun = "song"
 	}
 	desc := fmt.Sprintf("Playlist · %d %s", n, noun)
-	coverID := pl.CoverArtID
-	if coverID == "" && len(pl.Songs) > 0 {
-		coverID = pl.Songs[0].CoverArtID // fallback to first track's cover
-	}
-	img := coverPreviewURL(r, coverID)
-	return buildMeta("music.playlist", pl.Name, desc, img, baseURL(r)+r.URL.Path), true
-}
-
-// coverPreviewURL builds the absolute, sized cover URL used for og:image. The
-// card size (480px JPEG) keeps previews small enough that chat apps
-// (WhatsApp/Slack) don't reject an oversized original. Empty id yields "" so
-// buildMeta omits the image entirely.
-func coverPreviewURL(r *http.Request, coverID string) string {
-	if coverID == "" {
-		return ""
-	}
-	return baseURL(r) + "/api/cover/" + coverID + "?size=card"
+	img := baseURL(r) + "/api/share/playlist/" + id + "/card.jpg"
+	return buildMeta("music.playlist", pl.Name, desc, img, baseURL(r)+r.URL.Path, 1200, 1200), true
 }
 
 // buildMeta renders the OG/Twitter block. All dynamic strings are HTML-escaped
-// for safe use inside double-quoted attribute values. og:image is omitted when
-// empty so no broken image URL is ever advertised.
-func buildMeta(ogType, title, desc, img, url string) string {
+// for safe use inside double-quoted attribute values. og:image (and its
+// advertised dimensions) is omitted when img is empty so no broken image URL is
+// ever advertised. imgW/imgH let clients (notably iMessage) lay out the card
+// without first downloading the image.
+func buildMeta(ogType, title, desc, img, url string, imgW, imgH int) string {
 	var b strings.Builder
 	meta := func(attr, key, val string) {
 		b.WriteString(`<meta ` + attr + `="` + key + `" content="` + html.EscapeString(val) + "\">\n")
@@ -141,6 +127,8 @@ func buildMeta(ogType, title, desc, img, url string) string {
 	if img != "" {
 		meta("property", "og:image", img)
 		meta("name", "twitter:image", img)
+		meta("property", "og:image:width", fmt.Sprintf("%d", imgW))
+		meta("property", "og:image:height", fmt.Sprintf("%d", imgH))
 	}
 	return b.String()
 }

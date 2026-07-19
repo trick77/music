@@ -1,59 +1,32 @@
-import { describe, it, expect, beforeEach, vi } from "vitest";
-import { bandEdges, rateTrim, targetRate } from "./analyser";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import { bandEdges, nextSeekAhead } from "./analyser";
 
-// rateTrim is the pure core of the visualizer's clock-lock: it maps a clock-offset
-// error (seconds) to a playbackRate delta that drives the silent analysis element
-// back onto the player's clock. The sign is the only part of the fix that could be
-// subtly wrong, so it is pinned here without needing a live media element.
-describe("rateTrim", () => {
-  it("speeds up (positive trim) when the analysis element is behind (negative error)", () => {
-    expect(rateTrim(-0.1)).toBeGreaterThan(0);
-  });
-  it("slows down (negative trim) when the analysis element is ahead (positive error)", () => {
-    expect(rateTrim(0.1)).toBeLessThan(0);
-  });
-  it("is zero at zero error — a locked element holds rate 1", () => {
-    expect(rateTrim(0)).toBeCloseTo(0); // may be -0; 1 + -0 === 1, so functionally locked
-  });
-  it("clamps to ±6% however large the error", () => {
-    expect(rateTrim(-10)).toBeCloseTo(0.06);
-    expect(rateTrim(10)).toBeCloseTo(-0.06);
-  });
-  it("returns 0 for a non-finite error so playbackRate is never assigned NaN", () => {
-    expect(rateTrim(NaN)).toBe(0);
-    expect(rateTrim(Infinity)).toBe(0);
-    expect(rateTrim(-Infinity)).toBe(0);
-  });
-});
+// Some clock-lock tests spy on performance.now; restore so no spy leaks across tests.
+afterEach(() => vi.restoreAllMocks());
 
-// targetRate wraps rateTrim in a deadband + quantization so playbackRate can be
-// written only on change: inside ±50ms the target is EXACTLY 1 (rate sits still),
-// outside it the corrective rate snaps to coarse steps so consecutive frames of a
-// converging error compute the same value.
-describe("targetRate", () => {
-  it("is exactly 1 inside the deadband — a near-locked clock never nudges the rate", () => {
-    expect(targetRate(0)).toBe(1);
-    expect(targetRate(0.049)).toBe(1);
-    expect(targetRate(-0.049)).toBe(1);
+// nextSeekAhead is the pure core of the visualizer's clock-lock: it learns how far
+// AHEAD of the player each correcting seek must aim so that, after the element
+// re-buffers, it lands aligned instead of recreating the same lag. playbackRate is
+// deliberately never used (WebKit stalls/silences a tapped element under any
+// sustained off-rate), so this learned aim is the whole convergence mechanism.
+describe("nextSeekAhead", () => {
+  it("aims further ahead when the element settled behind (negative error)", () => {
+    expect(nextSeekAhead(0, -0.4)).toBeCloseTo(0.4);
+    expect(nextSeekAhead(0.4, -0.1)).toBeCloseTo(0.5);
   });
-  it("speeds up when behind and slows down when ahead, once outside the deadband", () => {
-    expect(targetRate(-0.2)).toBeGreaterThan(1);
-    expect(targetRate(0.2)).toBeLessThan(1);
+  it("aims less far ahead after overshooting (positive error)", () => {
+    expect(nextSeekAhead(0.4, 0.15)).toBeCloseTo(0.25);
   });
-  it("clamps to ±6% however large the error", () => {
-    expect(targetRate(-10)).toBeCloseTo(1.06);
-    expect(targetRate(10)).toBeCloseTo(0.94);
+  it("never aims backwards and caps the aim below the resync limit", () => {
+    expect(nextSeekAhead(0.1, 0.5)).toBe(0);
+    // The cap must stay under RESYNC_LIMIT_S (1s): right after a correction the
+    // element sits ~aim AHEAD, and an aim past the limit would re-trigger the
+    // snap branch every frame — a seek storm.
+    expect(nextSeekAhead(0.7, -5)).toBe(0.8);
   });
-  it("is quantized: nearby errors map to the identical value (write-on-change friendly)", () => {
-    // Bitwise-identical, not merely close — this is what lets syncAnalysis skip
-    // the assignment on the next frame of the same correction episode.
-    expect(targetRate(-0.051)).toBe(targetRate(-0.3));
-    const v = targetRate(-0.2) * 100;
-    expect(Math.abs(Math.round(v) - v)).toBeLessThan(1e-9); // multiple of 0.01
-  });
-  it("is 1 for a non-finite error so playbackRate is never assigned NaN", () => {
-    expect(targetRate(NaN)).toBe(1);
-    expect(targetRate(Infinity)).toBe(1);
+  it("keeps the previous aim on a non-finite error (currentTime read before load)", () => {
+    expect(nextSeekAhead(0.3, NaN)).toBe(0.3);
+    expect(nextSeekAhead(0.3, Infinity)).toBe(0.3);
   });
 });
 
@@ -89,9 +62,9 @@ class MockAudio {
   paused = true;
   preload = "";
   crossOrigin: string | null = null;
-  // Every playbackRate assignment is recorded: the clock-lock must NOT write the
-  // rate every frame (WebKit reconfigures its pipeline on each write — the iPad
-  // stall), so tests count writes, not just the final value.
+  // Every playbackRate assignment is recorded: the clock-lock must NEVER touch the
+  // rate (any sustained off-rate stalls/silences a tapped element on WebKit — the
+  // "bars go to zero / never in sync" bug), so tests assert zero writes.
   rateWrites: number[] = [];
   private _rate = 1;
   get playbackRate(): number {
@@ -101,6 +74,9 @@ class MockAudio {
     this._rate = v;
     this.rateWrites.push(v);
   }
+  // The clock-lock only corrects while the element is settled and consuming data.
+  readyState = 4;
+  HAVE_FUTURE_DATA = 3;
   play = vi.fn(() => {
     this.paused = false;
     return Promise.resolve();
@@ -291,59 +267,205 @@ describe("syncAnalysis", () => {
     expect(lastAudio).toBeUndefined();
   });
 
-  // The WebKit regression pin: writing playbackRate every rAF frame made the
-  // analysis element stall on iPad (silent tap → synthetic bars). The lock must
-  // assign the rate only when the target CHANGES — a correction episode is a
-  // handful of writes, not 60 per second.
-  it("writes playbackRate only on change, not every frame", async () => {
+  // The WebKit pin: ANY playbackRate manipulation stalls/silences a tapped
+  // element (varispeed can go silent; the time-stretcher stalls every ~12s under
+  // a sustained off-rate — both measured). The clock-lock must never write it.
+  it("never writes playbackRate, whatever the offset does", async () => {
     const { startAnalysis, syncAnalysis } = await freshAnalyser("running");
+    let nowMs = 0;
+    vi.spyOn(performance, "now").mockImplementation(() => nowMs);
     startAnalysis();
     const main = mainEl({ currentSrc: "/api/songs/7/stream", currentTime: 10, paused: false });
 
-    syncAnalysis(main); // cold start: mirrors src, re-anchors at rate 1, plays
-    const startupWrites = lastAudio.rateWrites.length;
+    syncAnalysis(main); // cold start
+    lastAudio.currentTime = 9.5; // behind
+    nowMs = 5000;
+    syncAnalysis(main); // correction (a seek)
+    main.currentTime = 60; // user seek
+    syncAnalysis(main); // immediate snap
+    for (let i = 0; i < 10; i++) syncAnalysis(main);
 
-    // The element is 0.5s behind: ONE corrective write, then frames go quiet.
-    lastAudio.currentTime = 9.5;
-    syncAnalysis(main);
-    syncAnalysis(main);
-    syncAnalysis(main);
-    expect(lastAudio.rateWrites.length).toBe(startupWrites + 1);
-    expect(lastAudio.playbackRate).toBeCloseTo(1.06); // catching up
-
-    // Caught up (inside the deadband): ONE write back to exactly 1, then quiet.
-    lastAudio.currentTime = 10;
-    syncAnalysis(main);
-    syncAnalysis(main);
-    expect(lastAudio.rateWrites.length).toBe(startupWrites + 2);
+    expect(lastAudio.rateWrites.length).toBe(0);
     expect(lastAudio.playbackRate).toBe(1);
   });
 
-  it("holds rate 1 with no writes at all while the clock stays inside the deadband", async () => {
+  // The core of the lock: a naive seek re-buffers into the same lag, so each
+  // correction aims AHEAD by the loss learned from where the last one landed.
+  it("learns the re-buffer loss and aims the next correction ahead by it", async () => {
     const { startAnalysis, syncAnalysis } = await freshAnalyser("running");
+    let nowMs = 0;
+    vi.spyOn(performance, "now").mockImplementation(() => nowMs);
+    startAnalysis();
+    const main = mainEl({ currentSrc: "/api/songs/7/stream", currentTime: 10, paused: false });
+    syncAnalysis(main); // cold start: anchors at main's position (nothing learned yet)
+    expect(lastAudio.currentTime).toBe(10);
+
+    // The element buffered and landed 0.4s behind; both now advance at 1.0.
+    main.currentTime = 12;
+    lastAudio.currentTime = 11.6;
+    nowMs = 1000; // still inside the settle window — must not chase the transient
+    syncAnalysis(main);
+    expect(lastAudio.currentTime).toBe(11.6);
+
+    nowMs = 2000; // settled: fold the 0.4s loss into the aim and re-anchor ahead
+    syncAnalysis(main);
+    expect(lastAudio.currentTime).toBeCloseTo(12.4);
+  });
+
+  // WebKit regression pin: while the element re-buffers after a correction its
+  // clock sits frozen at the seek target while main advances toward it, so err
+  // transiently passes THROUGH the lock window. That pass-through must not end
+  // the learning session, or the landing is never measured and the lock
+  // re-anchors uncompensated forever (measured live: 60 seeks, stuck -320ms).
+  it("still learns the landing when err passes through the lock window mid-rebuffer", async () => {
+    const { startAnalysis, syncAnalysis } = await freshAnalyser("running");
+    let nowMs = 0;
+    vi.spyOn(performance, "now").mockImplementation(() => nowMs);
     startAnalysis();
     const main = mainEl({ currentSrc: "/api/songs/7/stream", currentTime: 10, paused: false });
     syncAnalysis(main); // cold start
-    const startupWrites = lastAudio.rateWrites.length;
 
-    lastAudio.currentTime = 10.01; // 10ms off — locked
-    for (let i = 0; i < 10; i++) syncAnalysis(main);
-    expect(lastAudio.rateWrites.length).toBe(startupWrites);
-    expect(lastAudio.playbackRate).toBe(1);
+    // Mid-rebuffer pass-through: frozen element clock ≈ main clock for a frame.
+    main.currentTime = 10.5;
+    lastAudio.currentTime = 10.5;
+    nowMs = 500; // inside the settle window
+    syncAnalysis(main);
+
+    // The real landing: 0.4s behind once playback resumes. Must still be learned.
+    main.currentTime = 12;
+    lastAudio.currentTime = 11.6;
+    nowMs = 2000;
+    syncAnalysis(main);
+    expect(lastAudio.currentTime).toBeCloseTo(12.4);
   });
 
-  it("snaps hard (and re-anchors at rate 1) when the offset is a real seek", async () => {
+  it("leaves a settled element completely alone inside the lock tolerance", async () => {
     const { startAnalysis, syncAnalysis } = await freshAnalyser("running");
+    let nowMs = 0;
+    vi.spyOn(performance, "now").mockImplementation(() => nowMs);
     startAnalysis();
     const main = mainEl({ currentSrc: "/api/songs/7/stream", currentTime: 10, paused: false });
     syncAnalysis(main);
-    lastAudio.currentTime = 9.5;
-    syncAnalysis(main); // trimming at 1.06
 
-    main.currentTime = 40; // user seeked +30s
+    main.currentTime = 12;
+    lastAudio.currentTime = 11.93; // 70ms behind — within ±100ms, locked
+    nowMs = 10000;
     syncAnalysis(main);
-    expect(lastAudio.currentTime).toBe(40); // snapped, not trimmed
-    expect(lastAudio.playbackRate).toBe(1);
+    expect(lastAudio.currentTime).toBe(11.93); // untouched: no seek, no rate write
+    expect(lastAudio.rateWrites.length).toBe(0);
+  });
+
+  it("does not correct while the element is still buffering (readyState low)", async () => {
+    const { startAnalysis, syncAnalysis } = await freshAnalyser("running");
+    let nowMs = 0;
+    vi.spyOn(performance, "now").mockImplementation(() => nowMs);
+    startAnalysis();
+    const main = mainEl({ currentSrc: "/api/songs/7/stream", currentTime: 10, paused: false });
+    syncAnalysis(main);
+
+    main.currentTime = 12;
+    lastAudio.currentTime = 11.5; // 0.5s behind…
+    lastAudio.readyState = 2; // …but mid-rebuffer: measuring now reads a transient
+    nowMs = 10000;
+    syncAnalysis(main);
+    expect(lastAudio.currentTime).toBe(11.5); // wait, don't seek-loop
+  });
+
+  it("snaps promptly when the main element seeks, bypassing the settle window", async () => {
+    const { startAnalysis, syncAnalysis } = await freshAnalyser("running");
+    let nowMs = 0;
+    vi.spyOn(performance, "now").mockImplementation(() => nowMs);
+    startAnalysis();
+    const main = mainEl({ currentSrc: "/api/songs/7/stream", currentTime: 10, paused: false });
+    syncAnalysis(main);
+
+    nowMs = 400; // inside the settle window, past the snap cooldown
+    main.currentTime = 40; // user seeked +30s — a real jump, nothing to learn
+    syncAnalysis(main);
+    expect(lastAudio.currentTime).toBe(40);
+  });
+
+  it("rate-limits hard snaps so a >1s landing can never become a per-frame seek storm", async () => {
+    const { startAnalysis, syncAnalysis } = await freshAnalyser("running");
+    let nowMs = 0;
+    vi.spyOn(performance, "now").mockImplementation(() => nowMs);
+    startAnalysis();
+    const main = mainEl({ currentSrc: "/api/songs/7/stream", currentTime: 10, paused: false });
+    syncAnalysis(main);
+
+    nowMs = 400;
+    main.currentTime = 40;
+    syncAnalysis(main); // snap #1
+    // The element stalls right back >1s out; frames keep coming inside the cooldown.
+    lastAudio.currentTime = 38;
+    nowMs = 450;
+    syncAnalysis(main);
+    nowMs = 500;
+    syncAnalysis(main);
+    expect(lastAudio.currentTime).toBe(38); // no per-frame re-seek
+
+    nowMs = 700; // cooldown over — one retry is allowed
+    syncAnalysis(main);
+    expect(lastAudio.currentTime).toBe(40);
+  });
+
+  // The poisoning pin: an error that appears while the clock was LOCKED (a small
+  // user scrub, a main-element stall) is external — folding it into the aim
+  // inflated or wiped the learned compensation. External drift gets a plain
+  // re-anchor with the aim intact; only our own correction's landing is learned.
+  it("does not learn from external drift — a small scrub keeps the learned aim", async () => {
+    const { startAnalysis, syncAnalysis } = await freshAnalyser("running");
+    let nowMs = 0;
+    vi.spyOn(performance, "now").mockImplementation(() => nowMs);
+    startAnalysis();
+    const main = mainEl({ currentSrc: "/api/songs/7/stream", currentTime: 10, paused: false });
+    syncAnalysis(main); // cold start
+
+    // Landing measured 0.4s behind → aim learns 0.4.
+    main.currentTime = 12;
+    lastAudio.currentTime = 11.6;
+    nowMs = 2000;
+    syncAnalysis(main);
+    expect(lastAudio.currentTime).toBeCloseTo(12.4);
+
+    // It settles into lock — the learning session is over.
+    main.currentTime = 14;
+    lastAudio.currentTime = 14.02;
+    nowMs = 4000;
+    syncAnalysis(main);
+
+    // A 0.5s scrub: re-anchor aims player + the PRESERVED 0.4 aim, not 0.9.
+    main.currentTime = 14.5;
+    lastAudio.currentTime = 14.02;
+    nowMs = 6000;
+    syncAnalysis(main);
+    expect(lastAudio.currentTime).toBeCloseTo(14.9);
+  });
+
+  it("resumes from pause aimed at the player exactly — buffered data loses nothing", async () => {
+    const { startAnalysis, syncAnalysis } = await freshAnalyser("running");
+    let nowMs = 0;
+    vi.spyOn(performance, "now").mockImplementation(() => nowMs);
+    startAnalysis();
+    const main = mainEl({ currentSrc: "/api/songs/7/stream", currentTime: 10, paused: false });
+    syncAnalysis(main); // cold start
+
+    // Learn a nonzero aim first.
+    main.currentTime = 12;
+    lastAudio.currentTime = 11.6;
+    nowMs = 2000;
+    syncAnalysis(main);
+
+    // Pause, then resume: the element is buffered (readyState 4), so it must NOT
+    // aim 0.4 ahead — that would overshoot and then wipe the learned aim.
+    (main as { paused: boolean }).paused = true;
+    syncAnalysis(main);
+    expect(lastAudio.pause).toHaveBeenCalled();
+    (main as { paused: boolean }).paused = false;
+    main.currentTime = 12.5;
+    nowMs = 4000;
+    syncAnalysis(main);
+    expect(lastAudio.currentTime).toBe(12.5);
   });
 });
 

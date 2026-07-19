@@ -208,6 +208,45 @@ export function App() {
     if (playerParam !== null || route.name === "visualizer") navigate("/");
   }, [player.current, playerParam, route.name]);
 
+  // iPadOS Safari leaves stale compositor/layout state behind when the full-screen
+  // visualizer overlay (position:fixed, filter:blur + transform:scale, z-95) is torn
+  // down on the FIRST close: the mini dock keeps a frozen, non-interactive
+  // backdrop-filter snapshot and the home hero never paints — both clear only on
+  // reload. On device, a finger scroll or a device rotation clears it immediately;
+  // a compositor *hint* (translateZ) does not, because iOS coalesces it away. What
+  // scroll/rotation have in common is a real geometry relayout — so we reproduce
+  // that: when leaving /visualizer, force a synchronous reflow that tears down and
+  // rebuilds the layout boxes (and thus the compositor layers) of the two stale
+  // surfaces, then nudge the scroll position a hair. This is a no-op on browsers
+  // that don't have the bug.
+  const prevRouteName = useRef(route.name);
+  useEffect(() => {
+    const leftVisualizer = prevRouteName.current === "visualizer" && route.name !== "visualizer";
+    prevRouteName.current = route.name;
+    if (!leftVisualizer) return;
+    // Run after the new route has committed so .hero-track (Home) is in the DOM.
+    const id = requestAnimationFrame(() => {
+      // display:none → forced reflow → restore destroys and recreates each box's
+      // layout and layer. Done synchronously (no paint in between) so there is no
+      // visible flash, but the layer tree is rebuilt on the next composite.
+      for (const sel of [".player-dock", ".hero-track"]) {
+        const el = document.querySelector<HTMLElement>(sel);
+        if (!el) continue;
+        const prevDisplay = el.style.display;
+        el.style.display = "none";
+        void el.offsetHeight; // force reflow with the box removed
+        el.style.display = prevDisplay;
+        void el.offsetHeight; // and again with it back
+      }
+      // Second lever: mimic the finger scroll the user found clears it.
+      const scroller = document.scrollingElement ?? document.documentElement;
+      const y = scroller.scrollTop;
+      scroller.scrollTop = y + 1;
+      scroller.scrollTop = y;
+    });
+    return () => cancelAnimationFrame(id);
+  }, [route.name]);
+
   const flash = (msg: string) => {
     setToast(msg);
     window.setTimeout(() => setToast(null), 2000);

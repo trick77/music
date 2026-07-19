@@ -3,13 +3,56 @@ import { player, usePlayer } from "./player";
 import { coverUrl } from "./cover";
 import { closeToOrigin } from "./router";
 import { useBackgroundDismiss } from "./backgroundDismiss";
-import { attach, resume, bands } from "./analyser";
+import { startAnalysis, stopAnalysis, syncAnalysis, analysisTime, resume, bands } from "./analyser";
 import { Icon } from "./Icon";
 import { Divider, ImmersiveControls, StarButton, Transport, iconBtn, type Fav } from "./PlayerControls";
 import { useEscape } from "./useEscape";
 import { type Song } from "./api";
 
 const N = 28; // number of spectrum columns
+
+// synthTargets produces a lively, bass-weighted pseudo-spectrum from layered
+// sines — the fallback used when the real analyser can't run (e.g. iOS won't
+// decode the hidden analysis element, or Web Audio is unavailable). It does NOT
+// track the actual audio (there is no signal to read); it just keeps the bars
+// alive while a track plays and flat when paused. Pure: the same (t, playing)
+// always yields the same frame.
+export function synthTargets(t: number, playing: boolean): number[] {
+  const out = new Array<number>(N).fill(0);
+  if (!playing) return out;
+  const s = t / 1000;
+  for (let i = 0; i < N; i++) {
+    const base = 0.6 - (i / N) * 0.4; // bass columns sit taller than treble
+    const w1 = 0.5 + 0.5 * Math.sin(s * (1.2 + i * 0.13) + i * 0.5);
+    const w2 = 0.5 + 0.5 * Math.sin(s * (2.7 - i * 0.05) + i * 1.3);
+    out[i] = Math.max(0, Math.min(1, base * (0.35 + 0.65 * w1) * (0.55 + 0.45 * w2)));
+  }
+  return out;
+}
+
+// After this long of a genuinely dead tap, give up on the real spectrum and show
+// synthetic bars instead.
+export const STARVE_LIMIT_MS = 3000;
+
+// accrueStarvation tracks how long the analyser has been silent *while the hidden
+// element is actually producing audio*. Returns the updated total (ms). It is the
+// dead-tap detector for the synthetic fallback, and it is deliberately narrow so
+// it can't misfire in normal use:
+//   - paused → 0 (a pause is not a dead tap; this is what made a >2.5s pause
+//     permanently drop to synthetic on resume before).
+//   - not advancing → 0 (still loading/seeking, e.g. a slow cold open — not dead).
+//   - any signal → 0 (the tap works).
+// Only when the element's clock is advancing yet the spectrum stays flat does the
+// timer accumulate; crossing STARVE_LIMIT_MS means the tap really is dead (iOS
+// refusing to route the decoded second element), so switch to synthetic bars.
+export function accrueStarvation(
+  prevMs: number,
+  dtMs: number,
+  opts: { playing: boolean; advancing: boolean; hasSignal: boolean },
+): number {
+  if (!opts.playing || !opts.advancing || opts.hasSignal) return 0;
+  return prevMs + dtMs;
+}
 
 // VisualizerView is the full-screen, deep-linkable audio visualizer (route
 // /visualizer). Ambient composition: the album art fills the frame (a DOM layer
@@ -116,10 +159,11 @@ export function VisualizerView({ fav, onShare }: { fav: Fav; onShare: (s: Song) 
     let cancelled = false;
 
     if (reduce) {
-      // Static, honest frame: sample once, settle, draw — no animation loop.
-      attach(player.getAudioElement());
-      resume();
-      const t = bands(N);
+      // Reduced motion: one settled frame, no animation loop and no second stream.
+      // A live sample would need the analysis element to load and play, which is
+      // exactly the motion this branch avoids, so draw a static synthetic frame.
+      const playing = !(player.getAudioElement()?.paused ?? true);
+      const t = synthTargets(0, playing);
       for (let s = 0; s < 40; s++) ease(t);
       draw();
       return () => {
@@ -128,11 +172,50 @@ export function VisualizerView({ fav, onShare }: { fav: Fav; onShare: (s: Song) 
       };
     }
 
+    // Live path: tap the DEDICATED analysis element (never the audible one) so
+    // opening the visualizer no longer reroutes playback. synthetic goes true if
+    // Web Audio is unavailable, or later if the analyser stays silent while a
+    // track plays (e.g. iOS won't decode the hidden element) — cosmetic only,
+    // since the audible element is untouched in both branches.
+    let synthetic = !startAnalysis();
+    resume();
+    let starveMs = 0;
+    let lastFrameMs = 0;
+    let lastAnalysisT = -1;
+
     function frame() {
       if (cancelled) return;
-      attach(player.getAudioElement()); // idempotent; no-op once tapped or on null
-      resume();
-      ease(bands(N));
+      const now = performance.now();
+      const dt = lastFrameMs ? now - lastFrameMs : 0;
+      lastFrameMs = now;
+      const main = player.getAudioElement();
+      let target: number[];
+      if (synthetic) {
+        target = synthTargets(now, !(main?.paused ?? true));
+      } else {
+        syncAnalysis(main); // mirror src/position/play onto the silent element
+        resume();
+        target = bands(N);
+        // Dead-tap detection (see accrueStarvation): only accumulates while the
+        // hidden element's clock advances yet the spectrum stays flat. Resets on
+        // pause, on loading/seeking, and on any signal — so a mid-track pause or a
+        // slow cold open never spuriously drops to synthetic bars.
+        const at = analysisTime();
+        const advancing = at >= 0 && at !== lastAnalysisT;
+        lastAnalysisT = at;
+        let peak = 0;
+        for (let i = 0; i < N; i++) if (target[i] > peak) peak = target[i];
+        starveMs = accrueStarvation(starveMs, dt, {
+          playing: !!(main && !main.paused),
+          advancing,
+          hasSignal: peak >= 0.02,
+        });
+        if (starveMs > STARVE_LIMIT_MS) {
+          synthetic = true;
+          stopAnalysis(); // the tap is dead — stop the now-useless second stream
+        }
+      }
+      ease(target);
       draw();
       raf = requestAnimationFrame(frame);
     }
@@ -142,6 +225,7 @@ export function VisualizerView({ fav, onShare }: { fav: Fav; onShare: (s: Song) 
       cancelled = true;
       cancelAnimationFrame(raf);
       window.removeEventListener("resize", resize);
+      stopAnalysis(); // pause + drop the second stream when the visualizer closes
     };
   }, []);
 

@@ -551,22 +551,27 @@ describe("decoded-buffer tap", () => {
   it("leaves a tracking buffer alone and re-anchors it on a player seek", async () => {
     const { startAnalysis, syncAnalysis } = await freshAnalyser("running");
     stubFetchOk();
+    let nowMs = 1000;
+    vi.spyOn(performance, "now").mockImplementation(() => nowMs);
     startAnalysis();
     const main = mainEl({ currentSrc: "/api/songs/7/stream", currentTime: 10, paused: false });
     syncAnalysis(main);
     await flushDecode();
+    nowMs = 2000;
     syncAnalysis(main); // buffer starts at 10 (ctx time 0)
     const first = lastBufSource!;
 
     // Both clocks advance in step: position tracks exactly, no restart.
     lastCtx.currentTime = 30;
     main.currentTime = 40;
+    nowMs = 3000;
     syncAnalysis(main);
     expect(lastBufSource).toBe(first);
     expect(first.started).toHaveLength(1);
 
     // Player seeks +60s: restart exactly there.
     main.currentTime = 100;
+    nowMs = 4000;
     syncAnalysis(main);
     expect(lastBufSource).not.toBe(first);
     expect(lastBufSource!.started).toEqual([[0, 100]]);
@@ -575,10 +580,13 @@ describe("decoded-buffer tap", () => {
   it("pauses with the player and resumes at the player's position", async () => {
     const { startAnalysis, syncAnalysis } = await freshAnalyser("running");
     stubFetchOk();
+    let nowMs = 1000;
+    vi.spyOn(performance, "now").mockImplementation(() => nowMs);
     startAnalysis();
     const main = mainEl({ currentSrc: "/api/songs/7/stream", currentTime: 10, paused: false });
     syncAnalysis(main);
     await flushDecode();
+    nowMs = 2000;
     syncAnalysis(main);
     const playingSource = lastBufSource!;
 
@@ -588,6 +596,7 @@ describe("decoded-buffer tap", () => {
 
     (main as { paused: boolean }).paused = false;
     main.currentTime = 12;
+    nowMs = 3000;
     syncAnalysis(main);
     expect(lastBufSource!.started).toEqual([[0, 12]]);
   });
@@ -604,13 +613,69 @@ describe("decoded-buffer tap", () => {
     expect(lastAudio.src).toBe("/api/songs/7/stream"); // element still serving the FFT
   });
 
-  it("drops the decoded PCM on stopAnalysis so a closed visualizer costs nothing", async () => {
-    const { startAnalysis, syncAnalysis, stopAnalysis } = await freshAnalyser("running");
+  it("attempts a failed decode only once — no per-frame refetch storm", async () => {
+    const { startAnalysis, syncAnalysis } = await freshAnalyser("running");
+    startAnalysis();
+    const main = mainEl({ currentSrc: "/api/songs/7/stream", currentTime: 10, paused: false });
+    syncAnalysis(main);
+    await flushDecode(); // the one attempt fails (default rejecting fetch)
+    syncAnalysis(main);
+    syncAnalysis(main);
+    syncAnalysis(main);
+    expect(fetch).toHaveBeenCalledTimes(1);
+  });
+
+  it("refuses to decode very long tracks — the element tap serves them", async () => {
+    const { startAnalysis, syncAnalysis } = await freshAnalyser("running");
     stubFetchOk();
+    startAnalysis();
+    const main = mainEl({
+      currentSrc: "/api/songs/7/stream",
+      currentTime: 10,
+      paused: false,
+      duration: 60 * 60, // an hour-long set would decode to hundreds of MB
+    });
+    syncAnalysis(main);
+    await flushDecode();
+    syncAnalysis(main);
+    expect(fetch).not.toHaveBeenCalled();
+    expect(lastBufSource).toBeUndefined();
+    expect(lastAudio.src).toBe("/api/songs/7/stream");
+  });
+
+  it("drops the old track's buffer the moment the player changes track", async () => {
+    const { startAnalysis, syncAnalysis } = await freshAnalyser("running");
+    stubFetchOk();
+    let nowMs = 1000;
+    vi.spyOn(performance, "now").mockImplementation(() => nowMs);
     startAnalysis();
     const main = mainEl({ currentSrc: "/api/songs/7/stream", currentTime: 10, paused: false });
     syncAnalysis(main);
     await flushDecode();
+    nowMs = 2000;
+    syncAnalysis(main); // buffer tap live for song 7
+    const oldSource = lastBufSource!;
+
+    // Player advances to the next track: the stale source must stop feeding the
+    // FFT immediately, and the element must take over streaming the new song.
+    (main as { currentSrc: string }).currentSrc = "/api/songs/8/stream";
+    main.currentTime = 0;
+    nowMs = 3000;
+    syncAnalysis(main);
+    expect(oldSource.stop).toHaveBeenCalled();
+    expect(lastAudio.src).toBe("/api/songs/8/stream"); // element bridges the new track
+  });
+
+  it("drops the decoded PCM on stopAnalysis so a closed visualizer costs nothing", async () => {
+    const { startAnalysis, syncAnalysis, stopAnalysis } = await freshAnalyser("running");
+    stubFetchOk();
+    let nowMs = 1000;
+    vi.spyOn(performance, "now").mockImplementation(() => nowMs);
+    startAnalysis();
+    const main = mainEl({ currentSrc: "/api/songs/7/stream", currentTime: 10, paused: false });
+    syncAnalysis(main);
+    await flushDecode();
+    nowMs = 2000;
     syncAnalysis(main);
     const src = lastBufSource!;
 

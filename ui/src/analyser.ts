@@ -208,19 +208,28 @@ export function syncAnalysis(main: HTMLMediaElement | null): void {
   if (!el || !main) return;
   const src = main.currentSrc || main.src;
   if (!src) return;
+  // The buffer tap must never outlive its track: on a track change, drop the old
+  // PCM (and any in-flight decode) immediately or the bars keep rendering the
+  // PREVIOUS song while the new one decodes.
+  if (trackBufUrl && trackBufUrl !== src) releaseTrackBuffer();
   // Kick the background decode; once it lands, the exact buffer tap takes over
   // and the streaming element (and all its WebKit failure modes) goes idle.
-  ensureTrackBuffer(src);
+  ensureTrackBuffer(src, main.duration);
   if (trackBuf && trackBufUrl === src) {
-    if (el.src) {
+    syncBuffer(main);
+    // Release the element's stream only once a buffer source has actually
+    // started — if startBufAt ever fails, the element remains the fallback
+    // instead of leaving a silently dead tap.
+    if (bufSource && el.src) {
       try {
         el.pause();
         el.removeAttribute("src");
         el.load(); // release the second network stream — the buffer has the track
       } catch { /* best effort */ }
     }
-    syncBuffer(main);
-    return;
+    if (bufSource || !el.src) return;
+    // fall through: buffer ready but not started (paused, tail sliver, or a
+    // failed start) while the element still holds the stream — element serves
   }
   if (el.src !== src) {
     el.src = src;
@@ -285,11 +294,8 @@ export function syncAnalysis(main: HTMLMediaElement | null): void {
 // decode, and the fallback element (so its stream stops). The shared
 // ctx/analyser/sink persist and are reused on the next open.
 export function stopAnalysis(): void {
-  stopBufSource();
-  trackBuf = null;
-  trackBufUrl = null;
-  decodeSeq++; // invalidate any in-flight decode
-  decodePending = null;
+  releaseTrackBuffer();
+  decodeFailedUrl = null; // a fresh open may retry (transient failures heal)
   if (source) {
     try {
       source.disconnect();
@@ -339,10 +345,17 @@ export function isAnalysing(): boolean {
 let trackBuf: AudioBuffer | null = null;
 let trackBufUrl: string | null = null;
 let decodePending: string | null = null;
+let decodeFailedUrl: string | null = null; // negative cache: one attempt per track
+let decodeAbort: AbortController | null = null;
 let decodeSeq = 0;
 let bufSource: AudioBufferSourceNode | null = null;
 let bufStartOffset = 0;
 let bufStartCtxT = 0;
+let lastBufStartMs = 0;
+
+// Refuse to decode beyond this duration: a 60-minute set decodes to hundreds of
+// MB of resident PCM — a guaranteed iOS jetsam. Long tracks keep the element tap.
+const MAX_DECODE_DURATION_S = 15 * 60;
 
 // Restart the buffer source when its position drifts this far from the player.
 // Restarts are sample-accurate and cheap (no network, no decode), but the two
@@ -377,31 +390,64 @@ function startBufAt(offsetS: number): void {
     bufSource = s;
     bufStartOffset = off;
     bufStartCtxT = ctx.currentTime;
-  } catch { /* keep the element fallback */ }
+  } catch { /* bufSource stays null — the dispatch keeps the element serving */ }
+  lastBufStartMs = performance.now();
 }
 
-// ensureTrackBuffer fetches + decodes the track once per URL, in the background.
-// The decoded stereo buffer is folded to a mono copy (half the resident memory)
-// and the original is dropped. Any failure leaves trackBuf null — the element
-// tap simply keeps serving the FFT.
-function ensureTrackBuffer(url: string): void {
-  if (!ctx || trackBufUrl === url || decodePending === url) return;
+// releaseTrackBuffer drops the decoded PCM, any live source, and any in-flight
+// decode. Called on track change and on stopAnalysis so a stale track can never
+// keep feeding the FFT (and its tens of MB never outlive their use).
+function releaseTrackBuffer(): void {
+  stopBufSource();
+  trackBuf = null;
+  trackBufUrl = null;
+  decodeSeq++; // invalidate any in-flight decode…
+  decodeAbort?.abort(); // …and stop its download spending bandwidth
+  decodeAbort = null;
+  decodePending = null;
+}
+
+// ensureTrackBuffer fetches + decodes the track ONCE per URL, in the background.
+// The decoded stereo buffer is folded to a mono mix (half the resident memory)
+// and the original dropped. Any failure is memoized per URL — one attempt, no
+// refetch storm — and leaves trackBuf null: the element tap keeps serving.
+function ensureTrackBuffer(url: string, durationS: number): void {
+  if (!ctx || trackBufUrl === url || decodePending === url || decodeFailedUrl === url) return;
+  if (Number.isFinite(durationS) && durationS > MAX_DECODE_DURATION_S) {
+    decodeFailedUrl = url; // too big to hold decoded — the element tap serves it
+    return;
+  }
   decodePending = url;
   const seq = ++decodeSeq;
+  decodeAbort = new AbortController();
+  const signal = decodeAbort.signal;
   void (async () => {
     try {
-      const res = await fetch(url);
-      if (!res.ok) return;
+      const res = await fetch(url, { signal });
+      if (seq !== decodeSeq) return;
+      if (!res.ok) {
+        decodeFailedUrl = url;
+        return;
+      }
       const raw = await res.arrayBuffer();
-      const decoded = await ctx!.decodeAudioData(raw);
       if (seq !== decodeSeq || !ctx) return;
+      const decoded = await ctx.decodeAudioData(raw);
+      if (seq !== decodeSeq || !ctx) return;
+      const ch0 = decoded.getChannelData(0);
+      let mix = ch0;
+      if (decoded.numberOfChannels > 1) {
+        const ch1 = decoded.getChannelData(1);
+        mix = new Float32Array(ch0.length);
+        for (let i = 0; i < ch0.length; i++) mix[i] = (ch0[i] + ch1[i]) / 2;
+      }
       const mono = ctx.createBuffer(1, decoded.length, decoded.sampleRate);
-      mono.copyToChannel(decoded.getChannelData(0), 0);
+      mono.copyToChannel(mix, 0);
       trackBuf = mono;
       trackBufUrl = url;
       stopBufSource(); // re-anchored to the player on the next frame
     } catch {
-      // decode refused / OOM / network — the element tap stays in charge
+      // decode refused / OOM / network — memoize so this track isn't re-attempted
+      if (seq === decodeSeq) decodeFailedUrl = url;
     } finally {
       if (seq === decodeSeq) decodePending = null;
     }
@@ -410,15 +456,28 @@ function ensureTrackBuffer(url: string): void {
 
 // syncBuffer drives the buffer tap: mirror play/pause and keep the buffer
 // position on the player's clock (+ analysisLeadS). Positioning is exact, so
-// anything past the small drift window is re-anchored immediately.
+// drift past the small window is re-anchored — but rate-limited, and only while
+// the context clock is actually running: a suspended/interrupted ctx (iOS lock)
+// freezes ctx.currentTime, and an unguarded drift check would then churn a new
+// source every few frames. Same guard covers the main element stalling.
 function syncBuffer(main: HTMLMediaElement): void {
   if (main.paused) {
     stopBufSource();
     return;
   }
+  if (ctx && (ctx.state as string) !== "running") return;
   const target = main.currentTime + analysisLeadS;
+  if (trackBuf && target >= trackBuf.duration) {
+    // The decoded buffer can run slightly shorter than the streamed track (mp3
+    // duration estimates). Don't churn restarts against the clamp at the tail —
+    // idle flat for the last sliver until the track changes.
+    stopBufSource();
+    return;
+  }
   const pos = bufPos();
-  if (pos < 0 || Math.abs(pos - target) > BUF_DRIFT_S) startBufAt(target);
+  if (pos < 0 || Math.abs(pos - target) > BUF_DRIFT_S) {
+    if (performance.now() - lastBufStartMs > 250) startBufAt(target);
+  }
 }
 
 // analysisDebug returns a one-line snapshot of the tap's state for the vizdebug

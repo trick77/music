@@ -1,5 +1,30 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { bandEdges } from "./analyser";
+import { bandEdges, rateTrim } from "./analyser";
+
+// rateTrim is the pure core of the visualizer's clock-lock: it maps a clock-offset
+// error (seconds) to a playbackRate delta that drives the silent analysis element
+// back onto the player's clock. The sign is the only part of the fix that could be
+// subtly wrong, so it is pinned here without needing a live media element.
+describe("rateTrim", () => {
+  it("speeds up (positive trim) when the analysis element is behind (negative error)", () => {
+    expect(rateTrim(-0.1)).toBeGreaterThan(0);
+  });
+  it("slows down (negative trim) when the analysis element is ahead (positive error)", () => {
+    expect(rateTrim(0.1)).toBeLessThan(0);
+  });
+  it("is zero at zero error — a locked element holds rate 1", () => {
+    expect(rateTrim(0)).toBeCloseTo(0); // may be -0; 1 + -0 === 1, so functionally locked
+  });
+  it("clamps to ±6% however large the error", () => {
+    expect(rateTrim(-10)).toBeCloseTo(0.06);
+    expect(rateTrim(10)).toBeCloseTo(-0.06);
+  });
+  it("returns 0 for a non-finite error so playbackRate is never assigned NaN", () => {
+    expect(rateTrim(NaN)).toBe(0);
+    expect(rateTrim(Infinity)).toBe(0);
+    expect(rateTrim(-Infinity)).toBe(0);
+  });
+});
 
 // A minimal, controllable AudioContext mock. createMediaElementSource is the tap
 // we care about; resume() records that the context was un-suspended.

@@ -93,6 +93,12 @@ export function startAnalysis(): boolean {
     const el = new Audio();
     el.preload = "auto";
     el.crossOrigin = "anonymous"; // same-origin today, but explicit keeps the tap untainted
+    // syncAnalysis briefly runs this element slightly off-rate to close its startup
+    // offset (see there). Let that be a clean resample, NOT a pitch-preserving time
+    // stretch — time-stretching injects spectral artefacts into the very FFT the
+    // visualizer reads. A few seconds ~1 semitone off is invisible on 28 log bands.
+    el.preservesPitch = false;
+    (el as unknown as { webkitPreservesPitch?: boolean }).webkitPreservesPitch = false;
     const src = ctx.createMediaElementSource(el);
     src.connect(a);
     analysisEl = el;
@@ -105,8 +111,36 @@ export function startAnalysis(): boolean {
   }
 }
 
+// ANALYSIS_LEAD_S is the target offset (analysisEl.currentTime − main.currentTime)
+// the soft clock-lock drives to. 0 means the bars ride the same media position the
+// player's clock reports. It is an on-device-tunable perceptual knob (cf.
+// KaraokeView's SWEEP_LEAD): raise it slightly if the bars ever feel late against
+// what you hear (e.g. to compensate a device's own audible output latency). Keep it
+// magnitude-agnostic — do NOT bake in a measured device offset here.
+const ANALYSIS_LEAD_S = 0;
+// Beyond this the offset is a seek or track change, not startup drift, so snap the
+// element hard to re-anchor. Deliberately generous: a Bluetooth/AirPods output
+// latency can legitimately sit a few hundred ms out, and that must be trimmed by
+// rate (below), never turned into a constant re-seek that flattens the FFT.
+const RESYNC_LIMIT_S = 1.0;
+const RATE_TRIM_MAX = 0.06; // cap the soft-lock nudge at ±6% (inaudible; gain-0 element)
+const RATE_GAIN = 2; // proportional gain mapping the offset error (s) → rate trim
+
+// rateTrim maps a clock-offset error (seconds; negative = analysis element behind
+// the player) to the playbackRate delta that closes it: behind → speed up
+// (positive), ahead → slow down. Clamped to ±RATE_TRIM_MAX, and NaN-safe: a
+// non-finite error (e.g. currentTime read before load) yields 0 so playbackRate is
+// never assigned a non-finite value — that throws a TypeError, and since the
+// visualizer's rAF loop calls syncAnalysis unguarded, one throw would cancel the
+// loop and freeze the bars. Pure so the sign/convergence is unit-tested without a
+// live media element.
+export function rateTrim(errSeconds: number): number {
+  if (!Number.isFinite(errSeconds)) return 0;
+  return Math.max(-RATE_TRIM_MAX, Math.min(RATE_TRIM_MAX, -errSeconds * RATE_GAIN));
+}
+
 // syncAnalysis mirrors the audible element onto the silent analysis element: same
-// source, same play/pause, same position (within a small drift tolerance). Called
+// source, same play/pause, and — via a soft clock-lock — the same position. Called
 // every frame while the visualizer is open. Reads truth straight off the main
 // element so track changes and seeks are picked up without any extra plumbing.
 //
@@ -133,13 +167,28 @@ export function syncAnalysis(main: HTMLMediaElement | null): void {
     try {
       el.currentTime = main.currentTime;
     } catch { /* not seekable yet */ }
+    el.playbackRate = 1; // re-anchor cleanly; the clock-lock re-trims from the next frame
     void el.play().catch(() => {});
     return;
   }
-  if (Math.abs(el.currentTime - main.currentTime) > 0.25) {
+  // Soft clock-lock. The analysis element starts a few hundred ms BEHIND the main
+  // element — it must buffer and start playing while main keeps advancing — and,
+  // once both run at rate 1.0, that startup offset is otherwise frozen, so the bars
+  // render audio a fixed lag in the past (measured ~244 ms). A hard seek can't cure
+  // it: seeking re-buffers and recreates the very same lag. So nudge the *silent*
+  // element's playbackRate to drive the offset to ANALYSIS_LEAD_S, then hold at 1.0.
+  // A large offset (a real seek or track change) is snapped hard instead; small
+  // residuals are trimmed by rate. Magnitude-agnostic, so it works whatever the
+  // device's true offset is (Bluetooth latency, a slower decode, etc.).
+  const err = el.currentTime - main.currentTime - ANALYSIS_LEAD_S;
+  if (Math.abs(err) > RESYNC_LIMIT_S) {
     try {
-      el.currentTime = main.currentTime;
+      el.currentTime = main.currentTime + ANALYSIS_LEAD_S;
     } catch { /* not seekable yet */ }
+    el.playbackRate = 1;
+  } else {
+    // err < 0 → element is behind → play faster to catch up (and vice versa).
+    el.playbackRate = 1 + rateTrim(err);
   }
 }
 

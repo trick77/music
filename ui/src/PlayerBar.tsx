@@ -112,7 +112,10 @@ export function PlayerBar({ fav, onShare, renderMenu, alignmentEnabled, open, ly
           // on phones the dock stands on the tab bar rather than on the floor,
           // and an inline bottom would win over that media query.
           background: "color-mix(in srgb, var(--color-panel) 92%, transparent)",
+          // Both spellings: React does not auto-prefix inline styles, and older
+          // iPadOS Safari only honours the -webkit- form.
           backdropFilter: "blur(14px)",
+          WebkitBackdropFilter: "blur(14px)",
           zIndex: 60,
         }}
       >
@@ -188,6 +191,7 @@ export function PlayerBar({ fav, onShare, renderMenu, alignmentEnabled, open, ly
                 zIndex: -1,
                 background: `linear-gradient(180deg, rgba(20,20,18,0.6), rgba(20,20,18,0.96)), url(${coverUrl(song.coverArtId, "hero")}) center/cover`,
                 filter: "blur(14px)",
+                WebkitFilter: "blur(14px)",
                 transform: "scale(1.12)",
               }}
             />

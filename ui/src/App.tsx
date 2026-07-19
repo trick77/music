@@ -317,14 +317,6 @@ export function App() {
     setMenuFor(null);
   };
 
-  // copyPlayerLink shares the live deep link — while the overlay is open the URL
-  // already encodes the song + player state, so the current address is the link.
-  const copyPlayerLink = async () => {
-    const url = window.location.href;
-    if (!(await copyText(url))) window.prompt("Copy this link", url);
-    else flash("Link copied");
-  };
-
   const shareUrl = async (url: string) => {
     if (!(await copyText(url))) window.prompt("Copy this link", url);
     else flash("Link copied");
@@ -455,7 +447,7 @@ export function App() {
 
       <input ref={uploadRef} type="file" accept=".mp3,audio/mpeg" onChange={onUpload} style={{ display: "none" }} disabled={uploading} />
 
-      <PlayerBar fav={fav} onShare={shareSong} renderMenu={playerMenu} alignmentEnabled={!!session?.alignmentEnabled} open={playerParam !== null} lyrics={playerParam === "lyrics"} onExpand={expandPlayer} onLyricsUnavailable={lyricsUnavailable} onClose={closePlayerView} onCopyLink={copyPlayerLink} />
+      <PlayerBar fav={fav} onShare={shareSong} renderMenu={playerMenu} alignmentEnabled={!!session?.alignmentEnabled} open={playerParam !== null} lyrics={playerParam === "lyrics"} onExpand={expandPlayer} onLyricsUnavailable={lyricsUnavailable} onClose={closePlayerView} />
 
       {route.name === "visualizer" && <VisualizerView fav={fav} onShare={shareSong} />}
 

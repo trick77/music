@@ -79,9 +79,10 @@ func (r *Repo) Update(ctx context.Context, id string, p UpdateSongParams) (*Song
 		}
 	}
 
-	// Renumber both the group the song left (if the artist/album changed and it
-	// shrank) and the group it now belongs to. Renumbering the old group first
-	// keeps the new-group pass authoritative when the song didn't actually move.
+	// Renumber the group the song now belongs to, and — only when the edit actually
+	// moved it to a different artist+album — the group it left, which just shrank.
+	// The guard guarantees the two groups are distinct partitions, so the order of
+	// the two passes never matters.
 	if oldKey := albumKey(oldAlbum.String); oldKey != albumKey(p.Album) || oldArtistID != artistID {
 		if err := renumberAlbumTx(ctx, tx, oldArtistID, oldKey); err != nil {
 			return nil, err

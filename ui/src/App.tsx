@@ -78,7 +78,6 @@ export function App() {
   // user had switched to the "All songs" pill while sitting on /unpublished.
   const [tabResetKey, setTabResetKey] = useState(0);
   const uploadRef = useRef<HTMLInputElement>(null);
-  const appShellRef = useRef<HTMLDivElement>(null);
   // Fires once per mount so auto-opening the full player on a bare /song/:id landing
   // doesn't re-trigger after the user closes it (close strips the param to a bare URL).
   const songOpened = useRef(false);
@@ -208,36 +207,6 @@ export function App() {
     // re-open the overlay on the next play.
     if (playerParam !== null || route.name === "visualizer") navigate("/");
   }, [player.current, playerParam, route.name]);
-
-  // iPadOS WebKit leaves stale compositor layers behind when the full-screen
-  // visualizer overlay (position:fixed, filter:blur + transform:scale, z-95) is
-  // torn down: on the FIRST close the mini dock keeps a frozen backdrop-filter
-  // snapshot and the hero carousel (permanent will-change:transform) never
-  // repaints — both clear only on reload. Nudging a translateZ(0) transform on
-  // the app shell for one frame as we leave /visualizer forces WebKit to rebuild
-  // those descendant layers, invalidating the stale snapshots. translateZ(0) has
-  // no visual offset, so it's a no-op on browsers that don't have the bug.
-  const prevRouteName = useRef(route.name);
-  const nudgeRaf = useRef<number>(0);
-  useEffect(() => {
-    const leftVisualizer = prevRouteName.current === "visualizer" && route.name !== "visualizer";
-    prevRouteName.current = route.name;
-    if (!leftVisualizer) return;
-    const shell = appShellRef.current;
-    if (!shell) return;
-    nudgeRaf.current = requestAnimationFrame(() => {
-      shell.style.transform = "translateZ(0)";
-      nudgeRaf.current = requestAnimationFrame(() => { shell.style.transform = ""; });
-    });
-    // Clear the transform in cleanup too: a second navigation landing between the
-    // two frames would otherwise cancel the frame that resets it, stranding
-    // translateZ(0) on the shell — which itself makes app-shell the containing
-    // block for the fixed dock/rail and mis-positions them until the next reload.
-    return () => {
-      if (nudgeRaf.current) cancelAnimationFrame(nudgeRaf.current);
-      shell.style.transform = "";
-    };
-  }, [route.name]);
 
   const flash = (msg: string) => {
     setToast(msg);
@@ -436,7 +405,7 @@ export function App() {
   const triggerUpload = () => uploadRef.current?.click();
 
   return (
-    <div ref={appShellRef} className="app-shell" style={{ minHeight: "100vh" }}>
+    <div className="app-shell" style={{ minHeight: "100vh" }}>
       <Rail route={route} authenticated={authed} studioEnabled={!!session?.studioEnabled} authMode={session?.authMode} username={session?.username ?? ""} playerActive={!!player.current} onUpload={triggerUpload} onQueue={() => setShowQueue((v) => !v)} />
 
       <div className="page-shell">

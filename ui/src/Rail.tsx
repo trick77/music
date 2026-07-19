@@ -148,10 +148,7 @@ export function Rail({ route, authenticated, studioEnabled = false, authMode, us
           right: 0,
           bottom: 0,
           background: "color-mix(in srgb, var(--color-panel) 95%, transparent)",
-          // -webkit- spelling too: React does not auto-prefix inline styles, and
-          // older iPadOS Safari only honours the prefixed backdrop-filter.
           backdropFilter: "blur(12px)",
-          WebkitBackdropFilter: "blur(12px)",
           borderTop: "1px solid var(--color-border)",
           zIndex: 55,
           // Height (incl. this inset) is pinned in .tabbar-mobile, so the dock

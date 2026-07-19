@@ -172,7 +172,7 @@ export function Home({ authenticated, onPlay, onShare, onUpload, renderRowAction
             <h3 style={{ margin: 0, ...t.title }}>Recently added</h3>
             {authenticated && <a onClick={() => navigate("/library")} style={{ color: "var(--color-muted)", fontSize: "var(--text-ui)", cursor: "pointer" }}>Your library →</a>}
           </div>
-          <HScrollRail innerStyle={{ gap: "1rem" }}>
+          <HScrollRail innerStyle={{ gap: "1rem" }} coverSize={150}>
             {feed.recentlyAdded.map((s, i) => (
               <button
                 key={s.id}

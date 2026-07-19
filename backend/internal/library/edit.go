@@ -90,6 +90,15 @@ func (r *Repo) Update(ctx context.Context, id string, p UpdateSongParams) (*Song
 	if err := renumberAlbumTx(ctx, tx, artistID, albumKey(p.Album)); err != nil {
 		return nil, err
 	}
+	// Moving a song OUT of an album into no-album makes it a single, which is never
+	// numbered. The new-group renumber above is a no-op for an empty key, so clear
+	// the stale album numbering explicitly (the read-only track field the editor
+	// echoed back is the old album position, not a real single track number).
+	if albumKey(p.Album) == "" && albumKey(oldAlbum.String) != "" {
+		if _, err := tx.ExecContext(ctx, `UPDATE songs SET track_no = NULL, track_total = NULL WHERE id=?`, id); err != nil {
+			return nil, err
+		}
+	}
 
 	if _, err := tx.ExecContext(ctx, `DELETE FROM song_genres WHERE song_id=?`, id); err != nil {
 		return nil, err

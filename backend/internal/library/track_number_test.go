@@ -123,6 +123,29 @@ func TestUpdate_movingSongRenumbersBothGroups(t *testing.T) {
 	numbering(t, r, c, 2, 2)
 }
 
+func TestUpdate_movingSongToSingleClearsNumbering(t *testing.T) {
+	r := newRepo(t)
+	ctx := context.Background()
+
+	a := add(t, r, "Artist", "Album")
+	b := add(t, r, "Artist", "Album")
+	numbering(t, r, b, 2, 2)
+
+	// Clear b's album: it becomes a single and must lose its stale "2 of 2".
+	s, err := r.Get(ctx, b)
+	if err != nil {
+		t.Fatalf("Get: %v", err)
+	}
+	if _, err := r.Update(ctx, b, UpdateSongParams{
+		Title: s.Title, ArtistName: s.ArtistName, Album: "", Year: s.Year, TrackNo: s.TrackNo,
+	}); err != nil {
+		t.Fatalf("Update: %v", err)
+	}
+
+	numbering(t, r, b, 0, 0) // now an unnumbered single
+	numbering(t, r, a, 1, 1) // the album it left collapses to 1 of 1
+}
+
 // TestTopTen_scansTrackTotal guards the songColumns/scanSongInto ordinal contract:
 // the play-count read path appends a trailing column, so a mis-positioned
 // track_total would surface here as a wrong "N of Y" on a charted song.

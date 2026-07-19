@@ -79,14 +79,14 @@ func TestOpen_squashedSchemaHasPhase4Objects(t *testing.T) {
 		t.Fatalf("songs.lyrics column missing: %v", err)
 	}
 
-	// Six migrations recorded: the 0001 squash, 0002_song_lyrics add-column,
-	// 0003_song_alignment, 0004_lowercase_genres, 0005_normalize_album, and
-	// 0006_song_audio_info.
+	// Seven migrations recorded: the 0001 squash, 0002_song_lyrics add-column,
+	// 0003_song_alignment, 0004_lowercase_genres, 0005_normalize_album,
+	// 0006_song_audio_info, and 0007_track_total.
 	var count int
 	if err := st.DB().QueryRow(`SELECT COUNT(*) FROM schema_migrations`).Scan(&count); err != nil {
 		t.Fatalf("count migrations: %v", err)
 	}
-	if count != 6 {
-		t.Fatalf("expected 6 recorded migrations, got %d", count)
+	if count != 7 {
+		t.Fatalf("expected 7 recorded migrations, got %d", count)
 	}
 }

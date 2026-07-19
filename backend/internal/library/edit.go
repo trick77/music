@@ -38,9 +38,12 @@ func (r *Repo) Update(ctx context.Context, id string, p UpdateSongParams) (*Song
 	}
 
 	// Remember the song's current cover before the edit so it can seed a new
-	// album mapping when we move it into an album that has none yet.
-	var curCover sql.NullString
-	if err := tx.QueryRowContext(ctx, `SELECT cover_art_id FROM songs WHERE id=?`, id).Scan(&curCover); err != nil {
+	// album mapping when we move it into an album that has none yet. Also remember
+	// its current artist+album: if the edit moves the song out of that group, the
+	// old group must be renumbered too, not just the new one.
+	var curCover, oldAlbum sql.NullString
+	var oldArtistID string
+	if err := tx.QueryRowContext(ctx, `SELECT cover_art_id, artist_id, album FROM songs WHERE id=?`, id).Scan(&curCover, &oldArtistID, &oldAlbum); err != nil {
 		return nil, err
 	}
 
@@ -73,6 +76,28 @@ func (r *Repo) Update(ctx context.Context, id string, p UpdateSongParams) (*Song
 			if err := setAlbumCoverTx(ctx, tx, artistID, key, curCover.String); err != nil {
 				return nil, err
 			}
+		}
+	}
+
+	// Renumber the group the song now belongs to, and — only when the edit actually
+	// moved it to a different artist+album — the group it left, which just shrank.
+	// The guard guarantees the two groups are distinct partitions, so the order of
+	// the two passes never matters.
+	if oldKey := albumKey(oldAlbum.String); oldKey != albumKey(p.Album) || oldArtistID != artistID {
+		if err := renumberAlbumTx(ctx, tx, oldArtistID, oldKey); err != nil {
+			return nil, err
+		}
+	}
+	if err := renumberAlbumTx(ctx, tx, artistID, albumKey(p.Album)); err != nil {
+		return nil, err
+	}
+	// Moving a song OUT of an album into no-album makes it a single, which is never
+	// numbered. The new-group renumber above is a no-op for an empty key, so clear
+	// the stale album numbering explicitly (the read-only track field the editor
+	// echoed back is the old album position, not a real single track number).
+	if albumKey(p.Album) == "" && albumKey(oldAlbum.String) != "" {
+		if _, err := tx.ExecContext(ctx, `UPDATE songs SET track_no = NULL, track_total = NULL WHERE id=?`, id); err != nil {
+			return nil, err
 		}
 	}
 

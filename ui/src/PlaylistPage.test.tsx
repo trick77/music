@@ -23,7 +23,7 @@ function song(overrides: Partial<Song>): Song {
     artistName: "Kavinsky",
     album: "",
     year: 0,
-    trackNo: 0,
+    trackNo: 0, trackTotal: 0,
     durationMs: 0,
     fileSize: 0,
     createdAt: "",

@@ -3,7 +3,7 @@ import { addToQueue, playNext, removeAt, reorder } from "./queue";
 import type { Song } from "./api";
 
 const s = (id: string): Song => ({
-  id, title: id, artistName: "", album: "", year: 0, trackNo: 0,
+  id, title: id, artistName: "", album: "", year: 0, trackNo: 0, trackTotal: 0,
   durationMs: 0, fileSize: 0, createdAt: "", sampleRate: 0, channels: 0, bitrateKbps: 0, genres: [], coverArtId: "", published: true,
 });
 

@@ -6,7 +6,7 @@ import { Icon } from "./Icon";
 // out and grows a ‹/› button that nudges the rail that way. Indicators appear
 // only for the directions that can actually scroll, so a short (non-overflowing)
 // rail looks exactly as before, and a mid-scrolled rail shows both.
-export function HScrollRail({ children, innerStyle }: { children: ReactNode; innerStyle?: CSSProperties }) {
+export function HScrollRail({ children, innerStyle, coverSize }: { children: ReactNode; innerStyle?: CSSProperties; coverSize?: number }) {
   const ref = useRef<HTMLDivElement>(null);
   const [edges, setEdges] = useState({ left: false, right: false });
 
@@ -47,7 +47,17 @@ export function HScrollRail({ children, innerStyle }: { children: ReactNode; inn
           : undefined;
 
   return (
-    <div style={{ position: "relative" }}>
+    <div
+      style={
+        {
+          position: "relative",
+          // Center the ‹/› buttons on the cover art, not the whole tile (art +
+          // title + artist). Falls back to 50% when the rail's tiles aren't
+          // fixed-height covers.
+          ...(coverSize ? { "--rail-art-center": `${coverSize / 2}px` } : {}),
+        } as CSSProperties
+      }
+    >
       <div
         ref={ref}
         className="hscroll"

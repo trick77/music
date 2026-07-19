@@ -325,14 +325,18 @@ html {
   background: color-mix(in srgb, var(--color-accent) 5%, transparent);
 }
 
-/* Play affordance that fades in on hover of a cover tile. */
+/* Play affordance that fades in on hover of a cover tile.
+   Gated to hover-capable pointers so the icon never sticks on touch, where a
+   tap leaves :hover latched on the tapped cover. */
 .playfab {
   opacity: 0;
   transition: opacity 0.15s ease;
 }
-.tile:hover .playfab,
-.rail-cv:hover .playfab {
-  opacity: 1;
+@media (hover: hover) {
+  .tile:hover .playfab,
+  .rail-cv:hover .playfab {
+    opacity: 1;
+  }
 }
 
 /* Now-playing equalizer: five bars with independent rhythms for an organic

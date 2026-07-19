@@ -36,7 +36,7 @@ export function KaraokeCard({ state, lyrics, onGenerate }: {
           whiteSpace: "pre-wrap", textAlign: "center",
           ...(state === "plain"
             ? { color: "rgba(250,249,245,.85)" }
-            : { color: "rgba(250,249,245,.55)", filter: "blur(2px)", WebkitFilter: "blur(2px)", opacity: 0.5 }),
+            : { color: "rgba(250,249,245,.55)", filter: "blur(2px)", opacity: 0.5 }),
         }}
       >
         {lyrics}
@@ -47,7 +47,7 @@ export function KaraokeCard({ state, lyrics, onGenerate }: {
           role="status"
           style={{
             textAlign: "center", maxWidth: 380, background: "color-mix(in srgb, var(--color-panel) 80%, transparent)",
-            border: "1px solid var(--color-border)", borderRadius: 16, padding: "30px 28px", backdropFilter: "blur(16px)", WebkitBackdropFilter: "blur(16px)",
+            border: "1px solid var(--color-border)", borderRadius: 16, padding: "30px 28px", backdropFilter: "blur(16px)",
           }}
         >
           <div

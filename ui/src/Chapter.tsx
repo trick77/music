@@ -40,7 +40,7 @@ export function Chapter({ chapter, onPlay }: { chapter: GenreChapter; onPlay: (s
         <div style={{ color: "rgba(255,255,255,0.82)", fontSize: "var(--text-label)", marginBottom: "0.9rem" }}>
           {chapter.songCount} {chapter.songCount === 1 ? "track" : "tracks"}
         </div>
-        <HScrollRail innerStyle={{ gap: "0.9rem", paddingBottom: "0.25rem" }}>
+        <HScrollRail innerStyle={{ gap: "0.9rem", paddingBottom: "0.25rem" }} coverSize={128}>
           {chapter.songs.map((s, i) => (
             <button
               key={s.id}

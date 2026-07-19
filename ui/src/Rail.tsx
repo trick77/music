@@ -118,7 +118,7 @@ export function Rail({ route, authenticated, studioEnabled = false, authMode, us
           gap: "0.4rem",
           // Reserve room for the fixed PlayerBar (~90px) when a track is loaded,
           // so the bottom-anchored Upload/Studio/account block clears it.
-          padding: playerActive ? "1rem 0 6.5rem" : "1rem 0",
+          padding: playerActive ? "1rem 0 calc(6.5rem + var(--safe-b))" : "1rem 0",
           background: "var(--color-panel)",
           borderRight: "1px solid var(--color-border)",
           zIndex: 50,

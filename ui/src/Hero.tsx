@@ -376,23 +376,27 @@ export function Hero({
           >
             <Icon name="download" size="18px" /> Download
           </a>
-          <button
-            onClick={() => onShare(activeSong)}
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: "0.5rem",
-              background: "rgba(0,0,0,0.35)",
-              color: "#fff",
-              border: "1px solid rgba(255,255,255,0.35)",
-              borderRadius: 999,
-              padding: "0.65rem 1.2rem",
-              fontSize: "var(--text-ui)",
-              cursor: "pointer",
-            }}
-          >
-            <Icon name="share" size="18px" /> Share
-          </button>
+          {/* Unpublished songs aren't shareable — their /song/:id link 404s for
+              anonymous recipients — so hide Share until published. */}
+          {activeSong.published && (
+            <button
+              onClick={() => onShare(activeSong)}
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "0.5rem",
+                background: "rgba(0,0,0,0.35)",
+                color: "#fff",
+                border: "1px solid rgba(255,255,255,0.35)",
+                borderRadius: 999,
+                padding: "0.65rem 1.2rem",
+                fontSize: "var(--text-ui)",
+                cursor: "pointer",
+              }}
+            >
+              <Icon name="share" size="18px" /> Share
+            </button>
+          )}
         </div>
       )}
       {multi && (

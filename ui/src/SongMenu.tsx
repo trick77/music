@@ -58,7 +58,10 @@ export function SongMenu(p: Props) {
             Download cover art
           </MenuItem>
         )}
-        <MenuItem icon="share" onClick={p.onShare}>Share</MenuItem>
+        {/* An unpublished song is hidden from anonymous listeners, so its shared
+            /song/:id link would 404 for whoever received it — no Share until it's
+            published. */}
+        {p.song.published && <MenuItem icon="share" onClick={p.onShare}>Share</MenuItem>}
 
         {p.authenticated && (
           <>

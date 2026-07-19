@@ -149,7 +149,9 @@ export function PlayerBar({ fav, onShare, renderMenu, alignmentEnabled, open, ly
             <button aria-label="Show lyrics" onClick={() => onExpand("lyrics")} style={iconBtn}><Icon name="captions" size="23px" /></button>
           )}
           <AirplayButton available={p.airplayAvailable} active={p.airplayActive} onClick={p.showAirplayPicker} />
-          <button aria-label="Share" onClick={() => onShare(song)} style={iconBtn}><Icon name="share" size="20px" /></button>
+          {/* Unpublished songs aren't shareable — their /song/:id link 404s for
+              anonymous recipients — so hide Share until published. */}
+          {song.published && <button aria-label="Share" onClick={() => onShare(song)} style={iconBtn}><Icon name="share" size="20px" /></button>}
           {renderMenu?.(song)}
           <button aria-label="Expand" onClick={() => onExpand("full")} style={iconBtn}><Icon name="chevronUp" size="20px" /></button>
           <button aria-label="Stop and close" onClick={p.stop} style={iconBtn}><Icon name="close" size="20px" /></button>
@@ -240,7 +242,7 @@ export function PlayerBar({ fav, onShare, renderMenu, alignmentEnabled, open, ly
                 {/* No lyrics/visualizer buttons while the lyrics player is open:
                     this view is left via the X, not swapped away in place. */}
                 <AirplayButton available={p.airplayAvailable} active={p.airplayActive} onClick={p.showAirplayPicker} size={22} />
-                <button aria-label="Share" onClick={() => onShare(song)} style={iconBtn}><Icon name="share" size="22px" /></button>
+                {song.published && <button aria-label="Share" onClick={() => onShare(song)} style={iconBtn}><Icon name="share" size="22px" /></button>}
               </ImmersiveControls>
             </>
           ) : (
@@ -275,7 +277,7 @@ export function PlayerBar({ fav, onShare, renderMenu, alignmentEnabled, open, ly
                     <button aria-label="Show lyrics" aria-pressed={false} onClick={() => onExpand("lyrics", "full")} style={iconBtn}><Icon name="captions" size="25px" /></button>
                   )}
                   <AirplayButton available={p.airplayAvailable} active={p.airplayActive} onClick={p.showAirplayPicker} size={22} />
-                  <button aria-label="Share" onClick={() => onShare(song)} style={iconBtn}><Icon name="share" size="22px" /></button>
+                  {song.published && <button aria-label="Share" onClick={() => onShare(song)} style={iconBtn}><Icon name="share" size="22px" /></button>}
                 </div>
               </div>
             </>

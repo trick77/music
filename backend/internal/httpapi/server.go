@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
+	"sync"
 
 	"github.com/trick77/music/internal/align"
 	"github.com/trick77/music/internal/auth"
@@ -17,6 +18,23 @@ import (
 	"github.com/trick77/music/internal/studio"
 	"github.com/trick77/music/web"
 )
+
+// server is the app handler plus a handle on its background workers. It is
+// returned (as an http.Handler) by every constructor; tests type-assert to it
+// to Wait for the startup goroutines so t.TempDir cleanup cannot race a
+// still-running backfill that reopens the store or media files.
+type server struct {
+	http.Handler
+	bg *sync.WaitGroup
+}
+
+// Wait blocks until the background startup workers (currently the audio-info
+// backfill) have exited. Only tests need this; production lets the process exit.
+func (s *server) Wait() {
+	if s.bg != nil {
+		s.bg.Wait()
+	}
+}
 
 // New builds the app handler with generation wired from cfg (a real BFL client
 // when a key is set) and no OIDC authenticator (dev mode / tests).
@@ -58,9 +76,12 @@ func NewWithPlaylistAI(cfg config.Config, st *store.Store, spa http.Handler, gen
 	return build(cfg, st, spa, gen, nil, nil, nil, gp, dw)
 }
 
-func build(cfg config.Config, st *store.Store, spa http.Handler, gen imagegen.Provider, onGenComplete func(string), authr *auth.Authenticator, studioProvider studio.Provider, genrePrompter studio.GenrePrompter, descriptionWriter studio.DescriptionWriter) http.Handler {
+func build(cfg config.Config, st *store.Store, spa http.Handler, gen imagegen.Provider, onGenComplete func(string), authr *auth.Authenticator, studioProvider studio.Provider, genrePrompter studio.GenrePrompter, descriptionWriter studio.DescriptionWriter) *server {
 	mux := http.NewServeMux()
 	var shareRepo *library.Repo
+	// Tracks background startup goroutines so tests can Wait for them to exit
+	// before their temp dirs are torn down (see server.Wait).
+	var bg sync.WaitGroup
 
 	mux.HandleFunc("GET /api/health", func(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, map[string]string{"status": "ok"})
@@ -163,8 +184,13 @@ func build(cfg config.Config, st *store.Store, spa http.Handler, gen imagegen.Pr
 			_, _ = h.repo.FailOrphanedAlignments(context.Background())
 			// Recover audio info for songs imported before migration 0006. Off the
 			// startup path on purpose — it reopens every stored file, and nothing is
-			// broken while it runs (unfilled rows just render "—").
-			go h.backfillAudioInfo(context.Background())
+			// broken while it runs (unfilled rows just render "—"). Tracked on bg so
+			// tests can Wait for it before tearing down their temp dirs.
+			bg.Add(1)
+			go func() {
+				defer bg.Done()
+				h.backfillAudioInfo(context.Background())
+			}()
 			// Single serial worker in front of the one-at-a-time alignment sidecar.
 			h.initAlignQueue()
 			shareRepo = h.repo
@@ -244,7 +270,7 @@ func build(cfg config.Config, st *store.Store, spa http.Handler, gen imagegen.Pr
 		}
 	}
 	root.Handle("/", spaHandler)
-	return logging(recovery(root))
+	return &server{Handler: logging(recovery(root)), bg: &bg}
 }
 
 func writeJSON(w http.ResponseWriter, v any) {

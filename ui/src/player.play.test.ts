@@ -157,26 +157,46 @@ describe("player end of queue", () => {
   });
 });
 
-// A reload starts with an empty player: nothing about playback is persisted, so
-// there is nothing to reseed the dock from. Playing a track used to write
-// `music.resume` to localStorage every few seconds; a regression that brings any
-// of that back would fail here.
+// A reload brings the docked mini-player back to its exact position — but ONLY
+// if a track was actually playing when the page went away. The snapshot is
+// written when the page is hidden/unloaded (pagehide / visibilitychange→hidden),
+// never on the per-tick timeupdate, and restore() reseeds paused at the saved
+// position. This is deliberately narrower than the old `music.resume` feature
+// (#178), which reseeded the last track even when paused and only within a
+// 30-minute window.
 describe("player persistence", () => {
-  // Asserted against as a whole: the old code both wrote (persist) and cleared
-  // (clearResume on stop) the key, so a regression could surface as setItem OR
-  // removeItem — and a returning restore() would read via getItem.
+  const KEY = "music.player.v1";
   let store: { getItem: ReturnType<typeof vi.fn>; setItem: ReturnType<typeof vi.fn>; removeItem: ReturnType<typeof vi.fn> };
+  // The player registers pagehide (window) and visibilitychange (document) in
+  // getAudio; capture their handlers so tests can fire "the page went away".
+  let winHandlers: Record<string, Array<() => void>>;
+  let docHandlers: Record<string, Array<() => void>>;
+  let doc: { hidden: boolean; addEventListener: (t: string, fn: () => void) => void };
 
   beforeEach(() => {
     vi.resetModules();
     vi.stubGlobal("Audio", MockAudio);
     store = { getItem: vi.fn(() => null), setItem: vi.fn(), removeItem: vi.fn() };
-    vi.stubGlobal("window", { localStorage: store });
+    winHandlers = {};
+    docHandlers = {};
+    vi.stubGlobal("window", {
+      localStorage: store,
+      addEventListener: (t: string, fn: () => void) => (winHandlers[t] ??= []).push(fn),
+    });
+    doc = {
+      hidden: false,
+      addEventListener: (t: string, fn: () => void) => (docHandlers[t] ??= []).push(fn),
+    };
+    vi.stubGlobal("document", doc);
   });
   afterEach(() => vi.unstubAllGlobals());
 
-  // Drives real timeupdate ticks: the write path only ever ran from there, so a
-  // test that never fires one would pass against a player that still persists.
+  const firePageHide = () => (winHandlers["pagehide"] ?? []).forEach((fn) => fn());
+  const fireHidden = () => {
+    doc.hidden = true;
+    (docHandlers["visibilitychange"] ?? []).forEach((fn) => fn());
+  };
+
   async function playTo(seconds: number) {
     const { player } = await import("./player");
     player.play(song("a", LONG_TRACK_MS));
@@ -188,17 +208,14 @@ describe("player persistence", () => {
     return player;
   }
 
-  it("never touches storage while playing, even past the 30s counting threshold", async () => {
+  it("does not write to storage on timeupdate ticks — only when the page hides", async () => {
     await playTo(35);
-
     expect(store.setItem).not.toHaveBeenCalled();
-    expect(store.removeItem).not.toHaveBeenCalled();
-    expect(store.getItem).not.toHaveBeenCalled();
   });
 
   it("still counts the listen exactly once, and only once the threshold is crossed", async () => {
-    // Guards the ticks the storage assertions ride on: if the fixture ever let
-    // the 50%-of-track rule fire early, this catches it at 29s.
+    // Guards the ticks the persistence path rides on: if the fixture ever let the
+    // 50%-of-track rule fire early, this catches it at 29s.
     const player = await playTo(29);
     expect(reportPlayMock).not.toHaveBeenCalled();
 
@@ -209,16 +226,94 @@ describe("player persistence", () => {
     }
 
     expect(reportPlayMock).toHaveBeenCalledTimes(1);
-    expect(store.setItem).not.toHaveBeenCalled();
     expect(player.getState().current?.id).toBe("a");
   });
 
-  it("leaves storage untouched when the player is closed", async () => {
-    const player = await playTo(35);
+  it("saves {id, positionMs} when the page hides while playing", async () => {
+    await playTo(35); // playing, currentTime = 35s
 
-    player.stop(); // used to clearResume() → removeItem
+    firePageHide();
 
-    expect(store.removeItem).not.toHaveBeenCalled();
+    expect(store.setItem).toHaveBeenCalledTimes(1);
+    const [key, value] = store.setItem.mock.calls[0];
+    expect(key).toBe(KEY);
+    expect(JSON.parse(value)).toEqual({ id: "a", positionMs: 35_000 });
+  });
+
+  it("saves on visibilitychange→hidden too (the mobile signal)", async () => {
+    await playTo(12);
+
+    fireHidden();
+
+    expect(store.setItem).toHaveBeenCalledTimes(1);
+    expect(JSON.parse(store.setItem.mock.calls[0][1])).toEqual({ id: "a", positionMs: 12_000 });
+  });
+
+  it("clears the key when the page hides while paused (not playing → no restore)", async () => {
+    const player = await playTo(20);
+    player.toggle(); // pause
+
+    firePageHide();
+
     expect(store.setItem).not.toHaveBeenCalled();
+    expect(store.removeItem).toHaveBeenCalledWith(KEY);
+  });
+
+  it("clears the key when the page hides with the player closed", async () => {
+    const player = await playTo(20);
+    player.stop(); // current === null
+
+    firePageHide();
+
+    expect(store.setItem).not.toHaveBeenCalled();
+    expect(store.removeItem).toHaveBeenCalledWith(KEY);
+  });
+
+  it("restore() reseeds paused at the saved position once metadata loads", async () => {
+    const { player } = await import("./player");
+
+    player.restore(song("a", LONG_TRACK_MS), 42_000);
+
+    // Cued but paused, position reflected immediately for the scrubber.
+    expect(player.getState().current?.id).toBe("a");
+    expect(player.getState().playing).toBe(false);
+    expect(player.getState().positionMs).toBe(42_000);
+
+    // The seek lands only once the element can seek (loadedmetadata).
+    const el = audioInstances[0];
+    el.duration = LONG_TRACK_MS / 1000;
+    el.fire("loadedmetadata");
+    expect(el.currentTime).toBe(42);
+  });
+
+  it("does not re-count a listen when restoring past the counting threshold", async () => {
+    const { player } = await import("./player");
+
+    player.restore(song("a", LONG_TRACK_MS), 45_000); // already qualifies (>= 30s)
+    const el = audioInstances[0];
+    el.duration = LONG_TRACK_MS / 1000;
+    el.fire("loadedmetadata");
+    el.play(); // user resumes
+    for (let t = 46; t <= 60; t++) {
+      el.currentTime = t;
+      el.fire("timeupdate");
+    }
+
+    expect(reportPlayMock).not.toHaveBeenCalled(); // counted before the reload
+  });
+
+  it("counts a fresh listen when restoring before the threshold", async () => {
+    const { player } = await import("./player");
+
+    player.restore(song("a", LONG_TRACK_MS), 5_000); // below 30s — not yet counted
+    const el = audioInstances[0];
+    el.duration = LONG_TRACK_MS / 1000;
+    el.fire("loadedmetadata");
+    for (let t = 6; t <= 40; t++) {
+      el.currentTime = t;
+      el.fire("timeupdate");
+    }
+
+    expect(reportPlayMock).toHaveBeenCalledTimes(1);
   });
 });

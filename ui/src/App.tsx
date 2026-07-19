@@ -21,7 +21,7 @@ import { usePlayer } from "./player";
 import { useRoute, navigate, parsePlayerParam, pushPlayer, replacePlayer, leaveLyricsForArtwork, closeToOrigin, type PlayerParam } from "./router";
 import { useFavorites } from "./favorites";
 import { addToQueue, playNext } from "./queue";
-import { songShareUrl, lyricsShareUrl, copyText } from "./share";
+import { songShareUrl, copyText } from "./share";
 import { Icon } from "./Icon";
 import { t, UnpublishedBadge } from "./ui";
 
@@ -317,12 +317,6 @@ export function App() {
     setMenuFor(null);
   };
 
-  const shareLyricsLink = async (song: Song) => {
-    const url = lyricsShareUrl(song.id);
-    if (!(await copyText(url))) window.prompt("Copy this link", url);
-    else flash("Link copied");
-  };
-
   // copyPlayerLink shares the live deep link — while the overlay is open the URL
   // already encodes the song + player state, so the current address is the link.
   const copyPlayerLink = async () => {
@@ -372,7 +366,6 @@ export function App() {
             onAddToQueue={() => { player.setQueue(addToQueue(player.queue, song)); setMenuFor(null); flash("Added to queue"); }}
             onAddToPlaylist={() => { setAddFor(song); setMenuFor(null); }}
             onShare={() => shareSong(song)}
-            onCopyLyricsLink={() => { setMenuFor(null); shareLyricsLink(song); }}
             onEdit={() => { setEditing(song); setMenuFor(null); }}
             onPublish={() => togglePublish(song)}
             onDelete={() => { setMenuFor(null); setDeleteErr(""); setDeleteFor(song); }}
@@ -408,7 +401,6 @@ export function App() {
           onAddToQueue={() => { player.setQueue(addToQueue(player.queue, song)); setPlayerMenuOpen(false); flash("Added to queue"); }}
           onAddToPlaylist={() => { setAddFor(song); setPlayerMenuOpen(false); }}
           onShare={() => shareSong(song)}
-          onCopyLyricsLink={() => { setPlayerMenuOpen(false); shareLyricsLink(song); }}
           onEdit={() => { setEditing(song); setPlayerMenuOpen(false); }}
           onPublish={() => { setPlayerMenuOpen(false); togglePublish(song); }}
           onDelete={() => { setPlayerMenuOpen(false); setDeleteErr(""); setDeleteFor(song); }}

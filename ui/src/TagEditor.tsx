@@ -84,6 +84,9 @@ export function TagEditor({ song, onClose, onSaved }: Props) {
   const [err, setErr] = useState<string | null>(null);
   const [stats, setStats] = useState<SongStats | null>(null);
   const [statsErr, setStatsErr] = useState(false);
+  // Pixel dimensions + byte size of the cover shown on the Cover tab. null while
+  // unknown or when there's nothing to show (no art / staged removal).
+  const [coverMeta, setCoverMeta] = useState<{ w: number; h: number; bytes: number } | null>(null);
 
   // Play figures are the one thing here the song payload doesn't already carry, so
   // fetch them — but only once the Info tab is actually opened, and only once.
@@ -103,6 +106,35 @@ export function TagEditor({ song, onClose, onSaved }: Props) {
     coverOp.kind === "replace" ? coverOp.previewUrl
       : coverOp.kind === "remove" ? null
         : song.coverArtId ? coverUrl(song.coverArtId) : null;
+
+  // Measure the previewed cover for the Cover tab's dimensions + size readout.
+  // A staged file carries its own byte size and decodes off the object URL; the
+  // stored cover is fetched from `/api/cover/{id}` with no ?size, which serves the
+  // ORIGINAL bytes (not a thumbnail), so the figures describe the real file. The
+  // fetch hits the browser cache the <img> preview already populated.
+  useEffect(() => {
+    let live = true;
+    const clear = () => { if (live) setCoverMeta(null); };
+    // Decode natural dimensions off `url`, pairing them with a known byte size or,
+    // when null, one read from the URL's bytes.
+    const measure = (url: string, bytes: number | null) => {
+      const img = new Image();
+      img.onload = () => {
+        const w = img.naturalWidth, h = img.naturalHeight;
+        if (bytes != null) { if (live) setCoverMeta({ w, h, bytes }); return; }
+        fetch(url)
+          .then((r) => r.blob())
+          .then((b) => { if (live) setCoverMeta({ w, h, bytes: b.size }); })
+          .catch(clear);
+      };
+      img.onerror = clear;
+      img.src = url;
+    };
+    setCoverMeta(null);
+    if (coverOp.kind === "replace") measure(coverOp.previewUrl, coverOp.file.size);
+    else if (coverOp.kind === "keep" && song.coverArtId) measure(coverUrl(song.coverArtId), null);
+    return () => { live = false; };
+  }, [coverOp, song.coverArtId]);
 
   // Esc closes the dialog (unless a save is in flight), matching the other modals.
   // Registered even mid-save so the press stops here rather than reaching past it.
@@ -300,45 +332,65 @@ export function TagEditor({ song, onClose, onSaved }: Props) {
 
           {/* Cover */}
           <div style={{ gridColumn: 1, gridRow: 1, visibility: tab === "cover" ? "visible" : "hidden" }}>
-            <div style={{ width: 160, maxWidth: "100%", margin: "0 auto" }}>
-              <div
-                {...dropProps}
-                style={{
-                  position: "relative", width: 160, height: 160, borderRadius: "var(--radius-ui)", overflow: "hidden",
-                  border: dropping ? "2px dashed var(--color-accent-strong)" : "1px solid var(--color-border)",
-                  background: "var(--color-active)", display: "grid", placeItems: "center",
-                }}
-              >
-                {preview ? (
-                  <img src={preview} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-                ) : (
-                  <span style={{ fontFamily: "var(--font-serif)", fontSize: "2rem", color: "var(--color-muted)" }}>{coverInitial(artistName)}</span>
-                )}
-                {dropping && (
-                  <span style={{ position: "absolute", inset: 0, display: "grid", placeItems: "center", gap: 4, background: "rgba(0,0,0,0.55)", color: "#fff", fontSize: "var(--text-label)" }}>
-                    Drop to replace
-                  </span>
-                )}
-              </div>
-              <label style={{ display: "block", marginTop: 8, textAlign: "center", fontSize: "var(--text-label)", color: "var(--color-accent-strong)", cursor: "pointer" }}>
-                {preview ? "Replace cover…" : "Add cover…"}
-                <input type="file" accept={IMAGE_ACCEPT} onChange={onCover} style={{ display: "none" }} />
-              </label>
-              <p style={{ fontSize: "var(--text-label)", color: "var(--color-muted)", textAlign: "center", marginTop: 2 }}>
-                or drop an image on it
-              </p>
-              <div style={{ display: "flex", justifyContent: "center", gap: "var(--space-2)", marginTop: 4 }}>
-                {/* Keyed on the song's actual art, not the preview: a staged pick on a
-                    coverless song has nothing to remove — there, Undo is the way back. */}
+            {/* Grow the art to fill the tab's width so it reads as art, not a
+                thumbnail — capped so it stays a comfortable square in the wide
+                desktop modal. Stays square (aspect-ratio) at every width. */}
+            <div style={{ width: "min(400px, 100%)", margin: "0 auto" }}>
+              {/* The thumbnail IS the picker: click it to choose a file, or drop an
+                  image on it — one staging path (stageCoverFile) for both. The relative
+                  wrapper hosts the remove badge, which must sit OUTSIDE the label's
+                  overflow:hidden clip so it isn't cropped at the corner. */}
+              <div style={{ position: "relative", width: "100%", aspectRatio: "1 / 1", margin: "0 auto" }}>
+                <label
+                  {...dropProps}
+                  aria-label={preview ? "Replace cover" : "Add cover"}
+                  style={{
+                    position: "relative", width: "100%", height: "100%", borderRadius: "var(--radius-ui)", overflow: "hidden", cursor: "pointer",
+                    border: dropping ? "2px dashed var(--color-accent-strong)" : "1px solid var(--color-border)",
+                    background: "var(--color-active)", display: "grid", placeItems: "center",
+                  }}
+                >
+                  {preview ? (
+                    <img src={preview} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                  ) : (
+                    <span style={{ fontFamily: "var(--font-serif)", fontSize: "2rem", color: "var(--color-muted)" }}>{coverInitial(artistName)}</span>
+                  )}
+                  {dropping && (
+                    <span style={{ position: "absolute", inset: 0, display: "grid", placeItems: "center", gap: 4, background: "rgba(0,0,0,0.55)", color: "#fff", fontSize: "var(--text-label)" }}>
+                      Drop to replace
+                    </span>
+                  )}
+                  <input type="file" accept={IMAGE_ACCEPT} onChange={onCover} style={{ display: "none" }} />
+                </label>
+                {/* Remove cover — a circle-x badge on the art, replacing the old text
+                    button. Keyed on the song's actual art, not the preview: a staged
+                    pick on a coverless song has nothing to remove; Undo is the way back.
+                    preventDefault stops the wrapping label from also opening the picker. */}
                 {song.coverArtId && coverOp.kind !== "remove" && (
-                  <Button variant="ghost" small onClick={() => setCoverOp({ kind: "remove" })}>Remove cover</Button>
-                )}
-                {coverOp.kind !== "keep" && (
-                  <Button variant="ghost" small onClick={() => setCoverOp({ kind: "keep" })}>Undo</Button>
+                  <button
+                    type="button"
+                    aria-label="Remove cover"
+                    title="Remove cover"
+                    onClick={(e) => { e.preventDefault(); e.stopPropagation(); setCoverOp({ kind: "remove" }); }}
+                    style={{
+                      position: "absolute", top: 6, right: 6, display: "inline-flex", padding: 4,
+                      border: "none", background: "none", cursor: "pointer", lineHeight: 0,
+                      // Understated — a faint icon kept legible over any art by a soft
+                      // shadow, rather than a solid disc that would fight the artwork.
+                      color: "rgba(255,255,255,0.72)", filter: "drop-shadow(0 1px 2px rgba(0,0,0,0.55))",
+                    }}
+                  >
+                    <Icon name="closeCircle" size="18px" />
+                  </button>
                 )}
               </div>
+              {coverMeta && (
+                <p style={{ ...t.micro, color: "var(--color-muted)", textAlign: "center", marginTop: 8, fontVariantNumeric: "tabular-nums" }}>
+                  {coverMeta.w} × {coverMeta.h} · {formatFileSize(coverMeta.bytes)}
+                </p>
+              )}
               <p style={{ fontSize: "var(--text-label)", color: "var(--color-muted)", textAlign: "center", marginTop: 6 }}>
-                Applies to every track on this artist + album.
+                Applies to the whole album.
                 {coverOp.kind !== "keep" && <><br />Pending — applies when you save.</>}
               </p>
             </div>

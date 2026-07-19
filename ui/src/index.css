@@ -569,11 +569,17 @@ select.ui-control {
 .ui-spin { animation: ui-spin 0.7s linear infinite; display: inline-flex; }
 @media (prefers-reduced-motion: reduce) { .ui-spin { animation-duration: 2.4s; } }
 
-/* Modal overlay: loom-style dim + 2px backdrop blur behind an open dialog. */
+/* Modal overlay: loom-style dim + 2px backdrop blur behind an open dialog.
+   z-index sits ABOVE the docked player (z 60) so a modal always dims and covers
+   it — a modal is modal. This is load-bearing on wide touch tablets (iPad Pro
+   landscape, 1180–1366px, or an iPad with a mouse reporting pointer: fine): those
+   miss the full-screen takeover query below and keep the centred modal, whose
+   pinned footer (Save/Cancel) used to be painted over by the dock. Stays below
+   the immersive player overlay (90), which no dialog opens from. */
 .ui-overlay {
   position: fixed;
   inset: 0;
-  z-index: 50;
+  z-index: 70;
   display: grid;
   place-items: center;
   /* A definite row, so .ui-modal's `max-height: 100%` has something real to resolve
@@ -611,12 +617,10 @@ select.ui-control {
    large touchscreen desktop (>1024px) keeps the centered modal. */
 @media (max-width: 720px),
        (min-width: 721px) and (max-width: 1024px) and (pointer: coarse) {
-  /* Full-screen here means a takeover: lift it over the docked player (z 60) it
-     would otherwise sit under, which used to bury the pinned footer — Save and
-     Cancel were unreachable with a track loaded. Stays below the player overlay
-     (90), which no dialog opens from. On desktop the modal is centred and the
-     dock is nowhere near it, so the stacking order is left alone there. */
-  .ui-overlay { padding: 0; z-index: 70; }
+  /* Full-screen here means a takeover — edge-to-edge, no backdrop padding. The
+     overlay already sits above the docked player (see .ui-overlay z-index), which
+     is what keeps the pinned footer reachable with a track loaded. */
+  .ui-overlay { padding: 0; }
   .ui-modal {
     width: 100%;
     max-height: none;

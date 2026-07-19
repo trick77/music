@@ -68,8 +68,10 @@ Because opening routes to `/song/:nowPlayingId`, a side-effect is guarded:
    otherwise expanding the player would re-enter `SongPage` and toggle playback to a
    pause.
 
-(Session restore of the last track was removed: a reload now always starts with an
-empty player, so there is no restored track for the resync effect to hijack.)
+(Session restore of the last track was re-added 2026-07-19 in a narrower form, but it
+is gated to non-`/song/:id` routes — where `playerParam` is null — so the resync effect,
+which bails when `playerParam === null`, can never hijack a restored track. A reload with
+the overlay open (`/song/:id?player=`) is handled by the deep-link cue path, not restore.)
 
 ### Components touched
 

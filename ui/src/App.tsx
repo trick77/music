@@ -17,7 +17,7 @@ import { PlayerBar } from "./PlayerBar";
 import { iconBtn } from "./PlayerControls";
 import { VisualizerView } from "./VisualizerView";
 import { ConfirmDialog } from "./ConfirmDialog";
-import { usePlayer } from "./player";
+import { usePlayer, player as playerApi, readSnapshot, clearSnapshot } from "./player";
 import { useRoute, navigate, parsePlayerParam, pushPlayer, replacePlayer, leaveLyricsForArtwork, closeToOrigin, type PlayerParam } from "./router";
 import { useFavorites } from "./favorites";
 import { addToQueue, playNext } from "./queue";
@@ -137,6 +137,36 @@ export function App() {
     if (song.id !== player.current?.id) player.play(song); // cue it (autoplay is blocked pre-gesture, harmless)
     if (playerParam === null) replacePlayer(song.id, "full"); // open overlay in place — no new entry, and the current one keeps its marker
   }, [songs, route, playerParam, player]);
+
+  // Reload restore: bring the docked mini-player back if a track was playing when
+  // the page was unloaded (persisted in player.ts). Runs once, and only after the
+  // song list has loaded so the saved id can be resolved. A /song/:id deep link or
+  // an already-cued track wins — no restore then. Restores PAUSED at the saved
+  // position; the mini dock reappears because current is set.
+  const restoreDone = useRef(false);
+  useEffect(() => {
+    // Skip when a deep link or an overlay URL is in play: /song/:id is cued by the
+    // effect above, and any ?player= means the resync effect owns the URL — restoring
+    // a track underneath it would let that effect open the overlay unbidden.
+    if (restoreDone.current || route.name === "song" || playerParam !== null) return;
+    if (playerApi.getState().current) {
+      restoreDone.current = true; // something's already playing — nothing to restore
+      return;
+    }
+    const snap = readSnapshot();
+    if (!snap) {
+      restoreDone.current = true;
+      return;
+    }
+    if (songs.length === 0) return; // library still loading — retry when it arrives
+    restoreDone.current = true;
+    const song = songs.find((s) => s.id === snap.id);
+    if (!song) {
+      clearSnapshot(); // deleted, or now-unpublished for a signed-out viewer
+      return;
+    }
+    playerApi.restore(song, snap.positionMs);
+  }, [songs, route.name, playerParam]);
 
   // A file dropped anywhere outside a drop zone would otherwise make the browser
   // navigate away to render it, silently discarding the whole SPA session. Swallow

@@ -28,7 +28,13 @@ func testServer(t *testing.T, mode config.AuthMode) http.Handler {
 		MaxUploadMB: 50,
 	}
 	spa := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { w.Write([]byte("SPA")) })
-	return New(cfg, st, spa)
+	h := New(cfg, st, spa)
+	// Drain the startup backfill goroutine before the temp dirs are removed;
+	// registered last so it runs first (LIFO), ahead of st.Close and RemoveAll.
+	if s, ok := h.(*server); ok {
+		t.Cleanup(s.Wait)
+	}
+	return h
 }
 
 func uploadFixture(t *testing.T, h http.Handler) *httptest.ResponseRecorder {

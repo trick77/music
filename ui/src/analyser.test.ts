@@ -91,11 +91,44 @@ class MockAudio {
   }
 }
 
+// Stand-in for AudioBufferSourceNode — records the sample-accurate start offset.
+class MockBufferSource {
+  buffer: unknown = null;
+  started: Array<[number, number]> = [];
+  connect = vi.fn();
+  disconnect = vi.fn();
+  stop = vi.fn();
+  start = vi.fn((when: number, offset: number) => {
+    this.started.push([when, offset]);
+  });
+}
+let lastBufSource: MockBufferSource | undefined;
+
 class MockAudioContext {
   state: CtxState = "suspended";
   destination = {};
+  currentTime = 0; // tests advance this to simulate the audio clock ticking
   createMediaElementSource = vi.fn(() => ({ connect: vi.fn(), disconnect: vi.fn() }));
   createGain = vi.fn(() => ({ gain: { value: 1 }, connect: vi.fn() }));
+  // Decode result: a fake 300s track. getChannelData returns a tiny array — the
+  // module only copies it, length/duration are what matter.
+  decodeAudioData = vi.fn(async () => ({
+    length: 300 * 44100,
+    sampleRate: 44100,
+    duration: 300,
+    getChannelData: () => new Float32Array(8),
+  }));
+  createBuffer = vi.fn((_ch: number, length: number, sampleRate: number) => ({
+    length,
+    sampleRate,
+    duration: length / sampleRate,
+    copyToChannel: vi.fn(),
+    getChannelData: () => new Float32Array(8),
+  }));
+  createBufferSource = vi.fn(() => {
+    lastBufSource = new MockBufferSource();
+    return lastBufSource;
+  });
   resume = vi.fn(() => {
     this.state = "running";
   });
@@ -129,9 +162,27 @@ async function freshAnalyser(state: CtxState = "suspended") {
   freqFiller = () => {}; // reset to silence unless a test opts in
   lastCtx = undefined as unknown as MockAudioContext; // no context created until startAnalysis()
   lastAudio = undefined as unknown as MockAudio;
+  lastBufSource = undefined;
   vi.stubGlobal("window", { AudioContext: MockAudioContext });
   vi.stubGlobal("Audio", MockAudio);
+  // The background track decode fetches the stream URL; tests opt into a working
+  // fetch explicitly — by default it fails fast and the element tap stays.
+  vi.stubGlobal("fetch", vi.fn(() => Promise.reject(new Error("no network in tests"))));
   return import("./analyser");
+}
+
+// The track decode runs as a background async chain; a couple of macrotask turns
+// let it finish (or fail) deterministically.
+async function flushDecode() {
+  await new Promise((r) => setTimeout(r, 0));
+  await new Promise((r) => setTimeout(r, 0));
+}
+
+function stubFetchOk() {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async () => ({ ok: true, arrayBuffer: async () => new ArrayBuffer(8) })),
+  );
 }
 
 describe("bandEdges", () => {
@@ -466,6 +517,216 @@ describe("syncAnalysis", () => {
     nowMs = 4000;
     syncAnalysis(main);
     expect(lastAudio.currentTime).toBe(12.5);
+  });
+});
+
+// The decoded-buffer tap: once the track is fetched + decoded, the streaming
+// element (whose reported clock LIES about the FFT's audio after WebKit mp3
+// seeks — measured 0.7-1.1s) is released and an AudioBufferSourceNode with
+// SAMPLE-ACCURATE positioning takes over.
+describe("decoded-buffer tap", () => {
+  beforeEach(() => vi.unstubAllGlobals());
+
+  it("switches from the element to the buffer once the decode lands, and releases the stream", async () => {
+    const { startAnalysis, syncAnalysis } = await freshAnalyser("running");
+    stubFetchOk();
+    let nowMs = 0;
+    vi.spyOn(performance, "now").mockImplementation(() => nowMs);
+    startAnalysis();
+    const main = mainEl({ currentSrc: "/api/songs/7/stream", currentTime: 10, paused: false });
+
+    syncAnalysis(main); // element tap starts streaming; decode kicks off
+    expect(lastAudio.src).toBe("/api/songs/7/stream");
+    await flushDecode();
+
+    lastCtx.currentTime = 5;
+    main.currentTime = 20;
+    nowMs = 5000;
+    syncAnalysis(main); // decode is ready — switch taps
+    expect(lastAudio.removeAttribute).toHaveBeenCalledWith("src"); // stream released
+    expect(lastBufSource).toBeDefined();
+    expect(lastBufSource!.started).toEqual([[0, 20]]); // sample-accurate at the player position
+  });
+
+  it("leaves a tracking buffer alone and re-anchors it on a player seek", async () => {
+    const { startAnalysis, syncAnalysis } = await freshAnalyser("running");
+    stubFetchOk();
+    let nowMs = 1000;
+    vi.spyOn(performance, "now").mockImplementation(() => nowMs);
+    startAnalysis();
+    const main = mainEl({ currentSrc: "/api/songs/7/stream", currentTime: 10, paused: false });
+    syncAnalysis(main);
+    await flushDecode();
+    nowMs = 2000;
+    syncAnalysis(main); // buffer starts at 10 (ctx time 0)
+    const first = lastBufSource!;
+
+    // Both clocks advance in step: position tracks exactly, no restart.
+    lastCtx.currentTime = 30;
+    main.currentTime = 40;
+    nowMs = 3000;
+    syncAnalysis(main);
+    expect(lastBufSource).toBe(first);
+    expect(first.started).toHaveLength(1);
+
+    // Player seeks +60s: restart exactly there.
+    main.currentTime = 100;
+    nowMs = 4000;
+    syncAnalysis(main);
+    expect(lastBufSource).not.toBe(first);
+    expect(lastBufSource!.started).toEqual([[0, 100]]);
+  });
+
+  it("pauses with the player and resumes at the player's position", async () => {
+    const { startAnalysis, syncAnalysis } = await freshAnalyser("running");
+    stubFetchOk();
+    let nowMs = 1000;
+    vi.spyOn(performance, "now").mockImplementation(() => nowMs);
+    startAnalysis();
+    const main = mainEl({ currentSrc: "/api/songs/7/stream", currentTime: 10, paused: false });
+    syncAnalysis(main);
+    await flushDecode();
+    nowMs = 2000;
+    syncAnalysis(main);
+    const playingSource = lastBufSource!;
+
+    (main as { paused: boolean }).paused = true;
+    syncAnalysis(main);
+    expect(playingSource.stop).toHaveBeenCalled();
+
+    (main as { paused: boolean }).paused = false;
+    main.currentTime = 12;
+    nowMs = 3000;
+    syncAnalysis(main);
+    expect(lastBufSource!.started).toEqual([[0, 12]]);
+  });
+
+  it("keeps the element tap when the decode fails", async () => {
+    const { startAnalysis, syncAnalysis } = await freshAnalyser("running");
+    // default fetch stub rejects
+    startAnalysis();
+    const main = mainEl({ currentSrc: "/api/songs/7/stream", currentTime: 10, paused: false });
+    syncAnalysis(main);
+    await flushDecode();
+    syncAnalysis(main);
+    expect(lastBufSource).toBeUndefined();
+    expect(lastAudio.src).toBe("/api/songs/7/stream"); // element still serving the FFT
+  });
+
+  it("attempts a failed decode only once — no per-frame refetch storm", async () => {
+    const { startAnalysis, syncAnalysis } = await freshAnalyser("running");
+    startAnalysis();
+    const main = mainEl({ currentSrc: "/api/songs/7/stream", currentTime: 10, paused: false });
+    syncAnalysis(main);
+    await flushDecode(); // the one attempt fails (default rejecting fetch)
+    syncAnalysis(main);
+    syncAnalysis(main);
+    syncAnalysis(main);
+    expect(fetch).toHaveBeenCalledTimes(1);
+  });
+
+  it("refuses to decode very long tracks — the element tap serves them", async () => {
+    const { startAnalysis, syncAnalysis } = await freshAnalyser("running");
+    stubFetchOk();
+    startAnalysis();
+    const main = mainEl({
+      currentSrc: "/api/songs/7/stream",
+      currentTime: 10,
+      paused: false,
+      duration: 60 * 60, // an hour-long set would decode to hundreds of MB
+    });
+    syncAnalysis(main);
+    await flushDecode();
+    syncAnalysis(main);
+    expect(fetch).not.toHaveBeenCalled();
+    expect(lastBufSource).toBeUndefined();
+    expect(lastAudio.src).toBe("/api/songs/7/stream");
+  });
+
+  it("drops the old track's buffer the moment the player changes track", async () => {
+    const { startAnalysis, syncAnalysis } = await freshAnalyser("running");
+    stubFetchOk();
+    let nowMs = 1000;
+    vi.spyOn(performance, "now").mockImplementation(() => nowMs);
+    startAnalysis();
+    const main = mainEl({ currentSrc: "/api/songs/7/stream", currentTime: 10, paused: false });
+    syncAnalysis(main);
+    await flushDecode();
+    nowMs = 2000;
+    syncAnalysis(main); // buffer tap live for song 7
+    const oldSource = lastBufSource!;
+
+    // Player advances to the next track: the stale source must stop feeding the
+    // FFT immediately, and the element must take over streaming the new song.
+    (main as { currentSrc: string }).currentSrc = "/api/songs/8/stream";
+    main.currentTime = 0;
+    nowMs = 3000;
+    syncAnalysis(main);
+    expect(oldSource.stop).toHaveBeenCalled();
+    expect(lastAudio.src).toBe("/api/songs/8/stream"); // element bridges the new track
+  });
+
+  it("drops the decoded PCM on stopAnalysis so a closed visualizer costs nothing", async () => {
+    const { startAnalysis, syncAnalysis, stopAnalysis } = await freshAnalyser("running");
+    stubFetchOk();
+    let nowMs = 1000;
+    vi.spyOn(performance, "now").mockImplementation(() => nowMs);
+    startAnalysis();
+    const main = mainEl({ currentSrc: "/api/songs/7/stream", currentTime: 10, paused: false });
+    syncAnalysis(main);
+    await flushDecode();
+    nowMs = 2000;
+    syncAnalysis(main);
+    const src = lastBufSource!;
+
+    stopAnalysis();
+    expect(src.stop).toHaveBeenCalled();
+    // Reopening decodes afresh (buffer was released, not cached).
+    startAnalysis();
+    (fetch as ReturnType<typeof vi.fn>).mockClear();
+    syncAnalysis(mainEl({ currentSrc: "/api/songs/7/stream", currentTime: 10, paused: false }));
+    expect(fetch).toHaveBeenCalled();
+  });
+});
+
+describe("analysis lead (content-alignment knob)", () => {
+  beforeEach(() => vi.unstubAllGlobals());
+
+  // contentAlign measures how far the FFT's real content sits from the player's
+  // clock (WebKit mp3 seeks land away from the reported position) and cancels it
+  // via this lead: corrections then aim player + lead (+ learned re-buffer aim).
+  it("corrections aim ahead by the lead set via setAnalysisLead", async () => {
+    const { startAnalysis, syncAnalysis, setAnalysisLead } = await freshAnalyser("running");
+    let nowMs = 0;
+    vi.spyOn(performance, "now").mockImplementation(() => nowMs);
+    startAnalysis();
+    const main = mainEl({ currentSrc: "/api/songs/7/stream", currentTime: 10, paused: false });
+    syncAnalysis(main); // cold start, lead 0 → anchors at 10
+
+    // Let the lock settle into a genuine lock first (ends the learning session).
+    main.currentTime = 12;
+    lastAudio.currentTime = 12;
+    nowMs = 2000;
+    syncAnalysis(main);
+
+    // contentAlign discovers the content runs 1s in the past → lead 1.0. The
+    // resulting err is external drift: re-anchored with the aim left alone.
+    setAnalysisLead(1.0);
+    nowMs = 4000;
+    syncAnalysis(main);
+    expect(lastAudio.currentTime).toBeCloseTo(13); // player + 1.0 lead, + 0 aim
+  });
+
+  it("clamps the lead to a sane range and ignores non-finite values", async () => {
+    const { setAnalysisLead, analysisLead } = await freshAnalyser("running");
+    setAnalysisLead(5);
+    expect(analysisLead()).toBe(2);
+    setAnalysisLead(-3);
+    expect(analysisLead()).toBe(-0.5);
+    setAnalysisLead(NaN);
+    expect(analysisLead()).toBe(-0.5); // unchanged
+    setAnalysisLead(0.8);
+    expect(analysisLead()).toBe(0.8);
   });
 });
 

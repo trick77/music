@@ -67,6 +67,18 @@ describe("SongMenu grouping", () => {
   });
 });
 
+describe("SongMenu share", () => {
+  it("offers Share for a published song", () => {
+    expect(render({ song: { ...song, published: true } })).toContain(">Share<");
+  });
+
+  // An unpublished song is hidden from anonymous listeners, so its shared
+  // /song/:id link would 404 — no Share until it's published.
+  it("hides Share for an unpublished song", () => {
+    expect(render({ song: { ...song, published: false } })).not.toContain(">Share<");
+  });
+});
+
 describe("SongMenu cover-art download", () => {
   it("offers the cover-art download to a signed-in user when the song has art", () => {
     expect(render({ authenticated: true })).toContain("/api/songs/s1/cover/download");

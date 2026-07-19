@@ -308,7 +308,9 @@ export function VisualizerView({ fav, onShare }: { fav: Fav; onShare: (s: Song) 
           <Transport playing={p.playing} onPrev={p.prev} onToggle={p.toggle} onNext={p.next} canNext={p.queue.length > 0} size={26} />
           <Divider color="rgba(255,255,255,0.2)" />
           <StarButton song={song} fav={fav} size={24} />
-          <button aria-label="Share" onClick={() => onShare(song)} style={iconBtn}><Icon name="share" size="22px" /></button>
+          {/* Unpublished songs aren't shareable — their /song/:id link 404s for
+              anonymous recipients — so hide Share until published. */}
+          {song.published && <button aria-label="Share" onClick={() => onShare(song)} style={iconBtn}><Icon name="share" size="22px" /></button>}
         </ImmersiveControls>
       )}
 

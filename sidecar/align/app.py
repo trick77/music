@@ -21,6 +21,7 @@ from fastapi.responses import JSONResponse
 from consensus import alignable, apply_consensus, word_starts
 from grouping import group_words_into_lines
 from language import detect_language
+from segmentation import assign_lines, find_silences, plan_segments
 
 log = logging.getLogger("align")
 
@@ -91,11 +92,27 @@ async def align(audio: UploadFile = File(...), lyrics: str = Form(...), language
         except Exception:
             target = src  # fall back to the full mix if separation fails
 
-        # 3) Forced alignment of the KNOWN lyrics as one whole-track segment.
+        # 3) Forced alignment of the KNOWN lyrics. A whole-track wav2vec2 forward needs
+        # ~9-12 GB on a long song (memory grows with length) and OOM-kills the sidecar,
+        # so we cut the vocal at silences into memory-sized segments and align each —
+        # WhisperX forwards each segment's audio slice independently, bounding peak to
+        # one segment. Cutting only at silence keeps every word inside its segment and
+        # preserves wav2vec2's (bidirectional) context within each sung region. The
+        # known lyrics are split across segments in proportion to their singing. See
+        # segmentation.py.
         try:
             wav = whisperx.load_audio(target)
             duration = len(wav) / 16000.0
-            segments = [{"text": " ".join(lines), "start": 0.0, "end": duration}]
+            plan = plan_segments(duration, find_silences(wav))
+            assigned = assign_lines([s["voiced_s"] for s in plan], lines)
+            segments = [
+                {"text": " ".join(seg_lines), "start": s["start_s"], "end": s["end_s"]}
+                for s, seg_lines in zip(plan, assigned)
+                if seg_lines
+            ]
+            if len(plan) > 1:
+                log.info("aligning %d lines over %d silence-cut segments (%.0fs track)",
+                         len(lines), len(segments), duration)
             aligned = whisperx.align(segments, model, meta, wav, DEVICE, return_char_alignments=False)
         except Exception as e:
             return JSONResponse(status_code=500, content={"error": f"alignment failed: {e}"})
@@ -125,7 +142,15 @@ async def align(audio: UploadFile = File(...), lyrics: str = Form(...), language
     source_words = [w for ln in lines for w in ln.split()]
     if lang == "en" and alignable(source_words):
         try:
-            grouped = apply_consensus(grouped, word_starts(wav, source_words, DEVICE))
+            # Same silence-cut segments as the primary pass, so MMS_FA's forward is
+            # bounded too (it is wav2vec2 as well). Words stay in source order across
+            # segments, so the returned starts remain positional over source_words.
+            consensus_segments = [
+                {"start_s": s["start_s"], "end_s": s["end_s"],
+                 "words": [w for ln in seg_lines for w in ln.split()]}
+                for s, seg_lines in zip(plan, assigned)
+            ]
+            grouped = apply_consensus(grouped, word_starts(wav, consensus_segments, DEVICE))
         except Exception:
             log.warning("consensus aligner failed; keeping primary alignment", exc_info=True)
 

@@ -61,34 +61,50 @@ def alignable(words):
     return kept >= max(1, int(0.9 * len(words)))
 
 
-def word_starts(wav, words, device):
-    """Force-align `words` against `wav` (16 kHz mono float32) with MMS_FA.
+def word_starts(wav, segments, device):
+    """Force-align each segment's words against its slice of `wav` with MMS_FA.
 
-    Returns one start (seconds, from the beginning of `wav`) per entry of `words`,
-    or None for a word that has no alignable token. Import-time cost is deferred to
-    here so the module stays importable — and unit-testable — without torch.
+    `wav` is the whole 16 kHz mono float32 vocal; `segments` is the same silence-cut
+    plan the primary pass uses — a list of {"start_s", "end_s", "words"} whose words,
+    concatenated in segment order, are the source words in order. Forwarding one slice
+    per segment (rather than the whole track at once) bounds MMS_FA's memory the same
+    way the primary aligner is bounded.
+
+    Returns one start (seconds, from the beginning of `wav`) per source word across
+    all segments in order, or None for a word with no alignable token. Import-time
+    cost is deferred to here so the module stays importable — and unit-testable —
+    without torch.
     """
     import torch
     from torchaudio.pipelines import MMS_FA as bundle
 
-    toks = [normalize(w) for w in words]
-    idx = [i for i, t in enumerate(toks) if t]
-    if not idx:
-        return [None] * len(words)
-
     model = _model(bundle, device)
     tokenizer = bundle.get_tokenizer()
     aligner = bundle.get_aligner()
-    waveform = torch.from_numpy(wav).unsqueeze(0).to(device)
-    with torch.inference_mode():
-        emission, _ = model(waveform)
-        spans = aligner(emission[0], tokenizer([toks[i] for i in idx]))
+    sr = bundle.sample_rate
 
-    # Emission frames are coarser than samples; scale back to a sample offset.
-    ratio = waveform.size(1) / emission.size(1)
-    out = [None] * len(words)
-    for i, span in zip(idx, spans):
-        out[i] = (span[0].start * ratio) / bundle.sample_rate
+    out = []
+    for seg in segments:
+        words = seg["words"]
+        toks = [normalize(w) for w in words]
+        idx = [i for i, t in enumerate(toks) if t]
+        if not idx:
+            out.extend([None] * len(words))
+            continue
+
+        a, b = int(seg["start_s"] * sr), int(seg["end_s"] * sr)
+        waveform = torch.from_numpy(wav[a:b]).unsqueeze(0).to(device)
+        with torch.inference_mode():
+            emission, _ = model(waveform)
+            spans = aligner(emission[0], tokenizer([toks[i] for i in idx]))
+
+        # Emission frames are coarser than samples; scale back to a sample offset,
+        # then shift into whole-track time by the segment's start.
+        ratio = waveform.size(1) / emission.size(1)
+        seg_out = [None] * len(words)
+        for i, span in zip(idx, spans):
+            seg_out[i] = (span[0].start * ratio) / sr + seg["start_s"]
+        out.extend(seg_out)
     return out
 
 

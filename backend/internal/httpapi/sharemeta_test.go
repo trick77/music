@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/trick77/music/internal/config"
+	"github.com/trick77/music/internal/library"
 )
 
 // patchSongTitle edits a song's title via the API so we can inject a hostile
@@ -141,19 +142,29 @@ func TestShareMeta_rootEmitsDefaultCard(t *testing.T) {
 }
 
 func TestShareMeta_staticFileNotWrapped(t *testing.T) {
-	// A request for a real embedded asset must be served as-is, never wrapped in the
-	// HTML shell with meta tags. manifest.webmanifest ships from ui/public and is
-	// always present in the build.
-	h := testServer(t, config.AuthModeDev)
+	// A request that resolves to a real embedded asset (icon, manifest, hashed
+	// bundle) must be served untouched by the static/SPA handler — never wrapped in
+	// the HTML shell with a default share card. This drives withShareMeta directly
+	// with hasFile stubbed to report the asset present: the backend test binary
+	// embeds only index.html (manifest and bundles are built by the UI job in CI),
+	// so a request through the real embed FS could not exercise this branch.
+	const assetBody = `{"name":"Music"}`
+	spa := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte(assetBody))
+	})
+	// repo is only nil-checked on the static-file branch, never dereferenced.
+	h := withShareMeta(library.NewRepo(nil), []byte("<html><head></head></html>"),
+		spa, func(p string) bool { return p == "/manifest.webmanifest" })
+
 	rr := httptest.NewRecorder()
 	h.ServeHTTP(rr, httptest.NewRequest("GET", "/manifest.webmanifest", nil))
 
 	body := rr.Body.String()
-	if strings.Contains(body, "og:image") || strings.Contains(body, "og:title") {
-		t.Fatalf("static asset must not get injected share meta:\n%s", body)
+	if body != assetBody {
+		t.Fatalf("static asset must be served untouched by the SPA handler, got:\n%s", body)
 	}
-	if strings.Contains(body, "<title>") {
-		t.Fatalf("static asset should not be the HTML shell:\n%s", body)
+	if strings.Contains(body, "og:image") || strings.Contains(body, "og:title") || strings.Contains(body, "<title>") {
+		t.Fatalf("static asset must not get injected share meta:\n%s", body)
 	}
 }
 

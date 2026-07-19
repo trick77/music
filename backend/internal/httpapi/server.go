@@ -189,6 +189,8 @@ func build(cfg config.Config, st *store.Store, spa http.Handler, gen imagegen.Pr
 			mux.HandleFunc("DELETE /api/songs/{id}/cover", h.deleteCover)
 			mux.HandleFunc("GET /api/songs/{id}/cover/download", h.downloadCover)
 			mux.HandleFunc("GET /api/cover/{id}", h.getCover)
+			mux.HandleFunc("GET /api/share/song/{id}/card.jpg", h.getSongCard)         // PUBLIC — og:image for song link previews
+			mux.HandleFunc("GET /api/share/playlist/{id}/card.jpg", h.getPlaylistCard) // PUBLIC — og:image for playlist link previews
 			mux.HandleFunc("GET /api/artists", h.listArtists)
 			mux.HandleFunc("GET /api/artists/{id}", h.getArtist)
 			mux.HandleFunc("GET /api/genres", h.listGenres)

@@ -1,7 +1,9 @@
 package httpapi
 
 import (
+	"bytes"
 	"encoding/json"
+	"image/jpeg"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -72,6 +74,68 @@ func TestShareMeta_escapesHostileTitle(t *testing.T) {
 	}
 	if !strings.Contains(body, "&#34;") { // escaped double-quote
 		t.Fatalf("expected escaped quote in:\n%s", body)
+	}
+}
+
+func TestShareCard_songMetaPointsAtCard(t *testing.T) {
+	// A published song's og:image is the rendered 1200x1200 card (absolute URL),
+	// with summary_large_image and advertised square dimensions — the Apple-safe
+	// shape that renders a titled card in iMessage instead of an oversized cover.
+	h := testServer(t, config.AuthModeDev)
+	sid := uploadSongID(t, h)
+	body, ct := pngMultipart(t)
+	cover := httptest.NewRequest("PUT", "/api/songs/"+sid+"/cover", body)
+	cover.Header.Set("Content-Type", ct)
+	cr := httptest.NewRecorder()
+	h.ServeHTTP(cr, cover)
+	if cr.Code != http.StatusOK {
+		t.Fatalf("set cover = %d, body=%s", cr.Code, cr.Body.String())
+	}
+	doJSON(t, h, "POST", "/api/songs/"+sid+"/publish", "")
+
+	rr := httptest.NewRecorder()
+	req := httptest.NewRequest("GET", "/song/"+sid, nil)
+	req.Host = "music.example.com"
+	req.Header.Set("X-Forwarded-Proto", "https")
+	h.ServeHTTP(rr, req)
+	b := rr.Body.String()
+
+	cardURL := "https://music.example.com/api/share/song/" + sid + "/card.jpg"
+	if !strings.Contains(b, `property="og:image" content="`+cardURL+`"`) {
+		t.Fatalf("song og:image should be the card URL %q:\n%s", cardURL, b)
+	}
+	if !strings.Contains(b, `name="twitter:card" content="summary_large_image"`) {
+		t.Fatalf("song card should be summary_large_image:\n%s", b)
+	}
+	if !strings.Contains(b, `property="og:image:width" content="1200"`) || !strings.Contains(b, `property="og:image:height" content="1200"`) {
+		t.Fatalf("song card should advertise 1200x1200:\n%s", b)
+	}
+	// And the card renders as a real 1200x1200 JPEG.
+	assertCard(t, h, "/api/share/song/"+sid+"/card.jpg")
+}
+
+func TestShareCard_rendersWithoutCover(t *testing.T) {
+	// A published song with no cover art still renders a valid (text-only) card.
+	h := testServer(t, config.AuthModeDev)
+	sid := uploadSongID(t, h)
+	doJSON(t, h, "POST", "/api/songs/"+sid+"/publish", "")
+	assertCard(t, h, "/api/share/song/"+sid+"/card.jpg")
+}
+
+func TestShareCard_unpublishedOrUnknown404(t *testing.T) {
+	// The card endpoint is public and not auth-aware, so it must 404 for an
+	// unpublished or unknown song rather than leak/render its metadata.
+	h := testServer(t, config.AuthModeDev)
+	sid := uploadSongID(t, h) // unpublished
+	for _, path := range []string{
+		"/api/share/song/" + sid + "/card.jpg",
+		"/api/share/song/does-not-exist/card.jpg",
+	} {
+		rr := httptest.NewRecorder()
+		h.ServeHTTP(rr, httptest.NewRequest("GET", path, nil))
+		if rr.Code != http.StatusNotFound {
+			t.Fatalf("GET %s = %d, want 404", path, rr.Code)
+		}
 	}
 }
 
@@ -190,22 +254,47 @@ func TestShareMeta_playlistFallsBackToFirstSongCover(t *testing.T) {
 	rr := httptest.NewRecorder()
 	req2 := httptest.NewRequest("GET", "/playlist/"+pid, nil)
 	req2.Host = "music.example.com"
+	req2.Header.Set("X-Forwarded-Proto", "https")
 	h.ServeHTTP(rr, req2)
 	b := rr.Body.String()
 	if !strings.Contains(b, `property="og:title"`) || !strings.Contains(b, "Late Night Drive") {
 		t.Fatalf("playlist meta missing title:\n%s", b)
 	}
-	if !strings.Contains(b, `property="og:image"`) || !strings.Contains(b, "/api/cover/") {
-		t.Fatalf("playlist should fall back to first song cover:\n%s", b)
+	// og:image points at the rendered 1200x1200 share card (absolute URL), not the
+	// raw cover. The first-song cover fallback now happens inside the card handler.
+	cardURL := "https://music.example.com/api/share/playlist/" + pid + "/card.jpg"
+	if !strings.Contains(b, `property="og:image" content="`+cardURL+`"`) {
+		t.Fatalf("playlist og:image should be the card URL %q:\n%s", cardURL, b)
 	}
-	// og:image must request the sized card variant so chat apps don't reject an
-	// oversized original.
-	if !strings.Contains(b, "?size=card") {
-		t.Fatalf("playlist cover should use ?size=card:\n%s", b)
+	if !strings.Contains(b, `property="og:image:width" content="1200"`) || !strings.Contains(b, `property="og:image:height" content="1200"`) {
+		t.Fatalf("playlist card should advertise 1200x1200:\n%s", b)
 	}
 	// The subtitle is the track count (one published track), not a description.
 	if !strings.Contains(b, "Playlist · 1 song") {
 		t.Fatalf("playlist meta should show track count:\n%s", b)
+	}
+	// Fetch the card itself: it must render (falling back to the first song's cover)
+	// as a 1200x1200 JPEG.
+	assertCard(t, h, "/api/share/playlist/"+pid+"/card.jpg")
+}
+
+// assertCard fetches a share-card URL and asserts it is a 1200x1200 JPEG.
+func assertCard(t *testing.T, h http.Handler, path string) {
+	t.Helper()
+	rr := httptest.NewRecorder()
+	h.ServeHTTP(rr, httptest.NewRequest("GET", path, nil))
+	if rr.Code != http.StatusOK {
+		t.Fatalf("GET %s = %d, body=%s", path, rr.Code, rr.Body.String())
+	}
+	if ct := rr.Header().Get("Content-Type"); ct != "image/jpeg" {
+		t.Fatalf("card content-type = %q, want image/jpeg", ct)
+	}
+	cfg, err := jpeg.DecodeConfig(bytes.NewReader(rr.Body.Bytes()))
+	if err != nil {
+		t.Fatalf("card is not a decodable JPEG: %v", err)
+	}
+	if cfg.Width != 1200 || cfg.Height != 1200 {
+		t.Fatalf("card dims = %dx%d, want 1200x1200", cfg.Width, cfg.Height)
 	}
 }
 

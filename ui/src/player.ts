@@ -185,11 +185,23 @@ function guardMedia(fn: () => void) {
   }
 }
 
+// An OS Media Session "play"/"pause" command (lock screen, AirPods, macOS Now
+// Playing — and, crucially, Apple Continuity relaying a command from another
+// device signed into the same account) must be idempotent about direction:
+// "play" while already playing, or "pause" while already paused, must do nothing.
+// Wiring both actions to a blind toggle() inverted the state instead — an OS
+// "play" arriving at an already-playing tab paused it — which is how two open
+// tabs on two devices fell out of phase. Gate the toggle on the audio element's
+// own paused truth so a redundant command is a no-op, not a flip.
+export function mediaShouldToggle(action: "play" | "pause", paused: boolean): boolean {
+  return action === "play" ? paused : !paused;
+}
+
 function setupMediaHandlers() {
   if (!hasMediaSession()) return;
   const ms = navigator.mediaSession;
-  guardMedia(() => ms.setActionHandler("play", () => player.toggle()));
-  guardMedia(() => ms.setActionHandler("pause", () => player.toggle()));
+  guardMedia(() => ms.setActionHandler("play", () => { if (audio && mediaShouldToggle("play", audio.paused)) player.toggle(); }));
+  guardMedia(() => ms.setActionHandler("pause", () => { if (audio && mediaShouldToggle("pause", audio.paused)) player.toggle(); }));
   guardMedia(() => ms.setActionHandler("previoustrack", () => player.prev()));
   syncNextAction();
 }

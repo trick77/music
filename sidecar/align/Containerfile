@@ -31,7 +31,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # 4) App code -> the last, tiny layer. Every module app.py imports must be listed:
 # a missing one is a startup ImportError, not a build failure.
-COPY grouping.py language.py consensus.py app.py ./
+COPY grouping.py language.py consensus.py segmentation.py app.py ./
 
 EXPOSE 8000
 # Export OMP_NUM_THREADS = (cores - 1) before torch loads, so OpenMP-parallel CPU

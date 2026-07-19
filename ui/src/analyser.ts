@@ -93,14 +93,13 @@ export function startAnalysis(): boolean {
     const el = new Audio();
     el.preload = "auto";
     el.crossOrigin = "anonymous"; // same-origin today, but explicit keeps the tap untainted
-    // NOTE: preservesPitch is deliberately left at its default (true). Setting it
-    // false looked attractive (a clean resample instead of a time-stretch while the
-    // clock-lock trims the rate), but on WebKit the varispeed path it selects can go
-    // SILENT while currentTime keeps advancing — exactly the "clock advancing,
-    // spectrum flat" signature the dead-tap detector reads as a dead tap, which
-    // flipped the whole visualizer to synthetic bars on iPad. At the lock's ±6% max
-    // trim, pitch-corrected vs. resampled audio is indistinguishable on 28 log
-    // bands, so the flag bought nothing and cost the feature. Do not reintroduce it.
+    // NOTE: preservesPitch is deliberately left untouched, and this element's
+    // playbackRate must NEVER be changed. Both WebKit off-rate paths are broken
+    // for a tapped element: varispeed (preservesPitch=false) can go silent while
+    // currentTime advances, and the time-stretcher (default) stalls the pipeline
+    // every ~12s under a sustained off-rate — both read as a dead/flat tap and
+    // ruined the visualizer on iPad. The clock-lock in syncAnalysis corrects with
+    // rare compensated seeks instead. Do not reintroduce rate manipulation.
     const src = ctx.createMediaElementSource(el);
     src.connect(a);
     analysisEl = el;
@@ -120,49 +119,38 @@ export function startAnalysis(): boolean {
 // what you hear (e.g. to compensate a device's own audible output latency). Keep it
 // magnitude-agnostic — do NOT bake in a measured device offset here.
 const ANALYSIS_LEAD_S = 0;
-// Beyond this the offset is a seek or track change, not startup drift, so snap the
-// element hard to re-anchor. Deliberately generous: a Bluetooth/AirPods output
-// latency can legitimately sit a few hundred ms out, and that must be trimmed by
-// rate (below), never turned into a constant re-seek that flattens the FFT.
+// Beyond this the offset is the main element seeking or changing track, not
+// startup/rebuffer drift — snap immediately instead of waiting out the settle
+// window below.
 const RESYNC_LIMIT_S = 1.0;
-const RATE_TRIM_MAX = 0.06; // cap the soft-lock nudge at ±6% (inaudible; gain-0 element)
-const RATE_GAIN = 2; // proportional gain mapping the offset error (s) → rate trim
-// Inside this offset the clock is "locked": the target rate is exactly 1.0 and no
-// correction runs. ±50ms is invisible on a spectrum meter, and the deadband is what
-// lets playbackRate SIT at 1.0 instead of being rewritten every frame — WebKit
-// reconfigures the media pipeline on rate writes, and a 60Hz stream of them is how
-// the analysis element ended up stalling (silent tap → synthetic bars) on iPad.
-const RATE_DEADBAND_S = 0.05;
-// Correction rates are quantized to this step so consecutive frames of a converging
-// err compute the SAME value, letting the write-on-change guard in syncAnalysis skip
-// the assignment. With the CURRENT constants the clamp already saturates outside the
-// deadband (deadband × gain > trim max, so targetRate only ever returns 1±0.06) and
-// the quantum never rounds anything — it's a stability guard so a future retune of
-// RATE_GAIN / RATE_DEADBAND_S can't silently reintroduce per-frame writes.
-const RATE_QUANTUM = 0.01;
+// The clock is "locked" while |err| stays inside this. ±100ms is at the edge of
+// perception for a spectrum meter; corrections only run beyond it so the lock
+// converges in one or two seeks and then leaves the element completely alone.
+const LOCK_TOLERANCE_S = 0.1;
+// After any seek or source change, give the element this long to buffer and reach
+// steady playback before measuring the offset again. Measuring mid-rebuffer reads
+// a transient and would chase it with another seek — the seek-loop failure mode.
+const SETTLE_MS = 1500;
+// Upper bound on the learned seek-ahead compensation. A network so slow that the
+// element lands >2s behind after every seek isn't going to be rescued by aiming
+// further ahead.
+const SEEK_AHEAD_MAX_S = 2;
 
-// rateTrim maps a clock-offset error (seconds; negative = analysis element behind
-// the player) to the playbackRate delta that closes it: behind → speed up
-// (positive), ahead → slow down. Clamped to ±RATE_TRIM_MAX, and NaN-safe: a
-// non-finite error (e.g. currentTime read before load) yields 0 so playbackRate is
-// never assigned a non-finite value — that throws a TypeError, and since the
-// visualizer's rAF loop calls syncAnalysis unguarded, one throw would cancel the
-// loop and freeze the bars. Pure so the sign/convergence is unit-tested without a
-// live media element.
-export function rateTrim(errSeconds: number): number {
-  if (!Number.isFinite(errSeconds)) return 0;
-  return Math.max(-RATE_TRIM_MAX, Math.min(RATE_TRIM_MAX, -errSeconds * RATE_GAIN));
-}
-
-// targetRate is the rate the clock-lock wants the analysis element to run at for a
-// given offset error: exactly 1 inside the deadband (locked — nothing to do), else
-// 1 + rateTrim(err) snapped to RATE_QUANTUM steps. Quantizing makes the value
-// stable across consecutive frames so syncAnalysis's write-on-change guard turns a
-// correction into a handful of playbackRate writes instead of one per frame. Pure,
-// like rateTrim, so deadband/sign/quantization are unit-tested without media.
-export function targetRate(errSeconds: number): number {
-  if (!Number.isFinite(errSeconds) || Math.abs(errSeconds) < RATE_DEADBAND_S) return 1;
-  return Math.round((1 + rateTrim(errSeconds)) / RATE_QUANTUM) * RATE_QUANTUM;
+// The clock-lock deliberately NEVER touches playbackRate. Both WebKit rate paths
+// are broken for this use: varispeed (preservesPitch=false) can go silent while
+// currentTime advances, and the time-stretcher (preservesPitch=true, the default)
+// stalls the pipeline every ~12s under a sustained off-rate — measured against
+// production on Playwright WebKit: the element pinned at 1.06 never converged
+// (each stall threw it 200-500ms back) and the FFT dropped to zero at every stall.
+// That was the "bars go to zero + never in sync" bug. Instead the element always
+// runs at exactly 1.0 and the offset is corrected by RARE, COMPENSATED seeks:
+// seek AHEAD of the player by the learned amount the element loses to re-buffering
+// (seekAheadS), so it lands aligned when it starts advancing again. nextSeekAhead
+// learns that amount: after a correction settles, whatever error remains is folded
+// into the next aim. Pure, so convergence is unit-tested without a live element.
+export function nextSeekAhead(prevS: number, errSeconds: number): number {
+  if (!Number.isFinite(errSeconds)) return prevS;
+  return Math.max(0, Math.min(SEEK_AHEAD_MAX_S, prevS - errSeconds));
 }
 
 // Count of hard re-anchors (seeks) syncAnalysis has performed; diagnostic only. A
@@ -170,14 +158,18 @@ export function targetRate(errSeconds: number): number {
 // big offset → seek …) instead of converging.
 let hardSeeks = 0;
 
-// setRate assigns el.playbackRate only when it would actually change — see
-// RATE_DEADBAND_S above for why WebKit must not see per-frame rate writes. The
-// element's own property is the comparison source (reads don't touch the media
-// pipeline), so this stays correct even if the browser resets the rate behind our
-// back (load() does; a WebKit stall recovery might) — no cache to go stale.
-function setRate(el: HTMLMediaElement, rate: number): void {
-  if (el.playbackRate === rate) return;
-  el.playbackRate = rate;
+// The learned seek-ahead compensation (seconds) and the time of the last
+// correction. seekAheadS persists across tracks — it models this session's
+// network/decode latency, which doesn't change per song.
+let seekAheadS = 0;
+let lastCorrectionMs = 0;
+
+function correct(el: HTMLMediaElement, main: HTMLMediaElement): void {
+  try {
+    el.currentTime = main.currentTime + ANALYSIS_LEAD_S + seekAheadS;
+    hardSeeks++;
+  } catch { /* not seekable yet — retried next frame */ }
+  lastCorrectionMs = performance.now();
 }
 
 // syncAnalysis mirrors the audible element onto the silent analysis element: same
@@ -195,44 +187,43 @@ export function syncAnalysis(main: HTMLMediaElement | null): void {
   if (el.src !== src) {
     el.src = src;
     try {
-      el.currentTime = main.currentTime;
+      el.currentTime = main.currentTime + ANALYSIS_LEAD_S + seekAheadS;
     } catch {
-      // metadata not loaded yet — the drift correction below will snap it once ready
+      // metadata not loaded yet — the clock-lock below will correct once ready
     }
+    lastCorrectionMs = performance.now(); // a src change re-buffers like a seek
   }
   if (main.paused) {
     if (!el.paused) el.pause();
     return;
   }
   if (el.paused) {
-    try {
-      el.currentTime = main.currentTime;
-    } catch { /* not seekable yet */ }
-    setRate(el, 1); // re-anchor cleanly; the clock-lock re-trims from the next frame
+    correct(el, main); // start aligned (aiming ahead by the learned re-buffer loss)
     void el.play().catch(() => {});
     return;
   }
-  // Soft clock-lock. The analysis element starts a few hundred ms BEHIND the main
-  // element — it must buffer and start playing while main keeps advancing — and,
-  // once both run at rate 1.0, that startup offset is otherwise frozen, so the bars
-  // render audio a fixed lag in the past (measured ~244 ms). A hard seek can't cure
-  // it: seeking re-buffers and recreates the very same lag. So nudge the *silent*
-  // element's playbackRate to drive the offset to ANALYSIS_LEAD_S, then hold at 1.0.
-  // A large offset (a real seek or track change) is snapped hard instead; small
-  // residuals are trimmed by rate. Magnitude-agnostic, so it works whatever the
-  // device's true offset is (Bluetooth latency, a slower decode, etc.).
+  // Clock-lock via rare, compensated seeks — playbackRate is deliberately never
+  // touched (see nextSeekAhead above for the measured WebKit failures that rules
+  // out). The element starts a few hundred ms behind the player (it buffers while
+  // main keeps advancing) and a naive seek just re-buffers into the same lag; so
+  // each correction aims AHEAD by seekAheadS, the loss learned from where previous
+  // corrections actually landed. Between corrections the element runs untouched at
+  // rate 1.0, and measurements wait out SETTLE_MS so a mid-rebuffer transient is
+  // never chased (the seek-loop failure mode). A huge offset is the main element
+  // seeking/changing track — snap immediately, nothing to learn from it.
   const err = el.currentTime - main.currentTime - ANALYSIS_LEAD_S;
+  if (!Number.isFinite(err)) return;
   if (Math.abs(err) > RESYNC_LIMIT_S) {
-    try {
-      el.currentTime = main.currentTime + ANALYSIS_LEAD_S;
-    } catch { /* not seekable yet */ }
-    hardSeeks++;
-    setRate(el, 1);
-  } else {
-    // err < 0 → element is behind → targetRate > 1 → play faster to catch up (and
-    // vice versa); exactly 1 inside the deadband. setRate skips the assignment when
-    // the value is unchanged, so WebKit sees a stable rate, not a 60Hz write stream.
-    setRate(el, targetRate(err));
+    correct(el, main);
+  } else if (
+    Math.abs(err) > LOCK_TOLERANCE_S &&
+    performance.now() - lastCorrectionMs > SETTLE_MS &&
+    el.readyState >= el.HAVE_FUTURE_DATA
+  ) {
+    // The element is settled yet still off by err: fold the residual into the aim
+    // (behind → aim further ahead next time; ahead → aim less) and re-anchor.
+    seekAheadS = nextSeekAhead(seekAheadS, err);
+    correct(el, main);
   }
 }
 
@@ -280,7 +271,7 @@ export function analysisDebug(): string {
   if (!el) return "el=none";
   return (
     `t=${el.currentTime.toFixed(3)} rs=${el.readyState} paused=${el.paused} ` +
-    `rate=${el.playbackRate.toFixed(2)} seeks=${hardSeeks}`
+    `rate=${el.playbackRate.toFixed(2)} ahead=${seekAheadS.toFixed(3)} seeks=${hardSeeks}`
   );
 }
 

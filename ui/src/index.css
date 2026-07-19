@@ -153,6 +153,15 @@ html {
   align-items: flex-end;
   min-height: clamp(320px, 52vh, 560px);
 }
+/* Desktop (pointer devices, not touch tablets) gets a shorter band so the hero
+   stops eating half the viewport and real content shows above the fold. Phones
+   (<=720px) and iPad-class touch tablets (<=1024px, coarse) keep the tall,
+   poster-like hero via the base rule above. */
+@media (min-width: 1025px), (min-width: 721px) and (pointer: fine) {
+  .hero-slide {
+    min-height: clamp(300px, 34vh, 380px);
+  }
+}
 /* Sliding copy (eyebrow/title/artist). Its bottom padding clears the stationary
    action row + pills below; phones need more since the actions wrap to two rows. */
 .hero-copy {

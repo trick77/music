@@ -93,12 +93,14 @@ export function startAnalysis(): boolean {
     const el = new Audio();
     el.preload = "auto";
     el.crossOrigin = "anonymous"; // same-origin today, but explicit keeps the tap untainted
-    // syncAnalysis briefly runs this element slightly off-rate to close its startup
-    // offset (see there). Let that be a clean resample, NOT a pitch-preserving time
-    // stretch — time-stretching injects spectral artefacts into the very FFT the
-    // visualizer reads. A few seconds ~1 semitone off is invisible on 28 log bands.
-    el.preservesPitch = false;
-    (el as unknown as { webkitPreservesPitch?: boolean }).webkitPreservesPitch = false;
+    // NOTE: preservesPitch is deliberately left at its default (true). Setting it
+    // false looked attractive (a clean resample instead of a time-stretch while the
+    // clock-lock trims the rate), but on WebKit the varispeed path it selects can go
+    // SILENT while currentTime keeps advancing — exactly the "clock advancing,
+    // spectrum flat" signature the dead-tap detector reads as a dead tap, which
+    // flipped the whole visualizer to synthetic bars on iPad. At the lock's ±6% max
+    // trim, pitch-corrected vs. resampled audio is indistinguishable on 28 log
+    // bands, so the flag bought nothing and cost the feature. Do not reintroduce it.
     const src = ctx.createMediaElementSource(el);
     src.connect(a);
     analysisEl = el;
@@ -125,6 +127,19 @@ const ANALYSIS_LEAD_S = 0;
 const RESYNC_LIMIT_S = 1.0;
 const RATE_TRIM_MAX = 0.06; // cap the soft-lock nudge at ±6% (inaudible; gain-0 element)
 const RATE_GAIN = 2; // proportional gain mapping the offset error (s) → rate trim
+// Inside this offset the clock is "locked": the target rate is exactly 1.0 and no
+// correction runs. ±50ms is invisible on a spectrum meter, and the deadband is what
+// lets playbackRate SIT at 1.0 instead of being rewritten every frame — WebKit
+// reconfigures the media pipeline on rate writes, and a 60Hz stream of them is how
+// the analysis element ended up stalling (silent tap → synthetic bars) on iPad.
+const RATE_DEADBAND_S = 0.05;
+// Correction rates are quantized to this step so consecutive frames of a converging
+// err compute the SAME value, letting the write-on-change guard in syncAnalysis skip
+// the assignment. With the CURRENT constants the clamp already saturates outside the
+// deadband (deadband × gain > trim max, so targetRate only ever returns 1±0.06) and
+// the quantum never rounds anything — it's a stability guard so a future retune of
+// RATE_GAIN / RATE_DEADBAND_S can't silently reintroduce per-frame writes.
+const RATE_QUANTUM = 0.01;
 
 // rateTrim maps a clock-offset error (seconds; negative = analysis element behind
 // the player) to the playbackRate delta that closes it: behind → speed up
@@ -137,6 +152,32 @@ const RATE_GAIN = 2; // proportional gain mapping the offset error (s) → rate 
 export function rateTrim(errSeconds: number): number {
   if (!Number.isFinite(errSeconds)) return 0;
   return Math.max(-RATE_TRIM_MAX, Math.min(RATE_TRIM_MAX, -errSeconds * RATE_GAIN));
+}
+
+// targetRate is the rate the clock-lock wants the analysis element to run at for a
+// given offset error: exactly 1 inside the deadband (locked — nothing to do), else
+// 1 + rateTrim(err) snapped to RATE_QUANTUM steps. Quantizing makes the value
+// stable across consecutive frames so syncAnalysis's write-on-change guard turns a
+// correction into a handful of playbackRate writes instead of one per frame. Pure,
+// like rateTrim, so deadband/sign/quantization are unit-tested without media.
+export function targetRate(errSeconds: number): number {
+  if (!Number.isFinite(errSeconds) || Math.abs(errSeconds) < RATE_DEADBAND_S) return 1;
+  return Math.round((1 + rateTrim(errSeconds)) / RATE_QUANTUM) * RATE_QUANTUM;
+}
+
+// Count of hard re-anchors (seeks) syncAnalysis has performed; diagnostic only. A
+// steadily climbing value means the clock-lock is thrashing (seek → re-buffer →
+// big offset → seek …) instead of converging.
+let hardSeeks = 0;
+
+// setRate assigns el.playbackRate only when it would actually change — see
+// RATE_DEADBAND_S above for why WebKit must not see per-frame rate writes. The
+// element's own property is the comparison source (reads don't touch the media
+// pipeline), so this stays correct even if the browser resets the rate behind our
+// back (load() does; a WebKit stall recovery might) — no cache to go stale.
+function setRate(el: HTMLMediaElement, rate: number): void {
+  if (el.playbackRate === rate) return;
+  el.playbackRate = rate;
 }
 
 // syncAnalysis mirrors the audible element onto the silent analysis element: same
@@ -167,7 +208,7 @@ export function syncAnalysis(main: HTMLMediaElement | null): void {
     try {
       el.currentTime = main.currentTime;
     } catch { /* not seekable yet */ }
-    el.playbackRate = 1; // re-anchor cleanly; the clock-lock re-trims from the next frame
+    setRate(el, 1); // re-anchor cleanly; the clock-lock re-trims from the next frame
     void el.play().catch(() => {});
     return;
   }
@@ -185,10 +226,13 @@ export function syncAnalysis(main: HTMLMediaElement | null): void {
     try {
       el.currentTime = main.currentTime + ANALYSIS_LEAD_S;
     } catch { /* not seekable yet */ }
-    el.playbackRate = 1;
+    hardSeeks++;
+    setRate(el, 1);
   } else {
-    // err < 0 → element is behind → play faster to catch up (and vice versa).
-    el.playbackRate = 1 + rateTrim(err);
+    // err < 0 → element is behind → targetRate > 1 → play faster to catch up (and
+    // vice versa); exactly 1 inside the deadband. setRate skips the assignment when
+    // the value is unchanged, so WebKit sees a stable rate, not a 60Hz write stream.
+    setRate(el, targetRate(err));
   }
 }
 
@@ -227,6 +271,17 @@ export function resume(): void {
 
 export function isAnalysing(): boolean {
   return analysisEl !== null;
+}
+
+// analysisDebug returns a one-line snapshot of the analysis element's state for the
+// vizdebug console trace (see VisualizerView). Diagnostic only — never parsed.
+export function analysisDebug(): string {
+  const el = analysisEl;
+  if (!el) return "el=none";
+  return (
+    `t=${el.currentTime.toFixed(3)} rs=${el.readyState} paused=${el.paused} ` +
+    `rate=${el.playbackRate.toFixed(2)} seeks=${hardSeeks}`
+  );
 }
 
 // analysisTime reports the analysis element's playback position while it is

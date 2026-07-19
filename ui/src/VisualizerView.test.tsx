@@ -26,11 +26,12 @@ vi.mock("./analyser", () => ({
   stopAnalysis: () => {},
   syncAnalysis: () => {},
   analysisTime: () => -1,
+  analysisDebug: () => "el=none",
   resume: () => {},
   bands: (n: number) => new Array(n).fill(0),
 }));
 
-import { VisualizerView, synthTargets, accrueStarvation, STARVE_LIMIT_MS } from "./VisualizerView";
+import { VisualizerView, synthTargets, accrueStarvation, nextSynthetic, STARVE_LIMIT_MS, GIVE_UP_MS } from "./VisualizerView";
 
 function song(over: Partial<Song> = {}): Song {
   return {
@@ -143,6 +144,37 @@ describe("accrueStarvation (dead-tap detector for the synthetic fallback)", () =
     let ms = accrueStarvation(0, 2000, advancingSilent);
     ms = accrueStarvation(ms, 16, { playing: true, advancing: true, hasSignal: true });
     expect(ms).toBe(0);
+  });
+});
+
+// nextSynthetic is the synthetic↔real transition: the old code latched synthetic
+// permanently (one 3s stall ruined the session); now the fallback is recoverable.
+describe("nextSynthetic (recoverable fallback, not a latch)", () => {
+  it("stays real while starvation is under the limit", () => {
+    expect(nextSynthetic(false, 0, 0.5)).toBe(false);
+    expect(nextSynthetic(false, STARVE_LIMIT_MS, 0)).toBe(false); // at the limit, not past it
+  });
+
+  it("falls back once starvation crosses the limit", () => {
+    expect(nextSynthetic(false, STARVE_LIMIT_MS + 1, 0)).toBe(true);
+  });
+
+  // THE fix: a transient stall (buffering, an iOS context interruption) must not
+  // condemn the session — real signal returning flips the real spectrum back on.
+  it("returns to the real spectrum the moment signal reappears", () => {
+    expect(nextSynthetic(true, 5000, 0.5)).toBe(false);
+  });
+
+  it("stays synthetic while the tap remains silent", () => {
+    expect(nextSynthetic(true, 5000, 0)).toBe(true);
+    expect(nextSynthetic(true, 5000, 0.01)).toBe(true); // below the signal floor
+  });
+
+  it("keeps probing well past the fallback limit — only GIVE_UP_MS ends it", () => {
+    // The give-up cap (handled in frame(), not here) is far beyond the fallback
+    // threshold, so a slow recovery still gets its chance.
+    expect(GIVE_UP_MS).toBeGreaterThan(STARVE_LIMIT_MS * 10);
+    expect(nextSynthetic(true, GIVE_UP_MS - 1, 0.5)).toBe(false); // recoverable right up to it
   });
 });
 

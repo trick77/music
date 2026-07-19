@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { bandEdges, rateTrim } from "./analyser";
+import { bandEdges, rateTrim, targetRate } from "./analyser";
 
 // rateTrim is the pure core of the visualizer's clock-lock: it maps a clock-offset
 // error (seconds) to a playbackRate delta that drives the silent analysis element
@@ -23,6 +23,37 @@ describe("rateTrim", () => {
     expect(rateTrim(NaN)).toBe(0);
     expect(rateTrim(Infinity)).toBe(0);
     expect(rateTrim(-Infinity)).toBe(0);
+  });
+});
+
+// targetRate wraps rateTrim in a deadband + quantization so playbackRate can be
+// written only on change: inside ±50ms the target is EXACTLY 1 (rate sits still),
+// outside it the corrective rate snaps to coarse steps so consecutive frames of a
+// converging error compute the same value.
+describe("targetRate", () => {
+  it("is exactly 1 inside the deadband — a near-locked clock never nudges the rate", () => {
+    expect(targetRate(0)).toBe(1);
+    expect(targetRate(0.049)).toBe(1);
+    expect(targetRate(-0.049)).toBe(1);
+  });
+  it("speeds up when behind and slows down when ahead, once outside the deadband", () => {
+    expect(targetRate(-0.2)).toBeGreaterThan(1);
+    expect(targetRate(0.2)).toBeLessThan(1);
+  });
+  it("clamps to ±6% however large the error", () => {
+    expect(targetRate(-10)).toBeCloseTo(1.06);
+    expect(targetRate(10)).toBeCloseTo(0.94);
+  });
+  it("is quantized: nearby errors map to the identical value (write-on-change friendly)", () => {
+    // Bitwise-identical, not merely close — this is what lets syncAnalysis skip
+    // the assignment on the next frame of the same correction episode.
+    expect(targetRate(-0.051)).toBe(targetRate(-0.3));
+    const v = targetRate(-0.2) * 100;
+    expect(Math.abs(Math.round(v) - v)).toBeLessThan(1e-9); // multiple of 0.01
+  });
+  it("is 1 for a non-finite error so playbackRate is never assigned NaN", () => {
+    expect(targetRate(NaN)).toBe(1);
+    expect(targetRate(Infinity)).toBe(1);
   });
 });
 
@@ -58,6 +89,18 @@ class MockAudio {
   paused = true;
   preload = "";
   crossOrigin: string | null = null;
+  // Every playbackRate assignment is recorded: the clock-lock must NOT write the
+  // rate every frame (WebKit reconfigures its pipeline on each write — the iPad
+  // stall), so tests count writes, not just the final value.
+  rateWrites: number[] = [];
+  private _rate = 1;
+  get playbackRate(): number {
+    return this._rate;
+  }
+  set playbackRate(v: number) {
+    this._rate = v;
+    this.rateWrites.push(v);
+  }
   play = vi.fn(() => {
     this.paused = false;
     return Promise.resolve();
@@ -246,6 +289,76 @@ describe("syncAnalysis", () => {
     // No startAnalysis(): must not throw and must not create anything.
     expect(() => syncAnalysis(mainEl({ currentSrc: "/x", paused: false }))).not.toThrow();
     expect(lastAudio).toBeUndefined();
+  });
+
+  // The WebKit regression pin: writing playbackRate every rAF frame made the
+  // analysis element stall on iPad (silent tap → synthetic bars). The lock must
+  // assign the rate only when the target CHANGES — a correction episode is a
+  // handful of writes, not 60 per second.
+  it("writes playbackRate only on change, not every frame", async () => {
+    const { startAnalysis, syncAnalysis } = await freshAnalyser("running");
+    startAnalysis();
+    const main = mainEl({ currentSrc: "/api/songs/7/stream", currentTime: 10, paused: false });
+
+    syncAnalysis(main); // cold start: mirrors src, re-anchors at rate 1, plays
+    const startupWrites = lastAudio.rateWrites.length;
+
+    // The element is 0.5s behind: ONE corrective write, then frames go quiet.
+    lastAudio.currentTime = 9.5;
+    syncAnalysis(main);
+    syncAnalysis(main);
+    syncAnalysis(main);
+    expect(lastAudio.rateWrites.length).toBe(startupWrites + 1);
+    expect(lastAudio.playbackRate).toBeCloseTo(1.06); // catching up
+
+    // Caught up (inside the deadband): ONE write back to exactly 1, then quiet.
+    lastAudio.currentTime = 10;
+    syncAnalysis(main);
+    syncAnalysis(main);
+    expect(lastAudio.rateWrites.length).toBe(startupWrites + 2);
+    expect(lastAudio.playbackRate).toBe(1);
+  });
+
+  it("holds rate 1 with no writes at all while the clock stays inside the deadband", async () => {
+    const { startAnalysis, syncAnalysis } = await freshAnalyser("running");
+    startAnalysis();
+    const main = mainEl({ currentSrc: "/api/songs/7/stream", currentTime: 10, paused: false });
+    syncAnalysis(main); // cold start
+    const startupWrites = lastAudio.rateWrites.length;
+
+    lastAudio.currentTime = 10.01; // 10ms off — locked
+    for (let i = 0; i < 10; i++) syncAnalysis(main);
+    expect(lastAudio.rateWrites.length).toBe(startupWrites);
+    expect(lastAudio.playbackRate).toBe(1);
+  });
+
+  it("snaps hard (and re-anchors at rate 1) when the offset is a real seek", async () => {
+    const { startAnalysis, syncAnalysis } = await freshAnalyser("running");
+    startAnalysis();
+    const main = mainEl({ currentSrc: "/api/songs/7/stream", currentTime: 10, paused: false });
+    syncAnalysis(main);
+    lastAudio.currentTime = 9.5;
+    syncAnalysis(main); // trimming at 1.06
+
+    main.currentTime = 40; // user seeked +30s
+    syncAnalysis(main);
+    expect(lastAudio.currentTime).toBe(40); // snapped, not trimmed
+    expect(lastAudio.playbackRate).toBe(1);
+  });
+});
+
+describe("startAnalysis leaves pitch preservation alone", () => {
+  beforeEach(() => vi.unstubAllGlobals());
+
+  // Regression pin: preservesPitch=false put WebKit's varispeed path in play, which
+  // can go SILENT while currentTime advances — read as a dead tap, flipping the
+  // visualizer to synthetic bars on iPad. The default (true) must stay untouched.
+  it("does not set preservesPitch or webkitPreservesPitch", async () => {
+    const { startAnalysis } = await freshAnalyser("running");
+    startAnalysis();
+    const el = lastAudio as unknown as Record<string, unknown>;
+    expect(el.preservesPitch).toBeUndefined();
+    expect(el.webkitPreservesPitch).toBeUndefined();
   });
 });
 

@@ -107,6 +107,56 @@ func TestShareMeta_missingIdServesPlainSPA(t *testing.T) {
 	}
 }
 
+func TestShareMeta_rootEmitsDefaultCard(t *testing.T) {
+	// A bare app link (the root, and any non-asset navigation route) must preview a
+	// branded default card so WhatsApp/iMessage show something. The og:image is a
+	// static card at an ABSOLUTE URL (relative URLs don't preview in chat apps).
+	h := testServer(t, config.AuthModeDev)
+	rr := httptest.NewRecorder()
+	req := httptest.NewRequest("GET", "/", nil)
+	req.Host = "music.example.com"
+	req.Header.Set("X-Forwarded-Proto", "https")
+	h.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("root route = %d", rr.Code)
+	}
+	body := rr.Body.String()
+	for _, want := range []string{
+		`property="og:type" content="website"`,
+		`property="og:title" content="Music"`,
+		`name="twitter:card" content="summary_large_image"`,
+		`property="og:image" content="https://music.example.com/og-card.png"`,
+		`property="og:image:width" content="1200"`,
+		`property="og:image:height" content="630"`,
+	} {
+		if !strings.Contains(body, want) {
+			t.Fatalf("default card missing %q in:\n%s", want, body)
+		}
+	}
+	// Exactly one og:image — no duplicate from a static tag racing the injected one.
+	if n := strings.Count(body, `property="og:image"`); n != 1 {
+		t.Fatalf("want exactly one og:image, got %d:\n%s", n, body)
+	}
+}
+
+func TestShareMeta_staticFileNotWrapped(t *testing.T) {
+	// A request for a real embedded asset must be served as-is, never wrapped in the
+	// HTML shell with meta tags. manifest.webmanifest ships from ui/public and is
+	// always present in the build.
+	h := testServer(t, config.AuthModeDev)
+	rr := httptest.NewRecorder()
+	h.ServeHTTP(rr, httptest.NewRequest("GET", "/manifest.webmanifest", nil))
+
+	body := rr.Body.String()
+	if strings.Contains(body, "og:image") || strings.Contains(body, "og:title") {
+		t.Fatalf("static asset must not get injected share meta:\n%s", body)
+	}
+	if strings.Contains(body, "<title>") {
+		t.Fatalf("static asset should not be the HTML shell:\n%s", body)
+	}
+}
+
 func TestShareMeta_playlistFallsBackToFirstSongCover(t *testing.T) {
 	h := testServer(t, config.AuthModeDev)
 	pid := createPlaylist(t, h, "Late Night Drive", "")

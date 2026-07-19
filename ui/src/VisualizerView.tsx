@@ -3,7 +3,7 @@ import { player, usePlayer } from "./player";
 import { coverUrl } from "./cover";
 import { closeToOrigin } from "./router";
 import { useBackgroundDismiss } from "./backgroundDismiss";
-import { startAnalysis, stopAnalysis, syncAnalysis, analysisTime, resume, bands } from "./analyser";
+import { startAnalysis, stopAnalysis, syncAnalysis, analysisTime, analysisDebug, resume, bands } from "./analyser";
 import { Icon } from "./Icon";
 import { Divider, ImmersiveControls, StarButton, Transport, iconBtn, type Fav } from "./PlayerControls";
 import { useEscape } from "./useEscape";
@@ -30,8 +30,8 @@ export function synthTargets(t: number, playing: boolean): number[] {
   return out;
 }
 
-// After this long of a genuinely dead tap, give up on the real spectrum and show
-// synthetic bars instead.
+// After this long of a genuinely dead tap, fall back to synthetic bars. Not a
+// latch: the tap keeps being read, and the real spectrum resumes if signal returns.
 export const STARVE_LIMIT_MS = 3000;
 
 // accrueStarvation tracks how long the analyser has been silent *while the hidden
@@ -43,8 +43,9 @@ export const STARVE_LIMIT_MS = 3000;
 //   - not advancing → 0 (still loading/seeking, e.g. a slow cold open — not dead).
 //   - any signal → 0 (the tap works).
 // Only when the element's clock is advancing yet the spectrum stays flat does the
-// timer accumulate; crossing STARVE_LIMIT_MS means the tap really is dead (iOS
-// refusing to route the decoded second element), so switch to synthetic bars.
+// timer accumulate; crossing STARVE_LIMIT_MS means the tap is starved (e.g. iOS
+// refusing to route the decoded second element), so show synthetic bars — while
+// still probing the tap so the real spectrum can resume (see frame()).
 export function accrueStarvation(
   prevMs: number,
   dtMs: number,
@@ -173,15 +174,26 @@ export function VisualizerView({ fav, onShare }: { fav: Fav; onShare: (s: Song) 
     }
 
     // Live path: tap the DEDICATED analysis element (never the audible one) so
-    // opening the visualizer no longer reroutes playback. synthetic goes true if
-    // Web Audio is unavailable, or later if the analyser stays silent while a
-    // track plays (e.g. iOS won't decode the hidden element) — cosmetic only,
-    // since the audible element is untouched in both branches.
-    let synthetic = !startAnalysis();
+    // opening the visualizer no longer reroutes playback. tapLive is false only
+    // when Web Audio itself is unavailable — synthetic bars with nothing to probe.
+    // With a live tap, synthetic is a RECOVERABLE state, not a latch: if the
+    // analyser starves (e.g. a transient decode stall on iOS) the view falls back
+    // to synthetic bars but keeps the tap running and keeps reading it; the moment
+    // a real spectrum reappears it flips back. The old permanent latch meant one
+    // 3-second hiccup condemned the whole session to fake bars.
+    const tapLive = startAnalysis();
+    let synthetic = !tapLive;
     resume();
     let starveMs = 0;
     let lastFrameMs = 0;
     let lastAnalysisT = -1;
+    // vizdebug: opt-in console trace for device debugging (remote Web Inspector).
+    // One line per second — cheap and inert unless the flag is set.
+    let debugTrace = false;
+    try {
+      debugTrace = !!localStorage.getItem("vizdebug");
+    } catch { /* storage unavailable — leave the trace off */ }
+    let lastLogMs = 0;
 
     function frame() {
       if (cancelled) return;
@@ -190,12 +202,14 @@ export function VisualizerView({ fav, onShare }: { fav: Fav; onShare: (s: Song) 
       lastFrameMs = now;
       const main = player.getAudioElement();
       let target: number[];
-      if (synthetic) {
+      let peak = 0;
+      if (!tapLive) {
         target = synthTargets(now, !(main?.paused ?? true));
       } else {
         syncAnalysis(main); // mirror src/position/play onto the silent element
         resume();
-        target = bands(N);
+        const real = bands(N);
+        for (let i = 0; i < N; i++) if (real[i] > peak) peak = real[i];
         // Dead-tap detection (see accrueStarvation): only accumulates while the
         // hidden element's clock advances yet the spectrum stays flat. Resets on
         // pause, on loading/seeking, and on any signal — so a mid-track pause or a
@@ -203,17 +217,24 @@ export function VisualizerView({ fav, onShare }: { fav: Fav; onShare: (s: Song) 
         const at = analysisTime();
         const advancing = at >= 0 && at !== lastAnalysisT;
         lastAnalysisT = at;
-        let peak = 0;
-        for (let i = 0; i < N; i++) if (target[i] > peak) peak = target[i];
         starveMs = accrueStarvation(starveMs, dt, {
           playing: !!(main && !main.paused),
           advancing,
           hasSignal: peak >= 0.02,
         });
-        if (starveMs > STARVE_LIMIT_MS) {
-          synthetic = true;
-          stopAnalysis(); // the tap is dead — stop the now-useless second stream
+        if (!synthetic && starveMs > STARVE_LIMIT_MS) {
+          synthetic = true; // starved — fall back, but keep probing (no stopAnalysis)
+        } else if (synthetic && peak >= 0.02) {
+          synthetic = false; // the tap came back — resume the real spectrum
         }
+        target = synthetic ? synthTargets(now, !(main?.paused ?? true)) : real;
+      }
+      if (debugTrace && now - lastLogMs >= 1000) {
+        lastLogMs = now;
+        console.log(
+          `[viz] synth=${synthetic} peak=${peak.toFixed(3)} starve=${Math.round(starveMs)} ` +
+            `main=${main ? `${main.currentTime.toFixed(3)}${main.paused ? " paused" : ""}` : "none"} ${analysisDebug()}`,
+        );
       }
       ease(target);
       draw();

@@ -26,6 +26,7 @@ vi.mock("./analyser", () => ({
   stopAnalysis: () => {},
   syncAnalysis: () => {},
   analysisTime: () => -1,
+  analysisDebug: () => "el=none",
   resume: () => {},
   bands: (n: number) => new Array(n).fill(0),
 }));

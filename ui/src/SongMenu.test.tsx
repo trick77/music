@@ -9,7 +9,7 @@ const song: Song = {
   artistName: "The Band",
   album: "Neon",
   year: 2026,
-  trackNo: 1,
+  trackNo: 1, trackTotal: 0,
   durationMs: 2000,
   fileSize: 36380,
   createdAt: "2026-07-15 14:08:58",

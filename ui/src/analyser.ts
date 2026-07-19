@@ -1,14 +1,32 @@
-// analyser.ts — a single Web Audio AnalyserNode tapping the shared <audio>
-// element so the full-screen visualizer can read the real frequency spectrum.
+// analyser.ts — a Web Audio AnalyserNode fed by a *dedicated, silent* <audio>
+// element so the full-screen visualizer can read the real frequency spectrum
+// WITHOUT ever touching the element the user actually hears.
 //
-// The graph is created lazily and the media element is tapped at most once
-// (createMediaElementSource is permanent for an element's lifetime). Everything
-// is a guarded no-op when Web Audio is unavailable, so callers can attach() on
-// every rAF frame without checking support themselves.
+// Why not tap the main element? createMediaElementSource() permanently pulls an
+// element out of the browser's native output into our graph (it cannot be undone
+// for that element's lifetime). On WebKit that reroute is audible: a short gap as
+// it switches paths, and a changed tonal profile for the rest of the session,
+// because Safari's Web Audio output path renders differently from native. Tapping
+// a *copy* of the same element (HTMLMediaElement.captureStream) is unsupported on
+// Safari. So the only non-destructive option — the documented MDN pattern — is to
+// analyse a SEPARATE element and leave the audible one fully native.
+//
+// The analysis element streams the same track purely to feed the FFT. It is kept
+// silent by routing the graph through a gain-0 node (NOT by muting the element —
+// a muted element risks being decode-throttled on iOS, which would starve the
+// analyser). It is created on startAnalysis() and torn down on stopAnalysis() so
+// the second stream only runs while the visualizer is open.
+//
+// Everything is a guarded no-op when Web Audio is unavailable, so callers don't
+// have to feature-detect. startAnalysis() reports whether the tap succeeded; the
+// visualizer falls back to synthetic bars when it didn't (or when the analyser
+// stays silent, e.g. iOS refusing to decode the second element).
 
 let ctx: AudioContext | null = null;
 let analyser: AnalyserNode | null = null;
-let sourceEl: HTMLMediaElement | null = null; // the element we've already tapped
+let sink: GainNode | null = null; // gain-0 node that keeps the graph pulled but silent
+let analysisEl: HTMLAudioElement | null = null; // the dedicated element we tap
+let source: MediaElementAudioSourceNode | null = null;
 let freq: Uint8Array<ArrayBuffer> | null = null;
 
 function ensureAnalyser(): AnalyserNode | null {
@@ -45,58 +63,130 @@ function ensureAnalyser(): AnalyserNode | null {
     // visibly quieter than a loud one instead of being auto-gained up to match.
     a.minDecibels = -66;
     a.maxDecibels = -25;
-    a.connect(ctx.destination);
+    // Route analyser -> gain(0) -> destination. The analyser only ever carries the
+    // dedicated (silent-by-design) analysis element, so the graph output must be
+    // silent; the gain-0 sink still lets `destination` pull the graph so the FFT
+    // keeps updating. (An AnalyserNode not connected onward is not pulled.)
+    const g = ctx.createGain();
+    g.gain.value = 0;
+    a.connect(g);
+    g.connect(ctx.destination);
     freq = new Uint8Array(a.frequencyBinCount);
     analyser = a;
+    sink = g;
     return a;
   } catch {
     return null;
   }
 }
 
-// attach taps a media element into the analyser exactly once. Safe to call every
-// frame: a no-op when el is null, already tapped, or Web Audio is unavailable.
-// Audio still reaches the speakers because the analyser is wired to destination.
-//
-// createMediaElementSource pulls the element out of the browser's default output
-// and into our graph. Two consequences worth knowing before calling this from
-// anywhere new:
-//   1. On an *already-playing* element the reroute cuts the sound out for a
-//      moment — the visible first-open equalizer stutter. Unavoidable here.
-//   2. A tapped element goes SILENT on an iPhone lock screen: WebKit interrupts
-//      the AudioContext and hands the hardware back to the system, so playback
-//      dead-ends in the suspended graph (currentTime keeps advancing, sound
-//      returns on unlock).
-// (2) is much worse than (1), so only the visualizer taps, and only when opened.
-// Never call this from the play path.
-export function attach(el: HTMLMediaElement | null): void {
-  if (!el || sourceEl) return;
+// startAnalysis builds the analysis graph and its dedicated <audio> element and
+// taps it into the analyser. Returns true if the tap is live, false when Web
+// Audio is unavailable (or the tap threw) — in which case the caller should show
+// synthetic bars. Idempotent: a second call while already running is a no-op that
+// re-reports success. syncAnalysis() then keeps the element in step with playback.
+export function startAnalysis(): boolean {
+  if (analysisEl) return true;
   const a = ensureAnalyser();
-  if (!a || !ctx) return;
+  if (!a || !ctx) return false;
   try {
-    ctx.createMediaElementSource(el).connect(a);
+    const el = new Audio();
+    el.preload = "auto";
+    el.crossOrigin = "anonymous"; // same-origin today, but explicit keeps the tap untainted
+    const src = ctx.createMediaElementSource(el);
+    src.connect(a);
+    analysisEl = el;
+    source = src;
+    return true;
   } catch {
-    // Throws if the element was already tapped (e.g. a prior mount). Either way
-    // it's now routed through our graph, so record it and stop retrying.
+    // createMediaElementSource threw (e.g. the element was somehow already tapped).
+    // Leave analysisEl null so the caller falls back to synthetic bars.
+    return false;
   }
-  sourceEl = el;
+}
+
+// syncAnalysis mirrors the audible element onto the silent analysis element: same
+// source, same play/pause, same position (within a small drift tolerance). Called
+// every frame while the visualizer is open. Reads truth straight off the main
+// element so track changes and seeks are picked up without any extra plumbing.
+//
+// The main element is NEVER tapped here — this is the guarantee that keeps the
+// audible path fully native (no gap, no tonal change, lock-screen audio intact).
+export function syncAnalysis(main: HTMLMediaElement | null): void {
+  const el = analysisEl;
+  if (!el || !main) return;
+  const src = main.currentSrc || main.src;
+  if (!src) return;
+  if (el.src !== src) {
+    el.src = src;
+    try {
+      el.currentTime = main.currentTime;
+    } catch {
+      // metadata not loaded yet — the drift correction below will snap it once ready
+    }
+  }
+  if (main.paused) {
+    if (!el.paused) el.pause();
+    return;
+  }
+  if (el.paused) {
+    try {
+      el.currentTime = main.currentTime;
+    } catch { /* not seekable yet */ }
+    void el.play().catch(() => {});
+    return;
+  }
+  if (Math.abs(el.currentTime - main.currentTime) > 0.25) {
+    try {
+      el.currentTime = main.currentTime;
+    } catch { /* not seekable yet */ }
+  }
+}
+
+// stopAnalysis tears the analysis element down: pause it, unwire its source, and
+// drop it so the second stream stops (no data cost while the visualizer is
+// closed). The shared ctx/analyser/sink persist and are reused on the next open.
+export function stopAnalysis(): void {
+  if (source) {
+    try {
+      source.disconnect();
+    } catch { /* already disconnected */ }
+    source = null;
+  }
+  if (analysisEl) {
+    try {
+      analysisEl.pause();
+      analysisEl.removeAttribute("src");
+      analysisEl.load(); // release the network stream promptly
+    } catch { /* best effort */ }
+    analysisEl = null;
+  }
 }
 
 // resume un-suspends the context. Browsers start it suspended until a user
-// gesture; the play button already provided one before the visualizer opens.
+// gesture; opening the visualizer is itself a gesture (a button/route tap).
 //
 // "interrupted" is a non-standard WebKit state used on iOS (e.g. after a lock or
 // a phone call) that the spec's "suspended" doesn't cover, so it's matched here
 // too. Note this only restores the analyser once the user is back — iOS refuses
-// to resume an interrupted context while the screen is still locked. Keeping the
-// play path untapped is what actually preserves lock-screen audio.
+// to resume an interrupted context while the screen is still locked. Since the
+// audible element is never in this graph, that no longer affects playback at all.
 export function resume(): void {
   const s = ctx?.state as AudioContextState | "interrupted" | undefined;
   if (ctx && (s === "suspended" || s === "interrupted")) void ctx.resume();
 }
 
-export function isAttached(): boolean {
-  return sourceEl !== null;
+export function isAnalysing(): boolean {
+  return analysisEl !== null;
+}
+
+// analysisTime reports the analysis element's playback position while it is
+// actively playing, or -1 when it isn't running (no element, or paused/loading).
+// The visualizer uses a *change* in this value between frames to tell "the tap is
+// dead" (element advancing but analyser silent → real fallback needed) apart from
+// "still loading/seeking" (not advancing yet → not a dead tap, just wait).
+export function analysisTime(): number {
+  return analysisEl && !analysisEl.paused ? analysisEl.currentTime : -1;
 }
 
 // bandEdges returns `count` contiguous [lo, hi) bin ranges, log-spaced from bin 1

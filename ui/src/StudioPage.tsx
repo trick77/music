@@ -352,7 +352,6 @@ export function StudioPage({ imageGenEnabled = false, chatEnabled = false, image
       {/* Results */}
       {result && !busy && (
         <div style={{ marginTop: "2rem" }}>
-          <IdentityCard bands={result.bands} titles={result.titles} albums={result.albums} genres={result.genres} />
           <ResultCard
             name="Lyrics"
             note="→ Suno “Lyrics” · original, editable"
@@ -388,6 +387,8 @@ export function StudioPage({ imageGenEnabled = false, chatEnabled = false, image
             text={result.stylePrompt}
             monospace
           />
+
+          <IdentityCard bands={result.bands} titles={result.titles} albums={result.albums} genres={result.genres} />
 
           <ResultCard
             name="Cover-art prompt"

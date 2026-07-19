@@ -21,14 +21,21 @@ vi.mock("./player", () => ({
     setQueue() {}, remove() {}, patchSong() {}, showAirplayPicker() {},
   }),
 }));
-vi.mock("./analyser", () => ({ attach: () => {}, resume: () => {}, bands: (n: number) => new Array(n).fill(0) }));
+vi.mock("./analyser", () => ({
+  startAnalysis: () => true,
+  stopAnalysis: () => {},
+  syncAnalysis: () => {},
+  analysisTime: () => -1,
+  resume: () => {},
+  bands: (n: number) => new Array(n).fill(0),
+}));
 
-import { VisualizerView } from "./VisualizerView";
+import { VisualizerView, synthTargets, accrueStarvation, STARVE_LIMIT_MS } from "./VisualizerView";
 
 function song(over: Partial<Song> = {}): Song {
   return {
     id: "s1", title: "Nightbird", artistName: "Vesper Lake", album: "", year: 0,
-    trackNo: 0, durationMs: 200000, fileSize: 0, createdAt: "", sampleRate: 0, channels: 0, bitrateKbps: 0, genres: [], coverArtId: "", published: true,
+    trackNo: 0, trackTotal: 0, durationMs: 200000, fileSize: 0, createdAt: "", sampleRate: 0, channels: 0, bitrateKbps: 0, genres: [], coverArtId: "", published: true,
     lyrics: "First line of the song\nSecond line here", ...over,
   };
 }
@@ -71,6 +78,71 @@ describe("VisualizerView control row", () => {
     const html = render(null);
     expect(html).toContain("Nothing is playing");
     expect(html).not.toContain("data-divider");
+  });
+});
+
+describe("synthTargets (fallback bars when the real analyser can't run)", () => {
+  it("is flat when paused — no motion without playback", () => {
+    expect(synthTargets(1234, false).every((v) => v === 0)).toBe(true);
+  });
+
+  it("produces in-range, bass-weighted bars while playing", () => {
+    const out = synthTargets(1000, true);
+    expect(out).toHaveLength(28);
+    for (const v of out) {
+      expect(v).toBeGreaterThanOrEqual(0);
+      expect(v).toBeLessThanOrEqual(1);
+    }
+    // Averaged over a full cycle the low columns should out-energise the top ones.
+    const avg = (lo: number, hi: number) => {
+      let sum = 0, n = 0;
+      for (let t = 0; t < 6000; t += 100) { const f = synthTargets(t, true); for (let i = lo; i < hi; i++) { sum += f[i]; n++; } }
+      return sum / n;
+    };
+    expect(avg(0, 6)).toBeGreaterThan(avg(22, 28));
+  });
+
+  it("is deterministic for a given (t, playing)", () => {
+    expect(synthTargets(777, true)).toEqual(synthTargets(777, true));
+  });
+});
+
+describe("accrueStarvation (dead-tap detector for the synthetic fallback)", () => {
+  const advancingSilent = { playing: true, advancing: true, hasSignal: false };
+
+  it("accumulates only while the element advances but stays silent", () => {
+    let ms = 0;
+    ms = accrueStarvation(ms, 1000, advancingSilent);
+    ms = accrueStarvation(ms, 1000, advancingSilent);
+    expect(ms).toBe(2000);
+  });
+
+  it("trips the fallback once past the limit on a genuinely dead tap", () => {
+    let ms = 0;
+    for (let i = 0; i < 10; i++) ms = accrueStarvation(ms, 500, advancingSilent);
+    expect(ms).toBeGreaterThan(STARVE_LIMIT_MS);
+  });
+
+  // The HIGH regression the review caught: a mid-track pause longer than the limit
+  // used to permanently drop to synthetic bars on resume. Pausing must reset it.
+  it("resets on pause, so resuming keeps the real spectrum", () => {
+    let ms = accrueStarvation(0, 2000, advancingSilent); // silent while playing
+    ms = accrueStarvation(ms, 60000, { playing: false, advancing: false, hasSignal: false }); // long pause
+    expect(ms).toBe(0);
+  });
+
+  // A slow cold open: the hidden element is still loading/seeking (clock not
+  // advancing), which must not count as a dead tap.
+  it("does not accumulate while the element is still loading (not advancing)", () => {
+    let ms = 0;
+    ms = accrueStarvation(ms, 4000, { playing: true, advancing: false, hasSignal: false });
+    expect(ms).toBe(0);
+  });
+
+  it("resets the moment any real signal appears", () => {
+    let ms = accrueStarvation(0, 2000, advancingSilent);
+    ms = accrueStarvation(ms, 16, { playing: true, advancing: true, hasSignal: true });
+    expect(ms).toBe(0);
   });
 });
 

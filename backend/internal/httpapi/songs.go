@@ -368,13 +368,14 @@ func stampToTemp(srcAbs string, t metadata.WriteableTags) (string, error) {
 // empty so the download still succeeds (WriteTags then preserves existing art).
 func (h *songHandlers) songTags(ctx context.Context, s *library.Song) metadata.WriteableTags {
 	t := metadata.WriteableTags{
-		Title:   s.Title,
-		Artist:  s.ArtistName,
-		Album:   s.Album,
-		Year:    s.Year,
-		TrackNo: s.TrackNo,
-		Genres:  displayGenres(s.Genres),
-		Lyrics:  s.Lyrics,
+		Title:      s.Title,
+		Artist:     s.ArtistName,
+		Album:      s.Album,
+		Year:       s.Year,
+		TrackNo:    s.TrackNo,
+		TrackTotal: s.TrackTotal,
+		Genres:     displayGenres(s.Genres),
+		Lyrics:     s.Lyrics,
 	}
 	// Karaoke: bake word timings into a SYLT frame when the song is aligned. Best
 	// effort — any failure just omits SYLT so the download still succeeds.

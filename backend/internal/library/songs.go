@@ -10,14 +10,17 @@ import (
 
 // Song is a stored track with its artist name and genres denormalized for reads.
 type Song struct {
-	ID          string   `json:"id"`
-	Title       string   `json:"title"`
-	ArtistID    string   `json:"artistId"`
-	ArtistName  string   `json:"artistName"`
-	Album       string   `json:"album"`
-	Year        int      `json:"year"`
-	TrackNo     int      `json:"trackNo"`
-	DurationMS  int64    `json:"durationMs"`
+	ID         string `json:"id"`
+	Title      string `json:"title"`
+	ArtistID   string `json:"artistId"`
+	ArtistName string `json:"artistName"`
+	Album      string `json:"album"`
+	Year       int    `json:"year"`
+	TrackNo    int    `json:"trackNo"`
+	// TrackTotal is the number of songs in this song's artist+album group ("Y" in
+	// "N of Y"). 0 for singles (empty album), which are never auto-numbered.
+	TrackTotal int   `json:"trackTotal"`
+	DurationMS int64 `json:"durationMs"`
 	// Audio properties of the stored file, for the tag editor's Info tab. 0 means
 	// "unknown" — not yet backfilled, or undecodable; the UI renders "—".
 	SampleRate  int      `json:"sampleRate"`
@@ -103,10 +106,41 @@ func (r *Repo) Create(ctx context.Context, id string, p CreateSongParams) (*Song
 			return nil, err
 		}
 	}
+	if err := renumberAlbumTx(ctx, tx, artistID, albumKey(p.Album)); err != nil {
+		return nil, err
+	}
 	if err := tx.Commit(); err != nil {
 		return nil, err
 	}
 	return r.Get(ctx, id)
+}
+
+// renumberAlbumTx re-sequences track_no (1..N by add order) and sets track_total=N
+// for every song in one artist+album group, so a group stays consistently numbered
+// "N of Y" whenever a member is added, removed, or moved. Add order is rowid, which
+// is monotonic and unique, so the newest upload always sorts last. It is a no-op for
+// an empty album key: singles are never auto-numbered. Runs inside the caller's write
+// transaction so numbering is atomic with the row change that triggered it. Counts
+// unpublished songs deliberately — a just-uploaded (still unpublished) song must bump
+// the group total immediately.
+func renumberAlbumTx(ctx context.Context, tx *sql.Tx, artistID, key string) error {
+	if key == "" {
+		return nil
+	}
+	// rn is a running sequence (ORDER BY rowid); cnt is the whole-group total, so it
+	// uses an unordered window — an ORDER BY window would count only up to the current
+	// row (a running total), not the group size.
+	_, err := tx.ExecContext(ctx, `
+		UPDATE songs SET track_no = sub.rn, track_total = sub.cnt
+		FROM (
+			SELECT id,
+				ROW_NUMBER() OVER (ORDER BY rowid) AS rn,
+				COUNT(*)     OVER ()               AS cnt
+			FROM songs
+			WHERE artist_id = ? AND lower(trim(album)) = ?
+		) sub
+		WHERE songs.id = sub.id`, artistID, key)
+	return err
 }
 
 // FindByContentHash returns the song with the given hash, or (nil, nil).
@@ -152,7 +186,10 @@ func (r *Repo) DeleteSong(ctx context.Context, id string) (filePath string, exis
 		return "", false, err
 	}
 	defer tx.Rollback()
-	err = tx.QueryRowContext(ctx, `SELECT file_path FROM songs WHERE id=?`, id).Scan(&filePath)
+	// Remember the group so the survivors can be renumbered once this song is gone.
+	var artistID string
+	var album sql.NullString
+	err = tx.QueryRowContext(ctx, `SELECT file_path, artist_id, album FROM songs WHERE id=?`, id).Scan(&filePath, &artistID, &album)
 	if errors.Is(err, sql.ErrNoRows) {
 		return "", false, nil
 	}
@@ -160,6 +197,9 @@ func (r *Repo) DeleteSong(ctx context.Context, id string) (filePath string, exis
 		return "", false, err
 	}
 	if _, err = tx.ExecContext(ctx, `DELETE FROM songs WHERE id=?`, id); err != nil {
+		return "", false, err
+	}
+	if err = renumberAlbumTx(ctx, tx, artistID, albumKey(album.String)); err != nil {
 		return "", false, err
 	}
 	if err = tx.Commit(); err != nil {
@@ -196,7 +236,7 @@ func (r *Repo) List(ctx context.Context, includeUnpublished bool) ([]Song, error
 // contract scanSongInto scans in. It was duplicated between here and topTenSelect;
 // they must agree, so they now derive from this. Anything appending extra columns
 // (topTenSelect's play count) must append AFTER these.
-const songColumns = `s.id, s.title, s.artist_id, a.name, s.album, s.year, s.track_no,
+const songColumns = `s.id, s.title, s.artist_id, a.name, s.album, s.year, s.track_no, s.track_total,
 	s.duration_ms, s.file_path, s.file_size, s.content_hash, s.cover_art_id, s.lyrics, s.created_at, s.is_published,
 	s.sample_rate, s.channels, s.bitrate_kbps,
 	COALESCE(al.status, '') AS alignment_status`
@@ -230,12 +270,12 @@ func scanSong(row scanner) (*Song, error) { return scanSongInto(row, nil) }
 func scanSongInto(row scanner, count *int) (*Song, error) {
 	var s Song
 	var album, cover, lyrics sql.NullString
-	var year, track sql.NullInt64
+	var year, track, trackTotal sql.NullInt64
 	// Audio info is NULL for rows the backfill hasn't reached and for files that
 	// can't be decoded; both surface as 0 and render "—".
 	var sampleRate, channels, bitrate sql.NullInt64
 	var published int64
-	dest := []any{&s.ID, &s.Title, &s.ArtistID, &s.ArtistName, &album, &year, &track,
+	dest := []any{&s.ID, &s.Title, &s.ArtistID, &s.ArtistName, &album, &year, &track, &trackTotal,
 		&s.DurationMS, &s.FilePath, &s.FileSize, &s.ContentHash, &cover, &lyrics, &s.CreatedAt, &published,
 		&sampleRate, &channels, &bitrate,
 		&s.AlignmentStatus}
@@ -248,6 +288,7 @@ func scanSongInto(row scanner, count *int) (*Song, error) {
 	s.Album = album.String
 	s.Year = int(year.Int64)
 	s.TrackNo = int(track.Int64)
+	s.TrackTotal = int(trackTotal.Int64)
 	s.CoverArtID = cover.String
 	s.Lyrics = lyrics.String
 	s.SampleRate = int(sampleRate.Int64)

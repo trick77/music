@@ -280,7 +280,20 @@ export function TagEditor({ song, onClose, onSaved }: Props) {
               </div>
               <div style={{ flex: 1 }}>
                 <label style={fieldLabel}>Track no.</label>
-                <input className={controlClass} value={trackNo} onChange={(e) => setTrack(e.target.value)} inputMode="numeric" />
+                {song.trackTotal > 0 ? (
+                  // Album songs are numbered automatically per artist+album ("N of Y"),
+                  // so this is read-only — a manual value would just be overwritten.
+                  // Singles (trackTotal 0) keep the editable field below.
+                  <input
+                    className={controlClass}
+                    value={`${song.trackNo} of ${song.trackTotal}`}
+                    readOnly
+                    title="Track numbering is set automatically per album"
+                    style={{ opacity: 0.7, cursor: "default" }}
+                  />
+                ) : (
+                  <input className={controlClass} value={trackNo} onChange={(e) => setTrack(e.target.value)} inputMode="numeric" />
+                )}
               </div>
             </div>
           </div>

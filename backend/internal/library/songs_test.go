@@ -82,7 +82,9 @@ func TestCreate_persistsSongWithArtistAndGenres(t *testing.T) {
 	if err != nil || got == nil {
 		t.Fatalf("Get: %v (song %v)", err, got)
 	}
-	if got.Title != "Test Song" || got.Year != 2020 || got.TrackNo != 3 {
+	// TrackNo is auto-assigned per artist+album, so the lone song in "Test Album"
+	// is renumbered from the params' 3 to "1 of 1" on Create.
+	if got.Title != "Test Song" || got.Year != 2020 || got.TrackNo != 1 || got.TrackTotal != 1 {
 		t.Errorf("round-trip mismatch: %+v", got)
 	}
 }

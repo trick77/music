@@ -229,7 +229,14 @@ export function App() {
       shell.style.transform = "translateZ(0)";
       nudgeRaf.current = requestAnimationFrame(() => { shell.style.transform = ""; });
     });
-    return () => { if (nudgeRaf.current) cancelAnimationFrame(nudgeRaf.current); };
+    // Clear the transform in cleanup too: a second navigation landing between the
+    // two frames would otherwise cancel the frame that resets it, stranding
+    // translateZ(0) on the shell — which itself makes app-shell the containing
+    // block for the fixed dock/rail and mis-positions them until the next reload.
+    return () => {
+      if (nudgeRaf.current) cancelAnimationFrame(nudgeRaf.current);
+      shell.style.transform = "";
+    };
   }, [route.name]);
 
   const flash = (msg: string) => {

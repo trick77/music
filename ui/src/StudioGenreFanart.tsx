@@ -104,8 +104,6 @@ export function GenreFanartMode({ chatEnabled, imageModels, defaultImageModel, i
         ))}
       </select>
 
-      <ModelPicker models={imageModels} value={model} onChange={setModel} disabled={busy} />
-
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
         <label htmlFor="fanart-prompt" style={{ ...fieldLabel, marginBottom: 0 }}>Prompt</label>
         {chatEnabled && (
@@ -126,6 +124,7 @@ export function GenreFanartMode({ chatEnabled, imageModels, defaultImageModel, i
         style={{ marginBottom: "var(--space-3)" }}
       />
       {chatEnabled && <RefineRow onRefine={onRefine} busy={refining} disabled={busy || !genreId || prompt.trim() === ""} />}
+      <ModelPicker models={imageModels} value={model} onChange={setModel} disabled={busy} />
       <div style={{ display: "flex", alignItems: "center", gap: "var(--space-4)", marginBottom: "var(--space-1)" }}>
         <Button busy={busy} disabled={genDisabled} onClick={onGenerate}>
           {busy ? "Generating" : result?.status === "ready" ? "Regenerate" : "Generate fanart"}

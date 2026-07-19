@@ -10,10 +10,15 @@ import type { Song } from "./api";
 const { order } = vi.hoisted(() => ({ order: [] as string[] }));
 
 vi.mock("./analyser", () => ({
-  attach: vi.fn(() => order.push("attach")),
+  // Any of these firing from the play path would mean playback got routed through
+  // the Web Audio graph — the exact regression this file guards against. They push
+  // to `order` so an accidental tap shows up alongside the play/pause sequence.
+  startAnalysis: vi.fn(() => order.push("startAnalysis")),
+  stopAnalysis: vi.fn(() => order.push("stopAnalysis")),
+  syncAnalysis: vi.fn(() => order.push("syncAnalysis")),
   resume: vi.fn(),
   bands: vi.fn(() => []),
-  isAttached: vi.fn(() => false),
+  isAnalysing: vi.fn(() => false),
 }));
 
 // The timeupdate ticks the persistence tests drive make reportPlay reachable; it
@@ -99,18 +104,20 @@ describe("player play path", () => {
     expect(order).toEqual(["play"]);
   });
 
-  // The tap itself (attach → createMediaElementSource) is what breaks lock-screen
-  // audio, so the play path must never reach it. Asserted separately from the call
-  // order above: a future refactor could reintroduce the tap without disturbing it.
+  // The tap itself (startAnalysis → createMediaElementSource) is what breaks
+  // lock-screen audio, so the play path must never reach it. Asserted separately
+  // from the call order above: a future refactor could reintroduce the tap without
+  // disturbing it. (The tap now lands on a dedicated analysis element, never the
+  // audible one — but the play path must still never start it.)
   it("never taps the element from the play path, so lock-screen audio survives", async () => {
     const { player } = await import("./player");
-    const { attach } = await import("./analyser");
+    const { startAnalysis } = await import("./analyser");
 
     player.play(song("a"));
     player.toggle(); // pause
     player.toggle(); // resume
 
-    expect(attach).not.toHaveBeenCalled();
+    expect(startAnalysis).not.toHaveBeenCalled();
   });
 });
 

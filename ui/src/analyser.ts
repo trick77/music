@@ -120,9 +120,14 @@ export function startAnalysis(): boolean {
 // magnitude-agnostic — do NOT bake in a measured device offset here.
 const ANALYSIS_LEAD_S = 0;
 // Beyond this the offset is the main element seeking or changing track, not
-// startup/rebuffer drift — snap immediately instead of waiting out the settle
-// window below.
+// startup/rebuffer drift — snap promptly (rate-limited by SNAP_COOLDOWN_MS)
+// instead of waiting out the settle window below.
 const RESYNC_LIMIT_S = 1.0;
+// Minimum spacing between hard snaps. Without it, an analysis element that lands
+// or stalls >1s out would be re-seeked every rAF frame — each seek aborts the
+// fetch, so the element never recovers (a 60Hz seek storm ending in the dead-tap
+// fallback). A real user seek waits at most this long: imperceptible.
+const SNAP_COOLDOWN_MS = 250;
 // The clock is "locked" while |err| stays inside this. ±100ms is at the edge of
 // perception for a spectrum meter; corrections only run beyond it so the lock
 // converges in one or two seeks and then leaves the element completely alone.
@@ -131,10 +136,13 @@ const LOCK_TOLERANCE_S = 0.1;
 // steady playback before measuring the offset again. Measuring mid-rebuffer reads
 // a transient and would chase it with another seek — the seek-loop failure mode.
 const SETTLE_MS = 1500;
-// Upper bound on the learned seek-ahead compensation. A network so slow that the
-// element lands >2s behind after every seek isn't going to be rescued by aiming
-// further ahead.
-const SEEK_AHEAD_MAX_S = 2;
+// Upper bound on the learned seek-ahead compensation. MUST stay strictly below
+// RESYNC_LIMIT_S: right after a correction the element sits ~seekAheadS AHEAD of
+// the player (it hasn't re-buffered yet), and if that could exceed the resync
+// limit every correction would immediately re-trigger the snap branch — a seek
+// storm. A network that loses more than this per seek isn't rescued by aiming
+// further ahead anyway.
+const SEEK_AHEAD_MAX_S = 0.8;
 
 // The clock-lock deliberately NEVER touches playbackRate. Both WebKit rate paths
 // are broken for this use: varispeed (preservesPitch=false) can go silent while
@@ -160,16 +168,23 @@ let hardSeeks = 0;
 
 // The learned seek-ahead compensation (seconds) and the time of the last
 // correction. seekAheadS persists across tracks — it models this session's
-// network/decode latency, which doesn't change per song.
+// network/decode latency, which doesn't change per song. pendingLearn marks that
+// the next settled measurement is the LANDING of a correction this lock issued —
+// only those errors feed nextSeekAhead. Errors that appear while the clock was
+// locked (a small user scrub, the main element stalling) say nothing about our
+// re-buffer loss; learning from them poisoned the aim, so those get a plain
+// non-learning re-anchor and only their OWN landing is measured.
 let seekAheadS = 0;
 let lastCorrectionMs = 0;
+let pendingLearn = false;
 
-function correct(el: HTMLMediaElement, main: HTMLMediaElement): void {
+function correct(el: HTMLMediaElement, main: HTMLMediaElement, aheadS: number): void {
   try {
-    el.currentTime = main.currentTime + ANALYSIS_LEAD_S + seekAheadS;
+    el.currentTime = main.currentTime + ANALYSIS_LEAD_S + aheadS;
     hardSeeks++;
   } catch { /* not seekable yet — retried next frame */ }
   lastCorrectionMs = performance.now();
+  pendingLearn = true;
 }
 
 // syncAnalysis mirrors the audible element onto the silent analysis element: same
@@ -192,13 +207,18 @@ export function syncAnalysis(main: HTMLMediaElement | null): void {
       // metadata not loaded yet — the clock-lock below will correct once ready
     }
     lastCorrectionMs = performance.now(); // a src change re-buffers like a seek
+    pendingLearn = true; // …and its landing is a real re-buffer loss worth learning
   }
   if (main.paused) {
     if (!el.paused) el.pause();
     return;
   }
   if (el.paused) {
-    correct(el, main); // start aligned (aiming ahead by the learned re-buffer loss)
+    // A plain resume restarts from data already buffered at this position —
+    // near-instant, nothing lost — so aim at the player exactly; aiming ahead here
+    // would overshoot and then mislead the learning. Only a cold/unbuffered start
+    // (low readyState) re-buffers and warrants the learned aim.
+    correct(el, main, el.readyState >= el.HAVE_FUTURE_DATA ? 0 : seekAheadS);
     void el.play().catch(() => {});
     return;
   }
@@ -213,17 +233,27 @@ export function syncAnalysis(main: HTMLMediaElement | null): void {
   // seeking/changing track — snap immediately, nothing to learn from it.
   const err = el.currentTime - main.currentTime - ANALYSIS_LEAD_S;
   if (!Number.isFinite(err)) return;
-  if (Math.abs(err) > RESYNC_LIMIT_S) {
-    correct(el, main);
-  } else if (
-    Math.abs(err) > LOCK_TOLERANCE_S &&
-    performance.now() - lastCorrectionMs > SETTLE_MS &&
-    el.readyState >= el.HAVE_FUTURE_DATA
-  ) {
-    // The element is settled yet still off by err: fold the residual into the aim
-    // (behind → aim further ahead next time; ahead → aim less) and re-anchor.
-    seekAheadS = nextSeekAhead(seekAheadS, err);
-    correct(el, main);
+  const now = performance.now();
+  if (Math.abs(err) <= LOCK_TOLERANCE_S) {
+    // Locked — but only believe it once SETTLED. While the element re-buffers
+    // after a correction its clock sits frozen at the seek target and main
+    // advances toward it, so err transiently PASSES THROUGH the lock window;
+    // clearing pendingLearn on that transient (measured on WebKit) meant the real
+    // landing was never learned and the lock re-anchored uncompensated forever.
+    // Once genuinely settled-and-locked, later drift (a scrub, a main stall) is
+    // external — its magnitude says nothing about our re-buffer loss.
+    if (now - lastCorrectionMs > SETTLE_MS) pendingLearn = false;
+  } else if (Math.abs(err) > RESYNC_LIMIT_S) {
+    // The main element seeked or changed track: snap, rate-limited so a landing
+    // or stall this far out can never become a per-frame seek storm.
+    if (now - lastCorrectionMs > SNAP_COOLDOWN_MS) correct(el, main, seekAheadS);
+  } else if (now - lastCorrectionMs > SETTLE_MS && el.readyState >= el.HAVE_FUTURE_DATA) {
+    // Settled yet off. If this error is the landing of our own correction
+    // (pendingLearn), fold it into the aim — behind → aim further ahead next
+    // time, ahead → aim less. External drift just gets re-anchored; the landing
+    // of THAT correction is what gets measured.
+    if (pendingLearn) seekAheadS = nextSeekAhead(seekAheadS, err);
+    correct(el, main, seekAheadS);
   }
 }
 

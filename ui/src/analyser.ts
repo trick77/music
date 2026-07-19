@@ -112,13 +112,22 @@ export function startAnalysis(): boolean {
   }
 }
 
-// ANALYSIS_LEAD_S is the target offset (analysisEl.currentTime − main.currentTime)
-// the soft clock-lock drives to. 0 means the bars ride the same media position the
-// player's clock reports. It is an on-device-tunable perceptual knob (cf.
-// KaraokeView's SWEEP_LEAD): raise it slightly if the bars ever feel late against
-// what you hear (e.g. to compensate a device's own audible output latency). Keep it
-// magnitude-agnostic — do NOT bake in a measured device offset here.
-const ANALYSIS_LEAD_S = 0;
+// analysisLeadS is the target offset (analysis position − main.currentTime) both
+// tap modes drive to. 0 means the bars ride the player's reported position; a
+// runtime-set positive lead would make them render slightly ahead (e.g. to
+// compensate a device's audible output latency someday). Keep it runtime-set and
+// magnitude-agnostic — do NOT bake in a measured device constant here.
+let analysisLeadS = 0;
+
+// Clamped: a small negative lead is legitimate (perceptual tuning), a large one
+// is a broken caller.
+export function setAnalysisLead(s: number): void {
+  if (Number.isFinite(s)) analysisLeadS = Math.max(-0.5, Math.min(2, s));
+}
+
+export function analysisLead(): number {
+  return analysisLeadS;
+}
 // Beyond this the offset is the main element seeking or changing track, not
 // startup/rebuffer drift — snap promptly (rate-limited by SNAP_COOLDOWN_MS)
 // instead of waiting out the settle window below.
@@ -180,7 +189,7 @@ let pendingLearn = false;
 
 function correct(el: HTMLMediaElement, main: HTMLMediaElement, aheadS: number): void {
   try {
-    el.currentTime = main.currentTime + ANALYSIS_LEAD_S + aheadS;
+    el.currentTime = main.currentTime + analysisLeadS + aheadS;
     hardSeeks++;
   } catch { /* not seekable yet — retried next frame */ }
   lastCorrectionMs = performance.now();
@@ -199,10 +208,24 @@ export function syncAnalysis(main: HTMLMediaElement | null): void {
   if (!el || !main) return;
   const src = main.currentSrc || main.src;
   if (!src) return;
+  // Kick the background decode; once it lands, the exact buffer tap takes over
+  // and the streaming element (and all its WebKit failure modes) goes idle.
+  ensureTrackBuffer(src);
+  if (trackBuf && trackBufUrl === src) {
+    if (el.src) {
+      try {
+        el.pause();
+        el.removeAttribute("src");
+        el.load(); // release the second network stream — the buffer has the track
+      } catch { /* best effort */ }
+    }
+    syncBuffer(main);
+    return;
+  }
   if (el.src !== src) {
     el.src = src;
     try {
-      el.currentTime = main.currentTime + ANALYSIS_LEAD_S + seekAheadS;
+      el.currentTime = main.currentTime + analysisLeadS + seekAheadS;
     } catch {
       // metadata not loaded yet — the clock-lock below will correct once ready
     }
@@ -231,7 +254,7 @@ export function syncAnalysis(main: HTMLMediaElement | null): void {
   // rate 1.0, and measurements wait out SETTLE_MS so a mid-rebuffer transient is
   // never chased (the seek-loop failure mode). A huge offset is the main element
   // seeking/changing track — snap immediately, nothing to learn from it.
-  const err = el.currentTime - main.currentTime - ANALYSIS_LEAD_S;
+  const err = el.currentTime - main.currentTime - analysisLeadS;
   if (!Number.isFinite(err)) return;
   const now = performance.now();
   if (Math.abs(err) <= LOCK_TOLERANCE_S) {
@@ -257,10 +280,16 @@ export function syncAnalysis(main: HTMLMediaElement | null): void {
   }
 }
 
-// stopAnalysis tears the analysis element down: pause it, unwire its source, and
-// drop it so the second stream stops (no data cost while the visualizer is
-// closed). The shared ctx/analyser/sink persist and are reused on the next open.
+// stopAnalysis tears the whole tap down: the buffer source and its decoded PCM
+// (tens of MB — released so a closed visualizer costs nothing), any in-flight
+// decode, and the fallback element (so its stream stops). The shared
+// ctx/analyser/sink persist and are reused on the next open.
 export function stopAnalysis(): void {
+  stopBufSource();
+  trackBuf = null;
+  trackBufUrl = null;
+  decodeSeq++; // invalidate any in-flight decode
+  decodePending = null;
   if (source) {
     try {
       source.disconnect();
@@ -294,23 +323,124 @@ export function isAnalysing(): boolean {
   return analysisEl !== null;
 }
 
-// analysisDebug returns a one-line snapshot of the analysis element's state for the
-// vizdebug console trace (see VisualizerView). Diagnostic only — never parsed.
+// ---- decoded-buffer tap (the primary spectrum source) ----
+//
+// Streaming a second <audio> element into the analyser turned out to be a pit of
+// WebKit failure modes: it cannot run off-rate (stalls/silence), and worse, its
+// reported currentTime LIES about the audio feeding the FFT after a seek —
+// byte-estimate mp3 seeking lands 0.7-1.1s away from the reported position
+// (measured against production; error grows with position, so no learned offset
+// can cancel it). Decoded PCM has none of that: an AudioBufferSourceNode starts
+// at a SAMPLE-ACCURATE offset and its position derives from the AudioContext
+// clock, which cannot drift from what the FFT actually hears. So once the track
+// is fetched + decoded, the tap switches from the element to the buffer and the
+// element goes idle. The element tap remains as the fallback until decode
+// completes (or forever if decodeAudioData fails / Web Audio memory is tight).
+let trackBuf: AudioBuffer | null = null;
+let trackBufUrl: string | null = null;
+let decodePending: string | null = null;
+let decodeSeq = 0;
+let bufSource: AudioBufferSourceNode | null = null;
+let bufStartOffset = 0;
+let bufStartCtxT = 0;
+
+// Restart the buffer source when its position drifts this far from the player.
+// Restarts are sample-accurate and cheap (no network, no decode), but the two
+// clocks (AudioContext vs media element) tick on the same crystal for practical
+// purposes, so this fires rarely — mostly on player seeks and track changes.
+const BUF_DRIFT_S = 0.08;
+
+function stopBufSource(): void {
+  if (bufSource) {
+    try {
+      bufSource.stop();
+      bufSource.disconnect();
+    } catch { /* already stopped */ }
+    bufSource = null;
+  }
+}
+
+function bufPos(): number {
+  if (!bufSource || !ctx) return -1;
+  return bufStartOffset + (ctx.currentTime - bufStartCtxT);
+}
+
+function startBufAt(offsetS: number): void {
+  if (!ctx || !analyser || !trackBuf) return;
+  stopBufSource();
+  try {
+    const s = ctx.createBufferSource();
+    s.buffer = trackBuf;
+    s.connect(analyser);
+    const off = Math.max(0, Math.min(trackBuf.duration, offsetS));
+    s.start(0, off);
+    bufSource = s;
+    bufStartOffset = off;
+    bufStartCtxT = ctx.currentTime;
+  } catch { /* keep the element fallback */ }
+}
+
+// ensureTrackBuffer fetches + decodes the track once per URL, in the background.
+// The decoded stereo buffer is folded to a mono copy (half the resident memory)
+// and the original is dropped. Any failure leaves trackBuf null — the element
+// tap simply keeps serving the FFT.
+function ensureTrackBuffer(url: string): void {
+  if (!ctx || trackBufUrl === url || decodePending === url) return;
+  decodePending = url;
+  const seq = ++decodeSeq;
+  void (async () => {
+    try {
+      const res = await fetch(url);
+      if (!res.ok) return;
+      const raw = await res.arrayBuffer();
+      const decoded = await ctx!.decodeAudioData(raw);
+      if (seq !== decodeSeq || !ctx) return;
+      const mono = ctx.createBuffer(1, decoded.length, decoded.sampleRate);
+      mono.copyToChannel(decoded.getChannelData(0), 0);
+      trackBuf = mono;
+      trackBufUrl = url;
+      stopBufSource(); // re-anchored to the player on the next frame
+    } catch {
+      // decode refused / OOM / network — the element tap stays in charge
+    } finally {
+      if (seq === decodeSeq) decodePending = null;
+    }
+  })();
+}
+
+// syncBuffer drives the buffer tap: mirror play/pause and keep the buffer
+// position on the player's clock (+ analysisLeadS). Positioning is exact, so
+// anything past the small drift window is re-anchored immediately.
+function syncBuffer(main: HTMLMediaElement): void {
+  if (main.paused) {
+    stopBufSource();
+    return;
+  }
+  const target = main.currentTime + analysisLeadS;
+  const pos = bufPos();
+  if (pos < 0 || Math.abs(pos - target) > BUF_DRIFT_S) startBufAt(target);
+}
+
+// analysisDebug returns a one-line snapshot of the tap's state for the vizdebug
+// console trace (see VisualizerView). Diagnostic only — never parsed.
 export function analysisDebug(): string {
+  if (bufSource) return `mode=buf t=${bufPos().toFixed(3)} lead=${analysisLeadS.toFixed(3)}`;
   const el = analysisEl;
   if (!el) return "el=none";
   return (
-    `t=${el.currentTime.toFixed(3)} rs=${el.readyState} paused=${el.paused} ` +
-    `rate=${el.playbackRate.toFixed(2)} ahead=${seekAheadS.toFixed(3)} seeks=${hardSeeks}`
+    `mode=el t=${el.currentTime.toFixed(3)} rs=${el.readyState} paused=${el.paused} ` +
+    `rate=${el.playbackRate.toFixed(2)} ahead=${seekAheadS.toFixed(3)} seeks=${hardSeeks} ` +
+    `buf=${trackBuf ? "ready" : decodePending ? "decoding" : "none"}`
   );
 }
 
-// analysisTime reports the analysis element's playback position while it is
-// actively playing, or -1 when it isn't running (no element, or paused/loading).
-// The visualizer uses a *change* in this value between frames to tell "the tap is
-// dead" (element advancing but analyser silent → real fallback needed) apart from
-// "still loading/seeking" (not advancing yet → not a dead tap, just wait).
+// analysisTime reports the tap's playback position while it is actively playing,
+// or -1 when it isn't running (nothing started, or paused/loading). The
+// visualizer uses a *change* in this value between frames to tell "the tap is
+// dead" (position advancing but analyser silent → real fallback needed) apart
+// from "still loading/seeking" (not advancing yet → not a dead tap, just wait).
 export function analysisTime(): number {
+  if (bufSource) return bufPos();
   return analysisEl && !analysisEl.paused ? analysisEl.currentTime : -1;
 }
 

@@ -251,6 +251,13 @@ export function VisualizerView({ fav, onShare }: { fav: Fav; onShare: (s: Song) 
         }
         target = synthetic ? synthTargets(now, !(main?.paused ?? true)) : real;
       }
+      if (debugTrace && localStorage.getItem("vizdebug") === "2" && main && !synthetic) {
+        // measurement mode: per-frame band energy + both clocks, for offline
+        // cross-correlation against the track's decoded envelope
+        let sum = 0;
+        for (let i = 0; i < N; i++) sum += target[i];
+        console.log(`[vizf] ${now.toFixed(1)} ${main.currentTime.toFixed(4)} ${analysisTime().toFixed(4)} ${sum.toFixed(4)}`);
+      }
       if (debugTrace && now - lastLogMs >= 1000) {
         lastLogMs = now;
         console.log(
@@ -268,7 +275,7 @@ export function VisualizerView({ fav, onShare }: { fav: Fav; onShare: (s: Song) 
       cancelled = true;
       cancelAnimationFrame(raf);
       window.removeEventListener("resize", resize);
-      stopAnalysis(); // pause + drop the second stream when the visualizer closes
+      stopAnalysis(); // drop the tap (decoded PCM + any stream) when the visualizer closes
     };
   }, []);
 

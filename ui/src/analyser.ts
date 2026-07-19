@@ -135,8 +135,10 @@ const RATE_GAIN = 2; // proportional gain mapping the offset error (s) → rate 
 const RATE_DEADBAND_S = 0.05;
 // Correction rates are quantized to this step so consecutive frames of a converging
 // err compute the SAME value, letting the write-on-change guard in syncAnalysis skip
-// the assignment. Coarse on purpose: a correction episode should write playbackRate
-// a handful of times, not 60 times a second.
+// the assignment. With the CURRENT constants the clamp already saturates outside the
+// deadband (deadband × gain > trim max, so targetRate only ever returns 1±0.06) and
+// the quantum never rounds anything — it's a stability guard so a future retune of
+// RATE_GAIN / RATE_DEADBAND_S can't silently reintroduce per-frame writes.
 const RATE_QUANTUM = 0.01;
 
 // rateTrim maps a clock-offset error (seconds; negative = analysis element behind
@@ -163,22 +165,19 @@ export function targetRate(errSeconds: number): number {
   return Math.round((1 + rateTrim(errSeconds)) / RATE_QUANTUM) * RATE_QUANTUM;
 }
 
-// The playbackRate value last written to the analysis element, or 0 when unknown
-// (fresh element, or after a re-anchor forced a write). syncAnalysis only assigns
-// el.playbackRate when the target differs from this — see RATE_DEADBAND_S above for
-// why WebKit must not see per-frame rate writes. Nothing else ever writes the
-// silent element's rate, so the cache cannot go stale.
-let lastRateWritten = 0;
-
 // Count of hard re-anchors (seeks) syncAnalysis has performed; diagnostic only. A
 // steadily climbing value means the clock-lock is thrashing (seek → re-buffer →
 // big offset → seek …) instead of converging.
 let hardSeeks = 0;
 
+// setRate assigns el.playbackRate only when it would actually change — see
+// RATE_DEADBAND_S above for why WebKit must not see per-frame rate writes. The
+// element's own property is the comparison source (reads don't touch the media
+// pipeline), so this stays correct even if the browser resets the rate behind our
+// back (load() does; a WebKit stall recovery might) — no cache to go stale.
 function setRate(el: HTMLMediaElement, rate: number): void {
-  if (rate === lastRateWritten) return;
+  if (el.playbackRate === rate) return;
   el.playbackRate = rate;
-  lastRateWritten = rate;
 }
 
 // syncAnalysis mirrors the audible element onto the silent analysis element: same
@@ -195,7 +194,6 @@ export function syncAnalysis(main: HTMLMediaElement | null): void {
   if (!src) return;
   if (el.src !== src) {
     el.src = src;
-    lastRateWritten = 0; // assigning src triggers load(), which resets playbackRate
     try {
       el.currentTime = main.currentTime;
     } catch {
@@ -210,8 +208,7 @@ export function syncAnalysis(main: HTMLMediaElement | null): void {
     try {
       el.currentTime = main.currentTime;
     } catch { /* not seekable yet */ }
-    lastRateWritten = 0; // force the write: re-anchor cleanly at rate 1
-    setRate(el, 1); // the clock-lock re-trims from the next frame
+    setRate(el, 1); // re-anchor cleanly; the clock-lock re-trims from the next frame
     void el.play().catch(() => {});
     return;
   }
@@ -257,7 +254,6 @@ export function stopAnalysis(): void {
     } catch { /* best effort */ }
     analysisEl = null;
   }
-  lastRateWritten = 0; // the next element starts fresh; don't inherit this one's rate
 }
 
 // resume un-suspends the context. Browsers start it suspended until a user

@@ -34,6 +34,23 @@ export function synthTargets(t: number, playing: boolean): number[] {
 // latch: the tap keeps being read, and the real spectrum resumes if signal returns.
 export const STARVE_LIMIT_MS = 3000;
 
+// Probing for recovery keeps the second stream downloading and decoding. On a tap
+// that never comes back (iOS refusing to route the hidden element at all) that's
+// data + battery spent forever on nothing — so after this much CONTINUOUS
+// starvation, stop the stream and stay synthetic for the session. Transient stalls
+// (buffering, a context interruption) recover long before this; only a genuinely
+// dead tap ever reaches it.
+export const GIVE_UP_MS = 60_000;
+
+// nextSynthetic is the pure synthetic↔real transition for the live-tap path:
+// showing real bars → fall back once starvation crosses the limit; showing
+// synthetic bars → return to real the moment any true spectrum appears. The
+// 0.02 floor matches accrueStarvation's hasSignal threshold.
+export function nextSynthetic(prevSynthetic: boolean, starveMs: number, peak: number): boolean {
+  if (prevSynthetic) return peak < 0.02;
+  return starveMs > STARVE_LIMIT_MS;
+}
+
 // accrueStarvation tracks how long the analyser has been silent *while the hidden
 // element is actually producing audio*. Returns the updated total (ms). It is the
 // dead-tap detector for the synthetic fallback, and it is deliberately narrow so
@@ -174,14 +191,15 @@ export function VisualizerView({ fav, onShare }: { fav: Fav; onShare: (s: Song) 
     }
 
     // Live path: tap the DEDICATED analysis element (never the audible one) so
-    // opening the visualizer no longer reroutes playback. tapLive is false only
+    // opening the visualizer no longer reroutes playback. tapLive starts false only
     // when Web Audio itself is unavailable — synthetic bars with nothing to probe.
     // With a live tap, synthetic is a RECOVERABLE state, not a latch: if the
     // analyser starves (e.g. a transient decode stall on iOS) the view falls back
     // to synthetic bars but keeps the tap running and keeps reading it; the moment
     // a real spectrum reappears it flips back. The old permanent latch meant one
-    // 3-second hiccup condemned the whole session to fake bars.
-    const tapLive = startAnalysis();
+    // 3-second hiccup condemned the whole session to fake bars. Only a full minute
+    // of unbroken starvation (GIVE_UP_MS — the tap is truly dead) drops tapLive.
+    let tapLive = startAnalysis();
     let synthetic = !tapLive;
     resume();
     let starveMs = 0;
@@ -222,10 +240,14 @@ export function VisualizerView({ fav, onShare }: { fav: Fav; onShare: (s: Song) 
           advancing,
           hasSignal: peak >= 0.02,
         });
-        if (!synthetic && starveMs > STARVE_LIMIT_MS) {
-          synthetic = true; // starved — fall back, but keep probing (no stopAnalysis)
-        } else if (synthetic && peak >= 0.02) {
-          synthetic = false; // the tap came back — resume the real spectrum
+        if (starveMs > GIVE_UP_MS) {
+          // A full minute of unbroken starvation: the tap is truly dead, so stop
+          // paying for the second stream. Synthetic for the rest of the session.
+          tapLive = false;
+          synthetic = true;
+          stopAnalysis();
+        } else {
+          synthetic = nextSynthetic(synthetic, starveMs, peak);
         }
         target = synthetic ? synthTargets(now, !(main?.paused ?? true)) : real;
       }

@@ -16,8 +16,11 @@ type WriteableTags struct {
 	Album   string
 	Year    int
 	TrackNo int
-	Genres  []string
-	Lyrics  string
+	// TrackTotal is the album's song count ("Y" in "N of Y"). When > 0 the track
+	// frame is written as "TrackNo/TrackTotal"; 0 writes the bare number.
+	TrackTotal int
+	Genres     []string
+	Lyrics     string
 	// CoverBytes, when non-empty, is embedded as the front-cover attached picture
 	// (APIC). CoverMIME is its MIME type (e.g. "image/jpeg"). Empty CoverBytes
 	// leaves any existing embedded art untouched.
@@ -54,7 +57,13 @@ func WriteTags(path string, t WriteableTags) error {
 	}
 	trackID := tag.CommonID("Track number/Position in set")
 	if t.TrackNo > 0 {
-		tag.AddTextFrame(trackID, tag.DefaultEncoding(), strconv.Itoa(t.TrackNo))
+		// "N/Y" when the album total is known (the TRCK "Track/Total" form), else
+		// the bare number.
+		track := strconv.Itoa(t.TrackNo)
+		if t.TrackTotal > 0 {
+			track += "/" + strconv.Itoa(t.TrackTotal)
+		}
+		tag.AddTextFrame(trackID, tag.DefaultEncoding(), track)
 	} else {
 		tag.DeleteFrames(trackID)
 	}

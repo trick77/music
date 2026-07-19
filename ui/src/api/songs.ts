@@ -9,6 +9,10 @@ export type Song = {
   album: string;
   year: number;
   trackNo: number;
+  // Number of songs in this artist+album group ("Y" in "N of Y"). 0 for singles
+  // (empty album); album track numbering is system-managed (auto-sequenced by add
+  // order), so the tag editor shows "N of Y" read-only rather than an editable field.
+  trackTotal: number;
   durationMs: number;
   // Audio properties of the stored file. 0 means unknown — either the backfill
   // hasn't reached this row yet, or the file couldn't be decoded. Render "—".

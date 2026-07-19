@@ -38,9 +38,12 @@ func (r *Repo) Update(ctx context.Context, id string, p UpdateSongParams) (*Song
 	}
 
 	// Remember the song's current cover before the edit so it can seed a new
-	// album mapping when we move it into an album that has none yet.
-	var curCover sql.NullString
-	if err := tx.QueryRowContext(ctx, `SELECT cover_art_id FROM songs WHERE id=?`, id).Scan(&curCover); err != nil {
+	// album mapping when we move it into an album that has none yet. Also remember
+	// its current artist+album: if the edit moves the song out of that group, the
+	// old group must be renumbered too, not just the new one.
+	var curCover, oldAlbum sql.NullString
+	var oldArtistID string
+	if err := tx.QueryRowContext(ctx, `SELECT cover_art_id, artist_id, album FROM songs WHERE id=?`, id).Scan(&curCover, &oldArtistID, &oldAlbum); err != nil {
 		return nil, err
 	}
 
@@ -74,6 +77,18 @@ func (r *Repo) Update(ctx context.Context, id string, p UpdateSongParams) (*Song
 				return nil, err
 			}
 		}
+	}
+
+	// Renumber both the group the song left (if the artist/album changed and it
+	// shrank) and the group it now belongs to. Renumbering the old group first
+	// keeps the new-group pass authoritative when the song didn't actually move.
+	if oldKey := albumKey(oldAlbum.String); oldKey != albumKey(p.Album) || oldArtistID != artistID {
+		if err := renumberAlbumTx(ctx, tx, oldArtistID, oldKey); err != nil {
+			return nil, err
+		}
+	}
+	if err := renumberAlbumTx(ctx, tx, artistID, albumKey(p.Album)); err != nil {
+		return nil, err
 	}
 
 	if _, err := tx.ExecContext(ctx, `DELETE FROM song_genres WHERE song_id=?`, id); err != nil {

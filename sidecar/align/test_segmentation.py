@@ -76,6 +76,15 @@ class TestAssignLines:
         assert assigned[0] == []
         assert assigned[1] == lines
 
+    def test_all_silent_track_spreads_lines_instead_of_piling_up(self):
+        # Pathological: find_silences read the whole vocal as silent (voiced 0
+        # everywhere). Fall back to spreading by segment count, not dumping every
+        # line into the last segment.
+        lines = [f"aaaa" for _ in range(9)]  # equal weight
+        assigned = assign_lines([0.0, 0.0, 0.0], lines)
+        assert total_lines(assigned) == lines
+        assert all(len(seg) > 0 for seg in assigned), assigned
+
 
 @_needs_numpy
 class TestFindSilences:

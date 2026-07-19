@@ -117,6 +117,15 @@ def assign_lines(seg_voiced, lines):
     Returns a list parallel to `seg_voiced`, each a list of the lines for that
     segment. Every line is assigned exactly once, in order, so the concatenated
     result still reads as the full lyric (grouping re-anchors by content anyway).
+
+    HEURISTIC (and its limit): the cut is placed at a silence TIME, but the line
+    boundary is placed by char-proportion of voiced seconds — the two coincide only
+    when the singing rate (chars per voiced-second) is roughly uniform. On a song
+    with, say, a slow verse and a fast chorus, a line sung just before a cut can be
+    assigned to the segment just after it (or vice versa) and then mistimed by ~1-2s.
+    Without a first pass to get per-line timing (which is the whole memory problem we
+    are avoiding) this is the best estimate; cuts land at real silences so at most
+    the one or two lines straddling a cut are affected.
     """
     k = len(seg_voiced)
     result = [[] for _ in range(k)]
@@ -126,10 +135,14 @@ def assign_lines(seg_voiced, lines):
 
     weights = [_weight(ln) for ln in lines]
     total_w = sum(weights) or 1
-    total_v = sum(seg_voiced) or 1.0
+    # Weight by voiced seconds; if the whole track read as silent (no voiced audio
+    # anywhere — a failed/instrumental separation), fall back to segment length so
+    # lines still spread across the track instead of piling into the last segment.
+    voiced = seg_voiced if sum(seg_voiced) > 0 else [1.0] * k
+    total_v = sum(voiced)
     # Cumulative target char-count at the end of each segment.
     targets, cum = [], 0.0
-    for v in seg_voiced:
+    for v in voiced:
         cum += v
         targets.append(total_w * cum / total_v)
 

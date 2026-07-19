@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { advance, back, shouldRestart, qualifiesForPlay, shouldReport, removeSong, replaceSong, shuffle, type PlayerState } from "./player";
+import { advance, back, shouldRestart, qualifiesForPlay, shouldReport, removeSong, replaceSong, shuffle, mediaShouldToggle, type PlayerState } from "./player";
 import type { Song } from "./api";
 
 function song(id: string): Song {
@@ -9,6 +9,20 @@ function song(id: string): Song {
 function base(overrides: Partial<PlayerState> = {}): PlayerState {
   return { current: null, queue: [], history: [], playing: false, positionMs: 0, durationMs: 0, airplayAvailable: false, airplayActive: false, ...overrides };
 }
+
+describe("mediaShouldToggle", () => {
+  // An OS "play" only acts when actually paused; "pause" only when playing. A
+  // redundant command (the direction the tab is already in) must be a no-op, so a
+  // Continuity-relayed play at an already-playing tab can never flip it to paused.
+  it("plays only when paused", () => {
+    expect(mediaShouldToggle("play", true)).toBe(true);
+    expect(mediaShouldToggle("play", false)).toBe(false);
+  });
+  it("pauses only when playing", () => {
+    expect(mediaShouldToggle("pause", false)).toBe(true);
+    expect(mediaShouldToggle("pause", true)).toBe(false);
+  });
+});
 
 describe("advance", () => {
   it("moves the queue head to current and pushes current onto history", () => {

@@ -35,7 +35,6 @@ function render(over: Partial<{ song: Song; authenticated: boolean; alignmentEna
       onAddToQueue={noop}
       onAddToPlaylist={noop}
       onShare={noop}
-      onCopyLyricsLink={noop}
       onEdit={noop}
       onPublish={noop}
       onSync={noop}

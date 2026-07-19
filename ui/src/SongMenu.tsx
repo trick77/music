@@ -9,7 +9,6 @@ type Props = {
   onAddToQueue: () => void;
   onAddToPlaylist: () => void;
   onShare: () => void;
-  onCopyLyricsLink: () => void;
   onEdit: () => void;
   onPublish: () => void;
   onSync: () => void;
@@ -60,9 +59,6 @@ export function SongMenu(p: Props) {
           </MenuItem>
         )}
         <MenuItem icon="share" onClick={p.onShare}>Share</MenuItem>
-        {!!p.song.lyrics && p.song.lyrics.trim() !== "" && (
-          <MenuItem icon="music" onClick={p.onCopyLyricsLink}>Copy lyrics link</MenuItem>
-        )}
 
         {p.authenticated && (
           <>

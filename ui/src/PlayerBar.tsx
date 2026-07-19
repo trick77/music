@@ -16,9 +16,10 @@ import { useBackgroundDismiss } from "./backgroundDismiss";
 // open/lyrics are derived from the URL (the source of truth for player-overlay
 // state) and passed in by App; the overlay writes changes back through onExpand
 // (push a history entry, naming the state it was opened out of) /
-// onLyricsUnavailable / onClose. onCopyLink copies the current deep link (the
-// address bar itself while the overlay is open).
-export function PlayerBar({ fav, onShare, renderMenu, alignmentEnabled, open, lyrics, onExpand, onLyricsUnavailable, onClose, onCopyLink }: { fav: Fav; onShare: (s: Song) => void; renderMenu?: (s: Song) => React.ReactNode; alignmentEnabled: boolean; open: boolean; lyrics: boolean; onExpand: (mode: PlayerParam, from?: PlayerParam) => void; onLyricsUnavailable: () => void; onClose: () => void; onCopyLink: () => void }) {
+// onLyricsUnavailable / onClose. Every Share button copies the bare /song/:id
+// link (via onShare) so a shared link always opens the big player, never the
+// karaoke view — regardless of which surface it was shared from.
+export function PlayerBar({ fav, onShare, renderMenu, alignmentEnabled, open, lyrics, onExpand, onLyricsUnavailable, onClose }: { fav: Fav; onShare: (s: Song) => void; renderMenu?: (s: Song) => React.ReactNode; alignmentEnabled: boolean; open: boolean; lyrics: boolean; onExpand: (mode: PlayerParam, from?: PlayerParam) => void; onLyricsUnavailable: () => void; onClose: () => void }) {
   const p = usePlayer();
   const [align, setAlign] = useState<AlignmentData | null>(null);
   const song = p.current;
@@ -239,7 +240,7 @@ export function PlayerBar({ fav, onShare, renderMenu, alignmentEnabled, open, ly
                 {/* No lyrics/visualizer buttons while the lyrics player is open:
                     this view is left via the X, not swapped away in place. */}
                 <AirplayButton available={p.airplayAvailable} active={p.airplayActive} onClick={p.showAirplayPicker} size={22} />
-                <button aria-label="Share" onClick={onCopyLink} style={iconBtn}><Icon name="share" size="22px" /></button>
+                <button aria-label="Share" onClick={() => onShare(song)} style={iconBtn}><Icon name="share" size="22px" /></button>
               </ImmersiveControls>
             </>
           ) : (
@@ -274,7 +275,7 @@ export function PlayerBar({ fav, onShare, renderMenu, alignmentEnabled, open, ly
                     <button aria-label="Show lyrics" aria-pressed={false} onClick={() => onExpand("lyrics", "full")} style={iconBtn}><Icon name="captions" size="25px" /></button>
                   )}
                   <AirplayButton available={p.airplayAvailable} active={p.airplayActive} onClick={p.showAirplayPicker} size={22} />
-                  <button aria-label="Share" onClick={onCopyLink} style={iconBtn}><Icon name="share" size="22px" /></button>
+                  <button aria-label="Share" onClick={() => onShare(song)} style={iconBtn}><Icon name="share" size="22px" /></button>
                 </div>
               </div>
             </>

@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/trick77/music/internal/config"
+	"github.com/trick77/music/internal/library"
 )
 
 // patchSongTitle edits a song's title via the API so we can inject a hostile
@@ -104,6 +105,66 @@ func TestShareMeta_missingIdServesPlainSPA(t *testing.T) {
 	}
 	if strings.Contains(rr.Body.String(), "og:title") {
 		t.Fatalf("missing id should not inject og tags")
+	}
+}
+
+func TestShareMeta_rootEmitsDefaultCard(t *testing.T) {
+	// A bare app link (the root, and any non-asset navigation route) must preview a
+	// branded default card so WhatsApp/iMessage show something. The og:image is a
+	// static card at an ABSOLUTE URL (relative URLs don't preview in chat apps).
+	h := testServer(t, config.AuthModeDev)
+	rr := httptest.NewRecorder()
+	req := httptest.NewRequest("GET", "/", nil)
+	req.Host = "music.example.com"
+	req.Header.Set("X-Forwarded-Proto", "https")
+	h.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("root route = %d", rr.Code)
+	}
+	body := rr.Body.String()
+	for _, want := range []string{
+		`property="og:type" content="website"`,
+		`property="og:title" content="Music"`,
+		`name="twitter:card" content="summary_large_image"`,
+		`property="og:image" content="https://music.example.com/og-card.png"`,
+		`property="og:image:width" content="1200"`,
+		`property="og:image:height" content="630"`,
+	} {
+		if !strings.Contains(body, want) {
+			t.Fatalf("default card missing %q in:\n%s", want, body)
+		}
+	}
+	// Exactly one og:image — no duplicate from a static tag racing the injected one.
+	if n := strings.Count(body, `property="og:image"`); n != 1 {
+		t.Fatalf("want exactly one og:image, got %d:\n%s", n, body)
+	}
+}
+
+func TestShareMeta_staticFileNotWrapped(t *testing.T) {
+	// A request that resolves to a real embedded asset (icon, manifest, hashed
+	// bundle) must be served untouched by the static/SPA handler — never wrapped in
+	// the HTML shell with a default share card. This drives withShareMeta directly
+	// with hasFile stubbed to report the asset present: the backend test binary
+	// embeds only index.html (manifest and bundles are built by the UI job in CI),
+	// so a request through the real embed FS could not exercise this branch.
+	const assetBody = `{"name":"Music"}`
+	spa := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte(assetBody))
+	})
+	// repo is only nil-checked on the static-file branch, never dereferenced.
+	h := withShareMeta(library.NewRepo(nil), []byte("<html><head></head></html>"),
+		spa, func(p string) bool { return p == "/manifest.webmanifest" })
+
+	rr := httptest.NewRecorder()
+	h.ServeHTTP(rr, httptest.NewRequest("GET", "/manifest.webmanifest", nil))
+
+	body := rr.Body.String()
+	if body != assetBody {
+		t.Fatalf("static asset must be served untouched by the SPA handler, got:\n%s", body)
+	}
+	if strings.Contains(body, "og:image") || strings.Contains(body, "og:title") || strings.Contains(body, "<title>") {
+		t.Fatalf("static asset must not get injected share meta:\n%s", body)
 	}
 }
 

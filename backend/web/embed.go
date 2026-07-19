@@ -65,6 +65,20 @@ func IndexHTML() ([]byte, error) {
 	return distFS.ReadFile("dist/index.html")
 }
 
+// HasFile reports whether path resolves to an embedded static file (icon,
+// manifest, hashed bundle, …) rather than an SPA route. It mirrors SPAHandler's
+// own fallback test, so the share-meta layer can inject default Open Graph tags
+// for navigation routes only and never wrap a real asset (e.g. /favicon.ico) in
+// HTML. The root path "/" is not a file and yields false, as intended.
+func HasFile(path string) bool {
+	sub, err := fs.Sub(distFS, "dist")
+	if err != nil {
+		return false
+	}
+	_, err = fs.Stat(sub, trimLeadingSlash(path))
+	return err == nil
+}
+
 func trimLeadingSlash(p string) string {
 	if len(p) > 0 && p[0] == '/' {
 		return p[1:]

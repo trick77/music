@@ -10,28 +10,59 @@ import (
 	"github.com/trick77/music/internal/library"
 )
 
-// withShareMeta serves crawler-friendly Open Graph/Twitter meta for the two
-// public share routes (/song/{id}, /playlist/{id}) by injecting escaped tags
-// into the embedded SPA shell. Every other request — and any unknown id, empty
-// shell, or non-GET method — is delegated to the SPA handler unchanged, so
-// humans always boot the app and a stale link yields the in-app not-found.
-func withShareMeta(repo *library.Repo, shell []byte, spa http.Handler) http.Handler {
+// withShareMeta serves crawler-friendly Open Graph/Twitter meta by injecting
+// escaped tags into the embedded SPA shell. The two public share routes
+// (/song/{id}, /playlist/{id}) get per-item previews from the library; every
+// other navigation route gets a branded default card so a bare app link still
+// previews on WhatsApp/iMessage. Requests for real static files (icons, manifest,
+// hashed bundles), unknown/unpublished share ids, an empty shell, or non-GET
+// methods are delegated to the SPA handler unchanged — humans always boot the
+// app, a stale share link yields the in-app not-found (no card, no data leak),
+// and asset bytes are never wrapped in HTML. hasFile reports whether a path
+// resolves to an embedded static file (web.HasFile).
+func withShareMeta(repo *library.Repo, shell []byte, spa http.Handler, hasFile func(string) bool) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodGet && len(shell) > 0 && repo != nil {
-			if id, ok := shareID(r.URL.Path, "/song/"); ok {
-				if tags, ok := songMeta(r.Context(), repo, r, id); ok {
-					serveShell(w, shell, tags)
-					return
+			switch {
+			case strings.HasPrefix(r.URL.Path, "/song/"):
+				if id, ok := shareID(r.URL.Path, "/song/"); ok {
+					if tags, ok := songMeta(r.Context(), repo, r, id); ok {
+						serveShell(w, shell, tags)
+						return
+					}
 				}
-			} else if id, ok := shareID(r.URL.Path, "/playlist/"); ok {
-				if tags, ok := playlistMeta(r.Context(), repo, r, id); ok {
-					serveShell(w, shell, tags)
+				// Unresolved/unpublished song: fall through to the plain shell below.
+			case strings.HasPrefix(r.URL.Path, "/playlist/"):
+				if id, ok := shareID(r.URL.Path, "/playlist/"); ok {
+					if tags, ok := playlistMeta(r.Context(), repo, r, id); ok {
+						serveShell(w, shell, tags)
+						return
+					}
+				}
+			default:
+				// Any other navigation route (the app root, /library, …) that isn't a
+				// real asset gets the default site card.
+				if !hasFile(r.URL.Path) {
+					serveShell(w, shell, defaultMeta(r))
 					return
 				}
 			}
 		}
 		spa.ServeHTTP(w, r)
 	})
+}
+
+// defaultMeta is the site-wide Open Graph/Twitter block for navigation routes
+// with no song/playlist of their own, so a bare link pasted into WhatsApp or
+// iMessage still previews a branded card. The image is a static share card at an
+// absolute URL (relative URLs don't preview in chat apps); its dimensions are
+// advertised so clients lay out the card without fetching the image first.
+func defaultMeta(r *http.Request) string {
+	base := baseURL(r)
+	tags := buildMeta("website", "Music", "Stream your music library.", base+"/og-card.png", base+r.URL.Path)
+	tags += `<meta property="og:image:width" content="1200">` + "\n"
+	tags += `<meta property="og:image:height" content="630">` + "\n"
+	return tags
 }
 
 // shareID returns the id for an exact "/prefix/{id}" path (no further segments).

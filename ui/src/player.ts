@@ -122,6 +122,59 @@ let state: PlayerState = {
 const listeners = new Set<Listener>();
 let audio: HTMLAudioElement | null = null;
 let session = { reported: false };
+// Set by loadCurrent to the position a fresh track should start at, applied once
+// the element has metadata (currentTime set before then doesn't stick on a
+// freshly-src'd streamed element). 0 for a normal play; the saved position on a
+// reload restore.
+let pendingSeekMs = 0;
+
+// ── Reload persistence ─────────────────────────────────────────────────────
+// Persist only enough to bring the docked mini-player back after a reload, and
+// only when a track was actually playing (the user's rule: paused/stopped → no
+// restore). Anonymous localStorage, so it works for signed-out users too. Queue
+// and history are intentionally not persisted — the ask is the mini-player at
+// its position, nothing about next/prev surviving a reload.
+const PERSIST_KEY = "music.player.v1";
+
+type Snapshot = { id: string; positionMs: number };
+
+// savePlaybackSnapshot reads LIVE audio state (not the throttled positionMs) at
+// the moment the page is hidden/unloaded. Gating on !audio.paused makes "only
+// when it was playing" exact. Anything else clears the key.
+function savePlaybackSnapshot() {
+  try {
+    if (audio && !audio.paused && state.current) {
+      const snap: Snapshot = { id: state.current.id, positionMs: audio.currentTime * 1000 };
+      window.localStorage.setItem(PERSIST_KEY, JSON.stringify(snap));
+    } else {
+      window.localStorage.removeItem(PERSIST_KEY);
+    }
+  } catch {
+    // private-mode / quota — restore is a nicety, never fail playback over it
+  }
+}
+
+// readSnapshot returns the persisted {id, positionMs} or null. App resolves the
+// id against its loaded song list and calls player.restore().
+export function readSnapshot(): Snapshot | null {
+  try {
+    const raw = window.localStorage.getItem(PERSIST_KEY);
+    if (!raw) return null;
+    const snap = JSON.parse(raw) as Snapshot;
+    if (typeof snap?.id === "string" && Number.isFinite(snap.positionMs) && snap.positionMs >= 0) return snap;
+  } catch {
+    // corrupt / unavailable
+  }
+  return null;
+}
+
+export function clearSnapshot() {
+  try {
+    window.localStorage.removeItem(PERSIST_KEY);
+  } catch {
+    // ignore
+  }
+}
 
 function emit() {
   syncNextAction(); // keep the OS "next track" control in step with the queue
@@ -229,6 +282,14 @@ function getAudio(): HTMLAudioElement {
   el.addEventListener("timeupdate", onTimeUpdate);
   el.addEventListener("loadedmetadata", () => {
     set({ durationMs: (el.duration || 0) * 1000 });
+    // Apply a restore seek now that the element can actually seek. Paused restore
+    // gets no timeupdate tick, so push positionMs into state here or the scrubber
+    // would sit at 0:00 despite the audio being seeked correctly.
+    if (pendingSeekMs > 0) {
+      el.currentTime = pendingSeekMs / 1000;
+      set({ positionMs: el.currentTime * 1000 });
+      pendingSeekMs = 0;
+    }
     updatePositionState();
   });
   el.addEventListener("ended", () => player.next());
@@ -256,6 +317,16 @@ function getAudio(): HTMLAudioElement {
     });
   }
   setupMediaHandlers();
+  // Persist the snapshot when the page goes away. pagehide covers desktop reload;
+  // visibilitychange→hidden is the reliable mobile signal (Safari often skips
+  // pagehide there). Registered here — by the time anything is worth saving the
+  // audio element exists, since we only save while it's playing.
+  if (typeof window !== "undefined") window.addEventListener("pagehide", savePlaybackSnapshot);
+  if (typeof document !== "undefined") {
+    document.addEventListener("visibilitychange", () => {
+      if (document.hidden) savePlaybackSnapshot();
+    });
+  }
   audio = el;
   return el;
 }
@@ -271,12 +342,15 @@ function onTimeUpdate() {
 }
 
 // loadCurrent points the audio element at state.current and (optionally) plays.
-function loadCurrent(autoplay: boolean) {
+// startMs seeds pendingSeekMs so a reload restore resumes at its saved position;
+// normal callers pass 0 and the track starts from the top.
+function loadCurrent(autoplay: boolean, startMs = 0) {
   if (!state.current) return;
   session = { reported: false };
   const el = getAudio();
   el.src = streamUrl(state.current.id);
   el.currentTime = 0;
+  pendingSeekMs = startMs; // applied in the loadedmetadata handler
   setMediaMetadata(state.current);
   // Deliberately does NOT tap the element into the analyser graph. See toggle().
   if (autoplay) {
@@ -304,6 +378,20 @@ export const player = {
   },
   setQueue(queue: Song[]) {
     set({ queue });
+  },
+  // restore brings the docked mini-player back after a reload: cue the saved
+  // track, load its stream, and seek to where playback left off — but stay
+  // PAUSED (reload carries no user gesture, so a play() here is blocked anyway
+  // and would only fire inconsistently). positionMs is set explicitly because a
+  // paused element emits no timeupdate to populate the scrubber. App calls this
+  // once, after its song list has loaded, having resolved the id via readSnapshot.
+  restore(song: Song, positionMs: number) {
+    set({ current: song, queue: [], history: [], playing: false, positionMs, durationMs: song.durationMs || 0 });
+    loadCurrent(false, positionMs);
+    // A restore resumes a listen already in progress. loadCurrent just reset the
+    // play-count session; if the saved position already qualifies, this listen was
+    // counted before the reload — mark it reported so resuming doesn't count it twice.
+    if (qualifiesForPlay(positionMs, song.durationMs || 0)) session.reported = true;
   },
   remove(id: string) {
     const wasCurrent = state.current?.id === id;

@@ -57,6 +57,11 @@ export function PlayerBar({ fav, onShare, renderMenu, alignmentEnabled, open, ly
   useEffect(() => {
     if (!song || !hasLyrics) return;
     if (!(open && lyrics) && song.alignmentStatus !== "ready") return;
+    // Ready timing is immutable (a re-sync invalidates the memo through postAlign),
+    // so once it is cached there is nothing left to fetch or poll for. Skipping
+    // here is what makes reopening the view cost zero requests, and it also stops
+    // the first fetch from re-arming this effect through the status dep below.
+    if (peekAlign(song.id)?.status === "ready") return;
     let alive = true;
     let timer: ReturnType<typeof setTimeout> | undefined;
     const tick = async () => {

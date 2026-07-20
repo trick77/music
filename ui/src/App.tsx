@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
-import { getSession, listSongs, uploadSong, setPublished, deleteSong, postAlign, type Session, type Song } from "./api";
+import { getSession, listSongs, uploadSong, setPublished, deleteSong, postAlign, invalidateAlign, type Session, type Song } from "./api";
 import { TagEditor } from "./TagEditor";
 import { useEscape } from "./useEscape";
 import { Library } from "./Library";
@@ -351,6 +351,12 @@ export function App() {
   // Mirror the backend's albumKey/artist name_key: trim + lower-case.
   const norm = (s: string) => s.trim().toLowerCase();
   const propagateSong = (updated: Song) => {
+    // Saving changed lyrics re-syncs karaoke in the background, but the song this
+    // save echoes back was built before that was enqueued — it still reports the
+    // old status. So drop any memoized timing here rather than trusting the
+    // response: otherwise the karaoke view would keep sweeping the previous
+    // lyrics' words until a full reload.
+    invalidateAlign(updated.id);
     const key = norm(updated.album);
     const shareCover = key !== "" && updated.coverArtId !== "";
     setSongs((prev) =>

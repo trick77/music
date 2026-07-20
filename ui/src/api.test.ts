@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
 import { coverUrl } from "./cover";
-import { getHome, getTopTen, search, reportPlay, getFavorites, addFavorite, removeFavorite, uploadSong, getAlign, postAlign } from "./api";
+import { getHome, getTopTen, search, reportPlay, getFavorites, addFavorite, removeFavorite, uploadSong, getAlign, postAlign, peekAlign, invalidateAlign } from "./api";
 
 function mockFetch(body: unknown, ok = true) {
   const spy = vi.fn().mockResolvedValue({
@@ -186,5 +186,45 @@ describe("karaoke alignment", () => {
   it("postAlign throws on a real error", async () => {
     fetchStatus(500);
     await expect(postAlign("s1")).rejects.toThrow("align request failed (500)");
+  });
+
+  // The memo is what lets the karaoke view paint its sweep on the very first
+  // frame: peekAlign is read during render, before any fetch could resolve.
+  // Each case uses its own song id so entries can't bleed between tests.
+  it("getAlign memoizes a ready payload for peekAlign", async () => {
+    fetchStatus(200, { status: "ready", lines: [{ text: "hi", start: 1, end: 2, words: [] }] });
+    expect(peekAlign("cache-ready")).toBeUndefined(); // nothing known yet
+    await getAlign("cache-ready");
+    expect(peekAlign("cache-ready")?.status).toBe("ready");
+  });
+
+  // A 404 is memoized as null too, so a never-synced song stops re-asking on
+  // every open. undefined ("unknown") and null ("known to have none") differ.
+  it("getAlign memoizes a 404 as null, not unknown", async () => {
+    fetchStatus(404);
+    await getAlign("cache-404");
+    expect(peekAlign("cache-404")).toBeNull();
+  });
+
+  // Forgotten rather than marked "generating": the request can still be refused
+  // (no lyrics, alignment disabled), so the server's status must win on the next
+  // read instead of one invented here.
+  it("postAlign forgets a memoized ready entry so the next read refetches", async () => {
+    fetchStatus(200, { status: "ready", lines: [{ text: "hi", start: 1, end: 2, words: [] }] });
+    await getAlign("cache-resync");
+    fetchStatus(202);
+    await postAlign("cache-resync");
+    // Without this the next open would seed the sweep with the previous take's words.
+    expect(peekAlign("cache-resync")).toBeUndefined();
+  });
+
+  // Alignment can also be re-run behind the client's back — saving changed lyrics
+  // enqueues a re-sync server-side, and the song echoed back still reports the
+  // pre-enqueue status, so nothing in the response reveals the timing is stale.
+  it("invalidateAlign forgets a memoized entry", async () => {
+    fetchStatus(200, { status: "ready", lines: [{ text: "hi", start: 1, end: 2, words: [] }] });
+    await getAlign("cache-edit");
+    invalidateAlign("cache-edit");
+    expect(peekAlign("cache-edit")).toBeUndefined();
   });
 });

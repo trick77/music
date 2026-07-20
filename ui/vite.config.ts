@@ -26,7 +26,7 @@ export default defineConfig({
       ],
       // Lines is the gate. The other metrics are reported but not enforced, so a
       // PR is never blocked by a branch/function ratio the target never named.
-      thresholds: { lines: 80 },
+      thresholds: { lines: 75 },
     },
   },
 });

@@ -2,6 +2,9 @@
 /data/
 node_modules/
 ui/dist/
+# Test coverage output (make backend-coverage / make fe-coverage)
+/coverage/
+ui/coverage/
 # Built SPA assets are not tracked; only the placeholder index.html is.
 backend/web/dist/*
 !backend/web/dist/index.html

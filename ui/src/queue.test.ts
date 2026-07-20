@@ -26,3 +26,49 @@ describe("queue ops", () => {
     expect(input.map((x) => x.id)).toEqual(["a", "b"]);
   });
 });
+
+// reorder is driven by drag-and-drop, where the browser happily reports a drop on
+// the row being dragged or past the end of the list. Those must be no-ops rather
+// than silently shuffling or dropping an item.
+describe("reorder edge cases", () => {
+  const list = [s("a"), s("b"), s("c")];
+
+  it("returns the list untouched when the item is dropped on itself", () => {
+    expect(reorder(list, 1, 1)).toBe(list);
+  });
+
+  it("returns the list untouched for out-of-range indices", () => {
+    expect(reorder(list, -1, 0)).toBe(list);
+    expect(reorder(list, 0, -1)).toBe(list);
+    expect(reorder(list, 3, 0)).toBe(list);
+    expect(reorder(list, 0, 3)).toBe(list);
+  });
+
+  it("moves an item forward, closing the gap behind it", () => {
+    expect(reorder(list, 0, 2).map((x) => x.id)).toEqual(["b", "c", "a"]);
+  });
+
+  it("moves an item one slot without disturbing the rest", () => {
+    expect(reorder(list, 1, 0).map((x) => x.id)).toEqual(["b", "a", "c"]);
+  });
+
+  it("does not mutate the input", () => {
+    reorder(list, 0, 2);
+    expect(list.map((x) => x.id)).toEqual(["a", "b", "c"]);
+  });
+
+  it("is a no-op on an empty list", () => {
+    const empty: Song[] = [];
+    expect(reorder(empty, 0, 0)).toBe(empty);
+  });
+});
+
+describe("removeAt", () => {
+  it("leaves the list alone for an index that is not there", () => {
+    expect(removeAt([s("a"), s("b")], 5).map((x) => x.id)).toEqual(["a", "b"]);
+  });
+
+  it("removes the only item", () => {
+    expect(removeAt([s("a")], 0)).toEqual([]);
+  });
+});

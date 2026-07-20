@@ -23,6 +23,21 @@ func TestHealth(t *testing.T) {
 	if rr.Code != 200 {
 		t.Fatalf("status = %d, want 200", rr.Code)
 	}
+	// The version is link-time injected by the release build, so assert only that
+	// it is reported at all — an unstamped test binary reports the "dev" default.
+	var body struct {
+		Status  string `json:"status"`
+		Version string `json:"version"`
+	}
+	if err := json.Unmarshal(rr.Body.Bytes(), &body); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if body.Status != "ok" {
+		t.Errorf("status = %q, want %q", body.Status, "ok")
+	}
+	if body.Version == "" {
+		t.Error("version is empty, want the build-info version")
+	}
 }
 
 func TestSession_devIsAuthenticated(t *testing.T) {

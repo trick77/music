@@ -8,12 +8,17 @@ RUN npm run build
 
 # Stage 2: build the Go binary with the embedded SPA
 FROM golang:1.26-alpine AS build
+# Set by release.yaml to the semver it just computed, so the running container can
+# report what it is (startup log + /api/health). Defaults to "dev" for local builds.
+ARG BACKEND_VERSION=dev
 WORKDIR /src
 COPY backend/go.mod backend/go.sum ./backend/
 RUN cd backend && go mod download
 COPY backend/ ./backend/
 COPY --from=ui /backend/web/dist ./backend/web/dist
-RUN cd backend && CGO_ENABLED=0 go build -o /music ./cmd/music
+RUN cd backend && CGO_ENABLED=0 go build \
+	-ldflags="-s -w -X github.com/trick77/music/internal/buildinfo.Version=${BACKEND_VERSION}" \
+	-o /music ./cmd/music
 
 # Stage 3: runtime
 FROM alpine:3.24

@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/trick77/music/internal/auth"
+	"github.com/trick77/music/internal/buildinfo"
 	"github.com/trick77/music/internal/config"
 	"github.com/trick77/music/internal/httpapi"
 	"github.com/trick77/music/internal/store"
@@ -62,7 +63,7 @@ func run() error {
 
 	errCh := make(chan error, 1)
 	go func() {
-		slog.Info("music listening", "addr", cfg.ListenAddr, "auth", string(cfg.AuthMode))
+		slog.Info("music listening", "addr", cfg.ListenAddr, "auth", string(cfg.AuthMode), "version", buildinfo.Version)
 		if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			slog.Error("server error", "err", err)
 			errCh <- err

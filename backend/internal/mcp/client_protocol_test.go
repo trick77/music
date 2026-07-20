@@ -389,8 +389,8 @@ func TestScrubURLError(t *testing.T) {
 //
 // Port 1 on loopback refuses immediately; no external network is involved.
 //
-// NOTE: this covers the *dial-failure* path only. A URL so malformed that
-// url.Parse itself fails is NOT scrubbed and does leak the key — see summary.
+// This covers the *dial-failure* path, where url.Parse succeeds. The case where
+// url.Parse itself fails — which used to leak the key — is pinned in scrub_test.go.
 func TestCall_dialFailureDoesNotLeakKey(t *testing.T) {
 	c := newRemoteClient("tavily", ServerConfig{
 		URL: "http://127.0.0.1:1/mcp/?tavilyApiKey=super-secret",

@@ -1,5 +1,10 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
-import { parsePath, parsePlayerParam, pushPlayer, replacePlayer, closeToOrigin, leaveLyricsForArtwork } from "./router";
+import { reactStub, renderHook } from "./testHooks";
+
+vi.mock("react", () => reactStub);
+
+const { parsePath, parsePlayerParam, pushPlayer, replacePlayer, closeToOrigin, leaveLyricsForArtwork, navigate, useRoute } =
+  await import("./router");
 
 describe("parsePath", () => {
   it("maps root to home", () => {
@@ -30,8 +35,30 @@ describe("parsePath", () => {
     expect(parsePath("/studio")).toEqual({ name: "studio" });
     expect(parsePath("/studio/genre/g1")).toEqual({ name: "studio", genreId: "g1" });
   });
+  it("parses the search and artist routes", () => {
+    expect(parsePath("/search")).toEqual({ name: "search" });
+    expect(parsePath("/artist/a1")).toEqual({ name: "artist", id: "a1" });
+  });
+  it("tolerates trailing and doubled slashes", () => {
+    // Empty segments are filtered, so /library/ and //library are the same route.
+    expect(parsePath("/library/")).toEqual({ name: "library" });
+    expect(parsePath("//library//")).toEqual({ name: "library" });
+    expect(parsePath("")).toEqual({ name: "home" });
+  });
   it("falls back to home for unknown paths", () => {
     expect(parsePath("/nope/deep/path")).toEqual({ name: "home" });
+  });
+  it("falls back to home rather than inventing a route from a bad shape", () => {
+    // A known prefix with the wrong arity is not that route — /song with no id
+    // must not become a song page with an undefined id.
+    expect(parsePath("/song")).toEqual({ name: "home" });
+    expect(parsePath("/song/a/b")).toEqual({ name: "home" });
+    expect(parsePath("/playlist")).toEqual({ name: "home" });
+    expect(parsePath("/studio/genre")).toEqual({ name: "home" });
+    expect(parsePath("/genres/g1")).toEqual({ name: "home" });
+  });
+  it("keeps ids opaque, including url-encoded ones", () => {
+    expect(parsePath("/song/a%20b")).toEqual({ name: "song", id: "a%20b" });
   });
 });
 
@@ -159,5 +186,86 @@ describe("player URL helpers", () => {
     leaveLyricsForArtwork("abc");
     expect(back).not.toHaveBeenCalled();
     expect(replaceState).toHaveBeenCalledWith(null, "", "/song/abc?player=full");
+  });
+});
+
+// navigate() and useRoute() are the SPA plumbing: pushState alone fires no
+// popstate, so navigate dispatches a synthetic one and useRoute listens for it.
+describe("navigate and useRoute", () => {
+  let pathname: string;
+  let pushState: ReturnType<typeof vi.fn>;
+  let handlers: Record<string, Array<() => void>>;
+  let removed: string[];
+
+  beforeEach(() => {
+    pathname = "/library";
+    pushState = vi.fn((_s: unknown, _t: string, path: string) => {
+      pathname = path; // the browser would; useRoute re-reads location on popstate
+    });
+    handlers = {};
+    removed = [];
+    vi.stubGlobal("window", {
+      get location() {
+        return { pathname, search: "" };
+      },
+      history: { pushState, replaceState: vi.fn(), back: vi.fn(), state: null },
+      dispatchEvent: () => {
+        for (const fn of handlers["popstate"] ?? []) fn();
+      },
+      addEventListener: (t: string, fn: () => void) => (handlers[t] ??= []).push(fn),
+      removeEventListener: (t: string, fn: () => void) => {
+        removed.push(t);
+        handlers[t] = (handlers[t] ?? []).filter((h) => h !== fn);
+      },
+    });
+    vi.stubGlobal("PopStateEvent", class {});
+  });
+
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("when navigating somewhere new, then the entry is marked ours and listeners re-render", () => {
+    const view = renderHook(() => useRoute());
+    expect(view.result()).toEqual({ name: "library" });
+
+    navigate("/genre/rock");
+
+    expect(pushState).toHaveBeenCalledWith({ appPushed: true }, "", "/genre/rock");
+    expect(view.result()).toEqual({ name: "genre", id: "rock" });
+
+    view.unmount();
+  });
+
+  it("when navigating to the page already shown, then no history entry is added", () => {
+    // Re-tapping the active tab must not stack a duplicate entry the back button
+    // then has to step through.
+    const view = renderHook(() => useRoute());
+
+    navigate("/library");
+
+    expect(pushState).not.toHaveBeenCalled();
+    expect(view.result()).toEqual({ name: "library" });
+
+    view.unmount();
+  });
+
+  it("when the user presses back, then the route follows the browser", () => {
+    const view = renderHook(() => useRoute());
+    navigate("/song/abc");
+    expect(view.result()).toEqual({ name: "song", id: "abc" });
+
+    pathname = "/library"; // as popping the entry would leave it
+    window.dispatchEvent(new PopStateEvent("popstate"));
+
+    expect(view.result()).toEqual({ name: "library" });
+
+    view.unmount();
+  });
+
+  it("when the component unmounts, then it stops listening", () => {
+    const view = renderHook(() => useRoute());
+    view.unmount();
+
+    expect(removed).toEqual(["popstate"]);
+    expect(handlers["popstate"]).toEqual([]);
   });
 });

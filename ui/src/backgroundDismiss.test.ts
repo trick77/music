@@ -1,5 +1,10 @@
-import { describe, it, expect } from "vitest";
-import { NO_DISMISS_SELECTOR, TAP_SLOP_PX, isBackgroundTarget, shouldDismiss, type Press } from "./backgroundDismiss";
+import { describe, it, expect, vi, afterEach } from "vitest";
+import { reactStub, renderHook } from "./testHooks";
+
+vi.mock("react", () => reactStub);
+
+const { NO_DISMISS_SELECTOR, TAP_SLOP_PX, isBackgroundTarget, shouldDismiss, useBackgroundDismiss } = await import("./backgroundDismiss");
+type Press = import("./backgroundDismiss").Press;
 
 // The immersive views close when you tap their background. These tests pin the
 // rule that decides background-vs-control; whether a real tap lands where we
@@ -71,5 +76,141 @@ describe("shouldDismiss", () => {
 
   it("when there is no recorded press, then a stray click does not dismiss", () => {
     expect(shouldDismiss(null, at(100, 100))).toBe(false);
+  });
+});
+
+// The hook wires the pure rules above to a real press→release gesture. What it
+// adds on top of them — which presses arm the gesture, and resolving what sits
+// under the release point rather than trusting the click target — is only
+// visible here.
+describe("useBackgroundDismiss", () => {
+  // stubs standing in for DOM elements; `closest` is all the rule ever calls.
+  const control = { closest: () => ({}) };
+  const background = { closest: () => null };
+
+  type PointerStub = { isPrimary: boolean; button: number; clientX: number; clientY: number; target: unknown };
+  type ClickStub = { detail: number; clientX: number; clientY: number; target: unknown };
+
+  function mount(under: unknown = background) {
+    const onDismiss = vi.fn();
+    // The view resolves what is under the release point itself, because a click's
+    // target is the common ancestor of press and release — the root, when you press
+    // beside a button and release on it.
+    vi.stubGlobal("document", { elementFromPoint: () => under });
+    const view = renderHook(() => useBackgroundDismiss(onDismiss));
+    const props = () => view.result() as unknown as {
+      onPointerDown: (e: PointerStub) => void;
+      onPointerCancel: () => void;
+      onClick: (e: ClickStub) => void;
+    };
+    return { onDismiss, props };
+  }
+
+  const down = (over: PointerStub["target"] = background, o: Partial<PointerStub> = {}): PointerStub =>
+    ({ isPrimary: true, button: 0, clientX: 100, clientY: 100, target: over, ...o });
+  const click = (o: Partial<ClickStub> = {}): ClickStub =>
+    ({ detail: 1, clientX: 100, clientY: 100, target: background, ...o });
+
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("when the background is tapped, then the view closes", () => {
+    const v = mount();
+
+    v.props().onPointerDown(down());
+    v.props().onClick(click());
+
+    expect(v.onDismiss).toHaveBeenCalledTimes(1);
+  });
+
+  it("when the press lands on a control, then the view stays open", () => {
+    const v = mount();
+
+    v.props().onPointerDown(down(control));
+    v.props().onClick(click());
+
+    expect(v.onDismiss).not.toHaveBeenCalled();
+  });
+
+  it("when the release point sits on a control, then the view stays open even though the click target is the root", () => {
+    // Pressing a few pixels beside pause and releasing on it: the click reports the
+    // full-screen root as its target, which would read as background and dismiss.
+    const v = mount(control);
+
+    v.props().onPointerDown(down());
+    v.props().onClick(click({ target: background }));
+
+    expect(v.onDismiss).not.toHaveBeenCalled();
+  });
+
+  it("when the pointer is dragged past the slop radius, then the view stays open", () => {
+    const v = mount();
+
+    v.props().onPointerDown(down(background, { clientX: 100, clientY: 100 }));
+    v.props().onClick(click({ clientX: 100 + TAP_SLOP_PX + 1, clientY: 100 }));
+
+    expect(v.onDismiss).not.toHaveBeenCalled();
+  });
+
+  it("when a secondary or middle button is pressed, then no gesture is armed", () => {
+    const v = mount();
+
+    v.props().onPointerDown(down(background, { button: 2 }));
+    v.props().onClick(click());
+    v.props().onPointerDown(down(background, { isPrimary: false }));
+    v.props().onClick(click());
+
+    expect(v.onDismiss).not.toHaveBeenCalled();
+  });
+
+  it("when the press is cancelled, then no stale gesture is left armed", () => {
+    // A touch pan or a drag off-window: the record must not survive to be consumed
+    // by some later click.
+    const v = mount();
+
+    v.props().onPointerDown(down());
+    v.props().onPointerCancel();
+    v.props().onClick(click());
+
+    expect(v.onDismiss).not.toHaveBeenCalled();
+  });
+
+  it("when the click is keyboard-synthesized, then it never dismisses", () => {
+    // Enter/Space on a focused control reports detail 0 at 0,0 — which would land
+    // on the full-screen root and read as a background tap. Esc is the way out.
+    const v = mount();
+
+    v.props().onPointerDown(down());
+    v.props().onClick(click({ detail: 0, clientX: 0, clientY: 0 }));
+
+    expect(v.onDismiss).not.toHaveBeenCalled();
+  });
+
+  it("when a gesture has been consumed, then a second click alone does not dismiss", () => {
+    const v = mount();
+
+    v.props().onPointerDown(down());
+    v.props().onClick(click());
+    v.props().onClick(click());
+
+    expect(v.onDismiss).toHaveBeenCalledTimes(1);
+  });
+
+  it("when there is no document to probe, then the click target decides", () => {
+    // Server render / non-DOM host: falls back to the event target rather than
+    // throwing on a missing elementFromPoint.
+    const onDismiss = vi.fn();
+    const view = renderHook(() => useBackgroundDismiss(onDismiss));
+    const props = view.result() as unknown as {
+      onPointerDown: (e: PointerStub) => void;
+      onClick: (e: ClickStub) => void;
+    };
+
+    props.onPointerDown(down());
+    props.onClick(click({ target: control }));
+    expect(onDismiss).not.toHaveBeenCalled();
+
+    props.onPointerDown(down());
+    props.onClick(click());
+    expect(onDismiss).toHaveBeenCalledTimes(1);
   });
 });

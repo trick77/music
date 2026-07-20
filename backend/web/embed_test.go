@@ -3,6 +3,7 @@ package web
 import (
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 )
 
@@ -44,6 +45,66 @@ func TestSPAHandler_missingAssetFallsBackToShellHeaders(t *testing.T) {
 	SPAHandler().ServeHTTP(rr, httptest.NewRequest("GET", "/assets/index-DEADBEEF.js", nil))
 	if got := rr.Header().Get("Cache-Control"); got != "no-cache" {
 		t.Errorf("missing asset falls back to shell, Cache-Control = %q, want no-cache", got)
+	}
+}
+
+// IndexHTML feeds the share-meta layer, which injects Open Graph tags into the
+// shell for crawlers. It must return the real embedded shell, not an empty body.
+func TestIndexHTML_returnsEmbeddedShell(t *testing.T) {
+	got, err := IndexHTML()
+	if err != nil {
+		t.Fatalf("IndexHTML error: %v", err)
+	}
+	if len(got) == 0 {
+		t.Fatal("IndexHTML returned no bytes")
+	}
+	// The shell must be an HTML document with a head to inject meta tags into.
+	body := string(got)
+	if !strings.Contains(strings.ToLower(body), "<html") || !strings.Contains(strings.ToLower(body), "</head>") {
+		t.Fatalf("IndexHTML does not look like the SPA shell: %.200q", body)
+	}
+}
+
+// HasFile decides whether the share-meta layer may wrap a path in HTML. It must
+// mirror SPAHandler's fallback test: real embedded files are true, SPA routes
+// (and the root) are false — otherwise a real asset like /favicon.ico would be
+// served as an HTML document.
+//
+// Only dist/index.html is committed; the hashed bundles and icons are built in
+// CI, so this asserts nothing about them.
+func TestHasFile_distinguishesAssetsFromSPARoutes(t *testing.T) {
+	cases := map[string]bool{
+		"/index.html":               true,
+		"index.html":                true, // callers may pass an untrimmed path
+		"/":                         false,
+		"/library":                  false,
+		"/song/abc":                 false,
+		"/assets/index-DEADBEEF.js": false,
+		"":                          false,
+	}
+	for path, want := range cases {
+		if got := HasFile(path); got != want {
+			t.Errorf("HasFile(%q) = %v, want %v", path, got, want)
+		}
+	}
+}
+
+// A path HasFile reports false for is an SPA route, and SPAHandler must answer
+// it with the shell bytes — the same bytes IndexHTML hands the share-meta layer.
+func TestSPAHandler_fallbackServesTheIndexHTMLBytes(t *testing.T) {
+	shell, err := IndexHTML()
+	if err != nil {
+		t.Fatalf("IndexHTML error: %v", err)
+	}
+	for _, path := range []string{"/library", "/song/abc"} {
+		if HasFile(path) {
+			t.Fatalf("%s should not be an embedded file", path)
+		}
+		rr := httptest.NewRecorder()
+		SPAHandler().ServeHTTP(rr, httptest.NewRequest("GET", path, nil))
+		if rr.Body.String() != string(shell) {
+			t.Errorf("%s did not serve the index.html shell", path)
+		}
 	}
 }
 

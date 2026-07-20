@@ -196,8 +196,17 @@ func genrePromptUserPrompt(genre string) string {
 }
 
 func albumCoverPromptUserPrompt(artist, album string, genres []string, lyrics []library.SongLyric) string {
-	genre := strings.Join(genres, ", ")
-	if strings.TrimSpace(genre) == "" {
+	// Drop blank entries before joining, not after: joining first turns
+	// []string{"  ", ""} into "  , ", which survives a TrimSpace check and reaches
+	// the model as a genre list made entirely of punctuation.
+	cleaned := make([]string, 0, len(genres))
+	for _, g := range genres {
+		if g = strings.TrimSpace(g); g != "" {
+			cleaned = append(cleaned, g)
+		}
+	}
+	genre := strings.Join(cleaned, ", ")
+	if genre == "" {
 		genre = "(unknown)"
 	}
 	base := fmt.Sprintf("Artist: %s\nAlbum: %s\nGenre(s): %s", artist, album, genre)

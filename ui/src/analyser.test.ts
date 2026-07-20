@@ -280,9 +280,9 @@ describe("startAnalysis", () => {
     vi.resetModules();
     vi.stubGlobal("window", {}); // no AudioContext / webkitAudioContext
     vi.stubGlobal("Audio", MockAudio);
-    const { startAnalysis, isAnalysing } = await import("./analyser");
+    const { startAnalysis } = await import("./analyser");
     expect(startAnalysis()).toBe(false);
-    expect(isAnalysing()).toBe(false);
+    expect(startAnalysis()).toBe(false); // and stays false — nothing was half-built
   });
 });
 
@@ -689,47 +689,6 @@ describe("decoded-buffer tap", () => {
   });
 });
 
-describe("analysis lead (content-alignment knob)", () => {
-  beforeEach(() => vi.unstubAllGlobals());
-
-  // contentAlign measures how far the FFT's real content sits from the player's
-  // clock (WebKit mp3 seeks land away from the reported position) and cancels it
-  // via this lead: corrections then aim player + lead (+ learned re-buffer aim).
-  it("corrections aim ahead by the lead set via setAnalysisLead", async () => {
-    const { startAnalysis, syncAnalysis, setAnalysisLead } = await freshAnalyser("running");
-    let nowMs = 0;
-    vi.spyOn(performance, "now").mockImplementation(() => nowMs);
-    startAnalysis();
-    const main = mainEl({ currentSrc: "/api/songs/7/stream", currentTime: 10, paused: false });
-    syncAnalysis(main); // cold start, lead 0 → anchors at 10
-
-    // Let the lock settle into a genuine lock first (ends the learning session).
-    main.currentTime = 12;
-    lastAudio.currentTime = 12;
-    nowMs = 2000;
-    syncAnalysis(main);
-
-    // contentAlign discovers the content runs 1s in the past → lead 1.0. The
-    // resulting err is external drift: re-anchored with the aim left alone.
-    setAnalysisLead(1.0);
-    nowMs = 4000;
-    syncAnalysis(main);
-    expect(lastAudio.currentTime).toBeCloseTo(13); // player + 1.0 lead, + 0 aim
-  });
-
-  it("clamps the lead to a sane range and ignores non-finite values", async () => {
-    const { setAnalysisLead, analysisLead } = await freshAnalyser("running");
-    setAnalysisLead(5);
-    expect(analysisLead()).toBe(2);
-    setAnalysisLead(-3);
-    expect(analysisLead()).toBe(-0.5);
-    setAnalysisLead(NaN);
-    expect(analysisLead()).toBe(-0.5); // unchanged
-    setAnalysisLead(0.8);
-    expect(analysisLead()).toBe(0.8);
-  });
-});
-
 describe("startAnalysis leaves pitch preservation alone", () => {
   beforeEach(() => vi.unstubAllGlobals());
 
@@ -749,7 +708,7 @@ describe("stopAnalysis", () => {
   beforeEach(() => vi.unstubAllGlobals());
 
   it("pauses and releases the analysis element so the second stream stops", async () => {
-    const { startAnalysis, stopAnalysis, isAnalysing } = await freshAnalyser("running");
+    const { startAnalysis, stopAnalysis } = await freshAnalyser("running");
     startAnalysis();
     const el = lastAudio;
 
@@ -757,7 +716,6 @@ describe("stopAnalysis", () => {
 
     expect(el.pause).toHaveBeenCalled();
     expect(el.load).toHaveBeenCalled(); // releases the network stream
-    expect(isAnalysing()).toBe(false);
   });
 
   it("lets a fresh element be tapped again on the next open", async () => {

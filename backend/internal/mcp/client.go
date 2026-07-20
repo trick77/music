@@ -20,6 +20,9 @@ const (
 	defaultHTTPTimeout  = 15 * time.Second
 	maxRPCResponseBytes = 4 << 20
 	maxToolOutputBytes  = 32 << 10
+	// Stands in for whatever was removed, so a scrubbed error still reads as a URL
+	// that had a query or credentials rather than one that never did.
+	redactedMarker = "REDACTED"
 )
 
 // Tool is a server-side tool discovered via tools/list, namespaced for exposure.
@@ -363,6 +366,34 @@ func scrubURLError(err error) error {
 		u.RawQuery = ""
 		u.User = nil
 		urlErr.URL = u.String()
+		return urlErr
 	}
+	// url.Parse failed, or parsed to something with no host. Reassembling is not
+	// an option, so fail closed rather than pass the raw string through: a URL
+	// malformed enough to break the parser is exactly the one that reaches here
+	// carrying ?tavilyApiKey= verbatim.
+	urlErr.URL = redactRawURL(urlErr.URL)
 	return urlErr
+}
+
+// redactRawURL strips the secret-bearing parts of a URL string that url.Parse
+// could not handle: everything from the first '?' or '#', plus any userinfo. It
+// works on the raw text precisely because the structured API is unavailable here.
+func redactRawURL(raw string) string {
+	if i := strings.IndexAny(raw, "?#"); i >= 0 {
+		raw = raw[:i] + "?" + redactedMarker
+	}
+	// Userinfo sits between "//" and the last '@' of the authority, which ends at
+	// the first '/' after it.
+	if start := strings.Index(raw, "//"); start >= 0 {
+		authority := raw[start+2:]
+		end := len(authority)
+		if slash := strings.IndexByte(authority, '/'); slash >= 0 {
+			end = slash
+		}
+		if at := strings.LastIndexByte(authority[:end], '@'); at >= 0 {
+			raw = raw[:start+2] + redactedMarker + "@" + authority[at+1:]
+		}
+	}
+	return raw
 }

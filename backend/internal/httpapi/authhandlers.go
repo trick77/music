@@ -94,8 +94,12 @@ func (h *authHandlers) callback(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		// Warn, not Error: a user abandoning the consent screen or a
 		// replayed/expired code also lands here, so this isn't necessarily a
-		// server-side fault. redactErr keeps a misconfigured-provider secret
-		// (client_secret in a wrapped *url.Error) out of the log.
+		// server-side fault. redactErr is defence in depth: x/oauth2 doesn't
+		// put client_secret in the token-endpoint URL today (it goes in the
+		// POST body or a Basic-Auth header), but if some future provider
+		// client or a proxied http.Client ever surfaces a URL-bearing error
+		// with credentials in its query string or userinfo, this keeps that
+		// out of the log.
 		slog.Warn("oidc: exchange failed", "err", redactErr(err))
 		httpError(w, http.StatusUnauthorized, "authentication failed")
 		return

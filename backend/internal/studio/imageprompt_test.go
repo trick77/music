@@ -57,9 +57,8 @@ func TestAlbumCoverPrompt_withoutLyricsOmitsLyricsBlock(t *testing.T) {
 // A single whitespace-only genre is as good as absent and must read as unknown
 // rather than producing a dangling "Genre(s):   " line.
 //
-// NOTE: this guard only holds while the joined string is blank. Several blank
-// genres (e.g. []string{"  ", ""}) join to "  , ", which does NOT trim to empty
-// and therefore leaks through as "Genre(s):   , " — see the summary.
+// The multi-blank case (e.g. []string{"  ", ""}), which used to join to "  , "
+// and leak through, is covered in albumprompt_test.go.
 func TestAlbumCoverPrompt_blankGenreReadsAsUnknown(t *testing.T) {
 	chat := &cannedChat{reply: `{"prompt":"A field of dry grass, square, no text."}`}
 	if _, err := NewGenrePrompter(chat).AlbumCoverPrompt(context.Background(),

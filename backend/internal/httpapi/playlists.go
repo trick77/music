@@ -163,6 +163,14 @@ func (h *playlistHandlers) addSong(w http.ResponseWriter, r *http.Request) {
 	}
 	id := r.PathValue("id")
 	if err := h.repo.AddSong(r.Context(), id, body.SongID); err != nil {
+		// An unknown playlist trips a foreign-key violation here, which would surface
+		// as a 500. The sibling handlers (patch, removeSong, reorder) all fall through
+		// to respondDetail and answer 404 for the same bad id, so match them: a wrong
+		// id is a client error, not a server fault.
+		if pl, getErr := h.repo.GetPlaylist(r.Context(), id, true); getErr == nil && pl == nil {
+			httpError(w, http.StatusNotFound, "not found")
+			return
+		}
 		serverError(w, "add song", err)
 		return
 	}

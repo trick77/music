@@ -4,6 +4,7 @@ import (
 	"crypto/rand"
 	"crypto/subtle"
 	"encoding/base64"
+	"log/slog"
 	"net/http"
 	"time"
 
@@ -91,6 +92,11 @@ func (h *authHandlers) callback(w http.ResponseWriter, r *http.Request) {
 
 	claims, err := h.authr.Exchange(r.Context(), code, nonceCookie.Value)
 	if err != nil {
+		// Warn, not Error: a user abandoning the consent screen or a
+		// replayed/expired code also lands here, so this isn't necessarily a
+		// server-side fault. redactErr keeps a misconfigured-provider secret
+		// (client_secret in a wrapped *url.Error) out of the log.
+		slog.Warn("oidc: exchange failed", "err", redactErr(err))
 		httpError(w, http.StatusUnauthorized, "authentication failed")
 		return
 	}

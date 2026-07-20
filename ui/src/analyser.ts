@@ -112,22 +112,11 @@ export function startAnalysis(): boolean {
   }
 }
 
-// analysisLeadS is the target offset (analysis position − main.currentTime) both
-// tap modes drive to. 0 means the bars ride the player's reported position; a
-// runtime-set positive lead would make them render slightly ahead (e.g. to
-// compensate a device's audible output latency someday). Keep it runtime-set and
-// magnitude-agnostic — do NOT bake in a measured device constant here.
-let analysisLeadS = 0;
+// The taps target the player's reported position exactly. If a perceptual lead
+// ever becomes wanted (e.g. compensating Bluetooth output latency, where the
+// bars run ~150-300ms ahead of the ear), add it as a runtime-measured offset on
+// the two anchor targets below — never as a baked device constant.
 
-// Clamped: a small negative lead is legitimate (perceptual tuning), a large one
-// is a broken caller.
-export function setAnalysisLead(s: number): void {
-  if (Number.isFinite(s)) analysisLeadS = Math.max(-0.5, Math.min(2, s));
-}
-
-export function analysisLead(): number {
-  return analysisLeadS;
-}
 // Beyond this the offset is the main element seeking or changing track, not
 // startup/rebuffer drift — snap promptly (rate-limited by SNAP_COOLDOWN_MS)
 // instead of waiting out the settle window below.
@@ -189,7 +178,7 @@ let pendingLearn = false;
 
 function correct(el: HTMLMediaElement, main: HTMLMediaElement, aheadS: number): void {
   try {
-    el.currentTime = main.currentTime + analysisLeadS + aheadS;
+    el.currentTime = main.currentTime + aheadS;
     hardSeeks++;
   } catch { /* not seekable yet — retried next frame */ }
   lastCorrectionMs = performance.now();
@@ -234,7 +223,7 @@ export function syncAnalysis(main: HTMLMediaElement | null): void {
   if (el.src !== src) {
     el.src = src;
     try {
-      el.currentTime = main.currentTime + analysisLeadS + seekAheadS;
+      el.currentTime = main.currentTime + seekAheadS;
     } catch {
       // metadata not loaded yet — the clock-lock below will correct once ready
     }
@@ -263,7 +252,7 @@ export function syncAnalysis(main: HTMLMediaElement | null): void {
   // rate 1.0, and measurements wait out SETTLE_MS so a mid-rebuffer transient is
   // never chased (the seek-loop failure mode). A huge offset is the main element
   // seeking/changing track — snap immediately, nothing to learn from it.
-  const err = el.currentTime - main.currentTime - analysisLeadS;
+  const err = el.currentTime - main.currentTime;
   if (!Number.isFinite(err)) return;
   const now = performance.now();
   if (Math.abs(err) <= LOCK_TOLERANCE_S) {
@@ -323,10 +312,6 @@ export function stopAnalysis(): void {
 export function resume(): void {
   const s = ctx?.state as AudioContextState | "interrupted" | undefined;
   if (ctx && (s === "suspended" || s === "interrupted")) void ctx.resume();
-}
-
-export function isAnalysing(): boolean {
-  return analysisEl !== null;
 }
 
 // ---- decoded-buffer tap (the primary spectrum source) ----
@@ -455,7 +440,7 @@ function ensureTrackBuffer(url: string, durationS: number): void {
 }
 
 // syncBuffer drives the buffer tap: mirror play/pause and keep the buffer
-// position on the player's clock (+ analysisLeadS). Positioning is exact, so
+// position on the player's clock. Positioning is exact, so
 // drift past the small window is re-anchored — but rate-limited, and only while
 // the context clock is actually running: a suspended/interrupted ctx (iOS lock)
 // freezes ctx.currentTime, and an unguarded drift check would then churn a new
@@ -466,7 +451,7 @@ function syncBuffer(main: HTMLMediaElement): void {
     return;
   }
   if (ctx && (ctx.state as string) !== "running") return;
-  const target = main.currentTime + analysisLeadS;
+  const target = main.currentTime;
   if (trackBuf && target >= trackBuf.duration) {
     // The decoded buffer can run slightly shorter than the streamed track (mp3
     // duration estimates). Don't churn restarts against the clamp at the tail —
@@ -483,7 +468,7 @@ function syncBuffer(main: HTMLMediaElement): void {
 // analysisDebug returns a one-line snapshot of the tap's state for the vizdebug
 // console trace (see VisualizerView). Diagnostic only — never parsed.
 export function analysisDebug(): string {
-  if (bufSource) return `mode=buf t=${bufPos().toFixed(3)} lead=${analysisLeadS.toFixed(3)}`;
+  if (bufSource) return `mode=buf t=${bufPos().toFixed(3)}`;
   const el = analysisEl;
   if (!el) return "el=none";
   return (

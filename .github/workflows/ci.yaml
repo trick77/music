@@ -7,6 +7,9 @@ on:
     branches: [master]
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
@@ -26,7 +29,10 @@ jobs:
           cache-dependency-path: backend/go.sum
       - run: go build ./...
       - run: go vet ./...
-      - run: go test ./...
+      # The Makefile lives at the repo root and its targets cd into backend/ themselves,
+      # so this step overrides the job's backend working-directory.
+      - run: make backend-coverage
+        working-directory: .
 
   ui:
     name: UI (build + test)
@@ -43,7 +49,9 @@ jobs:
           cache-dependency-path: ui/package-lock.json
       - run: npm ci
       - run: npm run build
-      - run: npm test -- --run
+      # Root Makefile; the target cds into ui/ itself (see the backend job).
+      - run: make fe-coverage
+        working-directory: .
 
   sidecar:
     name: Align sidecar (test)

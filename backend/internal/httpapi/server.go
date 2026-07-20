@@ -8,6 +8,7 @@ import (
 
 	"github.com/trick77/music/internal/align"
 	"github.com/trick77/music/internal/auth"
+	"github.com/trick77/music/internal/buildinfo"
 	"github.com/trick77/music/internal/config"
 	"github.com/trick77/music/internal/imagegen"
 	"github.com/trick77/music/internal/library"
@@ -84,7 +85,7 @@ func build(cfg config.Config, st *store.Store, spa http.Handler, gen imagegen.Pr
 	var bg sync.WaitGroup
 
 	mux.HandleFunc("GET /api/health", func(w http.ResponseWriter, r *http.Request) {
-		writeJSON(w, map[string]string{"status": "ok"})
+		writeJSON(w, map[string]string{"status": "ok", "version": buildinfo.Version})
 	})
 
 	mux.HandleFunc("GET /api/auth/session", func(w http.ResponseWriter, r *http.Request) {

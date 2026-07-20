@@ -75,8 +75,8 @@ export function PlayerBar({ fav, onShare, renderMenu, alignmentEnabled, open, ly
       alive = false;
       if (timer) clearTimeout(timer);
     };
-    // align?.status is a dep so the in-view Generate/Try-again buttons (which set
-    // status to "generating" without changing any other dep) re-arm the poll; it
+    // align?.data?.status is a dep so the in-view Generate/Try-again buttons (which
+    // set status to "generating" without changing any other dep) re-arm the poll; it
     // converges because same-status refetches don't change the dep.
   }, [open, lyrics, hasLyrics, song?.id, song?.alignmentStatus, align?.data?.status]);
 
@@ -118,6 +118,12 @@ export function PlayerBar({ fav, onShare, renderMenu, alignmentEnabled, open, ly
   // first paint — before getAlign's round-trip resolves. Otherwise a synced song
   // briefly shows the needs-sync card while nothing has been fetched yet.
   const alignStatus = a?.status ?? song.alignmentStatus ?? "";
+  // Whether we have a resolved answer for this track yet — a fetch that landed
+  // (any outcome, including a 404 or a swallowed error) rather than one still in
+  // flight. It is what keeps the wait-for-lines stage from becoming a dead end:
+  // once the answer is in and it still yields no sweep, we owe the reader the
+  // plain lyrics instead of an empty box forever.
+  const alignResolved = align?.id === song.id || peekAlign(song.id) !== undefined;
 
   return (
     <>
@@ -241,13 +247,20 @@ export function PlayerBar({ fav, onShare, renderMenu, alignmentEnabled, open, ly
                 {a?.status === "ready" && a.lines?.length ? (
                   <KaraokeView lines={a.lines} />
                 ) : alignStatus === "ready" ? (
-                  // Timing exists but the lines are still in flight (cold cache).
-                  // Render an EMPTY stage — never the plain lyrics, and never the
-                  // needs-sync card. A full lyric sheet flashing in and straight
-                  // back out the moment the sweep arrives reads as a glitch. The
-                  // wrapper above already fixes the box height, so the sweep
-                  // replaces this without a layout jump.
-                  <div style={{ height: "100%" }} />
+                  // The song claims ready timing but we have no lines to sweep.
+                  // Still waiting on the fetch → an EMPTY stage, never the plain
+                  // lyrics and never the needs-sync card: a full lyric sheet
+                  // flashing in and straight back out the moment the sweep
+                  // arrives reads as a glitch. The wrapper above already fixes
+                  // the box height, so the sweep replaces it without a jump.
+                  // Answer already in and still no lines (the fetch failed, or
+                  // the timing came back empty) → fall back to readable lyrics
+                  // rather than leaving an empty box up for good.
+                  alignResolved ? (
+                    <KaraokeCard state="plain" lyrics={song.lyrics ?? ""} onGenerate={onGenerate} />
+                  ) : (
+                    <div style={{ height: "100%" }} />
+                  )
                 ) : canGenerate && alignStatus !== "generating" ? (
                   <KaraokeCard state={alignStatus === "failed" ? "failed" : "needs"} lyrics={song.lyrics ?? ""} onGenerate={onGenerate} />
                 ) : (

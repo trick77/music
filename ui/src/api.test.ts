@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
 import { coverUrl } from "./cover";
-import { getHome, getTopTen, search, reportPlay, getFavorites, addFavorite, removeFavorite, uploadSong, getAlign, postAlign, peekAlign } from "./api";
+import { getHome, getTopTen, search, reportPlay, getFavorites, addFavorite, removeFavorite, uploadSong, getAlign, postAlign, peekAlign, invalidateAlign } from "./api";
 
 function mockFetch(body: unknown, ok = true) {
   const spy = vi.fn().mockResolvedValue({
@@ -206,13 +206,25 @@ describe("karaoke alignment", () => {
     expect(peekAlign("cache-404")).toBeNull();
   });
 
-  it("postAlign downgrades a memoized ready entry to generating", async () => {
+  // Forgotten rather than marked "generating": the request can still be refused
+  // (no lyrics, alignment disabled), so the server's status must win on the next
+  // read instead of one invented here.
+  it("postAlign forgets a memoized ready entry so the next read refetches", async () => {
     fetchStatus(200, { status: "ready", lines: [{ text: "hi", start: 1, end: 2, words: [] }] });
     await getAlign("cache-resync");
     fetchStatus(202);
     await postAlign("cache-resync");
     // Without this the next open would seed the sweep with the previous take's words.
-    expect(peekAlign("cache-resync")?.status).toBe("generating");
-    expect(peekAlign("cache-resync")?.lines).toBeUndefined();
+    expect(peekAlign("cache-resync")).toBeUndefined();
+  });
+
+  // Alignment can also be re-run behind the client's back — saving changed lyrics
+  // enqueues a re-sync server-side, and the song echoed back still reports the
+  // pre-enqueue status, so nothing in the response reveals the timing is stale.
+  it("invalidateAlign forgets a memoized entry", async () => {
+    fetchStatus(200, { status: "ready", lines: [{ text: "hi", start: 1, end: 2, words: [] }] });
+    await getAlign("cache-edit");
+    invalidateAlign("cache-edit");
+    expect(peekAlign("cache-edit")).toBeUndefined();
   });
 });

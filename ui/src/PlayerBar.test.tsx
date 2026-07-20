@@ -76,6 +76,28 @@ describe("PlayerBar lyrics gating", () => {
     expect(html).not.toContain("Syncing karaoke");
   });
 
+  // The empty stage above must be a wait, never a destination. If the fetch
+  // resolves and still yields no sweep — it failed, or the timing came back with
+  // no lines — the reader gets the words back rather than an empty box for good.
+  it("timing ready but the lines never arrive: falls back to readable lyrics", async () => {
+    // Its own song id, and the memo is dropped afterwards: the shared "s1" must
+    // stay unprimed or every other case here would inherit this alignment.
+    const { getAlign, peekAlign, invalidateAlign } = await import("./api");
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true, status: 200, json: async () => ({ status: "ready", lines: [] }),
+    }) as unknown as typeof fetch;
+    await getAlign("s-nolines");
+    expect(peekAlign("s-nolines")?.lines).toEqual([]); // resolved, but nothing to sweep
+    try {
+      const html = render(false, song({ id: "s-nolines", alignmentStatus: "ready" }), true, true);
+      expect(html).toContain("First line of the song");
+      expect(html).toContain("rgba(250,249,245,.85)"); // crisp, readable — not a dead end
+    } finally {
+      invalidateAlign("s-nolines");
+      vi.restoreAllMocks();
+    }
+  });
+
   it("signed in without timing: the karaoke-generate CTA is reachable", () => {
     // canGenerate is true, no alignment yet → the needs-sync card renders.
     const html = render(true, song({ alignmentStatus: "" }), true, true);

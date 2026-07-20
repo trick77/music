@@ -4,7 +4,7 @@ import { coverUrl, coverInitial } from "./cover";
 import { Icon } from "./Icon";
 import { KaraokeView } from "./KaraokeView";
 import { KaraokeCard } from "./KaraokeCard";
-import { getAlign, postAlign, type AlignmentData, type Song } from "./api";
+import { getAlign, peekAlign, postAlign, type AlignmentData, type Song } from "./api";
 import { navigate, type PlayerParam } from "./router";
 import { AirplayButton, Divider, ImmersiveControls, IMMERSIVE_CONTROLS_RESERVE, Scrubber, StarButton, Transport, iconBtn, type Fav } from "./PlayerControls";
 import { useEscape } from "./useEscape";
@@ -21,7 +21,9 @@ import { useBackgroundDismiss } from "./backgroundDismiss";
 // karaoke view — regardless of which surface it was shared from.
 export function PlayerBar({ fav, onShare, renderMenu, alignmentEnabled, open, lyrics, onExpand, onLyricsUnavailable, onClose }: { fav: Fav; onShare: (s: Song) => void; renderMenu?: (s: Song) => React.ReactNode; alignmentEnabled: boolean; open: boolean; lyrics: boolean; onExpand: (mode: PlayerParam, from?: PlayerParam) => void; onLyricsUnavailable: () => void; onClose: () => void }) {
   const p = usePlayer();
-  const [align, setAlign] = useState<AlignmentData | null>(null);
+  // Tagged with the song id it was fetched for, so a track change can never paint
+  // the previous song's lines during the frames before the fetch effect re-runs.
+  const [align, setAlign] = useState<{ id: string; data: AlignmentData | null } | null>(null);
   const song = p.current;
   const hasLyrics = !!song?.lyrics && song.lyrics.trim() !== "";
   // canGenerate gates only the karaoke-generation CTA (signed-in + alignment on).
@@ -29,10 +31,9 @@ export function PlayerBar({ fav, onShare, renderMenu, alignmentEnabled, open, ly
   // so everyone (logged out included) sees the animated player for a synced song.
   const canGenerate = alignmentEnabled && hasLyrics;
 
-  // Each new track gets fresh alignment state.
-  useEffect(() => {
-    setAlign(null);
-  }, [song?.id]);
+  // (Alignment state needs no per-track reset effect: it carries the id it was
+  // fetched for and is ignored unless that matches the loaded song — which also
+  // closes the one-frame window where a reset effect would still be pending.)
 
   // Graceful degradation: if the URL asks for lyrics but the loaded track has no
   // lyrics at all, downgrade the URL to artwork so the deep link stays honest. Gated
@@ -43,17 +44,25 @@ export function PlayerBar({ fav, onShare, renderMenu, alignmentEnabled, open, ly
     if (open && lyrics && song && !hasLyrics) onLyricsUnavailable();
   }, [open, lyrics, song, hasLyrics, onLyricsUnavailable]);
 
-  // In lyrics mode, fetch the alignment and poll while it is still generating.
-  // Gated on hasLyrics (not auth) so anon viewers also pull existing timing and get
-  // the animated player; the backend serves timing to everyone for published songs.
+  // Fetch the alignment and poll while it is still generating. Gated on hasLyrics
+  // (not auth) so anon viewers also pull existing timing and get the animated
+  // player; the backend serves timing to everyone for published songs.
+  //
+  // Deliberately NOT gated on the overlay being open: a track that already has
+  // timing pulls it as soon as it is cued, so the sweep is live on the karaoke
+  // view's very first frame rather than one round-trip after it. The
+  // alignmentStatus check keeps that background fetch to songs that actually
+  // have timing — an unsynced song still only asks once the view is open, and
+  // would 404 anyway.
   useEffect(() => {
-    if (!open || !lyrics || !hasLyrics || !song) return;
+    if (!song || !hasLyrics) return;
+    if (!(open && lyrics) && song.alignmentStatus !== "ready") return;
     let alive = true;
     let timer: ReturnType<typeof setTimeout> | undefined;
     const tick = async () => {
       const a = await getAlign(song.id).catch(() => null);
       if (!alive) return;
-      setAlign(a);
+      setAlign({ id: song.id, data: a });
       if (a?.status === "generating") timer = setTimeout(tick, 2000);
     };
     void tick();
@@ -64,7 +73,7 @@ export function PlayerBar({ fav, onShare, renderMenu, alignmentEnabled, open, ly
     // align?.status is a dep so the in-view Generate/Try-again buttons (which set
     // status to "generating" without changing any other dep) re-arm the poll; it
     // converges because same-status refetches don't change the dep.
-  }, [open, lyrics, hasLyrics, song?.id, align?.status]);
+  }, [open, lyrics, hasLyrics, song?.id, song?.alignmentStatus, align?.data?.status]);
 
   // Escape leaves the expanded player — the same single destination its X goes to.
   useEscape(open, onClose);
@@ -92,13 +101,18 @@ export function PlayerBar({ fav, onShare, renderMenu, alignmentEnabled, open, ly
   // needs-sync card. Flipping status also re-arms the poll effect (align?.status dep).
   const onGenerate = async () => {
     await postAlign(song.id);
-    setAlign({ status: "generating" });
+    setAlign({ id: song.id, data: { status: "generating" } });
   };
-  // Effective status: prefer the freshly-fetched alignment, but fall back to the
-  // status already carried on the loaded song so the correct state renders on the
-  // very first paint — before getAlign's round-trip resolves. Otherwise a synced
-  // song briefly shows the needs-sync card while align is still null.
-  const alignStatus = align?.status ?? song.alignmentStatus ?? "";
+  // Effective alignment for this paint: the freshly-fetched state when it belongs
+  // to the loaded track, else whatever the module cache already knows. That cache
+  // read is what makes a reopen instant — this state starts null on every open,
+  // the cache does not.
+  const a = align?.id === song.id ? align.data : peekAlign(song.id) ?? null;
+  // Effective status: prefer the alignment above, but fall back to the status
+  // already carried on the loaded song so the correct state renders on the very
+  // first paint — before getAlign's round-trip resolves. Otherwise a synced song
+  // briefly shows the needs-sync card while nothing has been fetched yet.
+  const alignStatus = a?.status ?? song.alignmentStatus ?? "";
 
   return (
     <>
@@ -219,12 +233,16 @@ export function PlayerBar({ fav, onShare, renderMenu, alignmentEnabled, open, ly
               {/* The control row floats (absolute), so it can't push this body up:
                   reserve its footprint here instead, for every karaoke state. */}
               <div style={{ flex: 1, minHeight: 0, width: "100%", marginTop: 72, marginBottom: IMMERSIVE_CONTROLS_RESERVE }}>
-                {align?.status === "ready" && align.lines?.length ? (
-                  <KaraokeView lines={align.lines} />
+                {a?.status === "ready" && a.lines?.length ? (
+                  <KaraokeView lines={a.lines} />
                 ) : alignStatus === "ready" ? (
-                  // Alignment is ready but the lines are still loading — show plain
-                  // lyrics, never the needs-sync card. The sweep replaces this next tick.
-                  <KaraokeCard state="loading" lyrics={song.lyrics ?? ""} onGenerate={onGenerate} />
+                  // Timing exists but the lines are still in flight (cold cache).
+                  // Render an EMPTY stage — never the plain lyrics, and never the
+                  // needs-sync card. A full lyric sheet flashing in and straight
+                  // back out the moment the sweep arrives reads as a glitch. The
+                  // wrapper above already fixes the box height, so the sweep
+                  // replaces this without a layout jump.
+                  <div style={{ height: "100%" }} />
                 ) : canGenerate && alignStatus !== "generating" ? (
                   <KaraokeCard state={alignStatus === "failed" ? "failed" : "needs"} lyrics={song.lyrics ?? ""} onGenerate={onGenerate} />
                 ) : (

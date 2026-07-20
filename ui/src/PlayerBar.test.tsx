@@ -62,13 +62,15 @@ describe("PlayerBar lyrics gating", () => {
     expect(html).not.toContain("Syncing karaoke");
   });
 
-  it("logged out, timing ready: takes the karaoke path, not forced static", () => {
+  it("timing ready but lines not loaded: an empty stage, never a lyric flash", () => {
     // A synced song must reach the animated player even logged out. The static
-    // markup can't run the async getAlign fetch, so it renders the pre-sweep
-    // backdrop (blurred/dimmed) — the sweep replaces it once lines load. The key
-    // assertion: it's NOT the crisp forced-static "plain" view auth used to force.
+    // markup can't run the async getAlign fetch, so this is the cold window
+    // before the lines land — and it must show NOTHING. Rendering the lyric
+    // sheet here (as it once did) flashed a full page of words in and straight
+    // back out the moment the sweep arrived, which read as a glitch.
     const html = render(false, song({ alignmentStatus: "ready" }), true, true);
-    expect(html).toContain("blur(2px)"); // dimmed backdrop, karaoke path
+    expect(html).not.toContain("First line of the song"); // no lyric sheet at all
+    expect(html).not.toContain("blur(2px)"); // nor the dimmed backdrop it used
     expect(html).not.toContain("rgba(250,249,245,.85)"); // not the crisp static view
     expect(html).not.toContain("Generate karaoke");
     expect(html).not.toContain("Syncing karaoke");

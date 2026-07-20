@@ -3,15 +3,16 @@
 // (docs/mockups/karaoke). onGenerate re-POSTs /align. The plain lyrics stay visible
 // (dimmed) behind the card so an unaligned song still shows its words.
 export function KaraokeCard({ state, lyrics, onGenerate }: {
-  state: "needs" | "failed" | "loading" | "plain";
+  state: "needs" | "failed" | "plain";
   lyrics: string;
   onGenerate: () => void;
 }) {
   // "plain" shows only the lyrics, crisp and full-strength — the static view for
-  // anyone who can't sync (logged out, or alignment disabled). "loading" shows the
-  // dimmed backdrop lyrics with no card while a ready song's aligned lines are still
-  // being fetched — so no message box flashes.
-  const isBare = state === "loading" || state === "plain";
+  // anyone who can't sync (logged out, or alignment disabled). The other two dim
+  // and blur the same lyrics behind their card. (There is deliberately no state
+  // for "timing ready, lines still loading": PlayerBar renders an empty stage
+  // there rather than flashing a lyric sheet in and back out.)
+  const isBare = state === "plain";
   const copy = isBare ? null : {
     needs: {
       h: "Sync lyrics to the music",

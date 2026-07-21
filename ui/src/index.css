@@ -43,7 +43,9 @@
   --color-elevated-border: #454540;
   --color-elevated-ink: #f3f0e8;
   --color-elevated-hover: #3f3f3a;
-  --font-sans: "Anthropic Sans", system-ui, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --font-sans:
+    "Anthropic Sans", system-ui, "Segoe UI", Roboto, Helvetica, Arial,
+    sans-serif;
   --font-serif: "Anthropic Serif", Georgia, "Times New Roman", Times, serif;
   --radius-ui: 10px;
   /* type scale — six steps; nothing in between. */
@@ -115,7 +117,9 @@ html {
    simply asymmetric (5px into the row on its left, 2px on its right). Both
    buttons stay unambiguous at their own centres, so this is a shrug, not a bug —
    but it's why the halo is 4px and not more. */
-.iconbtn-sm { position: relative; }
+.iconbtn-sm {
+  position: relative;
+}
 .iconbtn-sm::after {
   content: "";
   position: absolute;
@@ -277,7 +281,12 @@ html {
 .scrim {
   position: absolute;
   inset: 0;
-  background: linear-gradient(180deg, rgba(15, 15, 14, 0.15) 0%, rgba(15, 15, 14, 0.35) 45%, rgba(20, 20, 18, 0.92) 100%);
+  background: linear-gradient(
+    180deg,
+    rgba(15, 15, 14, 0.15) 0%,
+    rgba(15, 15, 14, 0.35) 45%,
+    rgba(20, 20, 18, 0.92) 100%
+  );
   pointer-events: none;
 }
 
@@ -315,7 +324,8 @@ html {
   line-height: 1.5;
   padding: 0 8px;
   border-radius: 999px;
-  border: 1px solid color-mix(in srgb, var(--color-accent) 18%, var(--color-border));
+  border: 1px solid
+    color-mix(in srgb, var(--color-accent) 18%, var(--color-border));
   background: color-mix(in srgb, var(--color-accent) 5%, transparent);
   color: var(--color-muted);
   text-decoration: none;
@@ -365,18 +375,71 @@ html {
   transform-origin: bottom;
   transform: scaleY(0.3);
 }
-.eq-bars span:nth-child(1) { animation: eqbar1 1100ms ease-in-out infinite; }
-.eq-bars span:nth-child(2) { animation: eqbar2 780ms ease-in-out infinite; }
-.eq-bars span:nth-child(3) { animation: eqbar3 960ms ease-in-out infinite; }
-.eq-bars span:nth-child(4) { animation: eqbar4 700ms ease-in-out infinite; }
-.eq-bars span:nth-child(5) { animation: eqbar5 1000ms ease-in-out infinite; }
-@keyframes eqbar1 { 0%, 100% { transform: scaleY(0.3); } 50% { transform: scaleY(0.9); } }
-@keyframes eqbar2 { 0%, 100% { transform: scaleY(0.6); } 50% { transform: scaleY(1); } }
-@keyframes eqbar3 { 0%, 100% { transform: scaleY(0.2); } 50% { transform: scaleY(0.75); } }
-@keyframes eqbar4 { 0%, 100% { transform: scaleY(0.5); } 50% { transform: scaleY(1); } }
-@keyframes eqbar5 { 0%, 100% { transform: scaleY(0.35); } 50% { transform: scaleY(0.85); } }
+.eq-bars span:nth-child(1) {
+  animation: eqbar1 1100ms ease-in-out infinite;
+}
+.eq-bars span:nth-child(2) {
+  animation: eqbar2 780ms ease-in-out infinite;
+}
+.eq-bars span:nth-child(3) {
+  animation: eqbar3 960ms ease-in-out infinite;
+}
+.eq-bars span:nth-child(4) {
+  animation: eqbar4 700ms ease-in-out infinite;
+}
+.eq-bars span:nth-child(5) {
+  animation: eqbar5 1000ms ease-in-out infinite;
+}
+@keyframes eqbar1 {
+  0%,
+  100% {
+    transform: scaleY(0.3);
+  }
+  50% {
+    transform: scaleY(0.9);
+  }
+}
+@keyframes eqbar2 {
+  0%,
+  100% {
+    transform: scaleY(0.6);
+  }
+  50% {
+    transform: scaleY(1);
+  }
+}
+@keyframes eqbar3 {
+  0%,
+  100% {
+    transform: scaleY(0.2);
+  }
+  50% {
+    transform: scaleY(0.75);
+  }
+}
+@keyframes eqbar4 {
+  0%,
+  100% {
+    transform: scaleY(0.5);
+  }
+  50% {
+    transform: scaleY(1);
+  }
+}
+@keyframes eqbar5 {
+  0%,
+  100% {
+    transform: scaleY(0.35);
+  }
+  50% {
+    transform: scaleY(0.85);
+  }
+}
 @media (prefers-reduced-motion: reduce) {
-  .eq-bars span { animation: none; transform: scaleY(0.55); }
+  .eq-bars span {
+    animation: none;
+    transform: scaleY(0.55);
+  }
 }
 
 /* App shell leaves room for the fixed desktop rail; the mobile tab bar sits at
@@ -444,15 +507,23 @@ html {
    and on the meta line under the title on phones — an actions-side pill costs
    ~90px of a ~308px row, and the title is the only part that can give, so it
    collapsed to nothing. Both are in the markup; these rules pick one. */
-.row-badge-meta { display: none; }
+.row-badge-meta {
+  display: none;
+}
 @media (max-width: 720px) {
-  .row-badge-actions { display: none; }
-  .row-badge-meta { display: inline-block; }
+  .row-badge-actions {
+    display: none;
+  }
+  .row-badge-meta {
+    display: inline-block;
+  }
   /* The pill can't shrink (a truncated word reads as "…opens more UI" here) and
      the artist mustn't be the one to give — a phone row's meta line is ~110px,
      which the pill alone would take. Let it wrap onto its own line instead: one
      extra line, only on the rows that carry a badge. */
-  .row-meta { flex-wrap: wrap; }
+  .row-meta {
+    flex-wrap: wrap;
+  }
 }
 
 /* Top-ten row: 4-col grid (rank | cover | title | actions) on tablet+/desktop;
@@ -471,11 +542,19 @@ html {
    children of the meta line on tablet+/desktop; the phone media query hides
    the whole group. Must be a rule (not an inline style) so the media-query
    `display: none` can override it by source order. */
-.top-genres { display: contents; }
+.top-genres {
+  display: contents;
+}
 @media (max-width: 720px) {
-  .top-row { grid-template-columns: 48px 1fr auto; }
-  .top-rank { display: none; }
-  .top-genres { display: none; }
+  .top-row {
+    grid-template-columns: 48px 1fr auto;
+  }
+  .top-rank {
+    display: none;
+  }
+  .top-genres {
+    display: none;
+  }
 }
 /* Docked mini-player. It owns the floor on desktop, where it must clear the home
    indicator itself. On a phone the tab bar is already down there, so the dock
@@ -507,10 +586,16 @@ html {
   top: -24px;
   height: 24px;
   pointer-events: none;
-  background: linear-gradient(180deg, transparent, color-mix(in srgb, var(--color-panel) 92%, transparent));
+  background: linear-gradient(
+    180deg,
+    transparent,
+    color-mix(in srgb, var(--color-panel) 92%, transparent)
+  );
 }
 @media (max-width: 720px) {
-  .player-dock::before { left: 0; }
+  .player-dock::before {
+    left: 0;
+  }
 }
 
 body {
@@ -565,9 +650,20 @@ select.ui-control {
 }
 
 /* Spinner: every async wait spins (busy buttons, loading, streaming). */
-@keyframes ui-spin { to { transform: rotate(360deg); } }
-.ui-spin { animation: ui-spin 0.7s linear infinite; display: inline-flex; }
-@media (prefers-reduced-motion: reduce) { .ui-spin { animation-duration: 2.4s; } }
+@keyframes ui-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+.ui-spin {
+  animation: ui-spin 0.7s linear infinite;
+  display: inline-flex;
+}
+@media (prefers-reduced-motion: reduce) {
+  .ui-spin {
+    animation-duration: 2.4s;
+  }
+}
 
 /* Modal overlay: loom-style dim + 2px backdrop blur behind an open dialog.
    z-index sits ABOVE the docked player (z 60) so a modal always dims and covers
@@ -610,17 +706,23 @@ select.ui-control {
   border-radius: 14px;
   box-shadow: 0 24px 60px rgba(0, 0, 0, 0.5);
 }
-.ui-modal-body { flex: 1; overflow: auto; min-height: 0; }
+.ui-modal-body {
+  flex: 1;
+  overflow: auto;
+  min-height: 0;
+}
 /* Go full-screen on phones (≤720px) and on touch tablets up to 1024px (iPad
    portrait 768 / landscape 1024): those sit above the phone breakpoint, so a
    centered modal there leaves the footer cramped against the viewport edge. A
    large touchscreen desktop (>1024px) keeps the centered modal. */
 @media (max-width: 720px),
-       (min-width: 721px) and (max-width: 1024px) and (pointer: coarse) {
+  (min-width: 721px) and (max-width: 1024px) and (pointer: coarse) {
   /* Full-screen here means a takeover — edge-to-edge, no backdrop padding. The
      overlay already sits above the docked player (see .ui-overlay z-index), which
      is what keeps the pinned footer reachable with a track loaded. */
-  .ui-overlay { padding: 0; }
+  .ui-overlay {
+    padding: 0;
+  }
   .ui-modal {
     width: 100%;
     max-height: none;

@@ -1,4 +1,10 @@
-import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  type CSSProperties,
+  type ReactNode,
+} from "react";
 import { Icon } from "./Icon";
 
 // HScrollRail wraps a horizontal cover rail (the scrollbar is hidden by design)
@@ -6,7 +12,15 @@ import { Icon } from "./Icon";
 // out and grows a ‹/› button that nudges the rail that way. Indicators appear
 // only for the directions that can actually scroll, so a short (non-overflowing)
 // rail looks exactly as before, and a mid-scrolled rail shows both.
-export function HScrollRail({ children, innerStyle, coverSize }: { children: ReactNode; innerStyle?: CSSProperties; coverSize?: number }) {
+export function HScrollRail({
+  children,
+  innerStyle,
+  coverSize,
+}: {
+  children: ReactNode;
+  innerStyle?: CSSProperties;
+  coverSize?: number;
+}) {
   const ref = useRef<HTMLDivElement>(null);
   const [edges, setEdges] = useState({ left: false, right: false });
 
@@ -31,7 +45,8 @@ export function HScrollRail({ children, innerStyle, coverSize }: { children: Rea
 
   const nudge = (dir: 1 | -1) => {
     const el = ref.current;
-    if (el) el.scrollBy({ left: dir * el.clientWidth * 0.8, behavior: "smooth" });
+    if (el)
+      el.scrollBy({ left: dir * el.clientWidth * 0.8, behavior: "smooth" });
   };
 
   const { left, right } = edges;
@@ -62,17 +77,30 @@ export function HScrollRail({ children, innerStyle, coverSize }: { children: Rea
         ref={ref}
         className="hscroll"
         onScroll={sync}
-        style={{ display: "flex", ...innerStyle, WebkitMaskImage: mask, maskImage: mask }}
+        style={{
+          display: "flex",
+          ...innerStyle,
+          WebkitMaskImage: mask,
+          maskImage: mask,
+        }}
       >
         {children}
       </div>
       {left && (
-        <button className="rail-more rail-more-left" aria-label="Scroll left" onClick={() => nudge(-1)}>
+        <button
+          className="rail-more rail-more-left"
+          aria-label="Scroll left"
+          onClick={() => nudge(-1)}
+        >
           <Icon name="chevronLeft" size="20px" />
         </button>
       )}
       {right && (
-        <button className="rail-more rail-more-right" aria-label="Scroll right" onClick={() => nudge(1)}>
+        <button
+          className="rail-more rail-more-right"
+          aria-label="Scroll right"
+          onClick={() => nudge(1)}
+        >
           <Icon name="chevronRight" size="20px" />
         </button>
       )}

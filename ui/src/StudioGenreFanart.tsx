@@ -1,5 +1,14 @@
 import { useEffect, useState } from "react";
-import { listGenres, generateFanart, getFanartMeta, suggestGenrePrompt, refineGenrePrompt, patchGenre, type GenreSummary, type Fanart } from "./api";
+import {
+  listGenres,
+  generateFanart,
+  getFanartMeta,
+  suggestGenrePrompt,
+  refineGenrePrompt,
+  patchGenre,
+  type GenreSummary,
+  type Fanart,
+} from "./api";
 import { fanartUrl } from "./fanart";
 import { Icon } from "./Icon";
 import { navigate } from "./router";
@@ -7,14 +16,24 @@ import { ModelPicker, RefineRow } from "./StudioShared";
 import { Button, Spinner, controlClass, fieldLabel, t } from "./ui";
 import { genreLabel } from "./titleCase";
 
-type Props = { chatEnabled: boolean; imageModels: string[]; defaultImageModel: string; initialGenreId?: string };
+type Props = {
+  chatEnabled: boolean;
+  imageModels: string[];
+  defaultImageModel: string;
+  initialGenreId?: string;
+};
 
 // GenreFanartMode generates a wide 16:9 background image for a genre. It reuses
 // the same endpoints as the (retired) in-modal generator: suggest-prompt authors
 // an editable prompt, generate kicks off an async job that we poll to ready, and
 // set-as-background activates the result on the genre. Fetches happen in effects
 // so SSR renders a deterministic, fetch-free idle surface.
-export function GenreFanartMode({ chatEnabled, imageModels, defaultImageModel, initialGenreId }: Props) {
+export function GenreFanartMode({
+  chatEnabled,
+  imageModels,
+  defaultImageModel,
+  initialGenreId,
+}: Props) {
   const [genres, setGenres] = useState<GenreSummary[]>([]);
   const [genreId, setGenreId] = useState(initialGenreId ?? "");
   const [prompt, setPrompt] = useState("");
@@ -38,18 +57,28 @@ export function GenreFanartMode({ chatEnabled, imageModels, defaultImageModel, i
 
   const onSuggest = async () => {
     if (!genreId) return;
-    setSuggesting(true); setErr(null);
-    try { setPrompt(await suggestGenrePrompt(genreId)); }
-    catch { setErr("Could not suggest a prompt"); }
-    finally { setSuggesting(false); }
+    setSuggesting(true);
+    setErr(null);
+    try {
+      setPrompt(await suggestGenrePrompt(genreId));
+    } catch {
+      setErr("Could not suggest a prompt");
+    } finally {
+      setSuggesting(false);
+    }
   };
 
   const onRefine = async (instruction: string) => {
     if (!genreId || !prompt.trim()) return;
-    setRefining(true); setErr(null);
-    try { setPrompt(await refineGenrePrompt(genreId, prompt.trim(), instruction)); }
-    catch { setErr("Could not refine the prompt"); }
-    finally { setRefining(false); }
+    setRefining(true);
+    setErr(null);
+    try {
+      setPrompt(await refineGenrePrompt(genreId, prompt.trim(), instruction));
+    } catch {
+      setErr("Could not refine the prompt");
+    } finally {
+      setRefining(false);
+    }
   };
 
   const pollUntilDone = async (id: string) => {
@@ -71,43 +100,85 @@ export function GenreFanartMode({ chatEnabled, imageModels, defaultImageModel, i
 
   const onGenerate = async () => {
     if (!genreId || !prompt.trim() || busy) return;
-    setBusy(true); setErr(null); setResult(null); setSaved(false);
+    setBusy(true);
+    setErr(null);
+    setResult(null);
+    setSaved(false);
     try {
-      const { id } = await generateFanart(prompt.trim(), "genre", genreId, model);
+      const { id } = await generateFanart(
+        prompt.trim(),
+        "genre",
+        genreId,
+        model,
+      );
       void pollUntilDone(id);
-    } catch { setErr("Could not start generation"); setBusy(false); }
+    } catch {
+      setErr("Could not start generation");
+      setBusy(false);
+    }
   };
 
   const setBackground = async () => {
     if (!result || result.status !== "ready") return;
-    try { await patchGenre(genreId, { backgroundFanartId: result.id }); setSaved(true); }
-    catch { setErr("Could not set background"); }
+    try {
+      await patchGenre(genreId, { backgroundFanartId: result.id });
+      setSaved(true);
+    } catch {
+      setErr("Could not set background");
+    }
   };
 
   const genDisabled = busy || !genreId || prompt.trim() === "";
 
   return (
     <div>
-      <label htmlFor="fanart-genre" style={fieldLabel}>Genre</label>
+      <label htmlFor="fanart-genre" style={fieldLabel}>
+        Genre
+      </label>
       <select
         id="fanart-genre"
         aria-label="Genre"
         className={controlClass}
         value={genreId}
-        onChange={(e) => { setGenreId(e.target.value); setResult(null); setSaved(false); }}
+        onChange={(e) => {
+          setGenreId(e.target.value);
+          setResult(null);
+          setSaved(false);
+        }}
         disabled={busy}
         style={{ marginBottom: "var(--space-5)", maxWidth: 280 }}
       >
         {genres.length === 0 && <option value="">Loading…</option>}
         {genres.map((g) => (
-          <option key={g.id} value={g.id}>{genreLabel(g.name)}{g.hasBackground ? "" : " — needs artwork"}</option>
+          <option key={g.id} value={g.id}>
+            {genreLabel(g.name)}
+            {g.hasBackground ? "" : " — needs artwork"}
+          </option>
         ))}
       </select>
 
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
-        <label htmlFor="fanart-prompt" style={{ ...fieldLabel, marginBottom: 0 }}>Prompt</label>
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          marginBottom: 6,
+        }}
+      >
+        <label
+          htmlFor="fanart-prompt"
+          style={{ ...fieldLabel, marginBottom: 0 }}
+        >
+          Prompt
+        </label>
         {chatEnabled && (
-          <Button variant="ghost" small busy={suggesting} disabled={!genreId} onClick={onSuggest}>
+          <Button
+            variant="ghost"
+            small
+            busy={suggesting}
+            disabled={!genreId}
+            onClick={onSuggest}
+          >
             {!suggesting && <Icon name="feather" size="14px" />}Suggest prompt
           </Button>
         )}
@@ -123,34 +194,107 @@ export function GenreFanartMode({ chatEnabled, imageModels, defaultImageModel, i
         rows={3}
         style={{ marginBottom: "var(--space-3)" }}
       />
-      {chatEnabled && <RefineRow onRefine={onRefine} busy={refining} disabled={busy || !genreId || prompt.trim() === ""} />}
-      <ModelPicker models={imageModels} value={model} onChange={setModel} disabled={busy} />
-      <div style={{ display: "flex", alignItems: "center", gap: "var(--space-4)", marginBottom: "var(--space-1)" }}>
+      {chatEnabled && (
+        <RefineRow
+          onRefine={onRefine}
+          busy={refining}
+          disabled={busy || !genreId || prompt.trim() === ""}
+        />
+      )}
+      <ModelPicker
+        models={imageModels}
+        value={model}
+        onChange={setModel}
+        disabled={busy}
+      />
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: "var(--space-4)",
+          marginBottom: "var(--space-1)",
+        }}
+      >
         <Button busy={busy} disabled={genDisabled} onClick={onGenerate}>
-          {busy ? "Generating" : result?.status === "ready" ? "Regenerate" : "Generate fanart"}
+          {busy
+            ? "Generating"
+            : result?.status === "ready"
+              ? "Regenerate"
+              : "Generate fanart"}
         </Button>
-        <span style={t.label}>Wide 16:9 background · saved to the genre's gallery.</span>
+        <span style={t.label}>
+          Wide 16:9 background · saved to the genre's gallery.
+        </span>
       </div>
 
       {busy && (
-        <div aria-live="polite" aria-busy="true" style={{ display: "flex", alignItems: "center", gap: "var(--space-2)", color: "var(--color-muted)", ...t.body, marginTop: "var(--space-3)" }}>
-          <Spinner size="18px" /><span>Generating fanart</span>
+        <div
+          aria-live="polite"
+          aria-busy="true"
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "var(--space-2)",
+            color: "var(--color-muted)",
+            ...t.body,
+            marginTop: "var(--space-3)",
+          }}
+        >
+          <Spinner size="18px" />
+          <span>Generating fanart</span>
         </div>
       )}
-      {err && !busy && <p role="alert" style={{ color: "var(--color-accent-strong)", fontSize: "var(--text-label)", margin: "var(--space-3) 0 0" }}>{err}</p>}
+      {err && !busy && (
+        <p
+          role="alert"
+          style={{
+            color: "var(--color-accent-strong)",
+            fontSize: "var(--text-label)",
+            margin: "var(--space-3) 0 0",
+          }}
+        >
+          {err}
+        </p>
+      )}
 
       {result?.status === "ready" && !busy && (
         <div style={{ marginTop: "var(--space-4)" }}>
           <img
             src={fanartUrl(result.id, "hero")}
             alt="Generated genre fanart"
-            style={{ width: "100%", aspectRatio: "16 / 9", objectFit: "cover", borderRadius: "var(--radius-ui)", border: "1px solid var(--color-border)", display: "block" }}
+            style={{
+              width: "100%",
+              aspectRatio: "16 / 9",
+              objectFit: "cover",
+              borderRadius: "var(--radius-ui)",
+              border: "1px solid var(--color-border)",
+              display: "block",
+            }}
           />
-          <div style={{ display: "flex", alignItems: "center", gap: "var(--space-3)", marginTop: "var(--space-3)", flexWrap: "wrap" }}>
-            <Button variant={saved ? "secondary" : "primary"} small disabled={saved} onClick={setBackground}>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "var(--space-3)",
+              marginTop: "var(--space-3)",
+              flexWrap: "wrap",
+            }}
+          >
+            <Button
+              variant={saved ? "secondary" : "primary"}
+              small
+              disabled={saved}
+              onClick={setBackground}
+            >
               {saved && <Icon name="check" size="14px" />}Set as background
             </Button>
-            <Button variant="secondary" small onClick={() => navigate(`/genre/${genreId}`)}>Open genre</Button>
+            <Button
+              variant="secondary"
+              small
+              onClick={() => navigate(`/genre/${genreId}`)}
+            >
+              Open genre
+            </Button>
           </div>
         </div>
       )}

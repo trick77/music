@@ -3,7 +3,8 @@ import { reactStub, renderHook } from "./testHooks";
 
 vi.mock("react", () => reactStub);
 
-const { pushEscape, removeEscape, dispatchEscape, escapeDepth, useEscape } = await import("./useEscape");
+const { pushEscape, removeEscape, dispatchEscape, escapeDepth, useEscape } =
+  await import("./useEscape");
 
 // The hook's value is the ordering rule — Escape reaches the topmost surface and
 // nothing else — so that's what's tested here, directly and without a DOM. The
@@ -147,7 +148,9 @@ describe("useEscape", () => {
 
   it("when a surface is disabled, then it holds no slot and Escape falls through", () => {
     const fired: string[] = [];
-    const hidden = renderHook(() => useEscape(false, () => fired.push("hidden")));
+    const hidden = renderHook(() =>
+      useEscape(false, () => fired.push("hidden")),
+    );
 
     expect(escapeDepth()).toBe(0);
     press("Escape");
@@ -159,8 +162,12 @@ describe("useEscape", () => {
   it("when a surface opens, then it takes the top slot from the one beneath", () => {
     const fired: string[] = [];
     let dialogOpen = false;
-    const drawer = renderHook(() => useEscape(true, () => fired.push("drawer")));
-    const dialog = renderHook(() => useEscape(dialogOpen, () => fired.push("dialog")));
+    const drawer = renderHook(() =>
+      useEscape(true, () => fired.push("drawer")),
+    );
+    const dialog = renderHook(() =>
+      useEscape(dialogOpen, () => fired.push("dialog")),
+    );
 
     press("Escape");
     expect(fired).toEqual(["drawer"]); // dialog not up yet

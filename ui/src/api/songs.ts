@@ -54,14 +54,18 @@ export async function listSongs(): Promise<Song[]> {
 // drop to XMLHttpRequest to hook xhr.upload.onprogress. onProgress fires up to
 // 100% as bytes leave the client; the server then hashes/dedupes before
 // responding, so callers should show an indeterminate state at 100%.
-export function uploadSong(file: File, onProgress?: (pct: number) => void): Promise<Song> {
+export function uploadSong(
+  file: File,
+  onProgress?: (pct: number) => void,
+): Promise<Song> {
   const form = new FormData();
   form.append("file", file);
   return new Promise<Song>((resolve, reject) => {
     const xhr = new XMLHttpRequest();
     xhr.open("POST", "/api/songs");
     xhr.upload.onprogress = (e) => {
-      if (e.lengthComputable) onProgress?.(Math.round((e.loaded / e.total) * 100));
+      if (e.lengthComputable)
+        onProgress?.(Math.round((e.loaded / e.total) * 100));
     };
     xhr.onload = () => {
       // 201 Created, or 200 on a content-hash dedupe hit — both return a Song.
@@ -86,8 +90,14 @@ export function streamUrl(id: string): string {
 
 // setPublished flips a song's publish state. Uploads land unpublished (visible
 // only to logged-in users); publishing makes a song visible to everyone.
-export async function setPublished(id: string, published: boolean): Promise<Song> {
-  const r = await fetch(`/api/songs/${id}/${published ? "publish" : "unpublish"}`, { method: "POST" });
+export async function setPublished(
+  id: string,
+  published: boolean,
+): Promise<Song> {
+  const r = await fetch(
+    `/api/songs/${id}/${published ? "publish" : "unpublish"}`,
+    { method: "POST" },
+  );
   if (!r.ok) throw new Error(`publish toggle failed (${r.status})`);
   return r.json();
 }
@@ -102,8 +112,13 @@ export async function updateSong(id: string, edit: SongEdit): Promise<Song> {
   return r.json();
 }
 
-export async function suggest(field: "artist" | "album" | "genre", q: string): Promise<Suggestion[]> {
-  const r = await fetch(`/api/suggest?field=${field}&q=${encodeURIComponent(q)}`);
+export async function suggest(
+  field: "artist" | "album" | "genre",
+  q: string,
+): Promise<Suggestion[]> {
+  const r = await fetch(
+    `/api/suggest?field=${field}&q=${encodeURIComponent(q)}`,
+  );
   if (!r.ok) return [];
   const data = await r.json();
   return data.suggestions ?? [];
@@ -112,7 +127,10 @@ export async function suggest(field: "artist" | "album" | "genre", q: string): P
 export async function uploadCover(id: string, file: File): Promise<Song> {
   const form = new FormData();
   form.append("file", file);
-  const r = await fetch(`/api/songs/${id}/cover`, { method: "PUT", body: form });
+  const r = await fetch(`/api/songs/${id}/cover`, {
+    method: "PUT",
+    body: form,
+  });
   if (!r.ok) throw new Error(`cover upload failed (${r.status})`);
   return r.json();
 }
@@ -132,7 +150,10 @@ export async function deleteSong(id: string): Promise<void> {
 // once per listen (the caller dedups). Failures are non-fatal — playback
 // continues regardless of whether the play was counted.
 export function reportPlay(id: string): Promise<void> {
-  return fetch(`/api/songs/${id}/play`, { method: "POST" }).then(() => {}, () => {});
+  return fetch(`/api/songs/${id}/play`, { method: "POST" }).then(
+    () => {},
+    () => {},
+  );
 }
 
 // SongStats is a song's LIFETIME playback history — deliberately not the rolling

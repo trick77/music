@@ -24,7 +24,8 @@ class FakeMatrix {
   m41 = 0;
   constructor(_transform: string) {}
 }
-(globalThis as unknown as { DOMMatrixReadOnly: unknown }).DOMMatrixReadOnly = FakeMatrix;
+(globalThis as unknown as { DOMMatrixReadOnly: unknown }).DOMMatrixReadOnly =
+  FakeMatrix;
 
 function song(overrides: Partial<Song> = {}): Song {
   return {
@@ -123,17 +124,25 @@ describe("Hero placeholder panel", () => {
   it("when there are no songs, then it shows the generic library panel with no actions", () => {
     renderHero({ items: [], hero: null });
 
-    expect(screen.getByRole("heading", { name: "Your library" })).toBeInTheDocument();
-    expect(screen.getByText(/Songs, playlists, and the sounds/)).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: "Your library" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/Songs, playlists, and the sounds/),
+    ).toBeInTheDocument();
     // With nothing featured there is no song to play, share or page through.
-    expect(screen.queryByRole("button", { name: /^Play / })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /^Play / }),
+    ).not.toBeInTheDocument();
     expect(screen.queryByLabelText(/^Show slide /)).not.toBeInTheDocument();
   });
 
   it("when there are no songs but a hero is starred, then its own copy takes over the panel", () => {
     const { container } = renderHero({ items: [], hero: homeHero() });
 
-    expect(screen.getByRole("heading", { name: "Late night synths" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: "Late night synths" }),
+    ).toBeInTheDocument();
     expect(screen.getByText("The after-hours rotation.")).toBeInTheDocument();
     expect(screen.getByText("Featured")).toBeInTheDocument();
     // The starred fanart backs the panel; no cover art is involved.
@@ -158,7 +167,9 @@ describe("Hero slide content", () => {
 
   it("when a genre resolved to an id, then clicking it routes client-side instead of reloading", async () => {
     const user = userEvent.setup();
-    renderHero({ items: [item({ genres: [{ name: "synth pop", id: "g7" }] })] });
+    renderHero({
+      items: [item({ genres: [{ name: "synth pop", id: "g7" }] })],
+    });
 
     await user.click(screen.getByRole("link", { name: "Synth Pop" }));
 
@@ -166,15 +177,21 @@ describe("Hero slide content", () => {
   });
 
   it("when a genre has no id, then it renders as plain text rather than a dead link", () => {
-    renderHero({ items: [item({ genres: [{ name: "synth pop", id: null }] })] });
+    renderHero({
+      items: [item({ genres: [{ name: "synth pop", id: null }] })],
+    });
 
     expect(screen.getByText("Synth Pop")).toBeInTheDocument();
-    expect(screen.queryByRole("link", { name: "Synth Pop" })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("link", { name: "Synth Pop" }),
+    ).not.toBeInTheDocument();
   });
 
   it("when a song beyond the first has cover art, then its own cover backs the slide", () => {
     const items = threeItems();
-    items[1] = item({ song: song({ id: "s2", title: "Nightcall", coverArtId: "c9" }) });
+    items[1] = item({
+      song: song({ id: "s2", title: "Nightcall", coverArtId: "c9" }),
+    });
     const { container } = renderHero({ items, hero: homeHero() });
 
     // Only the #1 slide gets the starred fanart; the rest fall back to their cover.
@@ -187,13 +204,17 @@ describe("Hero action row", () => {
   it("when nothing of this song is playing, then the button offers to play it", () => {
     renderHero({ items: [item()], currentId: "other", playing: true });
 
-    expect(screen.getByRole("button", { name: "Play Golden Hour" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Play Golden Hour" }),
+    ).toBeInTheDocument();
   });
 
   it("when this song is the one playing, then the button offers to pause it", () => {
     renderHero({ items: [item()], currentId: "s1", playing: true });
 
-    expect(screen.getByRole("button", { name: "Pause Golden Hour" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Pause Golden Hour" }),
+    ).toBeInTheDocument();
   });
 
   it("when the play button is pressed, then the currently shown song is handed back", async () => {
@@ -219,7 +240,9 @@ describe("Hero action row", () => {
 
     // An unpublished /song/:id 404s for anonymous recipients, so a share link
     // would hand out a broken URL.
-    expect(screen.queryByRole("button", { name: /Share/ })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /Share/ }),
+    ).not.toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Download/ })).toBeInTheDocument();
   });
 
@@ -400,7 +423,9 @@ describe("Hero auto-advance", () => {
 
 describe("Hero reduced motion", () => {
   function preferReducedMotion() {
-    (window as unknown as { matchMedia: unknown }).matchMedia = () => ({ matches: true });
+    (window as unknown as { matchMedia: unknown }).matchMedia = () => ({
+      matches: true,
+    });
   }
 
   it("when reduced motion is preferred, then slides are painted without a transition", async () => {
@@ -443,7 +468,11 @@ describe("Hero reduced motion", () => {
 describe("Hero swipe", () => {
   // Drags are driven with fireEvent because the gesture needs exact clientX
   // values and controlled time between moves to produce a known velocity.
-  function drag(container: HTMLElement, moves: { x: number; after: number }[], start = 500) {
+  function drag(
+    container: HTMLElement,
+    moves: { x: number; after: number }[],
+    start = 500,
+  ) {
     const el = track(container);
     fireEvent.pointerDown(el, { clientX: start, pointerId: 1 });
     for (const m of moves) {

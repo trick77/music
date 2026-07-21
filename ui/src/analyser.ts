@@ -32,7 +32,9 @@ let freq: Uint8Array<ArrayBuffer> | null = null;
 function ensureAnalyser(): AnalyserNode | null {
   if (analyser) return analyser;
   const AC: typeof AudioContext | undefined =
-    window.AudioContext || (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+    window.AudioContext ||
+    (window as unknown as { webkitAudioContext?: typeof AudioContext })
+      .webkitAudioContext;
   if (!AC) return null;
   try {
     ctx = new AC();
@@ -176,11 +178,17 @@ let seekAheadS = 0;
 let lastCorrectionMs = 0;
 let pendingLearn = false;
 
-function correct(el: HTMLMediaElement, main: HTMLMediaElement, aheadS: number): void {
+function correct(
+  el: HTMLMediaElement,
+  main: HTMLMediaElement,
+  aheadS: number,
+): void {
   try {
     el.currentTime = main.currentTime + aheadS;
     hardSeeks++;
-  } catch { /* not seekable yet — retried next frame */ }
+  } catch {
+    /* not seekable yet — retried next frame */
+  }
   lastCorrectionMs = performance.now();
   pendingLearn = true;
 }
@@ -214,7 +222,9 @@ export function syncAnalysis(main: HTMLMediaElement | null): void {
         el.pause();
         el.removeAttribute("src");
         el.load(); // release the second network stream — the buffer has the track
-      } catch { /* best effort */ }
+      } catch {
+        /* best effort */
+      }
     }
     if (bufSource || !el.src) return;
     // fall through: buffer ready but not started (paused, tail sliver, or a
@@ -267,8 +277,12 @@ export function syncAnalysis(main: HTMLMediaElement | null): void {
   } else if (Math.abs(err) > RESYNC_LIMIT_S) {
     // The main element seeked or changed track: snap, rate-limited so a landing
     // or stall this far out can never become a per-frame seek storm.
-    if (now - lastCorrectionMs > SNAP_COOLDOWN_MS) correct(el, main, seekAheadS);
-  } else if (now - lastCorrectionMs > SETTLE_MS && el.readyState >= el.HAVE_FUTURE_DATA) {
+    if (now - lastCorrectionMs > SNAP_COOLDOWN_MS)
+      correct(el, main, seekAheadS);
+  } else if (
+    now - lastCorrectionMs > SETTLE_MS &&
+    el.readyState >= el.HAVE_FUTURE_DATA
+  ) {
     // Settled yet off. If this error is the landing of our own correction
     // (pendingLearn), fold it into the aim — behind → aim further ahead next
     // time, ahead → aim less. External drift just gets re-anchored; the landing
@@ -288,7 +302,9 @@ export function stopAnalysis(): void {
   if (source) {
     try {
       source.disconnect();
-    } catch { /* already disconnected */ }
+    } catch {
+      /* already disconnected */
+    }
     source = null;
   }
   if (analysisEl) {
@@ -296,7 +312,9 @@ export function stopAnalysis(): void {
       analysisEl.pause();
       analysisEl.removeAttribute("src");
       analysisEl.load(); // release the network stream promptly
-    } catch { /* best effort */ }
+    } catch {
+      /* best effort */
+    }
     analysisEl = null;
   }
 }
@@ -353,7 +371,9 @@ function stopBufSource(): void {
     try {
       bufSource.stop();
       bufSource.disconnect();
-    } catch { /* already stopped */ }
+    } catch {
+      /* already stopped */
+    }
     bufSource = null;
   }
 }
@@ -375,7 +395,9 @@ function startBufAt(offsetS: number): void {
     bufSource = s;
     bufStartOffset = off;
     bufStartCtxT = ctx.currentTime;
-  } catch { /* bufSource stays null — the dispatch keeps the element serving */ }
+  } catch {
+    /* bufSource stays null — the dispatch keeps the element serving */
+  }
   lastBufStartMs = performance.now();
 }
 
@@ -397,7 +419,13 @@ function releaseTrackBuffer(): void {
 // and the original dropped. Any failure is memoized per URL — one attempt, no
 // refetch storm — and leaves trackBuf null: the element tap keeps serving.
 function ensureTrackBuffer(url: string, durationS: number): void {
-  if (!ctx || trackBufUrl === url || decodePending === url || decodeFailedUrl === url) return;
+  if (
+    !ctx ||
+    trackBufUrl === url ||
+    decodePending === url ||
+    decodeFailedUrl === url
+  )
+    return;
   if (Number.isFinite(durationS) && durationS > MAX_DECODE_DURATION_S) {
     decodeFailedUrl = url; // too big to hold decoded — the element tap serves it
     return;
@@ -496,10 +524,17 @@ export function analysisTime(): number {
 // floor(pow()) makes the low bands collide on the same bin (every left bar moves in
 // unison); chaining from `prev` plus the `hi <= prev` guard fixes it. Pure and
 // side-effect free so the mapping is unit-testable without a live AnalyserNode.
-export function bandEdges(count: number, bins: number, sampleRate: number): Array<[number, number]> {
+export function bandEdges(
+  count: number,
+  bins: number,
+  sampleRate: number,
+): Array<[number, number]> {
   const minBin = 1;
   const nyquist = sampleRate / 2;
-  const maxBin = Math.min(bins, Math.max(minBin + count, Math.round((16000 / nyquist) * bins)));
+  const maxBin = Math.min(
+    bins,
+    Math.max(minBin + count, Math.round((16000 / nyquist) * bins)),
+  );
   const edges: Array<[number, number]> = [];
   let prev = minBin;
   for (let i = 0; i < count; i++) {
@@ -516,7 +551,11 @@ export function bandEdges(count: number, bins: number, sampleRate: number): Arra
 // count/bins/sampleRate never change within a session, so recomputing (and
 // reallocating) the edges every frame is pure waste. bandEdges stays pure.
 let edgeCache: { key: string; edges: Array<[number, number]> } | null = null;
-function cachedEdges(count: number, bins: number, sampleRate: number): Array<[number, number]> {
+function cachedEdges(
+  count: number,
+  bins: number,
+  sampleRate: number,
+): Array<[number, number]> {
   const key = `${count}:${bins}:${sampleRate}`;
   if (!edgeCache || edgeCache.key !== key) {
     edgeCache = { key, edges: bandEdges(count, bins, sampleRate) };

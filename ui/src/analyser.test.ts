@@ -108,7 +108,10 @@ class MockAudioContext {
   state: CtxState = "suspended";
   destination = {};
   currentTime = 0; // tests advance this to simulate the audio clock ticking
-  createMediaElementSource = vi.fn(() => ({ connect: vi.fn(), disconnect: vi.fn() }));
+  createMediaElementSource = vi.fn(() => ({
+    connect: vi.fn(),
+    disconnect: vi.fn(),
+  }));
   createGain = vi.fn(() => ({ gain: { value: 1 }, connect: vi.fn() }));
   // Decode result: a fake 300s track. getChannelData returns a tiny array — the
   // module only copies it, length/duration are what matter.
@@ -167,7 +170,10 @@ async function freshAnalyser(state: CtxState = "suspended") {
   vi.stubGlobal("Audio", MockAudio);
   // The background track decode fetches the stream URL; tests opt into a working
   // fetch explicitly — by default it fails fast and the element tap stays.
-  vi.stubGlobal("fetch", vi.fn(() => Promise.reject(new Error("no network in tests"))));
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(() => Promise.reject(new Error("no network in tests"))),
+  );
   return import("./analyser");
 }
 
@@ -181,7 +187,10 @@ async function flushDecode() {
 function stubFetchOk() {
   vi.stubGlobal(
     "fetch",
-    vi.fn(async () => ({ ok: true, arrayBuffer: async () => new ArrayBuffer(8) })),
+    vi.fn(async () => ({
+      ok: true,
+      arrayBuffer: async () => new ArrayBuffer(8),
+    })),
   );
 }
 
@@ -243,7 +252,15 @@ describe("bands (rightmost bar lights on real high-frequency energy)", () => {
 // A stand-in for the AUDIBLE element that playback owns. The invariant under test
 // is that this element is never handed to createMediaElementSource.
 function mainEl(over: Partial<HTMLMediaElement> = {}): HTMLMediaElement {
-  return { src: "", currentSrc: "", currentTime: 0, paused: true, play: vi.fn(), pause: vi.fn(), ...over } as unknown as HTMLMediaElement;
+  return {
+    src: "",
+    currentSrc: "",
+    currentTime: 0,
+    paused: true,
+    play: vi.fn(),
+    pause: vi.fn(),
+    ...over,
+  } as unknown as HTMLMediaElement;
 }
 
 describe("startAnalysis", () => {
@@ -292,7 +309,11 @@ describe("syncAnalysis", () => {
   it("mirrors the main element's source and starts the hidden element playing", async () => {
     const { startAnalysis, syncAnalysis } = await freshAnalyser("running");
     startAnalysis();
-    const main = mainEl({ currentSrc: "/api/songs/42/stream", currentTime: 12, paused: false });
+    const main = mainEl({
+      currentSrc: "/api/songs/42/stream",
+      currentTime: 12,
+      paused: false,
+    });
 
     syncAnalysis(main);
 
@@ -314,7 +335,9 @@ describe("syncAnalysis", () => {
   it("is a no-op when nothing has been started", async () => {
     const { syncAnalysis } = await freshAnalyser("running");
     // No startAnalysis(): must not throw and must not create anything.
-    expect(() => syncAnalysis(mainEl({ currentSrc: "/x", paused: false }))).not.toThrow();
+    expect(() =>
+      syncAnalysis(mainEl({ currentSrc: "/x", paused: false })),
+    ).not.toThrow();
     expect(lastAudio).toBeUndefined();
   });
 
@@ -326,7 +349,11 @@ describe("syncAnalysis", () => {
     let nowMs = 0;
     vi.spyOn(performance, "now").mockImplementation(() => nowMs);
     startAnalysis();
-    const main = mainEl({ currentSrc: "/api/songs/7/stream", currentTime: 10, paused: false });
+    const main = mainEl({
+      currentSrc: "/api/songs/7/stream",
+      currentTime: 10,
+      paused: false,
+    });
 
     syncAnalysis(main); // cold start
     lastAudio.currentTime = 9.5; // behind
@@ -347,7 +374,11 @@ describe("syncAnalysis", () => {
     let nowMs = 0;
     vi.spyOn(performance, "now").mockImplementation(() => nowMs);
     startAnalysis();
-    const main = mainEl({ currentSrc: "/api/songs/7/stream", currentTime: 10, paused: false });
+    const main = mainEl({
+      currentSrc: "/api/songs/7/stream",
+      currentTime: 10,
+      paused: false,
+    });
     syncAnalysis(main); // cold start: anchors at main's position (nothing learned yet)
     expect(lastAudio.currentTime).toBe(10);
 
@@ -373,7 +404,11 @@ describe("syncAnalysis", () => {
     let nowMs = 0;
     vi.spyOn(performance, "now").mockImplementation(() => nowMs);
     startAnalysis();
-    const main = mainEl({ currentSrc: "/api/songs/7/stream", currentTime: 10, paused: false });
+    const main = mainEl({
+      currentSrc: "/api/songs/7/stream",
+      currentTime: 10,
+      paused: false,
+    });
     syncAnalysis(main); // cold start
 
     // Mid-rebuffer pass-through: frozen element clock ≈ main clock for a frame.
@@ -395,7 +430,11 @@ describe("syncAnalysis", () => {
     let nowMs = 0;
     vi.spyOn(performance, "now").mockImplementation(() => nowMs);
     startAnalysis();
-    const main = mainEl({ currentSrc: "/api/songs/7/stream", currentTime: 10, paused: false });
+    const main = mainEl({
+      currentSrc: "/api/songs/7/stream",
+      currentTime: 10,
+      paused: false,
+    });
     syncAnalysis(main);
 
     main.currentTime = 12;
@@ -411,7 +450,11 @@ describe("syncAnalysis", () => {
     let nowMs = 0;
     vi.spyOn(performance, "now").mockImplementation(() => nowMs);
     startAnalysis();
-    const main = mainEl({ currentSrc: "/api/songs/7/stream", currentTime: 10, paused: false });
+    const main = mainEl({
+      currentSrc: "/api/songs/7/stream",
+      currentTime: 10,
+      paused: false,
+    });
     syncAnalysis(main);
 
     main.currentTime = 12;
@@ -427,7 +470,11 @@ describe("syncAnalysis", () => {
     let nowMs = 0;
     vi.spyOn(performance, "now").mockImplementation(() => nowMs);
     startAnalysis();
-    const main = mainEl({ currentSrc: "/api/songs/7/stream", currentTime: 10, paused: false });
+    const main = mainEl({
+      currentSrc: "/api/songs/7/stream",
+      currentTime: 10,
+      paused: false,
+    });
     syncAnalysis(main);
 
     nowMs = 400; // inside the settle window, past the snap cooldown
@@ -441,7 +488,11 @@ describe("syncAnalysis", () => {
     let nowMs = 0;
     vi.spyOn(performance, "now").mockImplementation(() => nowMs);
     startAnalysis();
-    const main = mainEl({ currentSrc: "/api/songs/7/stream", currentTime: 10, paused: false });
+    const main = mainEl({
+      currentSrc: "/api/songs/7/stream",
+      currentTime: 10,
+      paused: false,
+    });
     syncAnalysis(main);
 
     nowMs = 400;
@@ -469,7 +520,11 @@ describe("syncAnalysis", () => {
     let nowMs = 0;
     vi.spyOn(performance, "now").mockImplementation(() => nowMs);
     startAnalysis();
-    const main = mainEl({ currentSrc: "/api/songs/7/stream", currentTime: 10, paused: false });
+    const main = mainEl({
+      currentSrc: "/api/songs/7/stream",
+      currentTime: 10,
+      paused: false,
+    });
     syncAnalysis(main); // cold start
 
     // Landing measured 0.4s behind → aim learns 0.4.
@@ -498,7 +553,11 @@ describe("syncAnalysis", () => {
     let nowMs = 0;
     vi.spyOn(performance, "now").mockImplementation(() => nowMs);
     startAnalysis();
-    const main = mainEl({ currentSrc: "/api/songs/7/stream", currentTime: 10, paused: false });
+    const main = mainEl({
+      currentSrc: "/api/songs/7/stream",
+      currentTime: 10,
+      paused: false,
+    });
     syncAnalysis(main); // cold start
 
     // Learn a nonzero aim first.
@@ -533,7 +592,11 @@ describe("decoded-buffer tap", () => {
     let nowMs = 0;
     vi.spyOn(performance, "now").mockImplementation(() => nowMs);
     startAnalysis();
-    const main = mainEl({ currentSrc: "/api/songs/7/stream", currentTime: 10, paused: false });
+    const main = mainEl({
+      currentSrc: "/api/songs/7/stream",
+      currentTime: 10,
+      paused: false,
+    });
 
     syncAnalysis(main); // element tap starts streaming; decode kicks off
     expect(lastAudio.src).toBe("/api/songs/7/stream");
@@ -554,7 +617,11 @@ describe("decoded-buffer tap", () => {
     let nowMs = 1000;
     vi.spyOn(performance, "now").mockImplementation(() => nowMs);
     startAnalysis();
-    const main = mainEl({ currentSrc: "/api/songs/7/stream", currentTime: 10, paused: false });
+    const main = mainEl({
+      currentSrc: "/api/songs/7/stream",
+      currentTime: 10,
+      paused: false,
+    });
     syncAnalysis(main);
     await flushDecode();
     nowMs = 2000;
@@ -583,7 +650,11 @@ describe("decoded-buffer tap", () => {
     let nowMs = 1000;
     vi.spyOn(performance, "now").mockImplementation(() => nowMs);
     startAnalysis();
-    const main = mainEl({ currentSrc: "/api/songs/7/stream", currentTime: 10, paused: false });
+    const main = mainEl({
+      currentSrc: "/api/songs/7/stream",
+      currentTime: 10,
+      paused: false,
+    });
     syncAnalysis(main);
     await flushDecode();
     nowMs = 2000;
@@ -605,7 +676,11 @@ describe("decoded-buffer tap", () => {
     const { startAnalysis, syncAnalysis } = await freshAnalyser("running");
     // default fetch stub rejects
     startAnalysis();
-    const main = mainEl({ currentSrc: "/api/songs/7/stream", currentTime: 10, paused: false });
+    const main = mainEl({
+      currentSrc: "/api/songs/7/stream",
+      currentTime: 10,
+      paused: false,
+    });
     syncAnalysis(main);
     await flushDecode();
     syncAnalysis(main);
@@ -616,7 +691,11 @@ describe("decoded-buffer tap", () => {
   it("attempts a failed decode only once — no per-frame refetch storm", async () => {
     const { startAnalysis, syncAnalysis } = await freshAnalyser("running");
     startAnalysis();
-    const main = mainEl({ currentSrc: "/api/songs/7/stream", currentTime: 10, paused: false });
+    const main = mainEl({
+      currentSrc: "/api/songs/7/stream",
+      currentTime: 10,
+      paused: false,
+    });
     syncAnalysis(main);
     await flushDecode(); // the one attempt fails (default rejecting fetch)
     syncAnalysis(main);
@@ -649,7 +728,11 @@ describe("decoded-buffer tap", () => {
     let nowMs = 1000;
     vi.spyOn(performance, "now").mockImplementation(() => nowMs);
     startAnalysis();
-    const main = mainEl({ currentSrc: "/api/songs/7/stream", currentTime: 10, paused: false });
+    const main = mainEl({
+      currentSrc: "/api/songs/7/stream",
+      currentTime: 10,
+      paused: false,
+    });
     syncAnalysis(main);
     await flushDecode();
     nowMs = 2000;
@@ -667,12 +750,17 @@ describe("decoded-buffer tap", () => {
   });
 
   it("drops the decoded PCM on stopAnalysis so a closed visualizer costs nothing", async () => {
-    const { startAnalysis, syncAnalysis, stopAnalysis } = await freshAnalyser("running");
+    const { startAnalysis, syncAnalysis, stopAnalysis } =
+      await freshAnalyser("running");
     stubFetchOk();
     let nowMs = 1000;
     vi.spyOn(performance, "now").mockImplementation(() => nowMs);
     startAnalysis();
-    const main = mainEl({ currentSrc: "/api/songs/7/stream", currentTime: 10, paused: false });
+    const main = mainEl({
+      currentSrc: "/api/songs/7/stream",
+      currentTime: 10,
+      paused: false,
+    });
     syncAnalysis(main);
     await flushDecode();
     nowMs = 2000;
@@ -684,7 +772,13 @@ describe("decoded-buffer tap", () => {
     // Reopening decodes afresh (buffer was released, not cached).
     startAnalysis();
     (fetch as ReturnType<typeof vi.fn>).mockClear();
-    syncAnalysis(mainEl({ currentSrc: "/api/songs/7/stream", currentTime: 10, paused: false }));
+    syncAnalysis(
+      mainEl({
+        currentSrc: "/api/songs/7/stream",
+        currentTime: 10,
+        paused: false,
+      }),
+    );
     expect(fetch).toHaveBeenCalled();
   });
 });

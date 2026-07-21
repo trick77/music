@@ -1,7 +1,14 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, act, cleanup } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import type { GenreChapter, GenreSummary, HomeFeed, Playlist, Song, TopTenEntry } from "./api";
+import type {
+  GenreChapter,
+  GenreSummary,
+  HomeFeed,
+  Playlist,
+  Song,
+  TopTenEntry,
+} from "./api";
 
 // Home is a feed composer: it fetches the home payload plus the genre-name→id map
 // and decides what to render from them. Mocking at the api module boundary (rather
@@ -17,8 +24,18 @@ vi.mock("./api", async () => {
 // while still surfacing the props Home computes (which items, and whether they are
 // ranked) so those decisions stay assertable.
 vi.mock("./Hero", () => ({
-  Hero: ({ items, onPlay }: { items: { song: Song; ranked: boolean }[]; onPlay: (s: Song) => void }) => (
-    <div data-testid="hero" data-ranked={String(items[0]?.ranked ?? false)} data-count={items.length}>
+  Hero: ({
+    items,
+    onPlay,
+  }: {
+    items: { song: Song; ranked: boolean }[];
+    onPlay: (s: Song) => void;
+  }) => (
+    <div
+      data-testid="hero"
+      data-ranked={String(items[0]?.ranked ?? false)}
+      data-count={items.length}
+    >
       {items.map((it) => (
         <button key={it.song.id} onClick={() => onPlay(it.song)}>
           hero:{it.song.title}
@@ -28,13 +45,17 @@ vi.mock("./Hero", () => ({
   ),
 }));
 vi.mock("./Chapter", () => ({
-  Chapter: ({ chapter }: { chapter: GenreChapter }) => <div data-testid="chapter">{chapter.name}</div>,
+  Chapter: ({ chapter }: { chapter: GenreChapter }) => (
+    <div data-testid="chapter">{chapter.name}</div>
+  ),
 }));
 // HScrollRail measures itself with a ResizeObserver, which jsdom does not provide.
 // It is pure layout, so passing the children straight through loses no behaviour
 // that Home is responsible for.
 vi.mock("./HScrollRail", () => ({
-  HScrollRail: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+  HScrollRail: ({ children }: { children: React.ReactNode }) => (
+    <div>{children}</div>
+  ),
 }));
 
 import { Home } from "./Home";
@@ -69,7 +90,15 @@ function top(overrides: Partial<TopTenEntry> = {}): TopTenEntry {
 }
 
 function playlist(overrides: Partial<Playlist> = {}): Playlist {
-  return { id: "p1", name: "Road Trip", description: "", coverArtId: "", songCount: 4, published: true, ...overrides };
+  return {
+    id: "p1",
+    name: "Road Trip",
+    description: "",
+    coverArtId: "",
+    songCount: 4,
+    published: true,
+    ...overrides,
+  };
 }
 
 function chapter(overrides: Partial<GenreChapter> = {}): GenreChapter {
@@ -86,16 +115,33 @@ function chapter(overrides: Partial<GenreChapter> = {}): GenreChapter {
 }
 
 function genre(overrides: Partial<GenreSummary> = {}): GenreSummary {
-  return { id: "g1", name: "dream pop", songCount: 2, accentColor: "", hasBackground: false, backgroundFanartId: "", ...overrides };
+  return {
+    id: "g1",
+    name: "dream pop",
+    songCount: 2,
+    accentColor: "",
+    hasBackground: false,
+    backgroundFanartId: "",
+    ...overrides,
+  };
 }
 
 function feed(overrides: Partial<HomeFeed> = {}): HomeFeed {
-  return { hero: null, topTen: [], recentlyAdded: [], genres: [], playlists: [], ...overrides };
+  return {
+    hero: null,
+    topTen: [],
+    recentlyAdded: [],
+    genres: [],
+    playlists: [],
+    ...overrides,
+  };
 }
 
 // Home renders nothing but "Loading" until the feed lands, so every populated-state
 // test has to wait for that first paint to be replaced.
-async function renderHome(props: Partial<React.ComponentProps<typeof Home>> = {}) {
+async function renderHome(
+  props: Partial<React.ComponentProps<typeof Home>> = {},
+) {
   const view = render(
     <Home
       authenticated
@@ -125,7 +171,14 @@ describe("Home loading and failure", () => {
     // A promise that never settles holds Home in its pre-feed state.
     mocked.getHome.mockReturnValue(new Promise<HomeFeed>(() => {}));
 
-    render(<Home authenticated onPlay={vi.fn()} onShare={vi.fn()} renderRowActions={() => null} />);
+    render(
+      <Home
+        authenticated
+        onPlay={vi.fn()}
+        onShare={vi.fn()}
+        renderRowActions={() => null}
+      />,
+    );
 
     expect(screen.getByText("Loading")).toBeInTheDocument();
   });
@@ -145,7 +198,15 @@ describe("Home loading and failure", () => {
     const { rerender } = await renderHome();
     expect(mocked.getHome).toHaveBeenCalledTimes(1);
 
-    rerender(<Home authenticated onPlay={vi.fn()} onShare={vi.fn()} renderRowActions={() => null} reloadKey={2} />);
+    rerender(
+      <Home
+        authenticated
+        onPlay={vi.fn()}
+        onShare={vi.fn()}
+        renderRowActions={() => null}
+        reloadKey={2}
+      />,
+    );
     await act(async () => {});
 
     // The key exists so an upload or publish toggle is reflected without a reload.
@@ -170,7 +231,9 @@ describe("Home empty state", () => {
 
     // Rendering a dead button would be worse than none at all.
     expect(screen.getByText("Your library is empty")).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /upload music/i })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /upload music/i }),
+    ).not.toBeInTheDocument();
   });
 
   it("when the library is empty and the viewer is signed out, then it says nothing is here without offering an upload", async () => {
@@ -178,7 +241,9 @@ describe("Home empty state", () => {
 
     // An anonymous visitor cannot upload, so the copy must not promise they can.
     expect(screen.getByText("Nothing here yet")).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /upload music/i })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /upload music/i }),
+    ).not.toBeInTheDocument();
   });
 
   it("when only playlists exist, then the feed is not treated as empty", async () => {
@@ -187,12 +252,17 @@ describe("Home empty state", () => {
     await renderHome();
 
     expect(screen.queryByText("Your library is empty")).not.toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Playlists" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: "Playlists" }),
+    ).toBeInTheDocument();
   });
 });
 
 describe("Home top ten", () => {
-  const two = [top({ id: "a", title: "Nightcall" }), top({ id: "b", title: "Odd Look" })];
+  const two = [
+    top({ id: "a", title: "Nightcall" }),
+    top({ id: "b", title: "Odd Look" }),
+  ];
 
   it("when a top-ten row is played, then the rows below it become the queue tail", async () => {
     const user = userEvent.setup();
@@ -220,13 +290,20 @@ describe("Home top ten", () => {
   it("when the artist name of a row is clicked, then it plays that row too", async () => {
     const user = userEvent.setup();
     const onPlay = vi.fn();
-    mocked.getHome.mockResolvedValue(feed({ topTen: [top({ id: "a", title: "Nightcall", artistName: "Kavinsky" })] }));
+    mocked.getHome.mockResolvedValue(
+      feed({
+        topTen: [top({ id: "a", title: "Nightcall", artistName: "Kavinsky" })],
+      }),
+    );
 
     await renderHome({ onPlay });
     await user.click(screen.getByRole("button", { name: "Kavinsky" }));
 
     // The whole row is a play target; the meta line must not be a dead zone.
-    expect(onPlay).toHaveBeenCalledWith(expect.objectContaining({ id: "a" }), []);
+    expect(onPlay).toHaveBeenCalledWith(
+      expect.objectContaining({ id: "a" }),
+      [],
+    );
   });
 
   it("when the chart is rendered, then every row is numbered in order", async () => {
@@ -239,7 +316,9 @@ describe("Home top ten", () => {
   });
 
   it("when a signed-in viewer sees an unpublished chart entry, then it is badged", async () => {
-    mocked.getHome.mockResolvedValue(feed({ topTen: [top({ published: false })] }));
+    mocked.getHome.mockResolvedValue(
+      feed({ topTen: [top({ published: false })] }),
+    );
 
     await renderHome();
 
@@ -247,7 +326,9 @@ describe("Home top ten", () => {
   });
 
   it("when a signed-out viewer sees the chart, then no publish state leaks into it", async () => {
-    mocked.getHome.mockResolvedValue(feed({ topTen: [top({ published: false })] }));
+    mocked.getHome.mockResolvedValue(
+      feed({ topTen: [top({ published: false })] }),
+    );
 
     await renderHome({ authenticated: false });
 
@@ -258,7 +339,9 @@ describe("Home top ten", () => {
   it("when row actions are supplied, then they are rendered next to each row", async () => {
     mocked.getHome.mockResolvedValue(feed({ topTen: two }));
 
-    await renderHome({ renderRowActions: (s: Song) => <span>actions:{s.id}</span> });
+    await renderHome({
+      renderRowActions: (s: Song) => <span>actions:{s.id}</span>,
+    });
 
     expect(screen.getByText("actions:a")).toBeInTheDocument();
     expect(screen.getByText("actions:b")).toBeInTheDocument();
@@ -268,10 +351,14 @@ describe("Home top ten", () => {
 describe("Home genre chips", () => {
   it("when a song's genre resolves to an id, then the chip links to that genre page", async () => {
     const user = userEvent.setup();
-    mocked.getHome.mockResolvedValue(feed({ topTen: [top({ genres: ["Dream Pop"] })] }));
+    mocked.getHome.mockResolvedValue(
+      feed({ topTen: [top({ genres: ["Dream Pop"] })] }),
+    );
     // The feed carries genre NAMES; the id map is what turns them into links, and
     // the lookup is case-insensitive because the two sources disagree on casing.
-    mocked.listGenres.mockResolvedValue([genre({ id: "g7", name: "dream pop" })]);
+    mocked.listGenres.mockResolvedValue([
+      genre({ id: "g7", name: "dream pop" }),
+    ]);
 
     await renderHome();
     const link = screen.getByRole("link", { name: /dream pop/i });
@@ -283,28 +370,42 @@ describe("Home genre chips", () => {
   });
 
   it("when a song's genre has no matching id, then the chip renders as plain text", async () => {
-    mocked.getHome.mockResolvedValue(feed({ topTen: [top({ genres: ["Vaporwave"] })] }));
+    mocked.getHome.mockResolvedValue(
+      feed({ topTen: [top({ genres: ["Vaporwave"] })] }),
+    );
     mocked.listGenres.mockResolvedValue([]);
 
     await renderHome();
 
     // Linking to an id we never resolved would 404; showing the label still helps.
-    expect(screen.queryByRole("link", { name: /vaporwave/i })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("link", { name: /vaporwave/i }),
+    ).not.toBeInTheDocument();
     expect(screen.getByText(/vaporwave/i)).toBeInTheDocument();
   });
 
   it("when the genre list fails to load, then chips degrade to plain text instead of breaking the feed", async () => {
-    mocked.getHome.mockResolvedValue(feed({ topTen: [top({ title: "Nightcall", genres: ["Dream Pop"] })] }));
+    mocked.getHome.mockResolvedValue(
+      feed({ topTen: [top({ title: "Nightcall", genres: ["Dream Pop"] })] }),
+    );
     mocked.listGenres.mockRejectedValue(new Error("500"));
 
     await renderHome();
 
     expect(screen.getByText("Nightcall")).toBeInTheDocument();
-    expect(screen.queryByRole("link", { name: /dream pop/i })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("link", { name: /dream pop/i }),
+    ).not.toBeInTheDocument();
   });
 
   it("when a song has more genres than the cap, then the extras collapse into a count", async () => {
-    mocked.getHome.mockResolvedValue(feed({ topTen: [top({ genres: ["Dream Pop", "Shoegaze", "Ambient", "Trip Hop"] })] }));
+    mocked.getHome.mockResolvedValue(
+      feed({
+        topTen: [
+          top({ genres: ["Dream Pop", "Shoegaze", "Ambient", "Trip Hop"] }),
+        ],
+      }),
+    );
 
     await renderHome();
 
@@ -328,10 +429,17 @@ describe("Home genre chips", () => {
 
 describe("Home hero", () => {
   it("when there are plays, then the hero cycles the top three as ranked slides", async () => {
-    mocked.getHome.mockResolvedValue(feed({
-      topTen: [top({ id: "a" }), top({ id: "b" }), top({ id: "c" }), top({ id: "d" })],
-      recentlyAdded: [song({ id: "z" })],
-    }));
+    mocked.getHome.mockResolvedValue(
+      feed({
+        topTen: [
+          top({ id: "a" }),
+          top({ id: "b" }),
+          top({ id: "c" }),
+          top({ id: "d" }),
+        ],
+        recentlyAdded: [song({ id: "z" })],
+      }),
+    );
 
     await renderHome();
 
@@ -341,7 +449,11 @@ describe("Home hero", () => {
   });
 
   it("when nothing has been played yet, then the hero falls back to one unranked recent upload", async () => {
-    mocked.getHome.mockResolvedValue(feed({ recentlyAdded: [song({ id: "z", title: "Newest" }), song({ id: "y" })] }));
+    mocked.getHome.mockResolvedValue(
+      feed({
+        recentlyAdded: [song({ id: "z", title: "Newest" }), song({ id: "y" })],
+      }),
+    );
 
     await renderHome();
 
@@ -349,7 +461,9 @@ describe("Home hero", () => {
     expect(hero).toHaveAttribute("data-count", "1");
     // Unranked: with no plays the slide has not earned a "#1" eyebrow.
     expect(hero).toHaveAttribute("data-ranked", "false");
-    expect(screen.getByRole("button", { name: "hero:Newest" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "hero:Newest" }),
+    ).toBeInTheDocument();
   });
 
   it("when a hero slide is played, then it starts with an empty tail", async () => {
@@ -370,8 +484,13 @@ describe("Home recently added", () => {
   it("when a recent tile is played, then the later tiles become the tail", async () => {
     const user = userEvent.setup();
     const onPlay = vi.fn();
-    const recent = [song({ id: "r1", title: "First" }), song({ id: "r2", title: "Second" })];
-    mocked.getHome.mockResolvedValue(feed({ topTen: [top({ id: "a" })], recentlyAdded: recent }));
+    const recent = [
+      song({ id: "r1", title: "First" }),
+      song({ id: "r2", title: "Second" }),
+    ];
+    mocked.getHome.mockResolvedValue(
+      feed({ topTen: [top({ id: "a" })], recentlyAdded: recent }),
+    );
 
     await renderHome({ onPlay });
     await user.click(screen.getByRole("button", { name: /First/ }));
@@ -403,15 +522,22 @@ describe("Home recently added", () => {
 
     await renderHome();
 
-    expect(screen.queryByRole("heading", { name: "Recently added" })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("heading", { name: "Recently added" }),
+    ).not.toBeInTheDocument();
   });
 });
 
 describe("Home genre chapters", () => {
   it("when the feed carries genre chapters, then one chapter is rendered per genre", async () => {
-    mocked.getHome.mockResolvedValue(feed({
-      genres: [chapter({ id: "g1", name: "dream pop" }), chapter({ id: "g2", name: "shoegaze" })],
-    }));
+    mocked.getHome.mockResolvedValue(
+      feed({
+        genres: [
+          chapter({ id: "g1", name: "dream pop" }),
+          chapter({ id: "g2", name: "shoegaze" }),
+        ],
+      }),
+    );
 
     await renderHome();
 
@@ -423,7 +549,9 @@ describe("Home genre chapters", () => {
 describe("Home playlists", () => {
   it("when a playlist is clicked, then it navigates to that playlist", async () => {
     const user = userEvent.setup();
-    mocked.getHome.mockResolvedValue(feed({ playlists: [playlist({ id: "p9", name: "Road Trip" })] }));
+    mocked.getHome.mockResolvedValue(
+      feed({ playlists: [playlist({ id: "p9", name: "Road Trip" })] }),
+    );
 
     await renderHome();
     await user.click(screen.getByRole("button", { name: /Road Trip/ }));
@@ -432,7 +560,9 @@ describe("Home playlists", () => {
   });
 
   it("when a playlist holds one song, then the count is singular", async () => {
-    mocked.getHome.mockResolvedValue(feed({ playlists: [playlist({ songCount: 1 })] }));
+    mocked.getHome.mockResolvedValue(
+      feed({ playlists: [playlist({ songCount: 1 })] }),
+    );
 
     await renderHome();
 
@@ -440,7 +570,9 @@ describe("Home playlists", () => {
   });
 
   it("when a playlist holds several songs, then the count is plural", async () => {
-    mocked.getHome.mockResolvedValue(feed({ playlists: [playlist({ songCount: 12 })] }));
+    mocked.getHome.mockResolvedValue(
+      feed({ playlists: [playlist({ songCount: 12 })] }),
+    );
 
     await renderHome();
 
@@ -448,16 +580,23 @@ describe("Home playlists", () => {
   });
 
   it("when a playlist has cover art, then the art is shown instead of its initial", async () => {
-    mocked.getHome.mockResolvedValue(feed({ playlists: [playlist({ name: "Road Trip", coverArtId: "c1" })] }));
+    mocked.getHome.mockResolvedValue(
+      feed({ playlists: [playlist({ name: "Road Trip", coverArtId: "c1" })] }),
+    );
 
     const { container } = await renderHome();
 
-    expect(container.querySelector("img")).toHaveAttribute("src", expect.stringContaining("c1"));
+    expect(container.querySelector("img")).toHaveAttribute(
+      "src",
+      expect.stringContaining("c1"),
+    );
     expect(screen.queryByText("R")).not.toBeInTheDocument();
   });
 
   it("when a playlist has no cover art, then it falls back to its initial", async () => {
-    mocked.getHome.mockResolvedValue(feed({ playlists: [playlist({ name: "Road Trip", coverArtId: "" })] }));
+    mocked.getHome.mockResolvedValue(
+      feed({ playlists: [playlist({ name: "Road Trip", coverArtId: "" })] }),
+    );
 
     const { container } = await renderHome();
 
@@ -470,7 +609,9 @@ describe("Home playlists", () => {
 
     await renderHome({ authenticated: false });
 
-    expect(screen.getByRole("heading", { name: "Playlists" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: "Playlists" }),
+    ).toBeInTheDocument();
     expect(screen.queryByText("Your library →")).not.toBeInTheDocument();
   });
 

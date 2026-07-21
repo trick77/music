@@ -20,17 +20,26 @@ export function parsePath(pathname: string): Route {
   if (parts.length === 0) return { name: "home" };
   if (parts.length === 1 && parts[0] === "search") return { name: "search" };
   if (parts.length === 1 && parts[0] === "library") return { name: "library" };
-  if (parts.length === 1 && parts[0] === "favorites") return { name: "favorites" };
-  if (parts.length === 1 && parts[0] === "unpublished") return { name: "unpublished" };
-  if (parts.length === 1 && parts[0] === "playlists") return { name: "playlists" };
+  if (parts.length === 1 && parts[0] === "favorites")
+    return { name: "favorites" };
+  if (parts.length === 1 && parts[0] === "unpublished")
+    return { name: "unpublished" };
+  if (parts.length === 1 && parts[0] === "playlists")
+    return { name: "playlists" };
   if (parts.length === 1 && parts[0] === "genres") return { name: "genres" };
-  if (parts.length === 1 && parts[0] === "visualizer") return { name: "visualizer" };
+  if (parts.length === 1 && parts[0] === "visualizer")
+    return { name: "visualizer" };
   if (parts.length === 1 && parts[0] === "studio") return { name: "studio" };
-  if (parts.length === 3 && parts[0] === "studio" && parts[1] === "genre") return { name: "studio", genreId: parts[2] };
-  if (parts.length === 2 && parts[0] === "song") return { name: "song", id: parts[1] };
-  if (parts.length === 2 && parts[0] === "playlist") return { name: "playlist", id: parts[1] };
-  if (parts.length === 2 && parts[0] === "genre") return { name: "genre", id: parts[1] };
-  if (parts.length === 2 && parts[0] === "artist") return { name: "artist", id: parts[1] };
+  if (parts.length === 3 && parts[0] === "studio" && parts[1] === "genre")
+    return { name: "studio", genreId: parts[2] };
+  if (parts.length === 2 && parts[0] === "song")
+    return { name: "song", id: parts[1] };
+  if (parts.length === 2 && parts[0] === "playlist")
+    return { name: "playlist", id: parts[1] };
+  if (parts.length === 2 && parts[0] === "genre")
+    return { name: "genre", id: parts[1] };
+  if (parts.length === 2 && parts[0] === "artist")
+    return { name: "artist", id: parts[1] };
   return { name: "home" };
 }
 
@@ -56,7 +65,9 @@ export function navigate(path: string): void {
 
 // useRoute re-renders on back/forward and on navigate().
 export function useRoute(): Route {
-  const [route, setRoute] = useState<Route>(() => parsePath(window.location.pathname));
+  const [route, setRoute] = useState<Route>(() =>
+    parsePath(window.location.pathname),
+  );
   useEffect(() => {
     const onPop = () => setRoute(parsePath(window.location.pathname));
     window.addEventListener("popstate", onPop);
@@ -70,7 +81,9 @@ export type PlayerParam = "lyrics" | "full";
 // parsePlayerParam reads the deep-link ?player=<state> value from a query string.
 // Routing (parsePath) ignores the query string; this is the only reader of it.
 export function parsePlayerParam(search: string): PlayerParam | null {
-  const v = new URLSearchParams(search.startsWith("?") ? search.slice(1) : search).get("player");
+  const v = new URLSearchParams(
+    search.startsWith("?") ? search.slice(1) : search,
+  ).get("player");
   return v === "lyrics" || v === "full" ? v : null;
 }
 
@@ -87,7 +100,11 @@ function playerHref(id: string, param: PlayerParam): string {
 // pushPlayer opens the player at a state, adding ONE history entry so the back
 // button (and the close button) return to where the user was. `from` names the
 // player state it was opened out of, when it was opened out of one.
-export function pushPlayer(id: string, param: PlayerParam, from?: PlayerParam): void {
+export function pushPlayer(
+  id: string,
+  param: PlayerParam,
+  from?: PlayerParam,
+): void {
   window.history.pushState(appState(from), "", playerHref(id, param));
   window.dispatchEvent(new PopStateEvent("popstate"));
 }

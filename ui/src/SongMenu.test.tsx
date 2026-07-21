@@ -9,7 +9,8 @@ const song: Song = {
   artistName: "The Band",
   album: "Neon",
   year: 2026,
-  trackNo: 1, trackTotal: 0,
+  trackNo: 1,
+  trackTotal: 0,
   durationMs: 2000,
   fileSize: 36380,
   createdAt: "2026-07-15 14:08:58",
@@ -25,7 +26,13 @@ const song: Song = {
 
 const noop = () => {};
 
-function render(over: Partial<{ song: Song; authenticated: boolean; alignmentEnabled: boolean }> = {}) {
+function render(
+  over: Partial<{
+    song: Song;
+    authenticated: boolean;
+    alignmentEnabled: boolean;
+  }> = {},
+) {
   return renderToStaticMarkup(
     <SongMenu
       song={over.song ?? song}
@@ -75,13 +82,17 @@ describe("SongMenu share", () => {
   // An unpublished song is hidden from anonymous listeners, so its shared
   // /song/:id link would 404 — no Share until it's published.
   it("hides Share for an unpublished song", () => {
-    expect(render({ song: { ...song, published: false } })).not.toContain(">Share<");
+    expect(render({ song: { ...song, published: false } })).not.toContain(
+      ">Share<",
+    );
   });
 });
 
 describe("SongMenu cover-art download", () => {
   it("offers the cover-art download to a signed-in user when the song has art", () => {
-    expect(render({ authenticated: true })).toContain("/api/songs/s1/cover/download");
+    expect(render({ authenticated: true })).toContain(
+      "/api/songs/s1/cover/download",
+    );
   });
 
   it("hides it from anonymous listeners, who can still view the art inline", () => {
@@ -89,7 +100,10 @@ describe("SongMenu cover-art download", () => {
   });
 
   it("hides it when the song has no cover art to download", () => {
-    const html = render({ authenticated: true, song: { ...song, coverArtId: "" } });
+    const html = render({
+      authenticated: true,
+      song: { ...song, coverArtId: "" },
+    });
     expect(html).not.toContain("cover/download");
     // The audio download is unaffected by the absence of art.
     expect(html).toContain("/api/songs/s1/download");

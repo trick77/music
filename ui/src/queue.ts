@@ -13,7 +13,13 @@ export function removeAt(queue: Song[], index: number): Song[] {
 }
 
 export function reorder(queue: Song[], from: number, to: number): Song[] {
-  if (from === to || from < 0 || to < 0 || from >= queue.length || to >= queue.length) {
+  if (
+    from === to ||
+    from < 0 ||
+    to < 0 ||
+    from >= queue.length ||
+    to >= queue.length
+  ) {
     return queue;
   }
   const next = [...queue];

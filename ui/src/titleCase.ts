@@ -12,17 +12,35 @@ export type Lang = "en" | "de" | "fr";
 // Small words kept lowercase mid-title (articles, conjunctions, short prepositions).
 // EN/DE follow "capitalize principal words"; FR uses sentence case and ignores these.
 const SMALL: Record<Lang, Set<string>> = {
-  en: new Set("a an and as at but by en for if in nor of off on or per so the to up via vs yet".split(" ")),
-  de: new Set("der die das den dem des ein eine einen einem einer und oder aber im in am an auf aus bei für von vor zu zum zur über unter durch ohne um als wie dass ob".split(" ")),
+  en: new Set(
+    "a an and as at but by en for if in nor of off on or per so the to up via vs yet".split(
+      " ",
+    ),
+  ),
+  de: new Set(
+    "der die das den dem des ein eine einen einem einer und oder aber im in am an auf aus bei für von vor zu zum zur über unter durch ohne um als wie dass ob".split(
+      " ",
+    ),
+  ),
   fr: new Set(), // FR is sentence-cased, no small-word list needed
 };
 
 // Function words used only for language detection (broader than SMALL, includes
 // forms that would otherwise be capitalized, e.g. FR elisions handled separately).
 const DETECT: Record<Lang, Set<string>> = {
-  en: new Set("the of and a an to in on at for with from by is are this that".split(" ")),
-  de: new Set("der die das und oder im in am ein eine mit von zu für auf aus bei nach über unter des dem den ist".split(" ")),
-  fr: new Set("le la les un une des du de et ou dans sur pour avec sans que qui au aux ce cette mon ma mes est".split(" ")),
+  en: new Set(
+    "the of and a an to in on at for with from by is are this that".split(" "),
+  ),
+  de: new Set(
+    "der die das und oder im in am ein eine mit von zu für auf aus bei nach über unter des dem den ist".split(
+      " ",
+    ),
+  ),
+  fr: new Set(
+    "le la les un une des du de et ou dans sur pour avec sans que qui au aux ce cette mon ma mes est".split(
+      " ",
+    ),
+  ),
 };
 
 // capFirst uppercases the first letter of a token, skipping any leading punctuation
@@ -57,7 +75,10 @@ export function detectLang(input: string): Lang {
     if (DETECT.en.has(w)) score.en += 2;
   }
 
-  const best = (Object.keys(score) as Lang[]).reduce((a, b) => (score[b] > score[a] ? b : a), "en");
+  const best = (Object.keys(score) as Lang[]).reduce(
+    (a, b) => (score[b] > score[a] ? b : a),
+    "en",
+  );
   return score[best] === 0 ? "en" : best;
 }
 
@@ -69,7 +90,9 @@ export function titleCase(input: string, langOverride?: Lang): string {
   const lang = langOverride ?? detectLang(input);
   const tokens = input.split(/(\s+)/); // odd indices are whitespace runs
 
-  const wordIdx = tokens.map((t, i) => (t.trim() !== "" ? i : -1)).filter((i) => i >= 0);
+  const wordIdx = tokens
+    .map((t, i) => (t.trim() !== "" ? i : -1))
+    .filter((i) => i >= 0);
   const firstIdx = wordIdx[0];
   const lastIdx = wordIdx[wordIdx.length - 1];
 
@@ -82,7 +105,8 @@ export function titleCase(input: string, langOverride?: Lang): string {
         // nouns ("Paris", "Édith") but lowercase everything else — including ALL-CAPS
         // shouts like "VIE", which start with a capital but aren't proper nouns.
         if (idx === firstIdx) return capFirst(tok.toLocaleLowerCase());
-        const isProperNoun = /^[^\p{L}]*\p{Lu}/u.test(tok) && /\p{Ll}/u.test(tok);
+        const isProperNoun =
+          /^[^\p{L}]*\p{Lu}/u.test(tok) && /\p{Ll}/u.test(tok);
         return isProperNoun ? tok : tok.toLocaleLowerCase();
       }
 
@@ -102,4 +126,7 @@ export function titleCase(input: string, langOverride?: Lang): string {
 // "indie-rock" → "Indie-Rock"), which plain title case leaves lowercase; this is
 // genre-specific and intentionally not applied to song/album titles.
 export const genreLabel = (name: string): string =>
-  titleCase(name, "en").replace(/([&/-])(\p{L})/gu, (_, sep, ch) => sep + ch.toLocaleUpperCase());
+  titleCase(name, "en").replace(
+    /([&/-])(\p{L})/gu,
+    (_, sep, ch) => sep + ch.toLocaleUpperCase(),
+  );

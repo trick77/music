@@ -1,7 +1,12 @@
 import { describe, it, expect } from "vitest";
 import {
-  formatDuration, formatFileSize, formatDateAdded, formatLastPlayed,
-  formatSampleRate, formatChannels, formatBitrate,
+  formatDuration,
+  formatFileSize,
+  formatDateAdded,
+  formatLastPlayed,
+  formatSampleRate,
+  formatChannels,
+  formatBitrate,
 } from "./format";
 
 describe("formatDuration", () => {

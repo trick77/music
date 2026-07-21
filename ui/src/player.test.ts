@@ -1,13 +1,51 @@
 import { describe, it, expect } from "vitest";
-import { advance, back, shouldRestart, qualifiesForPlay, shouldReport, removeSong, replaceSong, shuffle, mediaShouldToggle, type PlayerState } from "./player";
+import {
+  advance,
+  back,
+  shouldRestart,
+  qualifiesForPlay,
+  shouldReport,
+  removeSong,
+  replaceSong,
+  shuffle,
+  mediaShouldToggle,
+  type PlayerState,
+} from "./player";
 import type { Song } from "./api";
 
 function song(id: string): Song {
-  return { id, title: id, artistName: "A", album: "", year: 0, trackNo: 0, trackTotal: 0, durationMs: 200000, fileSize: 0, createdAt: "", sampleRate: 0, channels: 0, bitrateKbps: 0, genres: [], coverArtId: "", published: true };
+  return {
+    id,
+    title: id,
+    artistName: "A",
+    album: "",
+    year: 0,
+    trackNo: 0,
+    trackTotal: 0,
+    durationMs: 200000,
+    fileSize: 0,
+    createdAt: "",
+    sampleRate: 0,
+    channels: 0,
+    bitrateKbps: 0,
+    genres: [],
+    coverArtId: "",
+    published: true,
+  };
 }
 
 function base(overrides: Partial<PlayerState> = {}): PlayerState {
-  return { current: null, queue: [], history: [], playing: false, positionMs: 0, durationMs: 0, airplayAvailable: false, airplayActive: false, ...overrides };
+  return {
+    current: null,
+    queue: [],
+    history: [],
+    playing: false,
+    positionMs: 0,
+    durationMs: 0,
+    airplayAvailable: false,
+    airplayActive: false,
+    ...overrides,
+  };
 }
 
 describe("mediaShouldToggle", () => {
@@ -26,7 +64,9 @@ describe("mediaShouldToggle", () => {
 
 describe("advance", () => {
   it("moves the queue head to current and pushes current onto history", () => {
-    const s = advance(base({ current: song("a"), queue: [song("b"), song("c")], history: [] }));
+    const s = advance(
+      base({ current: song("a"), queue: [song("b"), song("c")], history: [] }),
+    );
     expect(s.current?.id).toBe("b");
     expect(s.queue.map((x) => x.id)).toEqual(["c"]);
     expect(s.history.map((x) => x.id)).toEqual(["a"]);
@@ -34,7 +74,14 @@ describe("advance", () => {
   });
 
   it("stops (playing=false) and resets position when the queue is empty, keeping current", () => {
-    const s = advance(base({ current: song("a"), queue: [], playing: true, positionMs: 199000 }));
+    const s = advance(
+      base({
+        current: song("a"),
+        queue: [],
+        playing: true,
+        positionMs: 199000,
+      }),
+    );
     expect(s.current?.id).toBe("a");
     expect(s.playing).toBe(false);
     expect(s.positionMs).toBe(0);
@@ -43,14 +90,18 @@ describe("advance", () => {
 
 describe("back", () => {
   it("pops history to current and pushes current to the front of the queue", () => {
-    const s = back(base({ current: song("b"), queue: [song("c")], history: [song("a")] }));
+    const s = back(
+      base({ current: song("b"), queue: [song("c")], history: [song("a")] }),
+    );
     expect(s.current?.id).toBe("a");
     expect(s.queue.map((x) => x.id)).toEqual(["b", "c"]);
     expect(s.history).toEqual([]);
   });
 
   it("restarts the current track when history is empty", () => {
-    const s = back(base({ current: song("a"), positionMs: 50000, history: [] }));
+    const s = back(
+      base({ current: song("a"), positionMs: 50000, history: [] }),
+    );
     expect(s.current?.id).toBe("a");
     expect(s.positionMs).toBe(0);
   });
@@ -103,14 +154,29 @@ describe("shouldReport", () => {
 
 describe("removeSong", () => {
   it("drops the id from queue and history without touching current", () => {
-    const s = removeSong(base({ current: song("a"), queue: [song("b"), song("c")], history: [song("x")] }), "c");
+    const s = removeSong(
+      base({
+        current: song("a"),
+        queue: [song("b"), song("c")],
+        history: [song("x")],
+      }),
+      "c",
+    );
     expect(s.current?.id).toBe("a");
     expect(s.queue.map((q) => q.id)).toEqual(["b"]);
     expect(s.history.map((h) => h.id)).toEqual(["x"]);
   });
 
   it("clears current and stops when the removed id is the current track", () => {
-    const s = removeSong(base({ current: song("a"), queue: [song("b")], playing: true, positionMs: 5000 }), "a");
+    const s = removeSong(
+      base({
+        current: song("a"),
+        queue: [song("b")],
+        playing: true,
+        positionMs: 5000,
+      }),
+      "a",
+    );
     expect(s.current).toBeNull();
     expect(s.playing).toBe(false);
     expect(s.positionMs).toBe(0);
@@ -122,7 +188,13 @@ describe("replaceSong", () => {
   it("swaps the edited song into current/queue/history without disturbing playback", () => {
     const edited = { ...song("a"), title: "New Title", coverArtId: "cover-2" };
     const s = replaceSong(
-      base({ current: song("a"), queue: [song("a"), song("b")], history: [song("a")], playing: true, positionMs: 5000 }),
+      base({
+        current: song("a"),
+        queue: [song("a"), song("b")],
+        history: [song("a")],
+        playing: true,
+        positionMs: 5000,
+      }),
       edited,
     );
     expect(s.current).toBe(edited);
@@ -135,7 +207,10 @@ describe("replaceSong", () => {
   });
 
   it("leaves state unchanged when the edited id is absent", () => {
-    const s = replaceSong(base({ current: song("a"), queue: [song("b")] }), { ...song("z"), title: "Z" });
+    const s = replaceSong(base({ current: song("a"), queue: [song("b")] }), {
+      ...song("z"),
+      title: "Z",
+    });
     expect(s.current?.id).toBe("a");
     expect(s.queue.map((q) => q.id)).toEqual(["b"]);
   });

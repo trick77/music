@@ -3,9 +3,24 @@ import { player, usePlayer } from "./player";
 import { coverUrl } from "./cover";
 import { closeToOrigin } from "./router";
 import { useBackgroundDismiss } from "./backgroundDismiss";
-import { startAnalysis, stopAnalysis, syncAnalysis, analysisTime, analysisDebug, resume, bands } from "./analyser";
+import {
+  startAnalysis,
+  stopAnalysis,
+  syncAnalysis,
+  analysisTime,
+  analysisDebug,
+  resume,
+  bands,
+} from "./analyser";
 import { Icon } from "./Icon";
-import { Divider, ImmersiveControls, StarButton, Transport, iconBtn, type Fav } from "./PlayerControls";
+import {
+  Divider,
+  ImmersiveControls,
+  StarButton,
+  Transport,
+  iconBtn,
+  type Fav,
+} from "./PlayerControls";
 import { useEscape } from "./useEscape";
 import { type Song } from "./api";
 
@@ -25,7 +40,10 @@ export function synthTargets(t: number, playing: boolean): number[] {
     const base = 0.6 - (i / N) * 0.4; // bass columns sit taller than treble
     const w1 = 0.5 + 0.5 * Math.sin(s * (1.2 + i * 0.13) + i * 0.5);
     const w2 = 0.5 + 0.5 * Math.sin(s * (2.7 - i * 0.05) + i * 1.3);
-    out[i] = Math.max(0, Math.min(1, base * (0.35 + 0.65 * w1) * (0.55 + 0.45 * w2)));
+    out[i] = Math.max(
+      0,
+      Math.min(1, base * (0.35 + 0.65 * w1) * (0.55 + 0.45 * w2)),
+    );
   }
   return out;
 }
@@ -46,7 +64,11 @@ export const GIVE_UP_MS = 60_000;
 // showing real bars → fall back once starvation crosses the limit; showing
 // synthetic bars → return to real the moment any true spectrum appears. The
 // 0.02 floor matches accrueStarvation's hasSignal threshold.
-export function nextSynthetic(prevSynthetic: boolean, starveMs: number, peak: number): boolean {
+export function nextSynthetic(
+  prevSynthetic: boolean,
+  starveMs: number,
+  peak: number,
+): boolean {
   if (prevSynthetic) return peak < 0.02;
   return starveMs > STARVE_LIMIT_MS;
 }
@@ -87,7 +109,13 @@ export function accrueStarvation(
 // on a remote speaker (nothing local to visualize), so we hide the bars and show
 // a note instead — mirroring the player bar, which hides the visualizer button
 // while AirPlay is active.
-export function VisualizerView({ fav, onShare }: { fav: Fav; onShare: (s: Song) => void }) {
+export function VisualizerView({
+  fav,
+  onShare,
+}: {
+  fav: Fav;
+  onShare: (s: Song) => void;
+}) {
   const p = usePlayer();
   const song = p.current;
   const airplay = p.airplayActive;
@@ -104,7 +132,9 @@ export function VisualizerView({ fav, onShare }: { fav: Fav; onShare: (s: Song) 
     if (!ctx0) return;
     const ctx = ctx0; // non-null capture so the rAF closures type-check
 
-    const reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const reduce =
+      window.matchMedia &&
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     const levels = new Float32Array(N);
     const peaks = new Float32Array(N);
     let w = 0;
@@ -129,10 +159,22 @@ export function VisualizerView({ fav, onShare }: { fav: Fav; onShare: (s: Song) 
     const C_HI = [246, 180, 131]; // #f6b483
     const C_TOP = [255, 242, 230]; // #fff2e6
     function heat(f: number): string {
-      let a = C_LOW, b = C_MID, u = 0;
-      if (f < 0.5) { a = C_LOW; b = C_MID; u = f / 0.5; }
-      else if (f < 0.82) { a = C_MID; b = C_HI; u = (f - 0.5) / 0.32; }
-      else { a = C_HI; b = C_TOP; u = (f - 0.82) / 0.18; }
+      let a = C_LOW,
+        b = C_MID,
+        u = 0;
+      if (f < 0.5) {
+        a = C_LOW;
+        b = C_MID;
+        u = f / 0.5;
+      } else if (f < 0.82) {
+        a = C_MID;
+        b = C_HI;
+        u = (f - 0.5) / 0.32;
+      } else {
+        a = C_HI;
+        b = C_TOP;
+        u = (f - 0.82) / 0.18;
+      }
       const ch = (k: number) => (a[k] + (b[k] - a[k]) * u) | 0;
       return `rgb(${ch(0)},${ch(1)},${ch(2)})`;
     }
@@ -151,10 +193,15 @@ export function VisualizerView({ fav, onShare }: { fav: Fav; onShare: (s: Song) 
       if (airplayRef.current) return; // sound is on a remote speaker — nothing to show
       // Ambient composition: a slim spectrum along the lower third; the album art
       // (DOM layer) fills the frame behind it. Bottom is left clear for transport.
-      const x0 = w * 0.05, x1 = w * 0.95;
-      const yBot = h * 0.72, yTop = h * 0.44; // lifted to clear the scrubber + control row
-      const colW = (x1 - x0) / N, bw = colW * 0.62;
-      const cells = 18, cellH = (yBot - yTop) / cells, cg = Math.min(2.5, cellH * 0.4);
+      const x0 = w * 0.05,
+        x1 = w * 0.95;
+      const yBot = h * 0.72,
+        yTop = h * 0.44; // lifted to clear the scrubber + control row
+      const colW = (x1 - x0) / N,
+        bw = colW * 0.62;
+      const cells = 18,
+        cellH = (yBot - yTop) / cells,
+        cg = Math.min(2.5, cellH * 0.4);
       for (let i = 0; i < N; i++) {
         const x = x0 + i * colW + (colW - bw) / 2;
         const lit = Math.round(levels[i] * cells);
@@ -210,7 +257,9 @@ export function VisualizerView({ fav, onShare }: { fav: Fav; onShare: (s: Song) 
     let debugTrace = false;
     try {
       debugTrace = !!localStorage.getItem("vizdebug");
-    } catch { /* storage unavailable — leave the trace off */ }
+    } catch {
+      /* storage unavailable — leave the trace off */
+    }
     let lastLogMs = 0;
 
     function frame() {
@@ -251,12 +300,19 @@ export function VisualizerView({ fav, onShare }: { fav: Fav; onShare: (s: Song) 
         }
         target = synthetic ? synthTargets(now, !(main?.paused ?? true)) : real;
       }
-      if (debugTrace && localStorage.getItem("vizdebug") === "2" && main && !synthetic) {
+      if (
+        debugTrace &&
+        localStorage.getItem("vizdebug") === "2" &&
+        main &&
+        !synthetic
+      ) {
         // measurement mode: per-frame band energy + both clocks, for offline
         // cross-correlation against the track's decoded envelope
         let sum = 0;
         for (let i = 0; i < N; i++) sum += target[i];
-        console.log(`[vizf] ${now.toFixed(1)} ${main.currentTime.toFixed(4)} ${analysisTime().toFixed(4)} ${sum.toFixed(4)}`);
+        console.log(
+          `[vizf] ${now.toFixed(1)} ${main.currentTime.toFixed(4)} ${analysisTime().toFixed(4)} ${sum.toFixed(4)}`,
+        );
       }
       if (debugTrace && now - lastLogMs >= 1000) {
         lastLogMs = now;
@@ -316,34 +372,99 @@ export function VisualizerView({ fav, onShare }: { fav: Fav; onShare: (s: Song) 
           background: song?.coverArtId
             ? `linear-gradient(180deg, rgba(20,20,18,0.6), rgba(20,20,18,0.96)), url(${coverUrl(song.coverArtId, "hero")}) center/cover`
             : "var(--color-bg)",
-          ...(song?.coverArtId ? { filter: "blur(14px)", transform: "scale(1.12)" } : null),
+          ...(song?.coverArtId
+            ? { filter: "blur(14px)", transform: "scale(1.12)" }
+            : null),
         }}
       />
 
       {/* Spectrum canvas (bars + peaks only). */}
-      <canvas ref={canvasRef} style={{ position: "absolute", inset: 0, width: "100%", height: "100%" }} />
+      <canvas
+        ref={canvasRef}
+        style={{
+          position: "absolute",
+          inset: 0,
+          width: "100%",
+          height: "100%",
+        }}
+      />
 
       {/* Close */}
       <button
         aria-label="Close visualizer"
         onClick={close}
-        style={{ ...iconBtn, position: "absolute", top: 16, right: 16, zIndex: 3 }}
+        style={{
+          ...iconBtn,
+          position: "absolute",
+          top: 16,
+          right: 16,
+          zIndex: 3,
+        }}
       >
         <Icon name="close" size="24px" />
       </button>
 
       {/* Now-playing label */}
       {song && (
-        <div style={{ position: "absolute", top: 18, left: 22, right: 68, zIndex: 3, minWidth: 0 }}>
-          <div style={{ fontFamily: "var(--font-serif)", fontWeight: 700, fontSize: "clamp(1.1rem, 3vw, 1.6rem)", color: "#fff", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{song.title}</div>
-          <div style={{ fontFamily: "var(--font-sans)", fontSize: "var(--text-ui)", color: "rgba(255,255,255,0.72)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{song.artistName}</div>
+        <div
+          style={{
+            position: "absolute",
+            top: 18,
+            left: 22,
+            right: 68,
+            zIndex: 3,
+            minWidth: 0,
+          }}
+        >
+          <div
+            style={{
+              fontFamily: "var(--font-serif)",
+              fontWeight: 700,
+              fontSize: "clamp(1.1rem, 3vw, 1.6rem)",
+              color: "#fff",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+            }}
+          >
+            {song.title}
+          </div>
+          <div
+            style={{
+              fontFamily: "var(--font-sans)",
+              fontSize: "var(--text-ui)",
+              color: "rgba(255,255,255,0.72)",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+            }}
+          >
+            {song.artistName}
+          </div>
         </div>
       )}
 
       {/* AirPlay-active fallback: bars are hidden; explain why. */}
       {airplay && (
-        <div style={{ position: "absolute", inset: 0, display: "grid", placeItems: "center", zIndex: 2 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 10, color: "var(--color-accent-strong)", fontFamily: "var(--font-sans)", fontSize: "var(--text-ui)" }}>
+        <div
+          style={{
+            position: "absolute",
+            inset: 0,
+            display: "grid",
+            placeItems: "center",
+            zIndex: 2,
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 10,
+              color: "var(--color-accent-strong)",
+              fontFamily: "var(--font-sans)",
+              fontSize: "var(--text-ui)",
+            }}
+          >
             <Icon name="airplay" size="22px" />
             <span>Playing on AirPlay</span>
           </div>
@@ -354,19 +475,48 @@ export function VisualizerView({ fav, onShare }: { fav: Fav; onShare: (s: Song) 
           local to visualize while casting). No lyrics or artwork toggle: while the
           visualizer is open it is left via the X, not swapped away in place. */}
       {song && (
-        <ImmersiveControls positionMs={p.positionMs} durationMs={p.durationMs} onSeek={p.seek}>
-          <Transport playing={p.playing} onPrev={p.prev} onToggle={p.toggle} onNext={p.next} canNext={p.queue.length > 0} size={26} />
+        <ImmersiveControls
+          positionMs={p.positionMs}
+          durationMs={p.durationMs}
+          onSeek={p.seek}
+        >
+          <Transport
+            playing={p.playing}
+            onPrev={p.prev}
+            onToggle={p.toggle}
+            onNext={p.next}
+            canNext={p.queue.length > 0}
+            size={26}
+          />
           <Divider color="rgba(255,255,255,0.2)" />
           <StarButton song={song} fav={fav} size={24} />
           {/* Unpublished songs aren't shareable — their /song/:id link 404s for
               anonymous recipients — so hide Share until published. */}
-          {song.published && <button aria-label="Share" onClick={() => onShare(song)} style={iconBtn}><Icon name="share" size="22px" /></button>}
+          {song.published && (
+            <button
+              aria-label="Share"
+              onClick={() => onShare(song)}
+              style={iconBtn}
+            >
+              <Icon name="share" size="22px" />
+            </button>
+          )}
         </ImmersiveControls>
       )}
 
       {/* Empty state: opened with nothing playing. */}
       {!song && (
-        <div style={{ position: "absolute", inset: 0, display: "grid", placeItems: "center", zIndex: 2, color: "rgba(255,255,255,0.7)", fontFamily: "var(--font-sans)" }}>
+        <div
+          style={{
+            position: "absolute",
+            inset: 0,
+            display: "grid",
+            placeItems: "center",
+            zIndex: 2,
+            color: "rgba(255,255,255,0.7)",
+            fontFamily: "var(--font-sans)",
+          }}
+        >
           Nothing is playing
         </div>
       )}

@@ -1,7 +1,13 @@
 // Albums: the album summary browse plus the Studio cover-art prompt/apply flow
 // keyed by artist + album.
 
-export type AlbumSummary = { artistId: string; artistName: string; album: string; songCount: number; hasCover: boolean };
+export type AlbumSummary = {
+  artistId: string;
+  artistName: string;
+  album: string;
+  songCount: number;
+  hasCover: boolean;
+};
 
 export async function listAlbums(): Promise<AlbumSummary[]> {
   const r = await fetch("/api/albums");
@@ -10,7 +16,10 @@ export async function listAlbums(): Promise<AlbumSummary[]> {
   return data.albums ?? [];
 }
 
-export async function suggestAlbumPrompt(artistId: string, album: string): Promise<string> {
+export async function suggestAlbumPrompt(
+  artistId: string,
+  album: string,
+): Promise<string> {
   const r = await fetch("/api/albums/suggest-prompt", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -21,7 +30,12 @@ export async function suggestAlbumPrompt(artistId: string, album: string): Promi
   return data.prompt ?? "";
 }
 
-export async function refineAlbumPrompt(artistId: string, album: string, prompt: string, instruction: string): Promise<string> {
+export async function refineAlbumPrompt(
+  artistId: string,
+  album: string,
+  prompt: string,
+  instruction: string,
+): Promise<string> {
   const r = await fetch("/api/albums/refine-prompt", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -32,7 +46,11 @@ export async function refineAlbumPrompt(artistId: string, album: string, prompt:
   return data.prompt ?? "";
 }
 
-export async function setAlbumCover(artistId: string, album: string, studioCoverArtId: string): Promise<{ coverArtId: string }> {
+export async function setAlbumCover(
+  artistId: string,
+  album: string,
+  studioCoverArtId: string,
+): Promise<{ coverArtId: string }> {
   const r = await fetch("/api/albums/cover", {
     method: "POST",
     headers: { "Content-Type": "application/json" },

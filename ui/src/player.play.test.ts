@@ -28,7 +28,9 @@ vi.mock("./analyser", () => ({
 
 // The timeupdate ticks the persistence tests drive make reportPlay reachable; it
 // would otherwise hit the network. Everything else in ./api stays real.
-const { reportPlayMock } = vi.hoisted(() => ({ reportPlayMock: vi.fn(() => Promise.resolve()) }));
+const { reportPlayMock } = vi.hoisted(() => ({
+  reportPlayMock: vi.fn(() => Promise.resolve()),
+}));
 
 vi.mock("./api", async (importOriginal) => ({
   ...(await importOriginal<typeof import("./api")>()),
@@ -72,7 +74,13 @@ class MockAudio {
 const LONG_TRACK_MS = 5 * 60 * 1000;
 
 function song(id: string, durationMs = 1000): Song {
-  return { id, title: id, artist: "", album: "", durationMs } as unknown as Song;
+  return {
+    id,
+    title: id,
+    artist: "",
+    album: "",
+    durationMs,
+  } as unknown as Song;
 }
 
 // Shared module-level state, reset for every test in the file so no block
@@ -171,32 +179,46 @@ describe("player end of queue", () => {
 // 30-minute window.
 describe("player persistence", () => {
   const KEY = "music.player.v1";
-  let store: { getItem: ReturnType<typeof vi.fn>; setItem: ReturnType<typeof vi.fn>; removeItem: ReturnType<typeof vi.fn> };
+  let store: {
+    getItem: ReturnType<typeof vi.fn>;
+    setItem: ReturnType<typeof vi.fn>;
+    removeItem: ReturnType<typeof vi.fn>;
+  };
   // The player registers pagehide (window) and visibilitychange (document) in
   // getAudio; capture their handlers so tests can fire "the page went away".
   let winHandlers: Record<string, Array<() => void>>;
   let docHandlers: Record<string, Array<() => void>>;
-  let doc: { hidden: boolean; addEventListener: (t: string, fn: () => void) => void };
+  let doc: {
+    hidden: boolean;
+    addEventListener: (t: string, fn: () => void) => void;
+  };
 
   beforeEach(() => {
     vi.resetModules();
     vi.stubGlobal("Audio", MockAudio);
-    store = { getItem: vi.fn(() => null), setItem: vi.fn(), removeItem: vi.fn() };
+    store = {
+      getItem: vi.fn(() => null),
+      setItem: vi.fn(),
+      removeItem: vi.fn(),
+    };
     winHandlers = {};
     docHandlers = {};
     vi.stubGlobal("window", {
       localStorage: store,
-      addEventListener: (t: string, fn: () => void) => (winHandlers[t] ??= []).push(fn),
+      addEventListener: (t: string, fn: () => void) =>
+        (winHandlers[t] ??= []).push(fn),
     });
     doc = {
       hidden: false,
-      addEventListener: (t: string, fn: () => void) => (docHandlers[t] ??= []).push(fn),
+      addEventListener: (t: string, fn: () => void) =>
+        (docHandlers[t] ??= []).push(fn),
     };
     vi.stubGlobal("document", doc);
   });
   afterEach(() => vi.unstubAllGlobals());
 
-  const firePageHide = () => (winHandlers["pagehide"] ?? []).forEach((fn) => fn());
+  const firePageHide = () =>
+    (winHandlers["pagehide"] ?? []).forEach((fn) => fn());
   const fireHidden = () => {
     doc.hidden = true;
     (docHandlers["visibilitychange"] ?? []).forEach((fn) => fn());
@@ -251,7 +273,10 @@ describe("player persistence", () => {
     fireHidden();
 
     expect(store.setItem).toHaveBeenCalledTimes(1);
-    expect(JSON.parse(store.setItem.mock.calls[0][1])).toEqual({ id: "a", positionMs: 12_000 });
+    expect(JSON.parse(store.setItem.mock.calls[0][1])).toEqual({
+      id: "a",
+      positionMs: 12_000,
+    });
   });
 
   it("clears the key when the page hides while paused (not playing → no restore)", async () => {
@@ -323,7 +348,6 @@ describe("player persistence", () => {
   });
 });
 
-
 // ── The side-effecting singleton ───────────────────────────────────────────
 // Everything below drives the real player object against hand-stubbed audio, OS
 // media-session and storage globals. The behaviours are the ones a user can feel:
@@ -338,7 +362,8 @@ class SafariMockAudio extends MockAudio {
   webkitShowPlaybackTargetPicker = vi.fn();
   // The AirPlay listeners take an event argument, unlike the rest.
   fireWith(type: string, e: unknown) {
-    for (const fn of this.handlers[type] ?? []) (fn as unknown as (ev: unknown) => void)(e);
+    for (const fn of this.handlers[type] ?? [])
+      (fn as unknown as (ev: unknown) => void)(e);
   }
 }
 
@@ -360,12 +385,14 @@ function stubEnvironment() {
   const winHandlers: Record<string, Array<() => void>> = {};
   vi.stubGlobal("window", {
     localStorage,
-    addEventListener: (t: string, fn: () => void) => (winHandlers[t] ??= []).push(fn),
+    addEventListener: (t: string, fn: () => void) =>
+      (winHandlers[t] ??= []).push(fn),
   });
   const docHandlers: Record<string, Array<() => void>> = {};
   vi.stubGlobal("document", {
     hidden: false,
-    addEventListener: (t: string, fn: () => void) => (docHandlers[t] ??= []).push(fn),
+    addEventListener: (t: string, fn: () => void) =>
+      (docHandlers[t] ??= []).push(fn),
   });
   const mediaSession: MediaSessionStub = {
     metadata: null,
@@ -377,11 +404,14 @@ function stubEnvironment() {
     setPositionState: vi.fn(),
   };
   vi.stubGlobal("navigator", { mediaSession });
-  vi.stubGlobal("MediaMetadata", class {
-    constructor(init: Record<string, unknown>) {
-      Object.assign(this, init);
-    }
-  });
+  vi.stubGlobal(
+    "MediaMetadata",
+    class {
+      constructor(init: Record<string, unknown>) {
+        Object.assign(this, init);
+      }
+    },
+  );
   vi.stubGlobal("Audio", SafariMockAudio);
   return { store, mediaSession };
 }
@@ -445,7 +475,9 @@ describe("player transport", () => {
   it("notifies subscribers on every change, and stops once unsubscribed", async () => {
     const { player } = await load();
     const seen: Array<string | null> = [];
-    const unsub = player.subscribe(() => seen.push(player.getState().current?.id ?? null));
+    const unsub = player.subscribe(() =>
+      seen.push(player.getState().current?.id ?? null),
+    );
 
     player.play(song("a"));
     expect(seen).toEqual(["a"]);
@@ -487,7 +519,14 @@ describe("player transport", () => {
 
     player.stop();
 
-    expect(player.getState()).toMatchObject({ current: null, queue: [], history: [], playing: false, positionMs: 0, durationMs: 0 });
+    expect(player.getState()).toMatchObject({
+      current: null,
+      queue: [],
+      history: [],
+      playing: false,
+      positionMs: 0,
+      durationMs: 0,
+    });
     expect(el().pause).toHaveBeenCalled();
   });
 
@@ -628,7 +667,9 @@ describe("player transport", () => {
     expect(player.getState().current?.title).toBe("Renamed");
     expect(player.getState().queue[0].title).toBe("Renamed");
     expect(el().play).not.toHaveBeenCalled(); // audio keeps running
-    expect((env.mediaSession.metadata as { title: string }).title).toBe("Renamed");
+    expect((env.mediaSession.metadata as { title: string }).title).toBe(
+      "Renamed",
+    );
   });
 
   it("patching an unrelated song leaves the OS widget as it was", async () => {
@@ -657,9 +698,20 @@ describe("player OS media session", () => {
   it("publishes title, artist, album and both artwork sizes", async () => {
     const { player } = await import("./player");
 
-    player.play({ ...song("a"), title: "Song", artistName: "Band", album: "LP", coverArtId: "cov" } as Song);
+    player.play({
+      ...song("a"),
+      title: "Song",
+      artistName: "Band",
+      album: "LP",
+      coverArtId: "cov",
+    } as Song);
 
-    const md = env.mediaSession.metadata as { title: string; artist: string; album: string; artwork: Array<{ src: string; sizes: string }> };
+    const md = env.mediaSession.metadata as {
+      title: string;
+      artist: string;
+      album: string;
+      artwork: Array<{ src: string; sizes: string }>;
+    };
     expect(md.title).toBe("Song");
     expect(md.artist).toBe("Band");
     expect(md.album).toBe("LP");
@@ -672,7 +724,9 @@ describe("player OS media session", () => {
 
     player.play({ ...song("a"), coverArtId: "", album: "" } as Song);
 
-    expect((env.mediaSession.metadata as { artwork: unknown[] }).artwork).toEqual([]);
+    expect(
+      (env.mediaSession.metadata as { artwork: unknown[] }).artwork,
+    ).toEqual([]);
   });
 
   it("mirrors playing and paused onto the widget", async () => {
@@ -765,7 +819,11 @@ describe("player OS media session", () => {
     el().currentTime = 30;
     el().fire("timeupdate");
 
-    expect(env.mediaSession.setPositionState).toHaveBeenCalledWith({ duration: 200, position: 30, playbackRate: 1 });
+    expect(env.mediaSession.setPositionState).toHaveBeenCalledWith({
+      duration: 200,
+      position: 30,
+      playbackRate: 1,
+    });
   });
 
   it("skips the position update while the duration is unknown", async () => {
@@ -820,10 +878,14 @@ describe("player AirPlay", () => {
     player.play(song("a"));
     expect(player.getState().airplayAvailable).toBe(false);
 
-    el().fireWith("webkitplaybacktargetavailabilitychanged", { availability: "available" });
+    el().fireWith("webkitplaybacktargetavailabilitychanged", {
+      availability: "available",
+    });
     expect(player.getState().airplayAvailable).toBe(true);
 
-    el().fireWith("webkitplaybacktargetavailabilitychanged", { availability: "not-available" });
+    el().fireWith("webkitplaybacktargetavailabilitychanged", {
+      availability: "not-available",
+    });
     expect(player.getState().airplayAvailable).toBe(false);
   });
 
@@ -885,7 +947,14 @@ describe("readSnapshot / clearSnapshot", () => {
   it("ignores a corrupt or unusable snapshot rather than restoring nonsense", async () => {
     const { readSnapshot } = await import("./player");
 
-    for (const raw of ["not json", "null", '{"id":5,"positionMs":1}', '{"id":"a"}', '{"id":"a","positionMs":-1}', '{"id":"a","positionMs":"x"}']) {
+    for (const raw of [
+      "not json",
+      "null",
+      '{"id":5,"positionMs":1}',
+      '{"id":"a"}',
+      '{"id":"a","positionMs":-1}',
+      '{"id":"a","positionMs":"x"}',
+    ]) {
       env.store.set(KEY, raw);
       expect(readSnapshot()).toBeNull();
     }

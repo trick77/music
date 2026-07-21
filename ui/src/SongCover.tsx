@@ -23,18 +23,63 @@ type Props = {
   children?: ReactNode; // extra overlays (e.g. a .playfab play button)
 };
 
-export function SongCover({ song, size, radius, imgSize, fallbackText, fallbackFontSize, fallbackColor, background, border, barsScale, children }: Props) {
+export function SongCover({
+  song,
+  size,
+  radius,
+  imgSize,
+  fallbackText,
+  fallbackFontSize,
+  fallbackColor,
+  background,
+  border,
+  barsScale,
+  children,
+}: Props) {
   const { current, playing } = usePlayer();
   const isPlaying = current?.id === song.id && playing;
   return (
-    <div style={{ position: "relative", width: size, height: size, flexShrink: 0, borderRadius: radius, overflow: "hidden", background: background ?? "var(--color-active)", border, display: "grid", placeItems: "center" }}>
+    <div
+      style={{
+        position: "relative",
+        width: size,
+        height: size,
+        flexShrink: 0,
+        borderRadius: radius,
+        overflow: "hidden",
+        background: background ?? "var(--color-active)",
+        border,
+        display: "grid",
+        placeItems: "center",
+      }}
+    >
       {song.coverArtId ? (
-        <img src={coverUrl(song.coverArtId, imgSize)} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+        <img
+          src={coverUrl(song.coverArtId, imgSize)}
+          alt=""
+          style={{ width: "100%", height: "100%", objectFit: "cover" }}
+        />
       ) : (
-        <span style={{ fontFamily: "var(--font-serif)", fontSize: fallbackFontSize, color: fallbackColor ?? "var(--color-muted)" }}>{fallbackText ?? coverInitial(song.title)}</span>
+        <span
+          style={{
+            fontFamily: "var(--font-serif)",
+            fontSize: fallbackFontSize,
+            color: fallbackColor ?? "var(--color-muted)",
+          }}
+        >
+          {fallbackText ?? coverInitial(song.title)}
+        </span>
       )}
       {isPlaying && (
-        <span style={{ position: "absolute", inset: 0, display: "grid", placeItems: "center", background: "rgba(0,0,0,0.5)" }}>
+        <span
+          style={{
+            position: "absolute",
+            inset: 0,
+            display: "grid",
+            placeItems: "center",
+            background: "rgba(0,0,0,0.5)",
+          }}
+        >
           <NowPlayingBars scale={barsScale} />
         </span>
       )}

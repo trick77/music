@@ -28,7 +28,9 @@ export function advance(state: PlayerState): PlayerState {
     return { ...state, playing: false, positionMs: 0 };
   }
   const [next, ...rest] = state.queue;
-  const history = state.current ? [...state.history, state.current] : state.history;
+  const history = state.current
+    ? [...state.history, state.current]
+    : state.history;
   return { ...state, current: next, queue: rest, history, positionMs: 0 };
 }
 
@@ -39,7 +41,15 @@ export function removeSong(state: PlayerState, id: string): PlayerState {
   const queue = state.queue.filter((s) => s.id !== id);
   const history = state.history.filter((s) => s.id !== id);
   if (state.current?.id === id) {
-    return { ...state, current: null, queue, history, playing: false, positionMs: 0, durationMs: 0 };
+    return {
+      ...state,
+      current: null,
+      queue,
+      history,
+      playing: false,
+      positionMs: 0,
+      durationMs: 0,
+    };
   }
   return { ...state, queue, history };
 }
@@ -79,7 +89,10 @@ export function shouldRestart(positionMs: number, thresholdMs = 3000): boolean {
 
 // qualifiesForPlay decides when a listen counts: >=30s, OR >=50% of the track
 // for short songs (spec §9). Avoids skip-inflation.
-export function qualifiesForPlay(positionMs: number, durationMs: number): boolean {
+export function qualifiesForPlay(
+  positionMs: number,
+  durationMs: number,
+): boolean {
   if (positionMs >= 30000) return true;
   return durationMs > 0 && positionMs >= durationMs / 2;
 }
@@ -97,7 +110,10 @@ export function shuffle<T>(items: T[]): T[] {
 
 // shouldReport fires at most once per play session. It flips session.reported so
 // a single listen can never inflate the chart, even across many timeupdate ticks.
-export function shouldReport(session: { reported: boolean }, qualifies: boolean): boolean {
+export function shouldReport(
+  session: { reported: boolean },
+  qualifies: boolean,
+): boolean {
   if (qualifies && !session.reported) {
     session.reported = true;
     return true;
@@ -144,7 +160,10 @@ type Snapshot = { id: string; positionMs: number };
 function savePlaybackSnapshot() {
   try {
     if (audio && !audio.paused && state.current) {
-      const snap: Snapshot = { id: state.current.id, positionMs: audio.currentTime * 1000 };
+      const snap: Snapshot = {
+        id: state.current.id,
+        positionMs: audio.currentTime * 1000,
+      };
       window.localStorage.setItem(PERSIST_KEY, JSON.stringify(snap));
     } else {
       window.localStorage.removeItem(PERSIST_KEY);
@@ -161,7 +180,12 @@ export function readSnapshot(): Snapshot | null {
     const raw = window.localStorage.getItem(PERSIST_KEY);
     if (!raw) return null;
     const snap = JSON.parse(raw) as Snapshot;
-    if (typeof snap?.id === "string" && Number.isFinite(snap.positionMs) && snap.positionMs >= 0) return snap;
+    if (
+      typeof snap?.id === "string" &&
+      Number.isFinite(snap.positionMs) &&
+      snap.positionMs >= 0
+    )
+      return snap;
   } catch {
     // corrupt / unavailable
   }
@@ -194,8 +218,16 @@ function setMediaMetadata(song: Song) {
   if (!hasMediaSession() || typeof MediaMetadata === "undefined") return;
   const artwork = song.coverArtId
     ? [
-        { src: coverUrl(song.coverArtId, "card"), sizes: "480x480", type: "image/jpeg" },
-        { src: coverUrl(song.coverArtId, "thumb"), sizes: "160x160", type: "image/jpeg" },
+        {
+          src: coverUrl(song.coverArtId, "card"),
+          sizes: "480x480",
+          type: "image/jpeg",
+        },
+        {
+          src: coverUrl(song.coverArtId, "thumb"),
+          sizes: "160x160",
+          type: "image/jpeg",
+        },
       ]
     : [];
   navigator.mediaSession.metadata = new MediaMetadata({
@@ -224,7 +256,11 @@ function updatePositionState() {
   const d = audio.duration;
   if (!d || !isFinite(d)) return;
   try {
-    navigator.mediaSession.setPositionState({ duration: d, position: audio.currentTime, playbackRate: audio.playbackRate });
+    navigator.mediaSession.setPositionState({
+      duration: d,
+      position: audio.currentTime,
+      playbackRate: audio.playbackRate,
+    });
   } catch {
     // some engines reject setPositionState mid-seek — non-fatal
   }
@@ -246,15 +282,26 @@ function guardMedia(fn: () => void) {
 // "play" arriving at an already-playing tab paused it — which is how two open
 // tabs on two devices fell out of phase. Gate the toggle on the audio element's
 // own paused truth so a redundant command is a no-op, not a flip.
-export function mediaShouldToggle(action: "play" | "pause", paused: boolean): boolean {
+export function mediaShouldToggle(
+  action: "play" | "pause",
+  paused: boolean,
+): boolean {
   return action === "play" ? paused : !paused;
 }
 
 function setupMediaHandlers() {
   if (!hasMediaSession()) return;
   const ms = navigator.mediaSession;
-  guardMedia(() => ms.setActionHandler("play", () => { if (audio && mediaShouldToggle("play", audio.paused)) player.toggle(); }));
-  guardMedia(() => ms.setActionHandler("pause", () => { if (audio && mediaShouldToggle("pause", audio.paused)) player.toggle(); }));
+  guardMedia(() =>
+    ms.setActionHandler("play", () => {
+      if (audio && mediaShouldToggle("play", audio.paused)) player.toggle();
+    }),
+  );
+  guardMedia(() =>
+    ms.setActionHandler("pause", () => {
+      if (audio && mediaShouldToggle("pause", audio.paused)) player.toggle();
+    }),
+  );
   guardMedia(() => ms.setActionHandler("previoustrack", () => player.prev()));
   syncNextAction();
 }
@@ -272,7 +319,12 @@ function syncNextAction() {
   const canNext = state.queue.length > 0;
   if (canNext === lastNextAction) return;
   lastNextAction = canNext;
-  guardMedia(() => navigator.mediaSession.setActionHandler("nexttrack", canNext ? () => player.next() : null));
+  guardMedia(() =>
+    navigator.mediaSession.setActionHandler(
+      "nexttrack",
+      canNext ? () => player.next() : null,
+    ),
+  );
 }
 
 function getAudio(): HTMLAudioElement {
@@ -321,7 +373,8 @@ function getAudio(): HTMLAudioElement {
   // visibilitychange→hidden is the reliable mobile signal (Safari often skips
   // pagehide there). Registered here — by the time anything is worth saving the
   // audio element exists, since we only save while it's playing.
-  if (typeof window !== "undefined") window.addEventListener("pagehide", savePlaybackSnapshot);
+  if (typeof window !== "undefined")
+    window.addEventListener("pagehide", savePlaybackSnapshot);
   if (typeof document !== "undefined") {
     document.addEventListener("visibilitychange", () => {
       if (document.hidden) savePlaybackSnapshot();
@@ -372,8 +425,17 @@ export const player = {
     return () => listeners.delete(l);
   },
   play(song: Song, upNext: Song[] = []) {
-    const history = state.current && state.current.id !== song.id ? [...state.history, state.current] : state.history;
-    set({ current: song, queue: upNext, history, positionMs: 0, durationMs: song.durationMs || 0 });
+    const history =
+      state.current && state.current.id !== song.id
+        ? [...state.history, state.current]
+        : state.history;
+    set({
+      current: song,
+      queue: upNext,
+      history,
+      positionMs: 0,
+      durationMs: song.durationMs || 0,
+    });
     loadCurrent(true);
   },
   setQueue(queue: Song[]) {
@@ -386,12 +448,20 @@ export const player = {
   // paused element emits no timeupdate to populate the scrubber. App calls this
   // once, after its song list has loaded, having resolved the id via readSnapshot.
   restore(song: Song, positionMs: number) {
-    set({ current: song, queue: [], history: [], playing: false, positionMs, durationMs: song.durationMs || 0 });
+    set({
+      current: song,
+      queue: [],
+      history: [],
+      playing: false,
+      positionMs,
+      durationMs: song.durationMs || 0,
+    });
     loadCurrent(false, positionMs);
     // A restore resumes a listen already in progress. loadCurrent just reset the
     // play-count session; if the saved position already qualifies, this listen was
     // counted before the reload — mark it reported so resuming doesn't count it twice.
-    if (qualifiesForPlay(positionMs, song.durationMs || 0)) session.reported = true;
+    if (qualifiesForPlay(positionMs, song.durationMs || 0))
+      session.reported = true;
   },
   remove(id: string) {
     const wasCurrent = state.current?.id === id;
@@ -433,7 +503,14 @@ export const player = {
     if (!state.current) return;
     getAudio().pause();
     clearMediaSession(); // matters more now that stop() also runs when the last song ends
-    set({ current: null, queue: [], history: [], playing: false, positionMs: 0, durationMs: 0 });
+    set({
+      current: null,
+      queue: [],
+      history: [],
+      playing: false,
+      positionMs: 0,
+      durationMs: 0,
+    });
   },
   next() {
     // Advancing past the end closes the player. The `ended` listener and the Next

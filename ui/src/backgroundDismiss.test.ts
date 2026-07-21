@@ -3,7 +3,13 @@ import { reactStub, renderHook } from "./testHooks";
 
 vi.mock("react", () => reactStub);
 
-const { NO_DISMISS_SELECTOR, TAP_SLOP_PX, isBackgroundTarget, shouldDismiss, useBackgroundDismiss } = await import("./backgroundDismiss");
+const {
+  NO_DISMISS_SELECTOR,
+  TAP_SLOP_PX,
+  isBackgroundTarget,
+  shouldDismiss,
+  useBackgroundDismiss,
+} = await import("./backgroundDismiss");
 type Press = import("./backgroundDismiss").Press;
 
 // The immersive views close when you tap their background. These tests pin the
@@ -48,7 +54,11 @@ describe("NO_DISMISS_SELECTOR", () => {
 });
 
 describe("shouldDismiss", () => {
-  const at = (x: number, y: number, background = true): Press => ({ x, y, background });
+  const at = (x: number, y: number, background = true): Press => ({
+    x,
+    y,
+    background,
+  });
 
   it("when a tap presses and releases on the background, then it dismisses", () => {
     expect(shouldDismiss(at(100, 100), at(100, 100))).toBe(true);
@@ -88,8 +98,19 @@ describe("useBackgroundDismiss", () => {
   const control = { closest: () => ({}) };
   const background = { closest: () => null };
 
-  type PointerStub = { isPrimary: boolean; button: number; clientX: number; clientY: number; target: unknown };
-  type ClickStub = { detail: number; clientX: number; clientY: number; target: unknown };
+  type PointerStub = {
+    isPrimary: boolean;
+    button: number;
+    clientX: number;
+    clientY: number;
+    target: unknown;
+  };
+  type ClickStub = {
+    detail: number;
+    clientX: number;
+    clientY: number;
+    target: unknown;
+  };
 
   function mount(under: unknown = background) {
     const onDismiss = vi.fn();
@@ -98,18 +119,33 @@ describe("useBackgroundDismiss", () => {
     // beside a button and release on it.
     vi.stubGlobal("document", { elementFromPoint: () => under });
     const view = renderHook(() => useBackgroundDismiss(onDismiss));
-    const props = () => view.result() as unknown as {
-      onPointerDown: (e: PointerStub) => void;
-      onPointerCancel: () => void;
-      onClick: (e: ClickStub) => void;
-    };
+    const props = () =>
+      view.result() as unknown as {
+        onPointerDown: (e: PointerStub) => void;
+        onPointerCancel: () => void;
+        onClick: (e: ClickStub) => void;
+      };
     return { onDismiss, props };
   }
 
-  const down = (over: PointerStub["target"] = background, o: Partial<PointerStub> = {}): PointerStub =>
-    ({ isPrimary: true, button: 0, clientX: 100, clientY: 100, target: over, ...o });
-  const click = (o: Partial<ClickStub> = {}): ClickStub =>
-    ({ detail: 1, clientX: 100, clientY: 100, target: background, ...o });
+  const down = (
+    over: PointerStub["target"] = background,
+    o: Partial<PointerStub> = {},
+  ): PointerStub => ({
+    isPrimary: true,
+    button: 0,
+    clientX: 100,
+    clientY: 100,
+    target: over,
+    ...o,
+  });
+  const click = (o: Partial<ClickStub> = {}): ClickStub => ({
+    detail: 1,
+    clientX: 100,
+    clientY: 100,
+    target: background,
+    ...o,
+  });
 
   afterEach(() => vi.unstubAllGlobals());
 

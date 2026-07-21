@@ -92,18 +92,25 @@ describe("song writes", () => {
   it("unpublishes via the unpublish path", async () => {
     const f = mockFetch({ id: "s1", published: false });
     await setPublished("s1", false);
-    expect(f).toHaveBeenCalledWith("/api/songs/s1/unpublish", { method: "POST" });
+    expect(f).toHaveBeenCalledWith("/api/songs/s1/unpublish", {
+      method: "POST",
+    });
   });
 
   it("setPublished throws with the status", async () => {
     mockFetch({}, false, 401);
-    await expect(setPublished("s1", true)).rejects.toThrow("publish toggle failed (401)");
+    await expect(setPublished("s1", true)).rejects.toThrow(
+      "publish toggle failed (401)",
+    );
   });
 
   it("updateSong PATCHes the whole edit as JSON", async () => {
     const f = mockFetch({ id: "s1", ...edit });
     const s = await updateSong("s1", edit);
-    expect(f).toHaveBeenCalledWith("/api/songs/s1", expect.objectContaining({ method: "PATCH", headers: JSON_HEADERS }));
+    expect(f).toHaveBeenCalledWith(
+      "/api/songs/s1",
+      expect.objectContaining({ method: "PATCH", headers: JSON_HEADERS }),
+    );
     expect(sentJson(f)).toEqual(edit);
     expect(s.title).toBe("Neon Undertow");
   });
@@ -139,7 +146,9 @@ describe("song cover art", () => {
 
   it("uploadCover throws with the status", async () => {
     mockFetch({}, false, 413);
-    await expect(uploadCover("s1", new File(["x"], "a.png"))).rejects.toThrow("cover upload failed (413)");
+    await expect(uploadCover("s1", new File(["x"], "a.png"))).rejects.toThrow(
+      "cover upload failed (413)",
+    );
   });
 
   it("removeCover DELETEs the cover and returns the updated song", async () => {
@@ -151,7 +160,9 @@ describe("song cover art", () => {
 
   it("removeCover throws with the status", async () => {
     mockFetch({}, false, 404);
-    await expect(removeCover("s1")).rejects.toThrow("cover removal failed (404)");
+    await expect(removeCover("s1")).rejects.toThrow(
+      "cover removal failed (404)",
+    );
   });
 });
 
@@ -204,18 +215,26 @@ describe("aggregate read error branches", () => {
 
   it("getFavorites throws with the status", async () => {
     mockFetch({}, false, 401);
-    await expect(getFavorites()).rejects.toThrow("failed to load favorites (401)");
+    await expect(getFavorites()).rejects.toThrow(
+      "failed to load favorites (401)",
+    );
   });
 
   it("addFavorite and removeFavorite name themselves in their errors", async () => {
     mockFetch({}, false, 401);
-    await expect(addFavorite("s1")).rejects.toThrow("add favorite failed (401)");
-    await expect(removeFavorite("s1")).rejects.toThrow("remove favorite failed (401)");
+    await expect(addFavorite("s1")).rejects.toThrow(
+      "add favorite failed (401)",
+    );
+    await expect(removeFavorite("s1")).rejects.toThrow(
+      "remove favorite failed (401)",
+    );
   });
 
   // 404 means "never synced" and is handled; anything else is a real failure.
   it("getAlign throws on a non-404 error status", async () => {
     mockFetch({}, false, 500);
-    await expect(getAlign("s-align-err")).rejects.toThrow("align status failed (500)");
+    await expect(getAlign("s-align-err")).rejects.toThrow(
+      "align status failed (500)",
+    );
   });
 });

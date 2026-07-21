@@ -1,7 +1,19 @@
 import type { CSSProperties } from "react";
 import {
-  House, Search, Disc3, Library, Upload, Sparkles,
-  Play, Pause, SkipForward, SkipBack, Plus, ListEnd, ListVideo, User,
+  House,
+  Search,
+  Disc3,
+  Library,
+  Upload,
+  Sparkles,
+  Play,
+  Pause,
+  SkipForward,
+  SkipBack,
+  Plus,
+  ListEnd,
+  ListVideo,
+  User,
   type LucideIcon,
 } from "lucide-react";
 

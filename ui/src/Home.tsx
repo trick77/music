@@ -32,18 +32,29 @@ const sectionHead: React.CSSProperties = {
 // into a "+N" count. Keeps the meta line from crowding out the artist name.
 const GENRE_CAP = 2;
 
-export function Home({ authenticated, onPlay, onShare, onUpload, renderRowActions, reloadKey }: Props) {
+export function Home({
+  authenticated,
+  onPlay,
+  onShare,
+  onUpload,
+  renderRowActions,
+  reloadKey,
+}: Props) {
   const { current, playing } = usePlayer();
   const [feed, setFeed] = useState<HomeFeed | null>(null);
   // Genre name→id map, used to turn the featured song's genre names into links.
   // Fetched once (genres change rarely); a failure just leaves genres un-linked.
   const [genreIds, setGenreIds] = useState<Map<string, string>>(new Map());
   useEffect(() => {
-    getHome().then(setFeed).catch(() => setFeed(null));
+    getHome()
+      .then(setFeed)
+      .catch(() => setFeed(null));
   }, [reloadKey]);
   useEffect(() => {
     listGenres()
-      .then((gs) => setGenreIds(new Map(gs.map((g) => [g.name.toLowerCase(), g.id]))))
+      .then((gs) =>
+        setGenreIds(new Map(gs.map((g) => [g.name.toLowerCase(), g.id]))),
+      )
       .catch(() => {});
   }, [reloadKey]);
 
@@ -58,10 +69,18 @@ export function Home({ authenticated, onPlay, onShare, onUpload, renderRowAction
 
   if (isEmpty) {
     return (
-      <div style={{ textAlign: "center", padding: "6rem 1rem", color: "var(--color-muted)" }}>
+      <div
+        style={{
+          textAlign: "center",
+          padding: "6rem 1rem",
+          color: "var(--color-muted)",
+        }}
+      >
         {authenticated ? (
           <>
-            <h2 style={{ ...t.title, color: "var(--color-ink)" }}>Your library is empty</h2>
+            <h2 style={{ ...t.title, color: "var(--color-ink)" }}>
+              Your library is empty
+            </h2>
             <p>Upload your first songs to get started.</p>
             {onUpload && (
               <Button onClick={onUpload} style={{ marginTop: "0.5rem" }}>
@@ -71,7 +90,9 @@ export function Home({ authenticated, onPlay, onShare, onUpload, renderRowAction
           </>
         ) : (
           <>
-            <h2 style={{ ...t.title, color: "var(--color-ink)" }}>Nothing here yet</h2>
+            <h2 style={{ ...t.title, color: "var(--color-ink)" }}>
+              Nothing here yet
+            </h2>
             <p>Check back soon.</p>
           </>
         )}
@@ -93,7 +114,12 @@ export function Home({ authenticated, onPlay, onShare, onUpload, renderRowAction
       // line on tablet+/desktop; on phones .top-genres is hidden (the row is too
       // narrow — the pills would otherwise crowd out the artist name).
       <span className="top-genres">
-        <span aria-hidden="true" style={{ color: "var(--color-border)", flex: "none" }}>·</span>
+        <span
+          aria-hidden="true"
+          style={{ color: "var(--color-border)", flex: "none" }}
+        >
+          ·
+        </span>
         {shown.map((name) => {
           const id = genreIds.get(name.toLowerCase());
           return id ? (
@@ -101,27 +127,40 @@ export function Home({ authenticated, onPlay, onShare, onUpload, renderRowAction
               key={name}
               className="genre-chip"
               href={`/genre/${id}`}
-              onClick={(e) => { e.preventDefault(); e.stopPropagation(); navigate(`/genre/${id}`); }}
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                navigate(`/genre/${id}`);
+              }}
             >
               {genreLabel(name)}
             </a>
           ) : (
-            <span key={name} className="genre-chip static">{genreLabel(name)}</span>
+            <span key={name} className="genre-chip static">
+              {genreLabel(name)}
+            </span>
           );
         })}
-        {overflow > 0 && <span style={{ ...t.label, flex: "none" }}>+{overflow}</span>}
+        {overflow > 0 && (
+          <span style={{ ...t.label, flex: "none" }}>+{overflow}</span>
+        )}
       </span>
     );
   };
 
   const toGenreLinks = (s: Song): GenreLink[] =>
-    s.genres.map((name) => ({ name, id: genreIds.get(name.toLowerCase()) ?? null }));
+    s.genres.map((name) => ({
+      name,
+      id: genreIds.get(name.toLowerCase()) ?? null,
+    }));
 
   // The hero cycles the top three most-played songs. With no plays yet it keeps
   // the old single-slide fallback to the newest upload (not "ranked", so its
   // eyebrow stays "Featured song" rather than asserting a #1 it never earned).
   const ranked = feed.topTen.length > 0;
-  const heroItems = (ranked ? feed.topTen.slice(0, 3) : feed.recentlyAdded.slice(0, 1)).map((song) => ({
+  const heroItems = (
+    ranked ? feed.topTen.slice(0, 3) : feed.recentlyAdded.slice(0, 1)
+  ).map((song) => ({
     song,
     genres: toGenreLinks(song),
     ranked,
@@ -129,7 +168,14 @@ export function Home({ authenticated, onPlay, onShare, onUpload, renderRowAction
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "2.5rem" }}>
-      <Hero hero={feed.hero} items={heroItems} currentId={current?.id ?? null} playing={playing} onPlay={(s) => onPlay(s, [])} onShare={onShare} />
+      <Hero
+        hero={feed.hero}
+        items={heroItems}
+        currentId={current?.id ?? null}
+        playing={playing}
+        onPlay={(s) => onPlay(s, [])}
+        onShare={onShare}
+      />
 
       {feed.topTen.length > 0 && (
         <section>
@@ -141,25 +187,101 @@ export function Home({ authenticated, onPlay, onShare, onUpload, renderRowAction
               <div key={s.id} className="top-row">
                 <span
                   className="rank-num top-rank"
-                  style={{ fontSize: "var(--text-body)", color: i < 3 ? "var(--color-accent-strong)" : "var(--color-muted)", textAlign: "right" }}
+                  style={{
+                    fontSize: "var(--text-body)",
+                    color:
+                      i < 3
+                        ? "var(--color-accent-strong)"
+                        : "var(--color-muted)",
+                    textAlign: "right",
+                  }}
                 >
                   {String(i + 1)}
                 </span>
-                <button onClick={() => onPlay(s, topTail(i))} aria-label={`Play ${s.title}`} style={{ padding: 0, border: "none", background: "none", cursor: "pointer" }}>
+                <button
+                  onClick={() => onPlay(s, topTail(i))}
+                  aria-label={`Play ${s.title}`}
+                  style={{
+                    padding: 0,
+                    border: "none",
+                    background: "none",
+                    cursor: "pointer",
+                  }}
+                >
                   <SongCover song={s} size={48} radius={8} imgSize="thumb" />
                 </button>
                 <div style={{ minWidth: 0 }}>
-                  <button onClick={() => onPlay(s, topTail(i))} style={{ display: "block", width: "100%", padding: 0, border: "none", background: "none", cursor: "pointer", textAlign: "left", minWidth: 0 }}>
-                    <div style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: current?.id === s.id ? "var(--color-accent-strong)" : undefined }}>{s.title}</div>
+                  <button
+                    onClick={() => onPlay(s, topTail(i))}
+                    style={{
+                      display: "block",
+                      width: "100%",
+                      padding: 0,
+                      border: "none",
+                      background: "none",
+                      cursor: "pointer",
+                      textAlign: "left",
+                      minWidth: 0,
+                    }}
+                  >
+                    <div
+                      style={{
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
+                        color:
+                          current?.id === s.id
+                            ? "var(--color-accent-strong)"
+                            : undefined,
+                      }}
+                    >
+                      {s.title}
+                    </div>
                   </button>
                   {/* Meta line: artist (still a play target) trailed by the genre pills. */}
-                  <div className="row-meta" style={{ display: "flex", alignItems: "center", gap: "0.4rem", minWidth: 0 }}>
-                    <button onClick={() => onPlay(s, topTail(i))} style={{ ...t.label, padding: 0, border: "none", background: "none", cursor: "pointer", textAlign: "left", minWidth: 0, flexShrink: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.artistName}</button>
-                    <UnpublishedBadge show={authenticated && !s.published} placement="meta" />
+                  <div
+                    className="row-meta"
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "0.4rem",
+                      minWidth: 0,
+                    }}
+                  >
+                    <button
+                      onClick={() => onPlay(s, topTail(i))}
+                      style={{
+                        ...t.label,
+                        padding: 0,
+                        border: "none",
+                        background: "none",
+                        cursor: "pointer",
+                        textAlign: "left",
+                        minWidth: 0,
+                        flexShrink: 1,
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      {s.artistName}
+                    </button>
+                    <UnpublishedBadge
+                      show={authenticated && !s.published}
+                      placement="meta"
+                    />
                     {renderGenreChips(s)}
                   </div>
                 </div>
-                <span style={{ display: "flex", alignItems: "center", gap: "0.35rem" }}>{renderRowActions(s)}</span>
+                <span
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "0.35rem",
+                  }}
+                >
+                  {renderRowActions(s)}
+                </span>
               </div>
             ))}
           </div>
@@ -170,7 +292,18 @@ export function Home({ authenticated, onPlay, onShare, onUpload, renderRowAction
         <section>
           <div style={sectionHead}>
             <h3 style={{ margin: 0, ...t.title }}>Recently added</h3>
-            {authenticated && <a onClick={() => navigate("/library")} style={{ color: "var(--color-muted)", fontSize: "var(--text-ui)", cursor: "pointer" }}>Your library →</a>}
+            {authenticated && (
+              <a
+                onClick={() => navigate("/library")}
+                style={{
+                  color: "var(--color-muted)",
+                  fontSize: "var(--text-ui)",
+                  cursor: "pointer",
+                }}
+              >
+                Your library →
+              </a>
+            )}
           </div>
           <HScrollRail innerStyle={{ gap: "1rem" }} coverSize={150}>
             {feed.recentlyAdded.map((s, i) => (
@@ -178,15 +311,62 @@ export function Home({ authenticated, onPlay, onShare, onUpload, renderRowAction
                 key={s.id}
                 className="tile"
                 onClick={() => onPlay(s, feed.recentlyAdded.slice(i + 1))}
-                style={{ background: "none", border: "none", padding: 0, cursor: "pointer", width: 150, flexShrink: 0, textAlign: "left" }}
+                style={{
+                  background: "none",
+                  border: "none",
+                  padding: 0,
+                  cursor: "pointer",
+                  width: 150,
+                  flexShrink: 0,
+                  textAlign: "left",
+                }}
               >
-                <SongCover song={s} size={150} radius={12} imgSize="card" fallbackFontSize="2.2rem" barsScale={2}>
-                  <span className="playfab" style={{ position: "absolute", right: 10, bottom: 10, width: 38, height: 38, borderRadius: 999, background: "var(--color-accent-strong)", color: "var(--color-ink)", display: "grid", placeItems: "center" }}>
+                <SongCover
+                  song={s}
+                  size={150}
+                  radius={12}
+                  imgSize="card"
+                  fallbackFontSize="2.2rem"
+                  barsScale={2}
+                >
+                  <span
+                    className="playfab"
+                    style={{
+                      position: "absolute",
+                      right: 10,
+                      bottom: 10,
+                      width: 38,
+                      height: 38,
+                      borderRadius: 999,
+                      background: "var(--color-accent-strong)",
+                      color: "var(--color-ink)",
+                      display: "grid",
+                      placeItems: "center",
+                    }}
+                  >
                     <Glyph name="play" size={18} />
                   </span>
                 </SongCover>
-                <div style={{ marginTop: "0.5rem", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.title}</div>
-                <div style={{ ...t.label, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.artistName}</div>
+                <div
+                  style={{
+                    marginTop: "0.5rem",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  {s.title}
+                </div>
+                <div
+                  style={{
+                    ...t.label,
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  {s.artistName}
+                </div>
               </button>
             ))}
           </HScrollRail>
@@ -201,23 +381,82 @@ export function Home({ authenticated, onPlay, onShare, onUpload, renderRowAction
         <section>
           <div style={sectionHead}>
             <h3 style={{ margin: 0, ...t.title }}>Playlists</h3>
-            {authenticated && <a onClick={() => navigate("/playlists")} style={{ color: "var(--color-muted)", fontSize: "var(--text-ui)", cursor: "pointer" }}>Your library →</a>}
+            {authenticated && (
+              <a
+                onClick={() => navigate("/playlists")}
+                style={{
+                  color: "var(--color-muted)",
+                  fontSize: "var(--text-ui)",
+                  cursor: "pointer",
+                }}
+              >
+                Your library →
+              </a>
+            )}
           </div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: "1rem" }}>
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))",
+              gap: "1rem",
+            }}
+          >
             {feed.playlists.map((pl) => (
               <button
                 key={pl.id}
                 onClick={() => navigate(`/playlist/${pl.id}`)}
-                style={{ background: "var(--color-panel)", border: "1px solid var(--color-border)", borderRadius: 12, padding: "0.75rem", cursor: "pointer", textAlign: "left" }}
+                style={{
+                  background: "var(--color-panel)",
+                  border: "1px solid var(--color-border)",
+                  borderRadius: 12,
+                  padding: "0.75rem",
+                  cursor: "pointer",
+                  textAlign: "left",
+                }}
               >
-                <div style={{ aspectRatio: "1", borderRadius: 8, overflow: "hidden", background: "var(--color-active)", display: "grid", placeItems: "center", marginBottom: "0.6rem" }}>
+                <div
+                  style={{
+                    aspectRatio: "1",
+                    borderRadius: 8,
+                    overflow: "hidden",
+                    background: "var(--color-active)",
+                    display: "grid",
+                    placeItems: "center",
+                    marginBottom: "0.6rem",
+                  }}
+                >
                   {pl.coverArtId ? (
-                    <img src={coverUrl(pl.coverArtId, "card")} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                    <img
+                      src={coverUrl(pl.coverArtId, "card")}
+                      alt=""
+                      style={{
+                        width: "100%",
+                        height: "100%",
+                        objectFit: "cover",
+                      }}
+                    />
                   ) : (
-                    <span style={{ fontFamily: "var(--font-serif)", fontSize: "2rem", color: "var(--color-muted)" }}>{coverInitial(pl.name)}</span>
+                    <span
+                      style={{
+                        fontFamily: "var(--font-serif)",
+                        fontSize: "2rem",
+                        color: "var(--color-muted)",
+                      }}
+                    >
+                      {coverInitial(pl.name)}
+                    </span>
                   )}
                 </div>
-                <div style={{ color: "var(--color-ink)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{pl.name}</div>
+                <div
+                  style={{
+                    color: "var(--color-ink)",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  {pl.name}
+                </div>
                 <div style={t.label}>
                   {pl.songCount} {pl.songCount === 1 ? "song" : "songs"}
                 </div>

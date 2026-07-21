@@ -45,7 +45,9 @@ describe("detectLang", () => {
 
 describe("titleCase — English", () => {
   it("capitalizes principal words, lowercases small words", () => {
-    expect(titleCase("the dark side of the moon")).toBe("The Dark Side of the Moon");
+    expect(titleCase("the dark side of the moon")).toBe(
+      "The Dark Side of the Moon",
+    );
   });
   it("always capitalizes the first and last word", () => {
     expect(titleCase("a night at the opera")).toBe("A Night at the Opera");
@@ -64,7 +66,9 @@ describe("titleCase — English", () => {
 
 describe("titleCase — German", () => {
   it("lowercases function words mid-title, capitalizes the rest", () => {
-    expect(titleCase("die reise ins innere der stille")).toBe("Die Reise Ins Innere der Stille");
+    expect(titleCase("die reise ins innere der stille")).toBe(
+      "Die Reise Ins Innere der Stille",
+    );
   });
   it("capitalizes first and last even when they are function words", () => {
     expect(titleCase("der himmel über berlin")).toBe("Der Himmel über Berlin");
@@ -73,10 +77,14 @@ describe("titleCase — German", () => {
 
 describe("titleCase — French", () => {
   it("uses sentence case — only the first word capitalized", () => {
-    expect(titleCase("les feuilles mortes de l'automne")).toBe("Les feuilles mortes de l'automne");
+    expect(titleCase("les feuilles mortes de l'automne")).toBe(
+      "Les feuilles mortes de l'automne",
+    );
   });
   it("preserves existing interior capitals (proper nouns)", () => {
-    expect(titleCase("un été à Paris avec Édith")).toBe("Un été à Paris avec Édith");
+    expect(titleCase("un été à Paris avec Édith")).toBe(
+      "Un été à Paris avec Édith",
+    );
   });
   it("lowercases an ALL-CAPS French title but keeps the first capital", () => {
     expect(titleCase("LA VIE EN ROSE")).toBe("La vie en rose");

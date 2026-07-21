@@ -11,19 +11,37 @@ import { Icon } from "./Icon";
 
 /** Type scale. Serif for content headings, sans for everything else. */
 export const t = {
-  display: { fontFamily: "var(--font-serif)", fontWeight: 500, fontSize: "var(--text-display)" },
-  title: { fontFamily: "var(--font-serif)", fontWeight: 500, fontSize: "var(--text-title)" },
+  display: {
+    fontFamily: "var(--font-serif)",
+    fontWeight: 500,
+    fontSize: "var(--text-display)",
+  },
+  title: {
+    fontFamily: "var(--font-serif)",
+    fontWeight: 500,
+    fontSize: "var(--text-title)",
+  },
   body: { fontSize: "var(--text-body)" },
   ui: { fontSize: "var(--text-ui)" },
-  label: { fontSize: "var(--text-label)", color: "var(--color-muted)", fontWeight: 500 },
+  label: {
+    fontSize: "var(--text-label)",
+    color: "var(--color-muted)",
+    fontWeight: 500,
+  },
   micro: {
-    fontSize: "var(--text-micro)", textTransform: "uppercase",
-    letterSpacing: "0.06em", color: "var(--color-muted)",
+    fontSize: "var(--text-micro)",
+    textTransform: "uppercase",
+    letterSpacing: "0.06em",
+    color: "var(--color-muted)",
   },
 } satisfies Record<string, CSSProperties>;
 
 /** Field label: 13px muted, 6px above its control. */
-export const fieldLabel: CSSProperties = { display: "block", ...t.label, marginBottom: 6 };
+export const fieldLabel: CSSProperties = {
+  display: "block",
+  ...t.label,
+  marginBottom: 6,
+};
 
 /**
  * The 40px form control. Prefer the `ui-control` class (it carries the accent-fill
@@ -31,36 +49,75 @@ export const fieldLabel: CSSProperties = { display: "block", ...t.label, marginB
  */
 export const controlClass = "ui-control";
 export const controlStyle: CSSProperties = {
-  width: "100%", minHeight: 40, padding: "0 12px",
-  background: "var(--color-panel)", border: "1px solid var(--color-border)",
-  borderRadius: "var(--radius-ui)", color: "var(--color-ink)",
-  fontFamily: "var(--font-sans)", fontSize: "var(--text-input)", outline: "none",
+  width: "100%",
+  minHeight: 40,
+  padding: "0 12px",
+  background: "var(--color-panel)",
+  border: "1px solid var(--color-border)",
+  borderRadius: "var(--radius-ui)",
+  color: "var(--color-ink)",
+  fontFamily: "var(--font-sans)",
+  fontSize: "var(--text-input)",
+  outline: "none",
 };
 
 export type ButtonVariant = "primary" | "secondary" | "ghost" | "danger";
 
 const variantStyle: Record<ButtonVariant, CSSProperties> = {
-  primary: { background: "var(--color-accent-fill)", color: "var(--color-ink)", fontWeight: 600, border: "1px solid transparent" },
-  secondary: { background: "var(--color-active)", color: "var(--color-ink)", fontWeight: 500, border: "1px solid var(--color-border)" },
-  ghost: { background: "transparent", color: "var(--color-accent-strong)", fontWeight: 500, border: "1px solid transparent" },
-  danger: { background: "var(--color-danger)", color: "var(--color-ink)", fontWeight: 600, border: "1px solid transparent" },
+  primary: {
+    background: "var(--color-accent-fill)",
+    color: "var(--color-ink)",
+    fontWeight: 600,
+    border: "1px solid transparent",
+  },
+  secondary: {
+    background: "var(--color-active)",
+    color: "var(--color-ink)",
+    fontWeight: 500,
+    border: "1px solid var(--color-border)",
+  },
+  ghost: {
+    background: "transparent",
+    color: "var(--color-accent-strong)",
+    fontWeight: 500,
+    border: "1px solid transparent",
+  },
+  danger: {
+    background: "var(--color-danger)",
+    color: "var(--color-ink)",
+    fontWeight: 600,
+    border: "1px solid transparent",
+  },
 };
 
 /** Raw button style object (height 40 / radius 10 / 15px), for call sites that need a style. */
-export function buttonStyle(variant: ButtonVariant = "primary", opts?: { small?: boolean }): CSSProperties {
+export function buttonStyle(
+  variant: ButtonVariant = "primary",
+  opts?: { small?: boolean },
+): CSSProperties {
   const small = opts?.small ?? false;
   return {
-    display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 7,
-    height: small ? 32 : 40, padding: small ? "0 12px" : "0 16px",
-    borderRadius: "var(--radius-ui)", fontFamily: "var(--font-sans)",
-    fontSize: small ? "var(--text-label)" : "var(--text-ui)", cursor: "pointer",
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 7,
+    height: small ? 32 : 40,
+    padding: small ? "0 12px" : "0 16px",
+    borderRadius: "var(--radius-ui)",
+    fontFamily: "var(--font-sans)",
+    fontSize: small ? "var(--text-label)" : "var(--text-ui)",
+    cursor: "pointer",
     ...variantStyle[variant],
   };
 }
 
 /** Spinner — every async wait spins. */
 export function Spinner({ size = "15px" }: { size?: string }) {
-  return <span className="ui-spin"><Icon name="spinner" size={size} /></span>;
+  return (
+    <span className="ui-spin">
+      <Icon name="spinner" size={size} />
+    </span>
+  );
 }
 
 type ButtonProps = {
@@ -72,7 +129,15 @@ type ButtonProps = {
 } & Omit<ButtonHTMLAttributes<HTMLButtonElement>, "children">;
 
 /** Button — the one button primitive. Disabled/busy convention: opacity 0.6, spinner when busy. */
-export function Button({ variant = "primary", small, busy, disabled, children, style, ...rest }: ButtonProps) {
+export function Button({
+  variant = "primary",
+  small,
+  busy,
+  disabled,
+  children,
+  style,
+  ...rest
+}: ButtonProps) {
   const off = disabled || busy;
   return (
     <button
@@ -105,13 +170,21 @@ export function Button({ variant = "primary", small, busy, disabled, children, s
  * Sizing `.ui-overlay` to it makes `max-height: 100%` on `.ui-modal` mean what it says.
  * Do not "simplify" this back to `dvh` — see docs/design-system.md.
  */
-type ViewportReading = Pick<VisualViewport, "offsetTop" | "offsetLeft" | "width" | "height">;
+type ViewportReading = Pick<
+  VisualViewport,
+  "offsetTop" | "offsetLeft" | "width" | "height"
+>;
 
 /** The subset of CSSProperties this module sets. Keeps the equality guard total. */
-export type ViewportBox = Pick<CSSProperties, "top" | "left" | "width" | "height" | "right" | "bottom">;
+export type ViewportBox = Pick<
+  CSSProperties,
+  "top" | "left" | "width" | "height" | "right" | "bottom"
+>;
 
 /** Maps a VisualViewport reading to the inline style pinning an overlay to it. */
-export function visualViewportBox(vv: ViewportReading | null | undefined): ViewportBox {
+export function visualViewportBox(
+  vv: ViewportReading | null | undefined,
+): ViewportBox {
   if (!vv) return {}; // unsupported — the stylesheet's `inset: 0` stands unchanged
   return {
     top: vv.offsetTop,
@@ -125,7 +198,12 @@ export function visualViewportBox(vv: ViewportReading | null | undefined): Viewp
 
 /** True when two boxes describe the same band — lets us skip no-op re-renders. */
 export function sameViewportBox(a: ViewportBox, b: ViewportBox): boolean {
-  return a.top === b.top && a.left === b.left && a.width === b.width && a.height === b.height;
+  return (
+    a.top === b.top &&
+    a.left === b.left &&
+    a.width === b.width &&
+    a.height === b.height
+  );
 }
 
 /**
@@ -168,9 +246,19 @@ function useVisualViewportBox(): ViewportBox {
  * `ConfirmDialog`, `GenreEditor`, `AddToPlaylist` and `QueueDrawer` still hand-roll
  * their own overlays; migrate them onto this, not onto the class.
  */
-export function Overlay({ onClick, children }: { onClick?: () => void; children: ReactNode }) {
+export function Overlay({
+  onClick,
+  children,
+}: {
+  onClick?: () => void;
+  children: ReactNode;
+}) {
   return (
-    <div className="ui-overlay" style={useVisualViewportBox()} onClick={onClick}>
+    <div
+      className="ui-overlay"
+      style={useVisualViewportBox()}
+      onClick={onClick}
+    >
       {children}
     </div>
   );
@@ -190,12 +278,25 @@ export function Overlay({ onClick, children }: { onClick?: () => void; children:
  * Both placements are rendered and one is hidden, so the row hosts don't each
  * need to know the breakpoint.
  */
-export function UnpublishedBadge({ show, placement }: { show: boolean; placement: "actions" | "meta" }) {
+export function UnpublishedBadge({
+  show,
+  placement,
+}: {
+  show: boolean;
+  placement: "actions" | "meta";
+}) {
   if (!show) return null;
   return (
     <span
       className={placement === "meta" ? "row-badge-meta" : "row-badge-actions"}
-      style={{ ...t.micro, border: "1px solid var(--color-border)", borderRadius: 999, padding: "0.1rem 0.45rem", whiteSpace: "nowrap", flexShrink: 0 }}
+      style={{
+        ...t.micro,
+        border: "1px solid var(--color-border)",
+        borderRadius: 999,
+        padding: "0.1rem 0.45rem",
+        whiteSpace: "nowrap",
+        flexShrink: 0,
+      }}
     >
       Unpublished
     </span>

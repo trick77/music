@@ -25,7 +25,12 @@ export const menuSurface: React.CSSProperties = {
 };
 
 export function MenuSeparator() {
-  return <div role="separator" style={{ height: 1, background: MENU_SEPARATOR, margin: "5px 14px" }} />;
+  return (
+    <div
+      role="separator"
+      style={{ height: 1, background: MENU_SEPARATOR, margin: "5px 14px" }}
+    />
+  );
 }
 
 type MenuItemProps = {
@@ -37,7 +42,14 @@ type MenuItemProps = {
   trailing?: React.ReactNode;
 };
 
-export function MenuItem({ icon, danger, href, onClick, children, trailing }: MenuItemProps) {
+export function MenuItem({
+  icon,
+  danger,
+  href,
+  onClick,
+  children,
+  trailing,
+}: MenuItemProps) {
   const [hover, setHover] = useState(false);
   const style: React.CSSProperties = {
     display: "flex",
@@ -54,16 +66,31 @@ export function MenuItem({ icon, danger, href, onClick, children, trailing }: Me
     border: "none",
     textDecoration: "none",
     transition: "background .12s, color .12s",
-    background: hover ? (danger ? MENU_DANGER_FILL : MENU_ITEM_HOVER) : "transparent",
+    background: hover
+      ? danger
+        ? MENU_DANGER_FILL
+        : MENU_ITEM_HOVER
+      : "transparent",
     color: danger ? (hover ? "#fff" : MENU_DANGER_INK) : MENU_ITEM_INK,
   };
   const inner = (
     <>
-      <span aria-hidden style={{ display: "grid", placeItems: "center", width: 21, height: 21, flexShrink: 0 }}>
+      <span
+        aria-hidden
+        style={{
+          display: "grid",
+          placeItems: "center",
+          width: 21,
+          height: 21,
+          flexShrink: 0,
+        }}
+      >
         {icon && <Icon name={icon} size="19px" />}
       </span>
       <span style={{ flex: 1, minWidth: 0 }}>{children}</span>
-      {trailing !== undefined && <span style={{ flexShrink: 0, opacity: 0.7 }}>{trailing}</span>}
+      {trailing !== undefined && (
+        <span style={{ flexShrink: 0, opacity: 0.7 }}>{trailing}</span>
+      )}
     </>
   );
   const handlers = {
@@ -71,8 +98,17 @@ export function MenuItem({ icon, danger, href, onClick, children, trailing }: Me
     onMouseEnter: () => setHover(true),
     onMouseLeave: () => setHover(false),
   };
-  if (href) return <a href={href} style={style} {...handlers}>{inner}</a>;
-  return <button type="button" style={style} onClick={onClick} {...handlers}>{inner}</button>;
+  if (href)
+    return (
+      <a href={href} style={style} {...handlers}>
+        {inner}
+      </a>
+    );
+  return (
+    <button type="button" style={style} onClick={onClick} {...handlers}>
+      {inner}
+    </button>
+  );
 }
 
 // usableBottom is the y below which the fixed bottom furniture — the docked

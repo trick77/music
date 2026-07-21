@@ -8,7 +8,13 @@ import { StudioPage, ResultCard, CoverArtCard } from "./StudioPage";
 describe("Rail Studio slot", () => {
   const render = (authenticated: boolean, studioEnabled: boolean) =>
     renderToStaticMarkup(
-      <Rail route={{ name: "home" }} authenticated={authenticated} studioEnabled={studioEnabled} onUpload={() => {}} onQueue={() => {}} />,
+      <Rail
+        route={{ name: "home" }}
+        authenticated={authenticated}
+        studioEnabled={studioEnabled}
+        onUpload={() => {}}
+        onQueue={() => {}}
+      />,
     );
 
   it("shows the Studio nav when authenticated and enabled", () => {
@@ -45,13 +51,17 @@ describe("StudioPage", () => {
 // an onChange handler is supplied (the lyrics card).
 describe("ResultCard", () => {
   it("renders a static, non-editable body by default", () => {
-    const html = renderToStaticMarkup(<ResultCard name="Style prompt" text="1990s,grunge" />);
+    const html = renderToStaticMarkup(
+      <ResultCard name="Style prompt" text="1990s,grunge" />,
+    );
     expect(html).toContain("1990s,grunge");
     expect(html).not.toContain("<textarea");
   });
 
   it("renders an editable text area holding the text when onChange is given", () => {
-    const html = renderToStaticMarkup(<ResultCard name="Lyrics" text="[Verse]\nhello" onChange={() => {}} />);
+    const html = renderToStaticMarkup(
+      <ResultCard name="Lyrics" text="[Verse]\nhello" onChange={() => {}} />,
+    );
     expect(html).toContain("<textarea");
     expect(html).toContain('aria-label="Lyrics (editable)"');
     expect(html).toContain("[Verse]");
@@ -63,7 +73,11 @@ describe("ResultCard", () => {
 describe("CoverArtCard", () => {
   it("renders the model picker and a generate action", () => {
     const html = renderToStaticMarkup(
-      <CoverArtCard prompt="a moody album cover" models={["flux-2-klein-4b", "flux-2-flex", "flux-2-pro"]} defaultModel="flux-2-klein-4b" />,
+      <CoverArtCard
+        prompt="a moody album cover"
+        models={["flux-2-klein-4b", "flux-2-flex", "flux-2-pro"]}
+        defaultModel="flux-2-klein-4b"
+      />,
     );
     expect(html).toContain("Generate cover art");
     expect(html).toContain("flux-2-pro");
@@ -101,7 +115,9 @@ describe("StudioPage mode switch", () => {
   });
 
   it("opens directly in fanart mode when a genre is passed in", () => {
-    const html = renderToStaticMarkup(<StudioPage imageGenEnabled initialGenreId="g1" />);
+    const html = renderToStaticMarkup(
+      <StudioPage imageGenEnabled initialGenreId="g1" />,
+    );
     expect(html).toContain("Generate fanart");
     expect(html).toContain('aria-label="Genre"');
     // The Suno reference field is not rendered in fanart mode.

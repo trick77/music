@@ -15,7 +15,14 @@ export type Fanart = {
   error?: string;
 };
 
-export type GenreSummary = { id: string; name: string; songCount: number; accentColor: string; hasBackground: boolean; backgroundFanartId: string };
+export type GenreSummary = {
+  id: string;
+  name: string;
+  songCount: number;
+  accentColor: string;
+  hasBackground: boolean;
+  backgroundFanartId: string;
+};
 
 export type GenreDetail = {
   genre: GenreSummary;
@@ -38,7 +45,11 @@ export async function getGenre(id: string): Promise<GenreDetail> {
   return r.json();
 }
 
-export async function uploadFanart(kind: "genre" | "hero", genreId: string, file: File): Promise<Fanart> {
+export async function uploadFanart(
+  kind: "genre" | "hero",
+  genreId: string,
+  file: File,
+): Promise<Fanart> {
   const form = new FormData();
   form.append("file", file);
   form.append("kind", kind);
@@ -48,7 +59,12 @@ export async function uploadFanart(kind: "genre" | "hero", genreId: string, file
   return r.json();
 }
 
-export async function generateFanart(prompt: string, kind: "genre" | "hero", genreId: string, model?: string): Promise<{ id: string; status: string }> {
+export async function generateFanart(
+  prompt: string,
+  kind: "genre" | "hero",
+  genreId: string,
+  model?: string,
+): Promise<{ id: string; status: string }> {
   const r = await fetch("/api/fanart/generate", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -59,7 +75,9 @@ export async function generateFanart(prompt: string, kind: "genre" | "hero", gen
 }
 
 export async function suggestGenrePrompt(genreId: string): Promise<string> {
-  const r = await fetch(`/api/genres/${genreId}/suggest-prompt`, { method: "POST" });
+  const r = await fetch(`/api/genres/${genreId}/suggest-prompt`, {
+    method: "POST",
+  });
   if (!r.ok) throw new Error(`suggest failed (${r.status})`);
   const data = await r.json();
   return data.prompt ?? "";
@@ -73,7 +91,12 @@ export async function getFanartMeta(id: string): Promise<Fanart> {
 
 export async function patchGenre(
   id: string,
-  body: { name?: string; backgroundFanartId?: string; heroFanartId?: string; clearHero?: string },
+  body: {
+    name?: string;
+    backgroundFanartId?: string;
+    heroFanartId?: string;
+    clearHero?: string;
+  },
 ): Promise<GenreDetail> {
   const r = await fetch(`/api/genres/${id}`, {
     method: "PATCH",
@@ -84,7 +107,11 @@ export async function patchGenre(
   return r.json();
 }
 
-export async function refineGenrePrompt(genreId: string, prompt: string, instruction: string): Promise<string> {
+export async function refineGenrePrompt(
+  genreId: string,
+  prompt: string,
+  instruction: string,
+): Promise<string> {
   const r = await fetch(`/api/genres/${genreId}/refine-prompt`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },

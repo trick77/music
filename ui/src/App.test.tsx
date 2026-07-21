@@ -36,13 +36,23 @@ vi.mock("./Home", () => ({
   ),
 }));
 vi.mock("./Search", () => ({ Search: () => <div data-testid="search" /> }));
-vi.mock("./StudioPage", () => ({ StudioPage: () => <div data-testid="studio" /> }));
-vi.mock("./PlaylistsPage", () => ({ PlaylistsPage: () => <div data-testid="playlists" /> }));
-vi.mock("./PlaylistPage", () => ({ PlaylistPage: () => <div data-testid="playlist" /> }));
-vi.mock("./Detail", () => ({
-  Detail: ({ kind }: { kind: string }) => <div data-testid={`detail-${kind}`} />,
+vi.mock("./StudioPage", () => ({
+  StudioPage: () => <div data-testid="studio" />,
 }));
-vi.mock("./VisualizerView", () => ({ VisualizerView: () => <div data-testid="visualizer" /> }));
+vi.mock("./PlaylistsPage", () => ({
+  PlaylistsPage: () => <div data-testid="playlists" />,
+}));
+vi.mock("./PlaylistPage", () => ({
+  PlaylistPage: () => <div data-testid="playlist" />,
+}));
+vi.mock("./Detail", () => ({
+  Detail: ({ kind }: { kind: string }) => (
+    <div data-testid={`detail-${kind}`} />
+  ),
+}));
+vi.mock("./VisualizerView", () => ({
+  VisualizerView: () => <div data-testid="visualizer" />,
+}));
 vi.mock("./TagEditor", () => ({
   TagEditor: ({ onClose }: { onClose: () => void }) => (
     <div data-testid="tageditor">
@@ -51,7 +61,13 @@ vi.mock("./TagEditor", () => ({
   ),
 }));
 vi.mock("./AddToPlaylist", () => ({
-  AddToPlaylist: ({ onClose, onDone }: { onClose: () => void; onDone: (n: string) => void }) => (
+  AddToPlaylist: ({
+    onClose,
+    onDone,
+  }: {
+    onClose: () => void;
+    onDone: (n: string) => void;
+  }) => (
     <div data-testid="addtoplaylist">
       <button onClick={onClose}>close-add</button>
       <button onClick={() => onDone("Road Trip")}>done-add</button>
@@ -147,7 +163,12 @@ afterEach(() => {
 describe("UploadToast", () => {
   it("when not uploading, then it is a bare pill with no progress bar or percentage", () => {
     const { container } = render(
-      <UploadToast message="Song deleted" uploading={false} pct={0} bottom={80} />,
+      <UploadToast
+        message="Song deleted"
+        uploading={false}
+        pct={0}
+        bottom={80}
+      />,
     );
 
     expect(screen.getByText("Song deleted")).toBeInTheDocument();
@@ -214,13 +235,16 @@ describe("App routing", () => {
     ["/playlists", "playlists"],
     ["/playlist/p1", "playlist"],
     ["/library", "library"],
-  ])("when the path is %s, then it renders the %s surface", async (path, testid) => {
-    go(path);
+  ])(
+    "when the path is %s, then it renders the %s surface",
+    async (path, testid) => {
+      go(path);
 
-    await renderApp();
+      await renderApp();
 
-    expect(screen.getByTestId(testid)).toBeInTheDocument();
-  });
+      expect(screen.getByTestId(testid)).toBeInTheDocument();
+    },
+  );
 
   it("when the path is a genre, then it renders the genre detail", async () => {
     go("/genre/g1");
@@ -271,7 +295,10 @@ describe("App routing", () => {
 
     await renderApp();
 
-    expect(screen.getByTestId("library")).toHaveAttribute("data-tab", "unpublished");
+    expect(screen.getByTestId("library")).toHaveAttribute(
+      "data-tab",
+      "unpublished",
+    );
   });
 
   it("when the path is /favorites, then the library opens on the favorites tab", async () => {
@@ -279,7 +306,10 @@ describe("App routing", () => {
 
     await renderApp();
 
-    expect(screen.getByTestId("library")).toHaveAttribute("data-tab", "favorites");
+    expect(screen.getByTestId("library")).toHaveAttribute(
+      "data-tab",
+      "favorites",
+    );
   });
 
   it("when the path is /genres, then the library opens on the genres tab", async () => {
@@ -305,7 +335,9 @@ describe("App routing", () => {
 describe("App deep links", () => {
   it("when landing on a bare /song/:id, then it cues that track", async () => {
     go("/song/s1");
-    mocked.listSongs.mockResolvedValue([song({ id: "s1", title: "Golden Hour" })]);
+    mocked.listSongs.mockResolvedValue([
+      song({ id: "s1", title: "Golden Hour" }),
+    ]);
 
     await renderApp();
 
@@ -333,7 +365,9 @@ describe("App upload", () => {
     mocked.listSongs.mockResolvedValue([song(), uploaded]);
 
     const { container } = await renderApp();
-    const input = container.querySelector('input[type="file"]') as HTMLInputElement;
+    const input = container.querySelector(
+      'input[type="file"]',
+    ) as HTMLInputElement;
     const file = new File(["id3"], "nightcall.mp3", { type: "audio/mpeg" });
 
     await user.upload(input, file);
@@ -348,12 +382,19 @@ describe("App upload", () => {
   it("when a dedupe upload returns an already-published song, then it stays put", async () => {
     const user = userEvent.setup();
     go("/");
-    mocked.uploadSong.mockResolvedValue(song({ id: "s1", title: "Golden Hour", published: true }));
+    mocked.uploadSong.mockResolvedValue(
+      song({ id: "s1", title: "Golden Hour", published: true }),
+    );
 
     const { container } = await renderApp();
-    const input = container.querySelector('input[type="file"]') as HTMLInputElement;
+    const input = container.querySelector(
+      'input[type="file"]',
+    ) as HTMLInputElement;
 
-    await user.upload(input, new File(["id3"], "golden.mp3", { type: "audio/mpeg" }));
+    await user.upload(
+      input,
+      new File(["id3"], "golden.mp3", { type: "audio/mpeg" }),
+    );
 
     expect(await screen.findByText(/Added “Golden Hour”/)).toBeInTheDocument();
     // A song that is already published would not appear on the review surface,
@@ -367,9 +408,14 @@ describe("App upload", () => {
     mocked.uploadSong.mockRejectedValue(new Error("507"));
 
     const { container } = await renderApp();
-    const input = container.querySelector('input[type="file"]') as HTMLInputElement;
+    const input = container.querySelector(
+      'input[type="file"]',
+    ) as HTMLInputElement;
 
-    await user.upload(input, new File(["id3"], "bad.mp3", { type: "audio/mpeg" }));
+    await user.upload(
+      input,
+      new File(["id3"], "bad.mp3", { type: "audio/mpeg" }),
+    );
 
     expect(await screen.findByText("Upload failed")).toBeInTheDocument();
   });
@@ -384,8 +430,13 @@ describe("App upload", () => {
     });
 
     const { container } = await renderApp();
-    const input = container.querySelector('input[type="file"]') as HTMLInputElement;
-    await user.upload(input, new File(["id3"], "slow.mp3", { type: "audio/mpeg" }));
+    const input = container.querySelector(
+      'input[type="file"]',
+    ) as HTMLInputElement;
+    await user.upload(
+      input,
+      new File(["id3"], "slow.mp3", { type: "audio/mpeg" }),
+    );
 
     await act(async () => report?.(37));
 
@@ -455,7 +506,10 @@ describe("App stray file drops", () => {
   it("when a file is dropped outside a drop zone, then the navigation is swallowed", async () => {
     await renderApp();
 
-    const ev = new Event("drop", { cancelable: true, bubbles: true }) as DragEvent;
+    const ev = new Event("drop", {
+      cancelable: true,
+      bubbles: true,
+    }) as DragEvent;
     Object.defineProperty(ev, "dataTransfer", { value: { types: ["Files"] } });
     window.dispatchEvent(ev);
 
@@ -467,8 +521,13 @@ describe("App stray file drops", () => {
   it("when a non-file drag is dropped, then it is left alone", async () => {
     await renderApp();
 
-    const ev = new Event("drop", { cancelable: true, bubbles: true }) as DragEvent;
-    Object.defineProperty(ev, "dataTransfer", { value: { types: ["text/plain"] } });
+    const ev = new Event("drop", {
+      cancelable: true,
+      bubbles: true,
+    }) as DragEvent;
+    Object.defineProperty(ev, "dataTransfer", {
+      value: { types: ["text/plain"] },
+    });
     window.dispatchEvent(ev);
 
     expect(ev.defaultPrevented).toBe(false);

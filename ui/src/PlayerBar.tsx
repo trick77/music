@@ -4,9 +4,25 @@ import { coverUrl, coverInitial } from "./cover";
 import { Icon } from "./Icon";
 import { KaraokeView } from "./KaraokeView";
 import { KaraokeCard } from "./KaraokeCard";
-import { getAlign, peekAlign, postAlign, type AlignmentData, type Song } from "./api";
+import {
+  getAlign,
+  peekAlign,
+  postAlign,
+  type AlignmentData,
+  type Song,
+} from "./api";
 import { navigate, type PlayerParam } from "./router";
-import { AirplayButton, Divider, ImmersiveControls, IMMERSIVE_CONTROLS_RESERVE, Scrubber, StarButton, Transport, iconBtn, type Fav } from "./PlayerControls";
+import {
+  AirplayButton,
+  Divider,
+  ImmersiveControls,
+  IMMERSIVE_CONTROLS_RESERVE,
+  Scrubber,
+  StarButton,
+  Transport,
+  iconBtn,
+  type Fav,
+} from "./PlayerControls";
 import { useEscape } from "./useEscape";
 import { useBackgroundDismiss } from "./backgroundDismiss";
 
@@ -19,11 +35,34 @@ import { useBackgroundDismiss } from "./backgroundDismiss";
 // onLyricsUnavailable / onClose. Every Share button copies the bare /song/:id
 // link (via onShare) so a shared link always opens the big player, never the
 // karaoke view — regardless of which surface it was shared from.
-export function PlayerBar({ fav, onShare, renderMenu, alignmentEnabled, open, lyrics, onExpand, onLyricsUnavailable, onClose }: { fav: Fav; onShare: (s: Song) => void; renderMenu?: (s: Song) => React.ReactNode; alignmentEnabled: boolean; open: boolean; lyrics: boolean; onExpand: (mode: PlayerParam, from?: PlayerParam) => void; onLyricsUnavailable: () => void; onClose: () => void }) {
+export function PlayerBar({
+  fav,
+  onShare,
+  renderMenu,
+  alignmentEnabled,
+  open,
+  lyrics,
+  onExpand,
+  onLyricsUnavailable,
+  onClose,
+}: {
+  fav: Fav;
+  onShare: (s: Song) => void;
+  renderMenu?: (s: Song) => React.ReactNode;
+  alignmentEnabled: boolean;
+  open: boolean;
+  lyrics: boolean;
+  onExpand: (mode: PlayerParam, from?: PlayerParam) => void;
+  onLyricsUnavailable: () => void;
+  onClose: () => void;
+}) {
   const p = usePlayer();
   // Tagged with the song id it was fetched for, so a track change can never paint
   // the previous song's lines during the frames before the fetch effect re-runs.
-  const [align, setAlign] = useState<{ id: string; data: AlignmentData | null } | null>(null);
+  const [align, setAlign] = useState<{
+    id: string;
+    data: AlignmentData | null;
+  } | null>(null);
   const song = p.current;
   const hasLyrics = !!song?.lyrics && song.lyrics.trim() !== "";
   // canGenerate gates only the karaoke-generation CTA (signed-in + alignment on).
@@ -78,7 +117,14 @@ export function PlayerBar({ fav, onShare, renderMenu, alignmentEnabled, open, ly
     // align?.data?.status is a dep so the in-view Generate/Try-again buttons (which
     // set status to "generating" without changing any other dep) re-arm the poll; it
     // converges because same-status refetches don't change the dep.
-  }, [open, lyrics, hasLyrics, song?.id, song?.alignmentStatus, align?.data?.status]);
+  }, [
+    open,
+    lyrics,
+    hasLyrics,
+    song?.id,
+    song?.alignmentStatus,
+    align?.data?.status,
+  ]);
 
   // Escape leaves the expanded player — the same single destination its X goes to.
   useEscape(open, onClose);
@@ -96,7 +142,9 @@ export function PlayerBar({ fav, onShare, renderMenu, alignmentEnabled, open, ly
     if (!open) return;
     const prev = document.body.style.overflow;
     document.body.style.overflow = "hidden";
-    return () => { document.body.style.overflow = prev; };
+    return () => {
+      document.body.style.overflow = prev;
+    };
   }, [open]);
 
   if (!p.current || !song) return null;
@@ -112,7 +160,7 @@ export function PlayerBar({ fav, onShare, renderMenu, alignmentEnabled, open, ly
   // to the loaded track, else whatever the module cache already knows. That cache
   // read is what makes a reopen instant — this state starts null on every open,
   // the cache does not.
-  const a = align?.id === song.id ? align.data : peekAlign(song.id) ?? null;
+  const a = align?.id === song.id ? align.data : (peekAlign(song.id) ?? null);
   // Effective status: prefer the alignment above, but fall back to the status
   // already carried on the loaded song so the correct state renders on the very
   // first paint — before getAlign's round-trip resolves. Otherwise a synced song
@@ -123,7 +171,8 @@ export function PlayerBar({ fav, onShare, renderMenu, alignmentEnabled, open, ly
   // flight. It is what keeps the wait-for-lines stage from becoming a dead end:
   // once the answer is in and it still yields no sweep, we owe the reader the
   // plain lyrics instead of an empty box forever.
-  const alignResolved = align?.id === song.id || peekAlign(song.id) !== undefined;
+  const alignResolved =
+    align?.id === song.id || peekAlign(song.id) !== undefined;
 
   return (
     <>
@@ -150,36 +199,150 @@ export function PlayerBar({ fav, onShare, renderMenu, alignmentEnabled, open, ly
             keep its own top edge. Reordering these two would hand those pixels to
             the scrubber, and tapping the top of Play would seek instead. */}
         <div style={{ paddingTop: "0.7rem" }}>
-          <Scrubber positionMs={p.positionMs} durationMs={p.durationMs} onSeek={p.seek} />
+          <Scrubber
+            positionMs={p.positionMs}
+            durationMs={p.durationMs}
+            onSeek={p.seek}
+          />
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: "0.85rem", padding: "0.5rem 1rem 0.7rem", maxWidth: 1100, margin: "0 auto" }}>
-          <button onClick={() => onExpand("full")} aria-label="Expand player" style={{ display: "flex", alignItems: "center", gap: "0.7rem", background: "none", border: "none", cursor: "pointer", minWidth: 0, flex: 1, textAlign: "left" }}>
-            <span style={{ width: 44, height: 44, borderRadius: 8, overflow: "hidden", background: "var(--color-active)", display: "grid", placeItems: "center", flexShrink: 0 }}>
-              {song.coverArtId ? <img src={coverUrl(song.coverArtId, "thumb")} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <span style={{ fontFamily: "var(--font-serif)", color: "var(--color-muted)" }}>{coverInitial(song.title)}</span>}
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "0.85rem",
+            padding: "0.5rem 1rem 0.7rem",
+            maxWidth: 1100,
+            margin: "0 auto",
+          }}
+        >
+          <button
+            onClick={() => onExpand("full")}
+            aria-label="Expand player"
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "0.7rem",
+              background: "none",
+              border: "none",
+              cursor: "pointer",
+              minWidth: 0,
+              flex: 1,
+              textAlign: "left",
+            }}
+          >
+            <span
+              style={{
+                width: 44,
+                height: 44,
+                borderRadius: 8,
+                overflow: "hidden",
+                background: "var(--color-active)",
+                display: "grid",
+                placeItems: "center",
+                flexShrink: 0,
+              }}
+            >
+              {song.coverArtId ? (
+                <img
+                  src={coverUrl(song.coverArtId, "thumb")}
+                  alt=""
+                  style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                />
+              ) : (
+                <span
+                  style={{
+                    fontFamily: "var(--font-serif)",
+                    color: "var(--color-muted)",
+                  }}
+                >
+                  {coverInitial(song.title)}
+                </span>
+              )}
             </span>
             <span style={{ minWidth: 0 }}>
-              <span style={{ display: "block", color: "var(--color-ink)", fontSize: "var(--text-ui)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{song.title}</span>
-              <span style={{ display: "block", color: "var(--color-muted)", fontSize: "var(--text-label)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{song.artistName}</span>
+              <span
+                style={{
+                  display: "block",
+                  color: "var(--color-ink)",
+                  fontSize: "var(--text-ui)",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                {song.title}
+              </span>
+              <span
+                style={{
+                  display: "block",
+                  color: "var(--color-muted)",
+                  fontSize: "var(--text-label)",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                {song.artistName}
+              </span>
             </span>
           </button>
-          <Transport playing={p.playing} onPrev={p.prev} onToggle={p.toggle} onNext={p.next} canNext={p.queue.length > 0} size={20} />
+          <Transport
+            playing={p.playing}
+            onPrev={p.prev}
+            onToggle={p.toggle}
+            onNext={p.next}
+            canNext={p.queue.length > 0}
+            size={20}
+          />
           <Divider />
           <StarButton song={song} fav={fav} />
           {/* Visualizer and AirPlay are mutually exclusive: while audio is routed to
               a remote device there is nothing local to visualize, so hide this. */}
           {!p.airplayActive && (
-            <button aria-label="Open visualizer" onClick={() => navigate("/visualizer")} style={iconBtn}><Icon name="visualizer" size="23px" /></button>
+            <button
+              aria-label="Open visualizer"
+              onClick={() => navigate("/visualizer")}
+              style={iconBtn}
+            >
+              <Icon name="visualizer" size="23px" />
+            </button>
           )}
           {hasLyrics && (
-            <button aria-label="Show lyrics" onClick={() => onExpand("lyrics")} style={iconBtn}><Icon name="captions" size="23px" /></button>
+            <button
+              aria-label="Show lyrics"
+              onClick={() => onExpand("lyrics")}
+              style={iconBtn}
+            >
+              <Icon name="captions" size="23px" />
+            </button>
           )}
-          <AirplayButton available={p.airplayAvailable} active={p.airplayActive} onClick={p.showAirplayPicker} />
+          <AirplayButton
+            available={p.airplayAvailable}
+            active={p.airplayActive}
+            onClick={p.showAirplayPicker}
+          />
           {/* Unpublished songs aren't shareable — their /song/:id link 404s for
               anonymous recipients — so hide Share until published. */}
-          {song.published && <button aria-label="Share" onClick={() => onShare(song)} style={iconBtn}><Icon name="share" size="20px" /></button>}
+          {song.published && (
+            <button
+              aria-label="Share"
+              onClick={() => onShare(song)}
+              style={iconBtn}
+            >
+              <Icon name="share" size="20px" />
+            </button>
+          )}
           {renderMenu?.(song)}
-          <button aria-label="Expand" onClick={() => onExpand("full")} style={iconBtn}><Icon name="chevronUp" size="20px" /></button>
-          <button aria-label="Stop and close" onClick={p.stop} style={iconBtn}><Icon name="close" size="20px" /></button>
+          <button
+            aria-label="Expand"
+            onClick={() => onExpand("full")}
+            style={iconBtn}
+          >
+            <Icon name="chevronUp" size="20px" />
+          </button>
+          <button aria-label="Stop and close" onClick={p.stop} style={iconBtn}>
+            <Icon name="close" size="20px" />
+          </button>
         </div>
       </div>
 
@@ -218,20 +381,95 @@ export function PlayerBar({ fav, onShare, renderMenu, alignmentEnabled, open, ly
             />
           )}
 
-          <button aria-label="Close player" onClick={onClose} style={{ ...iconBtn, position: "absolute", top: 16, right: 16, zIndex: 5 }}>
+          <button
+            aria-label="Close player"
+            onClick={onClose}
+            style={{
+              ...iconBtn,
+              position: "absolute",
+              top: 16,
+              right: 16,
+              zIndex: 5,
+            }}
+          >
             <Icon name="close" size="24px" />
           </button>
 
           {lyrics && hasLyrics ? (
             <>
               {/* Now-playing chip: artwork shrinks up-top in lyrics mode (Apple-style). */}
-              <div style={{ position: "absolute", top: 16, left: 20, right: 64, display: "flex", alignItems: "center", gap: 12, minWidth: 0 }}>
-                <span style={{ width: 46, height: 46, borderRadius: 8, overflow: "hidden", flexShrink: 0, background: "var(--color-active)", display: "grid", placeItems: "center", boxShadow: "0 6px 20px rgba(0,0,0,.4)" }}>
-                  {song.coverArtId ? <img src={coverUrl(song.coverArtId, "thumb")} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <span style={{ fontFamily: "var(--font-serif)", color: "var(--color-muted)" }}>{coverInitial(song.title)}</span>}
+              <div
+                style={{
+                  position: "absolute",
+                  top: 16,
+                  left: 20,
+                  right: 64,
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 12,
+                  minWidth: 0,
+                }}
+              >
+                <span
+                  style={{
+                    width: 46,
+                    height: 46,
+                    borderRadius: 8,
+                    overflow: "hidden",
+                    flexShrink: 0,
+                    background: "var(--color-active)",
+                    display: "grid",
+                    placeItems: "center",
+                    boxShadow: "0 6px 20px rgba(0,0,0,.4)",
+                  }}
+                >
+                  {song.coverArtId ? (
+                    <img
+                      src={coverUrl(song.coverArtId, "thumb")}
+                      alt=""
+                      style={{
+                        width: "100%",
+                        height: "100%",
+                        objectFit: "cover",
+                      }}
+                    />
+                  ) : (
+                    <span
+                      style={{
+                        fontFamily: "var(--font-serif)",
+                        color: "var(--color-muted)",
+                      }}
+                    >
+                      {coverInitial(song.title)}
+                    </span>
+                  )}
                 </span>
                 <span style={{ minWidth: 0 }}>
-                  <span style={{ display: "block", fontFamily: "var(--font-serif)", fontWeight: 700, fontSize: "clamp(1.1rem, 3vw, 1.6rem)", color: "#fff", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{song.title}</span>
-                  <span style={{ display: "block", fontFamily: "var(--font-sans)", fontSize: "var(--text-ui)", color: "rgba(255,255,255,0.72)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                  <span
+                    style={{
+                      display: "block",
+                      fontFamily: "var(--font-serif)",
+                      fontWeight: 700,
+                      fontSize: "clamp(1.1rem, 3vw, 1.6rem)",
+                      color: "#fff",
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    {song.title}
+                  </span>
+                  <span
+                    style={{
+                      display: "block",
+                      fontFamily: "var(--font-sans)",
+                      fontSize: "var(--text-ui)",
+                      color: "rgba(255,255,255,0.72)",
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
                     {song.artistName}
                   </span>
                 </span>
@@ -243,7 +481,15 @@ export function PlayerBar({ fav, onShare, renderMenu, alignmentEnabled, open, ly
                   (no in-progress chrome). Static lyrics are the *only* untimed view. */}
               {/* The control row floats (absolute), so it can't push this body up:
                   reserve its footprint here instead, for every karaoke state. */}
-              <div style={{ flex: 1, minHeight: 0, width: "100%", marginTop: 72, marginBottom: IMMERSIVE_CONTROLS_RESERVE }}>
+              <div
+                style={{
+                  flex: 1,
+                  minHeight: 0,
+                  width: "100%",
+                  marginTop: 72,
+                  marginBottom: IMMERSIVE_CONTROLS_RESERVE,
+                }}
+              >
                 {a?.status === "ready" && a.lines?.length ? (
                   <KaraokeView lines={a.lines} />
                 ) : alignStatus === "ready" ? (
@@ -257,63 +503,201 @@ export function PlayerBar({ fav, onShare, renderMenu, alignmentEnabled, open, ly
                   // the timing came back empty) → fall back to readable lyrics
                   // rather than leaving an empty box up for good.
                   alignResolved ? (
-                    <KaraokeCard state="plain" lyrics={song.lyrics ?? ""} onGenerate={onGenerate} />
+                    <KaraokeCard
+                      state="plain"
+                      lyrics={song.lyrics ?? ""}
+                      onGenerate={onGenerate}
+                    />
                   ) : (
                     <div style={{ height: "100%" }} />
                   )
                 ) : canGenerate && alignStatus !== "generating" ? (
-                  <KaraokeCard state={alignStatus === "failed" ? "failed" : "needs"} lyrics={song.lyrics ?? ""} onGenerate={onGenerate} />
+                  <KaraokeCard
+                    state={alignStatus === "failed" ? "failed" : "needs"}
+                    lyrics={song.lyrics ?? ""}
+                    onGenerate={onGenerate}
+                  />
                 ) : (
                   // No ready timing (untimed, or a sync still generating) → crisp static
                   // lyrics for everyone. Once it's ready the sweep takes over.
-                  <KaraokeCard state="plain" lyrics={song.lyrics ?? ""} onGenerate={onGenerate} />
+                  <KaraokeCard
+                    state="plain"
+                    lyrics={song.lyrics ?? ""}
+                    onGenerate={onGenerate}
+                  />
                 )}
               </div>
               {/* Docked scrubber + transport stay driving playback — same block,
                   same place as the visualizer's. */}
-              <ImmersiveControls positionMs={p.positionMs} durationMs={p.durationMs} onSeek={p.seek}>
-                <Transport playing={p.playing} onPrev={p.prev} onToggle={p.toggle} onNext={p.next} canNext={p.queue.length > 0} size={26} />
+              <ImmersiveControls
+                positionMs={p.positionMs}
+                durationMs={p.durationMs}
+                onSeek={p.seek}
+              >
+                <Transport
+                  playing={p.playing}
+                  onPrev={p.prev}
+                  onToggle={p.toggle}
+                  onNext={p.next}
+                  canNext={p.queue.length > 0}
+                  size={26}
+                />
                 <Divider color="rgba(255,255,255,0.2)" />
                 <StarButton song={song} fav={fav} size={24} />
                 {/* No lyrics/visualizer buttons while the lyrics player is open:
                     this view is left via the X, not swapped away in place. */}
-                <AirplayButton available={p.airplayAvailable} active={p.airplayActive} onClick={p.showAirplayPicker} size={22} />
-                {song.published && <button aria-label="Share" onClick={() => onShare(song)} style={iconBtn}><Icon name="share" size="22px" /></button>}
+                <AirplayButton
+                  available={p.airplayAvailable}
+                  active={p.airplayActive}
+                  onClick={p.showAirplayPicker}
+                  size={22}
+                />
+                {song.published && (
+                  <button
+                    aria-label="Share"
+                    onClick={() => onShare(song)}
+                    style={iconBtn}
+                  >
+                    <Icon name="share" size="22px" />
+                  </button>
+                )}
               </ImmersiveControls>
             </>
           ) : (
             <>
               {/* 432px = the old 360 + 20%. The vw cap is what makes it scale on a
                   phone, where width — not the cap — is the binding constraint. */}
-              <div style={{ width: "min(432px, 72vw)", aspectRatio: "1", borderRadius: 18, overflow: "hidden", background: "var(--color-active)", display: "grid", placeItems: "center", boxShadow: "0 24px 80px rgba(0,0,0,0.5)" }}>
-                {song.coverArtId ? <img src={coverUrl(song.coverArtId, "card")} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <span style={{ fontFamily: "var(--font-serif)", fontSize: "4rem", color: "var(--color-muted)" }}>{coverInitial(song.title)}</span>}
+              <div
+                style={{
+                  width: "min(432px, 72vw)",
+                  aspectRatio: "1",
+                  borderRadius: 18,
+                  overflow: "hidden",
+                  background: "var(--color-active)",
+                  display: "grid",
+                  placeItems: "center",
+                  boxShadow: "0 24px 80px rgba(0,0,0,0.5)",
+                }}
+              >
+                {song.coverArtId ? (
+                  <img
+                    src={coverUrl(song.coverArtId, "card")}
+                    alt=""
+                    style={{
+                      width: "100%",
+                      height: "100%",
+                      objectFit: "cover",
+                    }}
+                  />
+                ) : (
+                  <span
+                    style={{
+                      fontFamily: "var(--font-serif)",
+                      fontSize: "4rem",
+                      color: "var(--color-muted)",
+                    }}
+                  >
+                    {coverInitial(song.title)}
+                  </span>
+                )}
               </div>
               {/* Title/artist type matches the lyrics player's now-playing chip. */}
-              <h2 style={{ margin: "1.5rem 0 0.25rem", fontFamily: "var(--font-serif)", fontWeight: 700, fontSize: "clamp(1.1rem, 3vw, 1.6rem)", color: "#fff", textAlign: "center" }}>{song.title}</h2>
-              <p style={{ margin: 0, fontFamily: "var(--font-sans)", fontSize: "var(--text-ui)", color: "rgba(255,255,255,0.72)" }}>{song.artistName}</p>
+              <h2
+                style={{
+                  margin: "1.5rem 0 0.25rem",
+                  fontFamily: "var(--font-serif)",
+                  fontWeight: 700,
+                  fontSize: "clamp(1.1rem, 3vw, 1.6rem)",
+                  color: "#fff",
+                  textAlign: "center",
+                }}
+              >
+                {song.title}
+              </h2>
+              <p
+                style={{
+                  margin: 0,
+                  fontFamily: "var(--font-sans)",
+                  fontSize: "var(--text-ui)",
+                  color: "rgba(255,255,255,0.72)",
+                }}
+              >
+                {song.artistName}
+              </p>
               {/* One data-player-ui wrapper around BOTH rows, not one per row: it
                   has to cover the gap between the scrubber and the transport too,
                   or a tap that lands between them closes the player. The karaoke
                   and visualizer band gets this for free via ImmersiveControls. */}
-              <div data-player-ui style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
+              <div
+                data-player-ui
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                }}
+              >
                 <div style={{ width: "min(440px, 86vw)", marginTop: "1.5rem" }}>
-                  <Scrubber positionMs={p.positionMs} durationMs={p.durationMs} onSeek={p.seek} />
+                  <Scrubber
+                    positionMs={p.positionMs}
+                    durationMs={p.durationMs}
+                    onSeek={p.seek}
+                  />
                 </div>
-                <div style={{ display: "flex", alignItems: "center", gap: "1.5rem", marginTop: "1.25rem" }}>
-                  <Transport playing={p.playing} onPrev={p.prev} onToggle={p.toggle} onNext={p.next} canNext={p.queue.length > 0} size={26} />
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "1.5rem",
+                    marginTop: "1.25rem",
+                  }}
+                >
+                  <Transport
+                    playing={p.playing}
+                    onPrev={p.prev}
+                    onToggle={p.toggle}
+                    onNext={p.next}
+                    canNext={p.queue.length > 0}
+                    size={26}
+                  />
                   <Divider color="rgba(255,255,255,0.2)" />
                   <StarButton song={song} fav={fav} size={24} />
                   {!p.airplayActive && (
-                    <button aria-label="Open visualizer" onClick={() => navigate("/visualizer")} style={iconBtn}><Icon name="visualizer" size="24px" /></button>
+                    <button
+                      aria-label="Open visualizer"
+                      onClick={() => navigate("/visualizer")}
+                      style={iconBtn}
+                    >
+                      <Icon name="visualizer" size="24px" />
+                    </button>
                   )}
                   {/* Pushes rather than swapping in place, so the lyrics player's X
                       returns here — the big player it was opened from, which "full"
                       names for the fallback when a track turns out to have no lyrics. */}
                   {hasLyrics && (
-                    <button aria-label="Show lyrics" aria-pressed={false} onClick={() => onExpand("lyrics", "full")} style={iconBtn}><Icon name="captions" size="25px" /></button>
+                    <button
+                      aria-label="Show lyrics"
+                      aria-pressed={false}
+                      onClick={() => onExpand("lyrics", "full")}
+                      style={iconBtn}
+                    >
+                      <Icon name="captions" size="25px" />
+                    </button>
                   )}
-                  <AirplayButton available={p.airplayAvailable} active={p.airplayActive} onClick={p.showAirplayPicker} size={22} />
-                  {song.published && <button aria-label="Share" onClick={() => onShare(song)} style={iconBtn}><Icon name="share" size="22px" /></button>}
+                  <AirplayButton
+                    available={p.airplayAvailable}
+                    active={p.airplayActive}
+                    onClick={p.showAirplayPicker}
+                    size={22}
+                  />
+                  {song.published && (
+                    <button
+                      aria-label="Share"
+                      onClick={() => onShare(song)}
+                      style={iconBtn}
+                    >
+                      <Icon name="share" size="22px" />
+                    </button>
+                  )}
                 </div>
               </div>
             </>

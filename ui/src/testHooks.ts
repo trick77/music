@@ -33,7 +33,10 @@ function instance(): Instance {
   return current;
 }
 
-function depsChanged(prev: EffectSlot | undefined, deps: unknown[] | undefined): boolean {
+function depsChanged(
+  prev: EffectSlot | undefined,
+  deps: unknown[] | undefined,
+): boolean {
   if (!prev) return true;
   if (!deps || !prev.deps) return true; // no dep array — every render re-runs
   if (deps.length !== prev.deps.length) return true;
@@ -47,10 +50,14 @@ export const reactStub = {
     if (!(i in c.slots)) {
       const set = (next: T | ((prev: T) => T)) => {
         const slot = c.slots[i] as [T, unknown];
-        slot[0] = typeof next === "function" ? (next as (prev: T) => T)(slot[0]) : next;
+        slot[0] =
+          typeof next === "function" ? (next as (prev: T) => T)(slot[0]) : next;
         render(c);
       };
-      c.slots[i] = [typeof init === "function" ? (init as () => T)() : init, set];
+      c.slots[i] = [
+        typeof init === "function" ? (init as () => T)() : init,
+        set,
+      ];
     }
     return c.slots[i] as [T, (next: T | ((prev: T) => T)) => void];
   },
@@ -115,7 +122,15 @@ export type Rendered<T> = {
 };
 
 export function renderHook<T>(hook: () => T): Rendered<T> {
-  const c: Instance = { render: hook, slots: [], effects: [], pending: [], slotIndex: 0, effectIndex: 0, result: undefined };
+  const c: Instance = {
+    render: hook,
+    slots: [],
+    effects: [],
+    pending: [],
+    slotIndex: 0,
+    effectIndex: 0,
+    result: undefined,
+  };
   render(c);
   return {
     result: () => c.result as T,

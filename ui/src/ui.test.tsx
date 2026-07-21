@@ -4,14 +4,38 @@ import { visualViewportBox, sameViewportBox } from "./ui";
 describe("visualViewportBox", () => {
   it("pins the overlay to the visible band, overriding the CSS inset", () => {
     // iPad landscape with the keyboard up: 834px tall viewport, ~484px actually visible.
-    expect(visualViewportBox({ offsetTop: 0, offsetLeft: 0, width: 1194, height: 484 })).toEqual({
-      top: 0, left: 0, width: 1194, height: 484, right: "auto", bottom: "auto",
+    expect(
+      visualViewportBox({
+        offsetTop: 0,
+        offsetLeft: 0,
+        width: 1194,
+        height: 484,
+      }),
+    ).toEqual({
+      top: 0,
+      left: 0,
+      width: 1194,
+      height: 484,
+      right: "auto",
+      bottom: "auto",
     });
   });
 
   it("follows the visual viewport when iOS pans it", () => {
-    expect(visualViewportBox({ offsetTop: 120, offsetLeft: 8, width: 1194, height: 484 })).toEqual({
-      top: 120, left: 8, width: 1194, height: 484, right: "auto", bottom: "auto",
+    expect(
+      visualViewportBox({
+        offsetTop: 120,
+        offsetLeft: 8,
+        width: 1194,
+        height: 484,
+      }),
+    ).toEqual({
+      top: 120,
+      left: 8,
+      width: 1194,
+      height: 484,
+      right: "auto",
+      bottom: "auto",
     });
   });
 

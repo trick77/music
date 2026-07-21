@@ -32,13 +32,17 @@ describe("KaraokeView", () => {
   });
 
   it("falls back to line.text when a line has no words", () => {
-    const html = renderToStaticMarkup(<KaraokeView lines={[{ text: "instrumental", start: 0, end: 1, words: [] }]} />);
+    const html = renderToStaticMarkup(
+      <KaraokeView
+        lines={[{ text: "instrumental", start: 0, end: 1, words: [] }]}
+      />,
+    );
     expect(html).toContain("instrumental");
   });
 
   it("renders the intro floating-notes indicator", () => {
     const html = renderToStaticMarkup(
-      <KaraokeView lines={[{ text: "hello", start: 1, end: 2, words: [] }]} />
+      <KaraokeView lines={[{ text: "hello", start: 1, end: 2, words: [] }]} />,
     );
     expect(html).toContain("kv-intro-notes");
   });
@@ -55,11 +59,15 @@ let audio: { currentTime: number };
 
 beforeEach(() => {
   frames = [];
-  vi.spyOn(window, "requestAnimationFrame").mockImplementation((cb: FrameRequestCallback) => {
-    frames.push(cb);
-    return frames.length;
-  });
-  cancelSpy = vi.spyOn(window, "cancelAnimationFrame").mockImplementation(() => {});
+  vi.spyOn(window, "requestAnimationFrame").mockImplementation(
+    (cb: FrameRequestCallback) => {
+      frames.push(cb);
+      return frames.length;
+    },
+  );
+  cancelSpy = vi
+    .spyOn(window, "cancelAnimationFrame")
+    .mockImplementation(() => {});
   audio = { currentTime: 0 };
   vi.mocked(player.getAudioElement).mockReturnValue(audio as HTMLAudioElement);
 });
@@ -76,8 +84,18 @@ function word(w: string, start: number, end: number) {
 // activation window is unambiguous.
 function lyrics(): AlignedLine[] {
   return [
-    { text: "hello world", start: 1, end: 2, words: [word("hello", 1, 1.4), word("world", 1.4, 2)] },
-    { text: "come back", start: 5, end: 6, words: [word("come", 5, 5.5), word("back", 5.5, 6)] },
+    {
+      text: "hello world",
+      start: 1,
+      end: 2,
+      words: [word("hello", 1, 1.4), word("world", 1.4, 2)],
+    },
+    {
+      text: "come back",
+      start: 5,
+      end: 6,
+      words: [word("come", 5, 5.5), word("back", 5.5, 6)],
+    },
     { text: "now", start: 9, end: 9.5, words: [word("now", 9, 9.5)] },
   ];
 }
@@ -108,7 +126,9 @@ function lineEls(container: HTMLElement) {
   return Array.from(container.querySelectorAll<HTMLElement>(".kv-line"));
 }
 function fillOf(container: HTMLElement, text: string) {
-  const span = Array.from(container.querySelectorAll<HTMLElement>(".kv-word")).find((s) => s.textContent === text);
+  const span = Array.from(
+    container.querySelectorAll<HTMLElement>(".kv-word"),
+  ).find((s) => s.textContent === text);
   return span?.style.getPropertyValue("--p");
 }
 
@@ -229,7 +249,9 @@ describe("KaraokeView word fill", () => {
   });
 
   it("when a line has no word timings, then it renders its raw text without fill spans breaking", () => {
-    const { container } = mount([{ text: "instrumental break", start: 0, end: 4, words: [] }]);
+    const { container } = mount([
+      { text: "instrumental break", start: 0, end: 4, words: [] },
+    ]);
 
     seek(1);
 
@@ -241,7 +263,14 @@ describe("KaraokeView word fill", () => {
 describe("KaraokeView intro", () => {
   function withLeadIn(): AlignedLine[] {
     // First word at 3s: a long enough instrumental lead-in to be worth animating.
-    return [{ text: "here we go", start: 3, end: 4, words: [word("here", 3, 3.5), word("we", 3.5, 4)] }];
+    return [
+      {
+        text: "here we go",
+        start: 3,
+        end: 4,
+        words: [word("here", 3, 3.5), word("we", 3.5, 4)],
+      },
+    ];
   }
 
   it("when a long instrumental lead-in is still running, then the notes flourish shows", () => {
@@ -249,7 +278,11 @@ describe("KaraokeView intro", () => {
 
     seek(1);
 
-    expect(container.querySelector(".kv-intro-notes")?.classList.contains("kv-visible")).toBe(true);
+    expect(
+      container
+        .querySelector(".kv-intro-notes")
+        ?.classList.contains("kv-visible"),
+    ).toBe(true);
   });
 
   it("when the first word is about to land, then the flourish is cleared", () => {
@@ -259,7 +292,11 @@ describe("KaraokeView intro", () => {
     seek(2.5);
 
     // It clears a beat early so the first lyric line takes focus on a clean stage.
-    expect(container.querySelector(".kv-intro-notes")?.classList.contains("kv-visible")).toBe(false);
+    expect(
+      container
+        .querySelector(".kv-intro-notes")
+        ?.classList.contains("kv-visible"),
+    ).toBe(false);
   });
 
   it("when the song starts singing almost immediately, then no intro flourish appears", () => {
@@ -268,7 +305,11 @@ describe("KaraokeView intro", () => {
     seek(0.1);
 
     // A one-second lead-in is too short to animate — the notes would flash and go.
-    expect(container.querySelector(".kv-intro-notes")?.classList.contains("kv-visible")).toBe(false);
+    expect(
+      container
+        .querySelector(".kv-intro-notes")
+        ?.classList.contains("kv-visible"),
+    ).toBe(false);
   });
 });
 
@@ -280,7 +321,9 @@ describe("KaraokeView auto-scroll", () => {
 
     // The focused line sits at 40% of the viewport height rather than centred.
     const inner = container.querySelector<HTMLElement>(".kv-inner");
-    expect(inner?.style.transform).toBe(`translateY(${window.innerHeight * 0.4}px)`);
+    expect(inner?.style.transform).toBe(
+      `translateY(${window.innerHeight * 0.4}px)`,
+    );
   });
 
   it("when the window is resized, then the scroll position is recomputed", () => {
@@ -313,7 +356,9 @@ describe("KaraokeView lifecycle", () => {
   it("when fonts finish loading, then the loop starts once they are ready", async () => {
     // Metrics change as webfonts swap in, so the first scroll position is deferred
     // until they are settled.
-    (document as unknown as { fonts: unknown }).fonts = { ready: Promise.resolve() };
+    (document as unknown as { fonts: unknown }).fonts = {
+      ready: Promise.resolve(),
+    };
     const { container } = render(<KaraokeView lines={lyrics()} />);
 
     await act(async () => {});
@@ -325,7 +370,9 @@ describe("KaraokeView lifecycle", () => {
 
   it("when the view unmounts before the fonts resolve, then no loop is ever started", async () => {
     let release = () => {};
-    (document as unknown as { fonts: unknown }).fonts = { ready: new Promise<void>((r) => (release = r)) };
+    (document as unknown as { fonts: unknown }).fonts = {
+      ready: new Promise<void>((r) => (release = r)),
+    };
     const { unmount } = render(<KaraokeView lines={lyrics()} />);
 
     unmount();

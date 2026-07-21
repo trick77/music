@@ -3,7 +3,13 @@ import { reactStub, renderHook } from "./testHooks";
 
 vi.mock("react", () => reactStub);
 
-const { ACCEPTED_IMAGE_TYPES, IMAGE_ACCEPT, IMAGE_REJECT_MESSAGE, isAcceptedImage, useImageDrop } = await import("./imageDrop");
+const {
+  ACCEPTED_IMAGE_TYPES,
+  IMAGE_ACCEPT,
+  IMAGE_REJECT_MESSAGE,
+  isAcceptedImage,
+  useImageDrop,
+} = await import("./imageDrop");
 
 // The <input accept> attribute is enforced by the browser for the file picker but
 // NOT for drops, so isAcceptedImage is the only thing standing between a dropped
@@ -17,7 +23,13 @@ describe("isAcceptedImage", () => {
   });
 
   it("rejects images the backend cannot probe, and non-images", () => {
-    for (const type of ["image/gif", "image/heic", "image/svg+xml", "application/pdf", "text/plain"]) {
+    for (const type of [
+      "image/gif",
+      "image/heic",
+      "image/svg+xml",
+      "application/pdf",
+      "text/plain",
+    ]) {
       expect(isAcceptedImage(file(type))).toBe(false);
     }
   });
@@ -40,7 +52,8 @@ describe("IMAGE_ACCEPT", () => {
 // it owns the highlight flag. Driven here through the hook harness — the drag
 // events are plain objects, since only the fields the hook reads matter.
 describe("useImageDrop", () => {
-  const image = (type = "image/png") => new File([new Blob(["x"])], "cover", { type });
+  const image = (type = "image/png") =>
+    new File([new Blob(["x"])], "cover", { type });
 
   type DragStub = {
     preventDefault: ReturnType<typeof vi.fn>;
@@ -53,14 +66,24 @@ describe("useImageDrop", () => {
   const drag = (files: File[] = [], withFiles = true): DragStub => ({
     preventDefault: vi.fn(),
     stopPropagation: vi.fn(),
-    dataTransfer: { types: withFiles ? ["Files"] : ["text/plain"], files, dropEffect: "none" },
+    dataTransfer: {
+      types: withFiles ? ["Files"] : ["text/plain"],
+      files,
+      dropEffect: "none",
+    },
   });
 
-  function mount(opts: { onReject?: (m: string) => void; disabled?: boolean } = {}) {
+  function mount(
+    opts: { onReject?: (m: string) => void; disabled?: boolean } = {},
+  ) {
     const onFile = vi.fn();
     const view = renderHook(() => useImageDrop({ onFile, ...opts }));
     // Cast at the boundary: the hook only ever reads the fields DragStub carries.
-    const props = () => view.result().dropProps as unknown as Record<string, (e: DragStub) => void>;
+    const props = () =>
+      view.result().dropProps as unknown as Record<
+        string,
+        (e: DragStub) => void
+      >;
     return { onFile, view, props, dropping: () => view.result().dropping };
   }
 
@@ -142,7 +165,9 @@ describe("useImageDrop", () => {
     const onReject = vi.fn();
     const z = mount({ onReject });
 
-    z.props().onDrop(drag([new File([new Blob(["x"])], "doc", { type: "application/pdf" })]));
+    z.props().onDrop(
+      drag([new File([new Blob(["x"])], "doc", { type: "application/pdf" })]),
+    );
 
     expect(z.onFile).not.toHaveBeenCalled();
     expect(onReject).toHaveBeenCalledWith(IMAGE_REJECT_MESSAGE);
@@ -151,7 +176,9 @@ describe("useImageDrop", () => {
   it("when an unsupported file is dropped with no reject handler, then it is silently refused", () => {
     const z = mount();
 
-    z.props().onDrop(drag([new File([new Blob(["x"])], "doc", { type: "image/gif" })]));
+    z.props().onDrop(
+      drag([new File([new Blob(["x"])], "doc", { type: "image/gif" })]),
+    );
 
     expect(z.onFile).not.toHaveBeenCalled();
   });

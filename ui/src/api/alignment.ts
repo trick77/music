@@ -1,8 +1,22 @@
 // ── Karaoke alignment (Phase 3) ─────────────────────────────────────────────
 
-export type AlignedWord = { w: string; start: number; end: number; conf: number };
-export type AlignedLine = { text: string; start: number; end: number; words: AlignedWord[] };
-export type AlignmentData = { status: string; engine?: string; lines?: AlignedLine[] };
+export type AlignedWord = {
+  w: string;
+  start: number;
+  end: number;
+  conf: number;
+};
+export type AlignedLine = {
+  text: string;
+  start: number;
+  end: number;
+  words: AlignedWord[];
+};
+export type AlignmentData = {
+  status: string;
+  engine?: string;
+  lines?: AlignedLine[];
+};
 
 // Alignment is immutable once ready but is re-read every time the karaoke view
 // opens, so a per-tab memo makes reopening a track instant: the sweep paints on
@@ -32,7 +46,10 @@ export function invalidateAlign(id: string): void {
 export async function getAlign(id: string): Promise<AlignmentData | null> {
   const r = await fetch(`/api/songs/${id}/align`);
   // The 404 is memoized too, so a never-synced song stops re-asking on every open.
-  if (r.status === 404) { cache.set(id, null); return null; }
+  if (r.status === 404) {
+    cache.set(id, null);
+    return null;
+  }
   if (!r.ok) throw new Error(`align status failed (${r.status})`);
   const a: AlignmentData = await r.json();
   cache.set(id, a);
@@ -51,6 +68,12 @@ export async function postAlign(id: string): Promise<void> {
   // server's own status win on the next read instead of inventing one here.
   cache.delete(id);
   const r = await fetch(`/api/songs/${id}/align`, { method: "POST" });
-  if (r.status === 202 || r.status === 400 || r.status === 404 || r.status === 409) return;
+  if (
+    r.status === 202 ||
+    r.status === 400 ||
+    r.status === 404 ||
+    r.status === 409
+  )
+    return;
   if (!r.ok) throw new Error(`align request failed (${r.status})`);
 }

@@ -60,7 +60,8 @@ function song(overrides: Partial<Song>): Song {
     artistName: "Kavinsky",
     album: "",
     year: 0,
-    trackNo: 0, trackTotal: 0,
+    trackNo: 0,
+    trackTotal: 0,
     durationMs: 0,
     fileSize: 0,
     createdAt: "",
@@ -83,7 +84,10 @@ function playlistDetail(overrides: Partial<PlaylistDetail>): PlaylistDetail {
     coverArtId: "",
     songCount: 2,
     published: true,
-    songs: [song({ id: "s1", title: "Golden Hour" }), song({ id: "s2", title: "Nightcall", artistName: "London Grammar" })],
+    songs: [
+      song({ id: "s1", title: "Golden Hour" }),
+      song({ id: "s2", title: "Nightcall", artistName: "London Grammar" }),
+    ],
     ...overrides,
   };
 }
@@ -92,7 +96,13 @@ describe("PlaylistPage", () => {
   it("renders a loading state before the fetch resolves", () => {
     vi.spyOn(api, "getPlaylist").mockResolvedValue(playlistDetail({}));
     const html = renderToStaticMarkup(
-      <PlaylistPage id="p1" authenticated={false} onPlay={() => {}} onShare={() => {}} renderRowActions={() => null} />,
+      <PlaylistPage
+        id="p1"
+        authenticated={false}
+        onPlay={() => {}}
+        onShare={() => {}}
+        renderRowActions={() => null}
+      />,
     );
     expect(html).toContain("Loading");
   });
@@ -275,10 +285,18 @@ afterEach(() => {
 describe("PlaylistPage fetching", () => {
   it("when the fetch resolves, then the loading text is replaced by the playlist", async () => {
     render(
-      <PlaylistPage id="p1" authenticated={false} onPlay={() => {}} onShare={() => {}} renderRowActions={() => null} />,
+      <PlaylistPage
+        id="p1"
+        authenticated={false}
+        onPlay={() => {}}
+        onShare={() => {}}
+        renderRowActions={() => null}
+      />,
     );
 
-    expect(await screen.findByRole("heading", { name: "Road Trip" })).toBeInTheDocument();
+    expect(
+      await screen.findByRole("heading", { name: "Road Trip" }),
+    ).toBeInTheDocument();
     expect(mocked.getPlaylist).toHaveBeenCalledWith("p1");
   });
 
@@ -287,7 +305,13 @@ describe("PlaylistPage fetching", () => {
     mocked.getPlaylist.mockRejectedValue(new Error("404"));
 
     render(
-      <PlaylistPage id="p1" authenticated={false} onPlay={() => {}} onShare={() => {}} renderRowActions={() => null} />,
+      <PlaylistPage
+        id="p1"
+        authenticated={false}
+        onPlay={() => {}}
+        onShare={() => {}}
+        renderRowActions={() => null}
+      />,
     );
 
     // A deleted or private playlist must not sit on "Loading…" forever.
@@ -298,50 +322,90 @@ describe("PlaylistPage fetching", () => {
 
   it("when reloadKey is bumped, then it refetches without blanking the current view", async () => {
     const { rerender } = render(
-      <PlaylistPage id="p1" authenticated={false} onPlay={() => {}} onShare={() => {}} renderRowActions={() => null} reloadKey={0} />,
+      <PlaylistPage
+        id="p1"
+        authenticated={false}
+        onPlay={() => {}}
+        onShare={() => {}}
+        renderRowActions={() => null}
+        reloadKey={0}
+      />,
     );
     await screen.findByRole("heading", { name: "Road Trip" });
 
     rerender(
-      <PlaylistPage id="p1" authenticated={false} onPlay={() => {}} onShare={() => {}} renderRowActions={() => null} reloadKey={1} />,
+      <PlaylistPage
+        id="p1"
+        authenticated={false}
+        onPlay={() => {}}
+        onShare={() => {}}
+        renderRowActions={() => null}
+        reloadKey={1}
+      />,
     );
 
     await waitFor(() => expect(mocked.getPlaylist).toHaveBeenCalledTimes(2));
     // Nulling state on a reloadKey bump would flash "Loading…" over a page the
     // user is already reading, so only an id change is allowed to clear it.
-    expect(screen.getByRole("heading", { name: "Road Trip" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: "Road Trip" }),
+    ).toBeInTheDocument();
   });
 
   it("when the id changes, then the stale playlist is cleared while the new one loads", async () => {
     mocked.getPlaylist.mockResolvedValue(playlistDetail({ name: "Road Trip" }));
     const { rerender } = render(
-      <PlaylistPage id="p1" authenticated={false} onPlay={() => {}} onShare={() => {}} renderRowActions={() => null} />,
+      <PlaylistPage
+        id="p1"
+        authenticated={false}
+        onPlay={() => {}}
+        onShare={() => {}}
+        renderRowActions={() => null}
+      />,
     );
     await screen.findByRole("heading", { name: "Road Trip" });
 
     mocked.getPlaylist.mockReturnValue(new Promise(() => {}));
     rerender(
-      <PlaylistPage id="p2" authenticated={false} onPlay={() => {}} onShare={() => {}} renderRowActions={() => null} />,
+      <PlaylistPage
+        id="p2"
+        authenticated={false}
+        onPlay={() => {}}
+        onShare={() => {}}
+        renderRowActions={() => null}
+      />,
     );
 
     // Showing the previous playlist's title under a new URL would be wrong.
-    expect(screen.queryByRole("heading", { name: "Road Trip" })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("heading", { name: "Road Trip" }),
+    ).not.toBeInTheDocument();
     expect(screen.getByText("Loading…")).toBeInTheDocument();
   });
 
   it("when the publish pill is pressed, then the server's updated playlist replaces the local state", async () => {
     const user = userEvent.setup();
     mocked.getPlaylist.mockResolvedValue(playlistDetail({ published: true }));
-    mocked.setPlaylistPublished.mockResolvedValue(playlistDetail({ published: false }));
+    mocked.setPlaylistPublished.mockResolvedValue(
+      playlistDetail({ published: false }),
+    );
 
     render(
-      <PlaylistPage id="p1" authenticated={true} onPlay={() => {}} onShare={() => {}} renderRowActions={() => null} />,
+      <PlaylistPage
+        id="p1"
+        authenticated={true}
+        onPlay={() => {}}
+        onShare={() => {}}
+        renderRowActions={() => null}
+      />,
     );
     await user.click(await screen.findByRole("button", { name: /Unpublish/ }));
 
     expect(mocked.setPlaylistPublished).toHaveBeenCalledWith("p1", false);
     // The pill has to flip to reflect the new state, not just fire and forget.
-    expect(await screen.findByRole("button", { name: /Publish/ })).toBeInTheDocument();
+    expect(
+      await screen.findByRole("button", { name: /Publish/ }),
+    ).toBeInTheDocument();
   });
 
   it("when the publish toggle fails, then the pill keeps its previous state", async () => {
@@ -350,14 +414,22 @@ describe("PlaylistPage fetching", () => {
     mocked.setPlaylistPublished.mockRejectedValue(new Error("500"));
 
     render(
-      <PlaylistPage id="p1" authenticated={true} onPlay={() => {}} onShare={() => {}} renderRowActions={() => null} />,
+      <PlaylistPage
+        id="p1"
+        authenticated={true}
+        onPlay={() => {}}
+        onShare={() => {}}
+        renderRowActions={() => null}
+      />,
     );
     await user.click(await screen.findByRole("button", { name: /Unpublish/ }));
 
     // Optimistically flipping to "Publish" would tell the user the playlist is
     // private when the server still has it public.
     await waitFor(() => expect(mocked.setPlaylistPublished).toHaveBeenCalled());
-    expect(screen.getByRole("button", { name: /Unpublish/ })).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /Unpublish/ }),
+    ).toBeInTheDocument();
   });
 });
 
@@ -447,7 +519,9 @@ describe("PlaylistPageView playback", () => {
   it("when the viewer is signed in, then unpublished songs are badged in the row list", () => {
     render(
       <PlaylistPageView
-        playlist={playlistDetail({ songs: [song({ id: "s1", title: "Demo Take", published: false })] })}
+        playlist={playlistDetail({
+          songs: [song({ id: "s1", title: "Demo Take", published: false })],
+        })}
         authenticated={true}
         onPlay={() => {}}
         onShare={() => {}}
@@ -456,7 +530,9 @@ describe("PlaylistPageView playback", () => {
       />,
     );
 
-    expect(screen.getByText("Unpublished", { selector: "span" })).toBeInTheDocument();
+    expect(
+      screen.getByText("Unpublished", { selector: "span" }),
+    ).toBeInTheDocument();
   });
 
   it("when renderRowActions supplies controls, then they are rendered per row", () => {
@@ -494,10 +570,14 @@ describe("PlaylistPageView edit mode", () => {
     );
 
     await user.click(screen.getByRole("button", { name: "Edit" }));
-    expect(screen.getByPlaceholderText("Search by title or artist…")).toBeInTheDocument();
+    expect(
+      screen.getByPlaceholderText("Search by title or artist…"),
+    ).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Done" }));
-    expect(screen.queryByPlaceholderText("Search by title or artist…")).not.toBeInTheDocument();
+    expect(
+      screen.queryByPlaceholderText("Search by title or artist…"),
+    ).not.toBeInTheDocument();
   });
 
   it("when the URL carries edit=1, then the page opens straight into edit mode", () => {
@@ -515,12 +595,16 @@ describe("PlaylistPageView edit mode", () => {
     );
 
     // Freshly created playlists deep-link here to be named immediately.
-    expect(screen.getByPlaceholderText("Search by title or artist…")).toBeInTheDocument();
+    expect(
+      screen.getByPlaceholderText("Search by title or artist…"),
+    ).toBeInTheDocument();
   });
 
   it("when the name is changed and blurred, then the rename is persisted", async () => {
     const user = userEvent.setup();
-    mocked.updatePlaylist.mockResolvedValue(playlistDetail({ name: "Night Drive" }));
+    mocked.updatePlaylist.mockResolvedValue(
+      playlistDetail({ name: "Night Drive" }),
+    );
     const { onPlaylistUpdate } = renderEditing();
 
     const input = screen.getByDisplayValue("Road Trip");
@@ -529,7 +613,11 @@ describe("PlaylistPageView edit mode", () => {
     await user.tab();
 
     await waitFor(() =>
-      expect(mocked.updatePlaylist).toHaveBeenCalledWith("p1", "Night Drive", "Sun-bleached highway pop."),
+      expect(mocked.updatePlaylist).toHaveBeenCalledWith(
+        "p1",
+        "Night Drive",
+        "Sun-bleached highway pop.",
+      ),
     );
     expect(onPlaylistUpdate).toHaveBeenCalled();
   });
@@ -574,7 +662,9 @@ describe("PlaylistPageView edit mode", () => {
 
   it("when the description is edited and blurred, then it is persisted", async () => {
     const user = userEvent.setup();
-    mocked.updatePlaylistDescription.mockResolvedValue(playlistDetail({ description: "Windows down." }));
+    mocked.updatePlaylistDescription.mockResolvedValue(
+      playlistDetail({ description: "Windows down." }),
+    );
     const { onPlaylistUpdate } = renderEditing();
 
     const box = screen.getByDisplayValue("Sun-bleached highway pop.");
@@ -583,7 +673,10 @@ describe("PlaylistPageView edit mode", () => {
     await user.tab();
 
     await waitFor(() =>
-      expect(mocked.updatePlaylistDescription).toHaveBeenCalledWith("p1", "Windows down."),
+      expect(mocked.updatePlaylistDescription).toHaveBeenCalledWith(
+        "p1",
+        "Windows down.",
+      ),
     );
     expect(onPlaylistUpdate).toHaveBeenCalled();
   });
@@ -598,14 +691,18 @@ describe("PlaylistPageView edit mode", () => {
     await user.type(box, "Windows down.");
     await user.tab();
 
-    expect(await screen.findByDisplayValue("Sun-bleached highway pop.")).toBeInTheDocument();
+    expect(
+      await screen.findByDisplayValue("Sun-bleached highway pop."),
+    ).toBeInTheDocument();
   });
 });
 
 describe("PlaylistPageView song management", () => {
   it("when the add field is focused, then the library is fetched once and reused", async () => {
     const user = userEvent.setup();
-    mocked.listSongs.mockResolvedValue([song({ id: "s3", title: "Protovision" })]);
+    mocked.listSongs.mockResolvedValue([
+      song({ id: "s3", title: "Protovision" }),
+    ]);
     renderEditing();
 
     const field = screen.getByPlaceholderText("Search by title or artist…");
@@ -638,7 +735,9 @@ describe("PlaylistPageView song management", () => {
 
   it("when the query matches the artist rather than the title, then the song is still suggested", async () => {
     const user = userEvent.setup();
-    mocked.listSongs.mockResolvedValue([song({ id: "s4", title: "Blinding Lights", artistName: "The Weeknd" })]);
+    mocked.listSongs.mockResolvedValue([
+      song({ id: "s4", title: "Blinding Lights", artistName: "The Weeknd" }),
+    ]);
     renderEditing();
 
     const field = screen.getByPlaceholderText("Search by title or artist…");
@@ -655,7 +754,9 @@ describe("PlaylistPageView song management", () => {
     const user = userEvent.setup();
     const added = song({ id: "s3", title: "Protovision" });
     mocked.listSongs.mockResolvedValue([added]);
-    mocked.addSongToPlaylist.mockResolvedValue(playlistDetail({ songs: [added] }));
+    mocked.addSongToPlaylist.mockResolvedValue(
+      playlistDetail({ songs: [added] }),
+    );
     const { onPlaylistUpdate } = renderEditing();
 
     const field = screen.getByPlaceholderText("Search by title or artist…");
@@ -673,7 +774,9 @@ describe("PlaylistPageView song management", () => {
 
   it("when adding a song fails, then the playlist state is left untouched", async () => {
     const user = userEvent.setup();
-    mocked.listSongs.mockResolvedValue([song({ id: "s3", title: "Protovision" })]);
+    mocked.listSongs.mockResolvedValue([
+      song({ id: "s3", title: "Protovision" }),
+    ]);
     mocked.addSongToPlaylist.mockRejectedValue(new Error("409"));
     const { onPlaylistUpdate } = renderEditing();
 
@@ -689,7 +792,9 @@ describe("PlaylistPageView song management", () => {
 
   it("when a row's remove button is pressed, then that song is removed from the playlist", async () => {
     const user = userEvent.setup();
-    mocked.removeSongFromPlaylist.mockResolvedValue(playlistDetail({ songs: [] }));
+    mocked.removeSongFromPlaylist.mockResolvedValue(
+      playlistDetail({ songs: [] }),
+    );
     const { onPlaylistUpdate } = renderEditing();
 
     await user.click(screen.getByRole("button", { name: "Remove Nightcall" }));
@@ -705,7 +810,9 @@ describe("PlaylistPageView song management", () => {
 
     await user.click(screen.getByRole("button", { name: "Remove Nightcall" }));
 
-    await waitFor(() => expect(mocked.removeSongFromPlaylist).toHaveBeenCalled());
+    await waitFor(() =>
+      expect(mocked.removeSongFromPlaylist).toHaveBeenCalled(),
+    );
     expect(onPlaylistUpdate).not.toHaveBeenCalled();
   });
 
@@ -719,7 +826,9 @@ describe("PlaylistPageView song management", () => {
     fireEvent.dragStart(rows[1]);
     fireEvent.drop(rows[0]);
 
-    await waitFor(() => expect(mocked.reorderPlaylist).toHaveBeenCalledWith("p1", ["s2", "s1"]));
+    await waitFor(() =>
+      expect(mocked.reorderPlaylist).toHaveBeenCalledWith("p1", ["s2", "s1"]),
+    );
     expect(onPlaylistUpdate).toHaveBeenCalled();
   });
 
@@ -741,7 +850,9 @@ describe("PlaylistPageView delete flow", () => {
 
     await user.click(screen.getByRole("button", { name: /Delete playlist/ }));
 
-    expect(screen.getByText("Really delete this playlist?")).toBeInTheDocument();
+    expect(
+      screen.getByText("Really delete this playlist?"),
+    ).toBeInTheDocument();
     expect(mocked.deletePlaylist).not.toHaveBeenCalled();
   });
 
@@ -756,7 +867,9 @@ describe("PlaylistPageView delete flow", () => {
     expect(mocked.deletePlaylist).toHaveBeenCalledWith("p1");
     // Staying on the page would leave the user looking at a playlist that no
     // longer exists.
-    await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith("/playlists"));
+    await waitFor(() =>
+      expect(mockNavigate).toHaveBeenCalledWith("/playlists"),
+    );
   });
 
   it("when the confirmation is cancelled, then the destructive button returns to its resting state", async () => {
@@ -766,8 +879,12 @@ describe("PlaylistPageView delete flow", () => {
     await user.click(screen.getByRole("button", { name: /Delete playlist/ }));
     await user.click(screen.getByRole("button", { name: "Cancel" }));
 
-    expect(screen.queryByText("Really delete this playlist?")).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Delete playlist/ })).toBeInTheDocument();
+    expect(
+      screen.queryByText("Really delete this playlist?"),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /Delete playlist/ }),
+    ).toBeInTheDocument();
   });
 
   it("when the delete request fails, then the confirmation resets so it can be retried", async () => {
@@ -780,7 +897,9 @@ describe("PlaylistPageView delete flow", () => {
 
     // Leaving the button stuck on "Deleting…" would strand the user with no way
     // to retry or back out.
-    expect(await screen.findByRole("button", { name: /Delete playlist/ })).toBeInTheDocument();
+    expect(
+      await screen.findByRole("button", { name: /Delete playlist/ }),
+    ).toBeInTheDocument();
     expect(mockNavigate).not.toHaveBeenCalled();
   });
 
@@ -794,7 +913,9 @@ describe("PlaylistPageView delete flow", () => {
     await user.click(screen.getByRole("button", { name: "Edit" }));
 
     // A primed delete confirmation surviving a panel close is a foot-gun.
-    expect(screen.queryByText("Really delete this playlist?")).not.toBeInTheDocument();
+    expect(
+      screen.queryByText("Really delete this playlist?"),
+    ).not.toBeInTheDocument();
   });
 });
 
@@ -808,10 +929,16 @@ describe("PlaylistPageView AI description tones", () => {
     });
     renderEditing({}, { chatEnabled: true });
 
-    await user.click(screen.getByRole("button", { name: /Suggest descriptions/ }));
+    await user.click(
+      screen.getByRole("button", { name: /Suggest descriptions/ }),
+    );
 
-    expect(await screen.findByRole("button", { name: "Punchy" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Evocative" })).toBeInTheDocument();
+    expect(
+      await screen.findByRole("button", { name: "Punchy" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Evocative" }),
+    ).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Factual" })).toBeInTheDocument();
   });
 
@@ -822,17 +949,26 @@ describe("PlaylistPageView AI description tones", () => {
       evocative: "Sun on chrome.",
       factual: "Twelve synthwave tracks.",
     });
-    mocked.updatePlaylistDescription.mockResolvedValue(playlistDetail({ description: "Windows down." }));
+    mocked.updatePlaylistDescription.mockResolvedValue(
+      playlistDetail({ description: "Windows down." }),
+    );
     renderEditing({}, { chatEnabled: true });
 
-    await user.click(screen.getByRole("button", { name: /Suggest descriptions/ }));
+    await user.click(
+      screen.getByRole("button", { name: /Suggest descriptions/ }),
+    );
     await user.click(await screen.findByRole("button", { name: "Punchy" }));
 
     // A chip click never blurs the textarea, so onBlur cannot save it — the chip
     // has to write through itself or the choice is silently lost.
-    expect(await screen.findByDisplayValue("Windows down.")).toBeInTheDocument();
+    expect(
+      await screen.findByDisplayValue("Windows down."),
+    ).toBeInTheDocument();
     await waitFor(() =>
-      expect(mocked.updatePlaylistDescription).toHaveBeenCalledWith("p1", "Windows down."),
+      expect(mocked.updatePlaylistDescription).toHaveBeenCalledWith(
+        "p1",
+        "Windows down.",
+      ),
     );
   });
 
@@ -841,10 +977,16 @@ describe("PlaylistPageView AI description tones", () => {
     mocked.suggestPlaylistDescriptions.mockRejectedValue(new Error("503"));
     renderEditing({}, { chatEnabled: true });
 
-    await user.click(screen.getByRole("button", { name: /Suggest descriptions/ }));
+    await user.click(
+      screen.getByRole("button", { name: /Suggest descriptions/ }),
+    );
 
-    expect(await screen.findByRole("alert")).toHaveTextContent("Could not suggest descriptions");
-    expect(screen.queryByRole("button", { name: "Punchy" })).not.toBeInTheDocument();
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Could not suggest descriptions",
+    );
+    expect(
+      screen.queryByRole("button", { name: "Punchy" }),
+    ).not.toBeInTheDocument();
   });
 });
 
@@ -853,12 +995,18 @@ describe("PlaylistPageView AI cover art", () => {
 
   it("when a prompt is suggested, then it lands in the prompt box", async () => {
     const user = userEvent.setup();
-    mocked.suggestPlaylistPrompt.mockResolvedValue({ prompt: "Neon highway at dusk" });
+    mocked.suggestPlaylistPrompt.mockResolvedValue({
+      prompt: "Neon highway at dusk",
+    });
     renderEditing({}, aiProps);
 
-    await user.click(screen.getByRole("button", { name: /Suggest from songs/ }));
+    await user.click(
+      screen.getByRole("button", { name: /Suggest from songs/ }),
+    );
 
-    expect(await screen.findByDisplayValue("Neon highway at dusk")).toBeInTheDocument();
+    expect(
+      await screen.findByDisplayValue("Neon highway at dusk"),
+    ).toBeInTheDocument();
     expect(mocked.suggestPlaylistPrompt).toHaveBeenCalledWith("p1");
   });
 
@@ -867,23 +1015,38 @@ describe("PlaylistPageView AI cover art", () => {
     mocked.suggestPlaylistPrompt.mockRejectedValue(new Error("503"));
     renderEditing({}, aiProps);
 
-    await user.click(screen.getByRole("button", { name: /Suggest from songs/ }));
+    await user.click(
+      screen.getByRole("button", { name: /Suggest from songs/ }),
+    );
 
-    expect(await screen.findByRole("alert")).toHaveTextContent("Could not suggest a prompt");
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Could not suggest a prompt",
+    );
   });
 
   it("when a refinement is submitted, then the refined prompt replaces the original", async () => {
     const user = userEvent.setup();
-    mocked.refinePlaylistPrompt.mockResolvedValue({ prompt: "Neon highway, heavy rain" });
+    mocked.refinePlaylistPrompt.mockResolvedValue({
+      prompt: "Neon highway, heavy rain",
+    });
     renderEditing({}, aiProps);
 
     await user.type(screen.getByLabelText("Cover art prompt"), "Neon highway");
-    await user.type(screen.getByLabelText("Refine prompt instruction"), "add rain{Enter}");
+    await user.type(
+      screen.getByLabelText("Refine prompt instruction"),
+      "add rain{Enter}",
+    );
 
     await waitFor(() =>
-      expect(mocked.refinePlaylistPrompt).toHaveBeenCalledWith("p1", "Neon highway", "add rain"),
+      expect(mocked.refinePlaylistPrompt).toHaveBeenCalledWith(
+        "p1",
+        "Neon highway",
+        "add rain",
+      ),
     );
-    expect(await screen.findByDisplayValue("Neon highway, heavy rain")).toBeInTheDocument();
+    expect(
+      await screen.findByDisplayValue("Neon highway, heavy rain"),
+    ).toBeInTheDocument();
   });
 
   it("when refining fails, then the failure is announced and the prompt is kept", async () => {
@@ -892,12 +1055,19 @@ describe("PlaylistPageView AI cover art", () => {
     renderEditing({}, aiProps);
 
     await user.type(screen.getByLabelText("Cover art prompt"), "Neon highway");
-    await user.type(screen.getByLabelText("Refine prompt instruction"), "add rain{Enter}");
+    await user.type(
+      screen.getByLabelText("Refine prompt instruction"),
+      "add rain{Enter}",
+    );
 
-    expect(await screen.findByRole("alert")).toHaveTextContent("Could not refine the prompt");
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Could not refine the prompt",
+    );
     // Losing the user's typed prompt because the refinement failed would be a
     // much worse outcome than the failed refinement itself.
-    expect(screen.getByLabelText("Cover art prompt")).toHaveValue("Neon highway");
+    expect(screen.getByLabelText("Cover art prompt")).toHaveValue(
+      "Neon highway",
+    );
   });
 
   it("when the prompt is empty, then Generate stays disabled", () => {
@@ -915,7 +1085,9 @@ describe("PlaylistPageView AI cover art", () => {
     // Cover art is derived from the tracks, so an empty playlist has nothing to
     // draw from — the reason is spelled out rather than left as a dead button.
     expect(screen.getByRole("button", { name: "Generate" })).toBeDisabled();
-    expect(screen.getByText("Add songs before generating a cover.")).toBeInTheDocument();
+    expect(
+      screen.getByText("Add songs before generating a cover."),
+    ).toBeInTheDocument();
   });
 
   it("when generation succeeds, then a preview and an Apply action appear", async () => {
@@ -926,30 +1098,42 @@ describe("PlaylistPageView AI cover art", () => {
     await user.type(screen.getByLabelText("Cover art prompt"), "Neon highway");
     await user.click(screen.getByRole("button", { name: "Generate" }));
 
-    expect(await screen.findByAltText("Generated playlist cover")).toBeInTheDocument();
+    expect(
+      await screen.findByAltText("Generated playlist cover"),
+    ).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Apply" })).toBeInTheDocument();
     // With a candidate on screen the primary action becomes a retry, not a
     // first-time generate.
-    expect(screen.getByRole("button", { name: "Regenerate" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Regenerate" }),
+    ).toBeInTheDocument();
   });
 
   it("when generation fails, then the server's message is surfaced", async () => {
     const user = userEvent.setup();
-    mocked.generateStudioCoverArt.mockRejectedValue(new Error("quota exhausted"));
+    mocked.generateStudioCoverArt.mockRejectedValue(
+      new Error("quota exhausted"),
+    );
     renderEditing({}, aiProps);
 
     await user.type(screen.getByLabelText("Cover art prompt"), "Neon highway");
     await user.click(screen.getByRole("button", { name: "Generate" }));
 
-    expect(await screen.findByRole("alert")).toHaveTextContent("quota exhausted");
-    expect(screen.queryByAltText("Generated playlist cover")).not.toBeInTheDocument();
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "quota exhausted",
+    );
+    expect(
+      screen.queryByAltText("Generated playlist cover"),
+    ).not.toBeInTheDocument();
   });
 
   it("when the generated cover is applied, then it is saved and the refreshed playlist is adopted", async () => {
     const user = userEvent.setup();
     mocked.generateStudioCoverArt.mockResolvedValue({ id: "gen1" } as never);
     mocked.applyPlaylistCover.mockResolvedValue(undefined as never);
-    mocked.getPlaylist.mockResolvedValue(playlistDetail({ coverArtId: "gen1" }));
+    mocked.getPlaylist.mockResolvedValue(
+      playlistDetail({ coverArtId: "gen1" }),
+    );
     const { onPlaylistUpdate } = renderEditing({}, aiProps);
 
     await user.type(screen.getByLabelText("Cover art prompt"), "Neon highway");
@@ -960,7 +1144,9 @@ describe("PlaylistPageView AI cover art", () => {
     await waitFor(() => expect(onPlaylistUpdate).toHaveBeenCalled());
     // Once applied, the candidate is no longer pending, so the preview clears.
     await waitFor(() =>
-      expect(screen.queryByAltText("Generated playlist cover")).not.toBeInTheDocument(),
+      expect(
+        screen.queryByAltText("Generated playlist cover"),
+      ).not.toBeInTheDocument(),
     );
   });
 
@@ -974,7 +1160,9 @@ describe("PlaylistPageView AI cover art", () => {
     await user.click(screen.getByRole("button", { name: "Generate" }));
     await user.click(await screen.findByRole("button", { name: "Apply" }));
 
-    expect(await screen.findByRole("alert")).toHaveTextContent("Could not apply the cover");
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Could not apply the cover",
+    );
     expect(screen.getByAltText("Generated playlist cover")).toBeInTheDocument();
   });
 });
@@ -982,11 +1170,16 @@ describe("PlaylistPageView AI cover art", () => {
 describe("PlaylistPageView cover upload", () => {
   it("when an image is picked, then the returned playlist detail is adopted", async () => {
     const user = userEvent.setup();
-    mocked.uploadPlaylistCover.mockResolvedValue(playlistDetail({ coverArtId: "up1" }));
+    mocked.uploadPlaylistCover.mockResolvedValue(
+      playlistDetail({ coverArtId: "up1" }),
+    );
     const { container, onPlaylistUpdate } = renderEditing();
 
     const file = new File(["png"], "cover.png", { type: "image/png" });
-    await user.upload(container.querySelector('input[type="file"]') as HTMLInputElement, file);
+    await user.upload(
+      container.querySelector('input[type="file"]') as HTMLInputElement,
+      file,
+    );
 
     expect(mocked.uploadPlaylistCover).toHaveBeenCalledWith("p1", file);
     await waitFor(() => expect(onPlaylistUpdate).toHaveBeenCalled());
@@ -1004,7 +1197,9 @@ describe("PlaylistPageView cover upload", () => {
 
     // This error lives outside the AI panel deliberately: an upload can fail
     // even when image generation is switched off entirely.
-    expect(await screen.findByRole("alert")).toHaveTextContent("Cover upload failed");
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Cover upload failed",
+    );
   });
 
   it("when the viewer is anonymous, then the cover is inert with no file input", () => {

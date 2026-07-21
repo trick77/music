@@ -63,7 +63,9 @@ function renderEditor(overrides: Partial<Song> = {}) {
   const onClose = vi.fn();
   const onSaved = vi.fn();
   const s = song(overrides);
-  const view = render(<TagEditor song={s} onClose={onClose} onSaved={onSaved} />);
+  const view = render(
+    <TagEditor song={s} onClose={onClose} onSaved={onSaved} />,
+  );
   return { ...view, onClose, onSaved, song: s };
 }
 
@@ -102,7 +104,12 @@ afterEach(() => {
 describe("TagEditor details tab", () => {
   it("when opened, then the fields are seeded from the song", () => {
     // Given / When
-    renderEditor({ title: "Nightcall", artistName: "Kavinsky", album: "OutRun", year: 2010 });
+    renderEditor({
+      title: "Nightcall",
+      artistName: "Kavinsky",
+      album: "OutRun",
+      year: 2010,
+    });
 
     // Then
     expect(screen.getByDisplayValue("Nightcall")).toBeInTheDocument();
@@ -185,7 +192,9 @@ describe("TagEditor genres", () => {
     await user.type(input, "darkwave{Enter}");
 
     // Then
-    expect(screen.getByRole("button", { name: "Remove Darkwave" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Remove Darkwave" }),
+    ).toBeInTheDocument();
     expect(input).toHaveValue("");
   });
 
@@ -195,12 +204,17 @@ describe("TagEditor genres", () => {
     renderEditor({ genres: ["synthwave"] });
 
     // When
-    await user.type(screen.getByPlaceholderText("Add genre and press Enter"), "SYNTHWAVE{Enter}");
+    await user.type(
+      screen.getByPlaceholderText("Add genre and press Enter"),
+      "SYNTHWAVE{Enter}",
+    );
 
     // Then
     // Case-insensitive dedupe: "Synthwave" and "synthwave" are the same tag, and
     // two chips would mean two genre rows on the server.
-    expect(screen.getAllByRole("button", { name: /^Remove Synthwave$/ })).toHaveLength(1);
+    expect(
+      screen.getAllByRole("button", { name: /^Remove Synthwave$/ }),
+    ).toHaveLength(1);
   });
 
   it("when only whitespace is submitted, then no chip is added", async () => {
@@ -209,10 +223,15 @@ describe("TagEditor genres", () => {
     renderEditor({ genres: [] });
 
     // When
-    await user.type(screen.getByPlaceholderText("Add genre and press Enter"), "   {Enter}");
+    await user.type(
+      screen.getByPlaceholderText("Add genre and press Enter"),
+      "   {Enter}",
+    );
 
     // Then
-    expect(screen.queryByRole("button", { name: /^Remove/ })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /^Remove/ }),
+    ).not.toBeInTheDocument();
   });
 
   it("when a genre chip's remove button is clicked, then that chip disappears", async () => {
@@ -224,8 +243,12 @@ describe("TagEditor genres", () => {
     await user.click(screen.getByRole("button", { name: "Remove Synthwave" }));
 
     // Then
-    expect(screen.queryByRole("button", { name: "Remove Synthwave" })).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Remove Darkwave" })).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Remove Synthwave" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Remove Darkwave" }),
+    ).toBeInTheDocument();
   });
 });
 
@@ -233,7 +256,10 @@ describe("TagEditor artist autocomplete", () => {
   it("when the artist field is typed into, then matching suggestions are offered with their counts", async () => {
     // Given
     const user = userEvent.setup();
-    mocked.suggest.mockResolvedValue([suggestion("Kavinsky", 12), suggestion("Kavinsky Remixes", 3)]);
+    mocked.suggest.mockResolvedValue([
+      suggestion("Kavinsky", 12),
+      suggestion("Kavinsky Remixes", 3),
+    ]);
     renderEditor({ artistName: "" });
 
     // When
@@ -261,7 +287,9 @@ describe("TagEditor artist autocomplete", () => {
 
     // Then
     expect(fieldUnder("Artist")).toHaveValue("Kavinsky");
-    await waitFor(() => expect(screen.queryByText("12")).not.toBeInTheDocument());
+    await waitFor(() =>
+      expect(screen.queryByText("12")).not.toBeInTheDocument(),
+    );
   });
 
   it("when nothing matches what was typed, then no suggestion list is rendered", async () => {
@@ -275,7 +303,9 @@ describe("TagEditor artist autocomplete", () => {
 
     // Then
     await waitFor(() => expect(mocked.suggest).toHaveBeenCalled());
-    expect(screen.queryByText("zzz", { selector: "span" })).not.toBeInTheDocument();
+    expect(
+      screen.queryByText("zzz", { selector: "span" }),
+    ).not.toBeInTheDocument();
   });
 });
 
@@ -298,7 +328,9 @@ describe("TagEditor lyrics tab", () => {
   it("when Clean is pressed, then Suno's bracketed directives are stripped but sung ad-libs survive", async () => {
     // Given
     const user = userEvent.setup();
-    renderEditor({ lyrics: "[Verse 1]\nDrive at night (ooh)\n\n\n[Chorus]\nNightcall" });
+    renderEditor({
+      lyrics: "[Verse 1]\nDrive at night (ooh)\n\n\n[Chorus]\nNightcall",
+    });
     await openTab(user, "Lyrics");
 
     // When
@@ -307,7 +339,9 @@ describe("TagEditor lyrics tab", () => {
     // Then
     // Bracketed structure markers are never sung; parenthesised ad-libs usually
     // are, so stripping those too would delete real lyrics.
-    const area = screen.getByPlaceholderText(/Paste lyrics here/) as HTMLTextAreaElement;
+    const area = screen.getByPlaceholderText(
+      /Paste lyrics here/,
+    ) as HTMLTextAreaElement;
     expect(area.value).toContain("(ooh)");
     expect(area.value).not.toContain("[Verse 1]");
     expect(area.value).not.toContain("[Chorus]");
@@ -319,7 +353,10 @@ describe("TagEditor lyrics tab", () => {
     const user = userEvent.setup();
     renderEditor({ lyrics: "" });
     await openTab(user, "Lyrics");
-    await user.type(screen.getByPlaceholderText(/Paste lyrics here/), "midnight");
+    await user.type(
+      screen.getByPlaceholderText(/Paste lyrics here/),
+      "midnight",
+    );
 
     // When
     // All panels stay mounted precisely so a tab switch cannot discard edits.
@@ -327,7 +364,9 @@ describe("TagEditor lyrics tab", () => {
     await openTab(user, "Lyrics");
 
     // Then
-    expect(screen.getByPlaceholderText(/Paste lyrics here/)).toHaveValue("midnight");
+    expect(screen.getByPlaceholderText(/Paste lyrics here/)).toHaveValue(
+      "midnight",
+    );
   });
 });
 
@@ -345,7 +384,9 @@ describe("TagEditor cover tab", () => {
     expect(screen.getByText("K")).toBeInTheDocument();
     // Removal is keyed on the stored art, not the preview: there is no server-side
     // cover to delete here.
-    expect(screen.queryByRole("button", { name: "Remove cover" })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Remove cover" }),
+    ).not.toBeInTheDocument();
   });
 
   it("when the song already has art, then it is previewed and offered for replacement", async () => {
@@ -360,7 +401,10 @@ describe("TagEditor cover tab", () => {
     expect(screen.getByLabelText("Replace cover")).toBeInTheDocument();
     // The stored cover is requested without a ?size, which serves the original
     // bytes rather than a thumbnail.
-    expect(container.querySelector("img")).toHaveAttribute("src", "/api/cover/c9");
+    expect(container.querySelector("img")).toHaveAttribute(
+      "src",
+      "/api/cover/c9",
+    );
   });
 
   it("when a file is picked, then it is staged as a preview and flagged as pending rather than uploaded", async () => {
@@ -368,23 +412,36 @@ describe("TagEditor cover tab", () => {
     const user = userEvent.setup();
     const { container } = renderEditor({ coverArtId: "" });
     await openTab(user, "Cover");
-    const input = container.querySelector('input[type="file"]') as HTMLInputElement;
+    const input = container.querySelector(
+      'input[type="file"]',
+    ) as HTMLInputElement;
 
     // When
-    await user.upload(input, new File(["png"], "art.png", { type: "image/png" }));
+    await user.upload(
+      input,
+      new File(["png"], "art.png", { type: "image/png" }),
+    );
 
     // Then
     // Staging, not uploading: cover changes are album-wide, so they must wait for
     // an explicit Save like every other edit in this dialog.
     expect(mocked.uploadCover).not.toHaveBeenCalled();
-    expect(container.querySelector("img")).toHaveAttribute("src", "blob:staged-cover");
-    expect(screen.getByText(/Pending — applies when you save/)).toBeInTheDocument();
+    expect(container.querySelector("img")).toHaveAttribute(
+      "src",
+      "blob:staged-cover",
+    );
+    expect(
+      screen.getByText(/Pending — applies when you save/),
+    ).toBeInTheDocument();
   });
 
   it("when remove cover is clicked, then the preview clears and the removal is only staged", async () => {
     // Given
     const user = userEvent.setup();
-    const { container } = renderEditor({ coverArtId: "c9", artistName: "Kavinsky" });
+    const { container } = renderEditor({
+      coverArtId: "c9",
+      artistName: "Kavinsky",
+    });
     await openTab(user, "Cover");
 
     // When
@@ -395,7 +452,9 @@ describe("TagEditor cover tab", () => {
     expect(container.querySelector("img")).toBeNull();
     expect(screen.getByText("K")).toBeInTheDocument();
     // Once removal is staged there is nothing left to remove, so the badge goes.
-    expect(screen.queryByRole("button", { name: "Remove cover" })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Remove cover" }),
+    ).not.toBeInTheDocument();
   });
 
   it("when an accepted image is dropped on the art, then it is staged just like a picked file", async () => {
@@ -427,7 +486,10 @@ describe("TagEditor cover tab", () => {
     await openTab(user, "Cover");
     const zone = screen.getByLabelText("Add cover");
     const { fireEvent } = await import("@testing-library/react");
-    const data = { types: ["Files"], files: [new File(["%PDF"], "sleeve.pdf", { type: "application/pdf" })] };
+    const data = {
+      types: ["Files"],
+      files: [new File(["%PDF"], "sleeve.pdf", { type: "application/pdf" })],
+    };
 
     // When
     fireEvent.dragEnter(zone, { dataTransfer: data });
@@ -475,7 +537,9 @@ describe("TagEditor info tab", () => {
     await openTab(user, "Info");
 
     // Then
-    await waitFor(() => expect(container.querySelector(".ui-spin")).toBeTruthy());
+    await waitFor(() =>
+      expect(container.querySelector(".ui-spin")).toBeTruthy(),
+    );
     expect(screen.queryByText("Unavailable")).not.toBeInTheDocument();
   });
 
@@ -545,7 +609,12 @@ describe("TagEditor saving", () => {
     const user = userEvent.setup();
     const saved = song({ title: "Nightcall" });
     mocked.updateSong.mockResolvedValue(saved);
-    const { onSaved, onClose } = renderEditor({ title: "golden hour", year: 2010, trackTotal: 0, trackNo: 3 });
+    const { onSaved, onClose } = renderEditor({
+      title: "golden hour",
+      year: 2010,
+      trackTotal: 0,
+      trackNo: 3,
+    });
     const title = screen.getByDisplayValue("golden hour");
     await user.clear(title);
     await user.type(title, "Nightcall");
@@ -554,15 +623,17 @@ describe("TagEditor saving", () => {
     await user.click(screen.getByRole("button", { name: "Save changes" }));
 
     // Then
-    await waitFor(() => expect(mocked.updateSong).toHaveBeenCalledWith("s1", {
-      title: "Nightcall",
-      artistName: "Kavinsky",
-      album: "outrun",
-      year: 2010,
-      trackNo: 3,
-      genres: ["synthwave"],
-      lyrics: "",
-    }));
+    await waitFor(() =>
+      expect(mocked.updateSong).toHaveBeenCalledWith("s1", {
+        title: "Nightcall",
+        artistName: "Kavinsky",
+        album: "outrun",
+        year: 2010,
+        trackNo: 3,
+        genres: ["synthwave"],
+        lyrics: "",
+      }),
+    );
     expect(onSaved).toHaveBeenCalledWith(saved);
     expect(onClose).toHaveBeenCalled();
   });
@@ -578,9 +649,12 @@ describe("TagEditor saving", () => {
     // Then
     // Number("") is 0 but Number("abc") is NaN, which would serialise to null and
     // wipe the column — the `|| 0` guard is what this pins down.
-    await waitFor(() => expect(mocked.updateSong).toHaveBeenCalledWith(
-      "s1", expect.objectContaining({ year: 0, trackNo: 0 }),
-    ));
+    await waitFor(() =>
+      expect(mocked.updateSong).toHaveBeenCalledWith(
+        "s1",
+        expect.objectContaining({ year: 0, trackNo: 0 }),
+      ),
+    );
   });
 
   it("when the album and year are retyped, then the new values are sent", async () => {
@@ -600,9 +674,12 @@ describe("TagEditor saving", () => {
     // Then
     // The year is held as text while editing so a half-typed "20" isn't coerced
     // to a number mid-keystroke; it must still arrive as a number.
-    await waitFor(() => expect(mocked.updateSong).toHaveBeenCalledWith(
-      "s1", expect.objectContaining({ album: "OutRun 2", year: 2013 }),
-    ));
+    await waitFor(() =>
+      expect(mocked.updateSong).toHaveBeenCalledWith(
+        "s1",
+        expect.objectContaining({ album: "OutRun 2", year: 2013 }),
+      ),
+    );
   });
 
   it("when the year is not a number, then it is saved as zero rather than NaN", async () => {
@@ -618,16 +695,22 @@ describe("TagEditor saving", () => {
 
     // Then
     // Number("unknown") is NaN, which would serialise to null and blank the column.
-    await waitFor(() => expect(mocked.updateSong).toHaveBeenCalledWith(
-      "s1", expect.objectContaining({ year: 0 }),
-    ));
+    await waitFor(() =>
+      expect(mocked.updateSong).toHaveBeenCalledWith(
+        "s1",
+        expect.objectContaining({ year: 0 }),
+      ),
+    );
   });
 
   it("when a genre was typed but never confirmed with Enter, then saving still includes it", async () => {
     // Given
     const user = userEvent.setup();
     renderEditor({ genres: ["synthwave"] });
-    await user.type(screen.getByPlaceholderText("Add genre and press Enter"), "darkwave");
+    await user.type(
+      screen.getByPlaceholderText("Add genre and press Enter"),
+      "darkwave",
+    );
 
     // When
     await user.click(screen.getByRole("button", { name: "Save changes" }));
@@ -635,24 +718,33 @@ describe("TagEditor saving", () => {
     // Then
     // Losing a typed-but-unconfirmed genre on save is the obvious trap here: the
     // user typed it, so they meant it.
-    await waitFor(() => expect(mocked.updateSong).toHaveBeenCalledWith(
-      "s1", expect.objectContaining({ genres: ["synthwave", "darkwave"] }),
-    ));
+    await waitFor(() =>
+      expect(mocked.updateSong).toHaveBeenCalledWith(
+        "s1",
+        expect.objectContaining({ genres: ["synthwave", "darkwave"] }),
+      ),
+    );
   });
 
   it("when the pending genre duplicates an existing chip, then it is not added twice", async () => {
     // Given
     const user = userEvent.setup();
     renderEditor({ genres: ["synthwave"] });
-    await user.type(screen.getByPlaceholderText("Add genre and press Enter"), "Synthwave");
+    await user.type(
+      screen.getByPlaceholderText("Add genre and press Enter"),
+      "Synthwave",
+    );
 
     // When
     await user.click(screen.getByRole("button", { name: "Save changes" }));
 
     // Then
-    await waitFor(() => expect(mocked.updateSong).toHaveBeenCalledWith(
-      "s1", expect.objectContaining({ genres: ["synthwave"] }),
-    ));
+    await waitFor(() =>
+      expect(mocked.updateSong).toHaveBeenCalledWith(
+        "s1",
+        expect.objectContaining({ genres: ["synthwave"] }),
+      ),
+    );
   });
 
   it("when the tag save fails, then it says so and keeps the dialog open with the edits intact", async () => {
@@ -666,7 +758,9 @@ describe("TagEditor saving", () => {
 
     // Then
     // Closing on failure would silently discard everything the user typed.
-    expect(await screen.findByRole("alert")).toHaveTextContent("Could not save changes");
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Could not save changes",
+    );
     expect(onSaved).not.toHaveBeenCalled();
     expect(onClose).not.toHaveBeenCalled();
     expect(screen.getByDisplayValue("golden hour")).toBeInTheDocument();
@@ -676,12 +770,21 @@ describe("TagEditor saving", () => {
     // Given
     const user = userEvent.setup();
     const order: string[] = [];
-    mocked.updateSong.mockImplementation(async () => { order.push("tags"); return song(); });
-    mocked.uploadCover.mockImplementation(async () => { order.push("cover"); return song({ coverArtId: "c9" }); });
+    mocked.updateSong.mockImplementation(async () => {
+      order.push("tags");
+      return song();
+    });
+    mocked.uploadCover.mockImplementation(async () => {
+      order.push("cover");
+      return song({ coverArtId: "c9" });
+    });
     const { container, onClose } = renderEditor({ coverArtId: "" });
     await openTab(user, "Cover");
     const file = new File(["png"], "art.png", { type: "image/png" });
-    await user.upload(container.querySelector('input[type="file"]') as HTMLInputElement, file);
+    await user.upload(
+      container.querySelector('input[type="file"]') as HTMLInputElement,
+      file,
+    );
 
     // When
     await user.click(screen.getByRole("button", { name: "Save changes" }));
@@ -733,10 +836,14 @@ describe("TagEditor saving", () => {
     // Then
     // The tags are already committed, so the caller must be told; the dialog stays
     // open with the cover still staged because Save is a safe retry.
-    expect(await screen.findByRole("alert")).toHaveTextContent("Tags saved, but the cover could not be updated");
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Tags saved, but the cover could not be updated",
+    );
     expect(onSaved).toHaveBeenCalledWith(taggedOnly);
     expect(onClose).not.toHaveBeenCalled();
-    expect(screen.getByText(/Pending — applies when you save/)).toBeInTheDocument();
+    expect(
+      screen.getByText(/Pending — applies when you save/),
+    ).toBeInTheDocument();
   });
 
   it("when a save is in flight, then the dialog cannot be closed out from under it", async () => {

@@ -1,5 +1,12 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, fireEvent, act, waitFor, within } from "@testing-library/react";
+import {
+  render,
+  screen,
+  fireEvent,
+  act,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { StudioProgress, StudioResult } from "./api";
 
@@ -79,14 +86,20 @@ function deferredGenerate() {
 }
 
 // Fills the reference field and submits, which is Studio's single reset+run action.
-async function generate(user: ReturnType<typeof userEvent.setup>, reference = "Enter Sandman") {
+async function generate(
+  user: ReturnType<typeof userEvent.setup>,
+  reference = "Enter Sandman",
+) {
   await user.type(screen.getByLabelText("Song reference"), reference);
   await user.click(screen.getByRole("button", { name: "Generate" }));
 }
 
 // Renders Studio and drives it through to a finished result, the state every
 // output card depends on.
-async function renderWithResult(props: Parameters<typeof StudioPage>[0] = {}, r = result()) {
+async function renderWithResult(
+  props: Parameters<typeof StudioPage>[0] = {},
+  r = result(),
+) {
   const user = userEvent.setup();
   const run = deferredGenerate();
   render(<StudioPage {...props} />);
@@ -128,7 +141,10 @@ describe("StudioPage reference form", () => {
 
     await generate(user, "  Enter Sandman  ");
 
-    expect(mocked.studioGenerate).toHaveBeenCalledWith("Enter Sandman", expect.any(Function));
+    expect(mocked.studioGenerate).toHaveBeenCalledWith(
+      "Enter Sandman",
+      expect.any(Function),
+    );
   });
 });
 
@@ -184,9 +200,15 @@ describe("StudioPage results", () => {
   it("when a result arrives, then every output the model produced is shown", async () => {
     await renderWithResult();
 
-    expect(screen.getByLabelText("Lyrics (editable)")).toHaveValue("[Verse]\nthe river takes it back");
-    expect(screen.getByText("1990s, grunge, distorted guitars")).toBeInTheDocument();
-    expect(screen.getByLabelText("Cover-art prompt (editable)")).toHaveValue("a rain-soaked neon alley");
+    expect(screen.getByLabelText("Lyrics (editable)")).toHaveValue(
+      "[Verse]\nthe river takes it back",
+    );
+    expect(
+      screen.getByText("1990s, grunge, distorted guitars"),
+    ).toBeInTheDocument();
+    expect(screen.getByLabelText("Cover-art prompt (editable)")).toHaveValue(
+      "a rain-soaked neon alley",
+    );
     expect(screen.getByText("Paper Anchor")).toBeInTheDocument();
     expect(screen.getByText("Undertow")).toBeInTheDocument();
     expect(screen.getByText("Low Water")).toBeInTheDocument();
@@ -201,10 +223,15 @@ describe("StudioPage results", () => {
   });
 
   it("when the model named nothing and classified nothing, then the identity card is omitted", async () => {
-    await renderWithResult({}, result({ bands: [], titles: [], albums: [], genres: [] }));
+    await renderWithResult(
+      {},
+      result({ bands: [], titles: [], albums: [], genres: [] }),
+    );
 
     expect(screen.queryByText("Identity")).not.toBeInTheDocument();
-    expect(screen.getByText("1990s, grunge, distorted guitars")).toBeInTheDocument();
+    expect(
+      screen.getByText("1990s, grunge, distorted guitars"),
+    ).toBeInTheDocument();
   });
 
   it("when only genres came back, then the identity card shows them without name columns", async () => {
@@ -233,8 +260,12 @@ describe("StudioPage results", () => {
 
     await run.fail(new Error("studio request failed (502)"));
 
-    expect(screen.getByRole("alert")).toHaveTextContent("studio request failed (502)");
-    expect(screen.queryByLabelText("Lyrics (editable)")).not.toBeInTheDocument();
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      "studio request failed (502)",
+    );
+    expect(
+      screen.queryByLabelText("Lyrics (editable)"),
+    ).not.toBeInTheDocument();
     // The form has to unlock again or the failure is a dead end.
     expect(screen.getByLabelText("Song reference")).not.toBeDisabled();
   });
@@ -260,7 +291,9 @@ describe("StudioPage stale reference", () => {
 
     // The results on screen belong to the previous song, so the mismatch is called
     // out rather than left to look like they updated.
-    expect(screen.getByText(/Press Enter to regenerate for “Nightcall”/)).toBeInTheDocument();
+    expect(
+      screen.getByText(/Press Enter to regenerate for “Nightcall”/),
+    ).toBeInTheDocument();
   });
 
   it("when the reference is cleared entirely, then no stale hint is shown", async () => {
@@ -268,13 +301,17 @@ describe("StudioPage stale reference", () => {
 
     await user.clear(screen.getByLabelText("Song reference"));
 
-    expect(screen.queryByText(/Press Enter to regenerate/)).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(/Press Enter to regenerate/),
+    ).not.toBeInTheDocument();
   });
 
   it("when the reference is unchanged, then no stale hint is shown", async () => {
     await renderWithResult();
 
-    expect(screen.queryByText(/Press Enter to regenerate/)).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(/Press Enter to regenerate/),
+    ).not.toBeInTheDocument();
   });
 });
 
@@ -289,11 +326,16 @@ describe("StudioPage lyric refinement", () => {
     const { user } = await renderWithResult();
     mocked.studioRefine.mockResolvedValue("[Verse]\nthe river keeps it");
 
-    await user.type(screen.getByLabelText("Refine lyrics instruction"), "darker chorus");
+    await user.type(
+      screen.getByLabelText("Refine lyrics instruction"),
+      "darker chorus",
+    );
     await user.click(screen.getByRole("button", { name: "Refine" }));
 
     await waitFor(() =>
-      expect(screen.getByLabelText("Lyrics (editable)")).toHaveValue("[Verse]\nthe river keeps it"),
+      expect(screen.getByLabelText("Lyrics (editable)")).toHaveValue(
+        "[Verse]\nthe river keeps it",
+      ),
     );
     // Refinement works from the song that was actually generated, not whatever is
     // currently typed in the reference field.
@@ -309,10 +351,17 @@ describe("StudioPage lyric refinement", () => {
     const { user } = await renderWithResult();
     mocked.studioRefine.mockResolvedValue("[Verse]\nrewritten");
 
-    await user.type(screen.getByLabelText("Refine lyrics instruction"), "darker chorus");
+    await user.type(
+      screen.getByLabelText("Refine lyrics instruction"),
+      "darker chorus",
+    );
     await user.click(screen.getByRole("button", { name: "Refine" }));
 
-    await waitFor(() => expect(screen.getByLabelText("Refine lyrics instruction")).toHaveValue(""));
+    await waitFor(() =>
+      expect(screen.getByLabelText("Refine lyrics instruction")).toHaveValue(
+        "",
+      ),
+    );
   });
 
   it("when a refinement is in flight, then progress is shown and the results are hidden", async () => {
@@ -323,33 +372,50 @@ describe("StudioPage lyric refinement", () => {
       return new Promise<string>(() => {});
     });
 
-    await user.type(screen.getByLabelText("Refine lyrics instruction"), "darker chorus");
+    await user.type(
+      screen.getByLabelText("Refine lyrics instruction"),
+      "darker chorus",
+    );
     await user.click(screen.getByRole("button", { name: "Refine" }));
     act(() => void push({ phase: "write", detail: "Rewriting the chorus" }));
 
     expect(screen.getByText("Rewriting the chorus")).toBeInTheDocument();
-    expect(screen.queryByLabelText("Lyrics (editable)")).not.toBeInTheDocument();
+    expect(
+      screen.queryByLabelText("Lyrics (editable)"),
+    ).not.toBeInTheDocument();
   });
 
   it("when a refinement fails, then the reason is announced and the lyrics are left intact", async () => {
     const { user } = await renderWithResult();
     mocked.studioRefine.mockRejectedValue(new Error("refine timed out"));
 
-    await user.type(screen.getByLabelText("Refine lyrics instruction"), "darker chorus");
+    await user.type(
+      screen.getByLabelText("Refine lyrics instruction"),
+      "darker chorus",
+    );
     await user.click(screen.getByRole("button", { name: "Refine" }));
 
-    expect(await screen.findByRole("alert")).toHaveTextContent("refine timed out");
-    expect(screen.getByLabelText("Lyrics (editable)")).toHaveValue("[Verse]\nthe river takes it back");
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "refine timed out",
+    );
+    expect(screen.getByLabelText("Lyrics (editable)")).toHaveValue(
+      "[Verse]\nthe river takes it back",
+    );
   });
 
   it("when a refinement fails without a message, then a generic one is shown", async () => {
     const { user } = await renderWithResult();
     mocked.studioRefine.mockRejectedValue(new Error(""));
 
-    await user.type(screen.getByLabelText("Refine lyrics instruction"), "darker chorus");
+    await user.type(
+      screen.getByLabelText("Refine lyrics instruction"),
+      "darker chorus",
+    );
     await user.click(screen.getByRole("button", { name: "Refine" }));
 
-    expect(await screen.findByRole("alert")).toHaveTextContent("Refinement failed");
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Refinement failed",
+    );
   });
 });
 
@@ -360,7 +426,11 @@ describe("StudioPage copy buttons", () => {
     // fireEvent rather than userEvent: user-event's internal delay never resolves
     // once the timers are faked for the confirmation window.
     vi.useFakeTimers();
-    fireEvent.click(within(screen.getByText("Style prompt").parentElement!.parentElement!).getByRole("button", { name: "Copy" }));
+    fireEvent.click(
+      within(
+        screen.getByText("Style prompt").parentElement!.parentElement!,
+      ).getByRole("button", { name: "Copy" }),
+    );
     await act(async () => {});
 
     expect(screen.getByText("Copied")).toBeInTheDocument();
@@ -381,7 +451,10 @@ describe("StudioPage copy buttons", () => {
 
     // Insecure contexts have no clipboard API at all; a prompt is the only way to
     // let the user get the text out.
-    expect(promptSpy).toHaveBeenCalledWith("Copy this text", expect.any(String));
+    expect(promptSpy).toHaveBeenCalledWith(
+      "Copy this text",
+      expect.any(String),
+    );
     expect(screen.queryByText("Copied")).not.toBeInTheDocument();
     promptSpy.mockRestore();
   });
@@ -392,7 +465,9 @@ describe("StudioPage modes", () => {
     render(<StudioPage />);
 
     expect(screen.queryByRole("tablist")).not.toBeInTheDocument();
-    expect(screen.getByText("Turn a song into a Suno prompt.")).toBeInTheDocument();
+    expect(
+      screen.getByText("Turn a song into a Suno prompt."),
+    ).toBeInTheDocument();
   });
 
   it("when image generation is on, then the fanart mode can be switched to", async () => {
@@ -402,10 +477,15 @@ describe("StudioPage modes", () => {
     await user.click(screen.getByRole("tab", { name: "Genre → Fanart" }));
 
     expect(screen.getByTestId("fanart-mode")).toBeInTheDocument();
-    expect(screen.getByText("Generate cover fanart for a genre.")).toBeInTheDocument();
+    expect(
+      screen.getByText("Generate cover fanart for a genre."),
+    ).toBeInTheDocument();
     // The Suno tool is put away rather than stacked underneath.
     expect(screen.queryByLabelText("Song reference")).not.toBeInTheDocument();
-    expect(screen.getByRole("tab", { name: "Genre → Fanart" })).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByRole("tab", { name: "Genre → Fanart" })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
   });
 
   it("when the album cover mode is chosen, then it replaces the Suno tool", async () => {
@@ -415,7 +495,9 @@ describe("StudioPage modes", () => {
     await user.click(screen.getByRole("tab", { name: "Album Cover" }));
 
     expect(screen.getByTestId("coverart-mode")).toBeInTheDocument();
-    expect(screen.getByText("Create or replace cover art for an album.")).toBeInTheDocument();
+    expect(
+      screen.getByText("Create or replace cover art for an album."),
+    ).toBeInTheDocument();
   });
 
   it("when arriving from a genre, then Studio opens straight into fanart for it", () => {
@@ -439,7 +521,9 @@ describe("StudioPage modes", () => {
     await user.click(screen.getByRole("tab", { name: "Genre → Fanart" }));
     await user.click(screen.getByRole("tab", { name: "Song → Suno" }));
 
-    expect(screen.getByLabelText("Lyrics (editable)")).toHaveValue("[Verse]\nthe river takes it back");
+    expect(screen.getByLabelText("Lyrics (editable)")).toHaveValue(
+      "[Verse]\nthe river takes it back",
+    );
   });
 });
 
@@ -447,49 +531,100 @@ describe("StudioPage cover art", () => {
   it("when image generation is off, then no cover-art generator is offered", async () => {
     await renderWithResult();
 
-    expect(screen.queryByRole("button", { name: /Generate cover art/ })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /Generate cover art/ }),
+    ).not.toBeInTheDocument();
     // The prompt itself is still useful — it can be pasted elsewhere.
-    expect(screen.getByLabelText("Cover-art prompt (editable)")).toBeInTheDocument();
+    expect(
+      screen.getByLabelText("Cover-art prompt (editable)"),
+    ).toBeInTheDocument();
   });
 
   it("when image generation is on, then the configured models are offered", async () => {
-    await renderWithResult({ imageGenEnabled: true, imageModels: ["flux-2-pro", "some-other"], defaultImageModel: "flux-2-pro" });
+    await renderWithResult({
+      imageGenEnabled: true,
+      imageModels: ["flux-2-pro", "some-other"],
+      defaultImageModel: "flux-2-pro",
+    });
 
     const picker = screen.getByLabelText("Cover art model");
     expect(picker).toHaveValue("flux-2-pro");
     // Known models get a friendly label; an operator-set one falls back to its id.
-    expect(within(picker).getByRole("option", { name: "Best quality · flux-2-pro" })).toBeInTheDocument();
-    expect(within(picker).getByRole("option", { name: "some-other" })).toBeInTheDocument();
+    expect(
+      within(picker).getByRole("option", { name: "Best quality · flux-2-pro" }),
+    ).toBeInTheDocument();
+    expect(
+      within(picker).getByRole("option", { name: "some-other" }),
+    ).toBeInTheDocument();
   });
 
   it("when a cover is generated, then it is shown with the chosen model and a download", async () => {
-    const { user } = await renderWithResult({ imageGenEnabled: true, imageModels: ["flux-2-pro", "flux-2-flex"], defaultImageModel: "flux-2-pro" });
-    mocked.generateStudioCoverArt.mockResolvedValue({ id: "img7", status: "ok", width: 1024, height: 1024 });
+    const { user } = await renderWithResult({
+      imageGenEnabled: true,
+      imageModels: ["flux-2-pro", "flux-2-flex"],
+      defaultImageModel: "flux-2-pro",
+    });
+    mocked.generateStudioCoverArt.mockResolvedValue({
+      id: "img7",
+      status: "ok",
+      width: 1024,
+      height: 1024,
+    });
 
-    await user.selectOptions(screen.getByLabelText("Cover art model"), "flux-2-flex");
-    await user.click(screen.getByRole("button", { name: /Generate cover art/ }));
+    await user.selectOptions(
+      screen.getByLabelText("Cover art model"),
+      "flux-2-flex",
+    );
+    await user.click(
+      screen.getByRole("button", { name: /Generate cover art/ }),
+    );
 
     const image = await screen.findByAltText("Generated cover art");
     expect(image).toHaveAttribute("src", expect.stringContaining("img7"));
-    expect(screen.getByRole("link", { name: /Download/ })).toHaveAttribute("download", "cover-img7.png");
-    expect(mocked.generateStudioCoverArt).toHaveBeenCalledWith("a rain-soaked neon alley", "flux-2-flex");
+    expect(screen.getByRole("link", { name: /Download/ })).toHaveAttribute(
+      "download",
+      "cover-img7.png",
+    );
+    expect(mocked.generateStudioCoverArt).toHaveBeenCalledWith(
+      "a rain-soaked neon alley",
+      "flux-2-flex",
+    );
   });
 
   it("when a cover already exists, then the action offers to regenerate it", async () => {
-    const { user } = await renderWithResult({ imageGenEnabled: true, imageModels: ["flux-2-pro"] });
-    mocked.generateStudioCoverArt.mockResolvedValue({ id: "img7", status: "ok", width: 1024, height: 1024 });
+    const { user } = await renderWithResult({
+      imageGenEnabled: true,
+      imageModels: ["flux-2-pro"],
+    });
+    mocked.generateStudioCoverArt.mockResolvedValue({
+      id: "img7",
+      status: "ok",
+      width: 1024,
+      height: 1024,
+    });
 
-    await user.click(screen.getByRole("button", { name: /Generate cover art/ }));
+    await user.click(
+      screen.getByRole("button", { name: /Generate cover art/ }),
+    );
     await screen.findByAltText("Generated cover art");
 
-    expect(screen.getByRole("button", { name: /Regenerate/ })).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /Regenerate/ }),
+    ).toBeInTheDocument();
   });
 
   it("when a cover is being generated, then the wait is announced and the model locked", async () => {
-    const { user } = await renderWithResult({ imageGenEnabled: true, imageModels: ["flux-2-pro"] });
-    mocked.generateStudioCoverArt.mockImplementation(() => new Promise(() => {}));
+    const { user } = await renderWithResult({
+      imageGenEnabled: true,
+      imageModels: ["flux-2-pro"],
+    });
+    mocked.generateStudioCoverArt.mockImplementation(
+      () => new Promise(() => {}),
+    );
 
-    await user.click(screen.getByRole("button", { name: /Generate cover art/ }));
+    await user.click(
+      screen.getByRole("button", { name: /Generate cover art/ }),
+    );
 
     expect(screen.getByText("Generating cover art")).toBeInTheDocument();
     // Changing the model mid-run would not affect the image already being made.
@@ -497,21 +632,37 @@ describe("StudioPage cover art", () => {
   });
 
   it("when cover generation fails, then the reason is announced", async () => {
-    const { user } = await renderWithResult({ imageGenEnabled: true, imageModels: ["flux-2-pro"] });
-    mocked.generateStudioCoverArt.mockRejectedValue(new Error("model overloaded"));
+    const { user } = await renderWithResult({
+      imageGenEnabled: true,
+      imageModels: ["flux-2-pro"],
+    });
+    mocked.generateStudioCoverArt.mockRejectedValue(
+      new Error("model overloaded"),
+    );
 
-    await user.click(screen.getByRole("button", { name: /Generate cover art/ }));
+    await user.click(
+      screen.getByRole("button", { name: /Generate cover art/ }),
+    );
 
-    expect(await screen.findByRole("alert")).toHaveTextContent("model overloaded");
-    expect(screen.queryByAltText("Generated cover art")).not.toBeInTheDocument();
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "model overloaded",
+    );
+    expect(
+      screen.queryByAltText("Generated cover art"),
+    ).not.toBeInTheDocument();
   });
 
   it("when the cover-art prompt is emptied, then generating is not offered", async () => {
-    const { user } = await renderWithResult({ imageGenEnabled: true, imageModels: ["flux-2-pro"] });
+    const { user } = await renderWithResult({
+      imageGenEnabled: true,
+      imageModels: ["flux-2-pro"],
+    });
 
     await user.clear(screen.getByLabelText("Cover-art prompt (editable)"));
 
     // There is nothing to draw from, so the request would only waste a call.
-    expect(screen.getByRole("button", { name: /Generate cover art/ })).toBeDisabled();
+    expect(
+      screen.getByRole("button", { name: /Generate cover art/ }),
+    ).toBeDisabled();
   });
 });

@@ -23,7 +23,9 @@ export function ModelPicker({
   const options = imageModelOptions(models);
   return (
     <div style={{ marginBottom: "var(--space-5)" }}>
-      <label htmlFor="studio-model" style={fieldLabel}>Model</label>
+      <label htmlFor="studio-model" style={fieldLabel}>
+        Model
+      </label>
       <select
         id="studio-model"
         aria-label="Image model"
@@ -35,7 +37,9 @@ export function ModelPicker({
       >
         {options.length === 0 && <option value="">Default</option>}
         {options.map((m) => (
-          <option key={m.id} value={m.id}>{m.label}</option>
+          <option key={m.id} value={m.id}>
+            {m.label}
+          </option>
         ))}
       </select>
     </div>
@@ -63,7 +67,14 @@ export function RefineRow({
     setInstruction("");
   };
   return (
-    <form onSubmit={submit} style={{ display: "flex", gap: "var(--space-2)", margin: "0 0 var(--space-5)" }}>
+    <form
+      onSubmit={submit}
+      style={{
+        display: "flex",
+        gap: "var(--space-2)",
+        margin: "0 0 var(--space-5)",
+      }}
+    >
       <input
         type="text"
         className={controlClass}

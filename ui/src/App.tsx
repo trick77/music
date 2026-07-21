@@ -1,5 +1,21 @@
-import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
-import { getSession, listSongs, uploadSong, setPublished, deleteSong, postAlign, invalidateAlign, type Session, type Song } from "./api";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
+import {
+  getSession,
+  listSongs,
+  uploadSong,
+  setPublished,
+  deleteSong,
+  postAlign,
+  invalidateAlign,
+  type Session,
+  type Song,
+} from "./api";
 import { TagEditor } from "./TagEditor";
 import { useEscape } from "./useEscape";
 import { Library } from "./Library";
@@ -17,8 +33,22 @@ import { PlayerBar } from "./PlayerBar";
 import { iconBtn } from "./PlayerControls";
 import { VisualizerView } from "./VisualizerView";
 import { ConfirmDialog } from "./ConfirmDialog";
-import { usePlayer, player as playerApi, readSnapshot, clearSnapshot } from "./player";
-import { useRoute, navigate, parsePlayerParam, pushPlayer, replacePlayer, leaveLyricsForArtwork, closeToOrigin, type PlayerParam } from "./router";
+import {
+  usePlayer,
+  player as playerApi,
+  readSnapshot,
+  clearSnapshot,
+} from "./player";
+import {
+  useRoute,
+  navigate,
+  parsePlayerParam,
+  pushPlayer,
+  replacePlayer,
+  leaveLyricsForArtwork,
+  closeToOrigin,
+  type PlayerParam,
+} from "./router";
 import { useFavorites } from "./favorites";
 import { addToQueue, playNext } from "./queue";
 import { songShareUrl, copyText } from "./share";
@@ -30,20 +60,89 @@ import { t, UnpublishedBadge } from "./ui";
 // and live percentage driven by real byte progress. At 100% the client is done
 // but the server is still hashing/deduping, so it swaps to a spinner + an
 // indeterminate sweep instead of implying the whole operation has finished.
-export function UploadToast({ message, uploading, pct, bottom }: { message: string; uploading: boolean; pct: number; bottom: number }) {
+export function UploadToast({
+  message,
+  uploading,
+  pct,
+  bottom,
+}: {
+  message: string;
+  uploading: boolean;
+  pct: number;
+  bottom: number;
+}) {
   const finalizing = uploading && pct >= 100;
   return (
-    <div style={{ position: "fixed", bottom: `calc(${bottom}px + var(--tabbar-h) + var(--safe-b))`, left: "50%", transform: "translateX(-50%)", display: "flex", flexDirection: "column", gap: "0.4rem", background: "var(--color-active)", border: "1px solid var(--color-border)", borderRadius: uploading ? 14 : 999, padding: uploading ? "0.55rem 0.9rem" : "0.4rem 1rem", ...t.label, zIndex: 95, minWidth: uploading ? 260 : undefined, maxWidth: "92vw" }}>
+    <div
+      style={{
+        position: "fixed",
+        bottom: `calc(${bottom}px + var(--tabbar-h) + var(--safe-b))`,
+        left: "50%",
+        transform: "translateX(-50%)",
+        display: "flex",
+        flexDirection: "column",
+        gap: "0.4rem",
+        background: "var(--color-active)",
+        border: "1px solid var(--color-border)",
+        borderRadius: uploading ? 14 : 999,
+        padding: uploading ? "0.55rem 0.9rem" : "0.4rem 1rem",
+        ...t.label,
+        zIndex: 95,
+        minWidth: uploading ? 260 : undefined,
+        maxWidth: "92vw",
+      }}
+    >
       <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-        {finalizing && <Icon name="spinner" size="15px" style={{ animation: "app-spin 0.8s linear infinite" }} />}
+        {finalizing && (
+          <Icon
+            name="spinner"
+            size="15px"
+            style={{ animation: "app-spin 0.8s linear infinite" }}
+          />
+        )}
         <span>{message}</span>
-        {uploading && !finalizing && <span style={{ marginLeft: "auto", color: "var(--color-muted)", fontVariantNumeric: "tabular-nums" }}>{pct}%</span>}
+        {uploading && !finalizing && (
+          <span
+            style={{
+              marginLeft: "auto",
+              color: "var(--color-muted)",
+              fontVariantNumeric: "tabular-nums",
+            }}
+          >
+            {pct}%
+          </span>
+        )}
       </div>
       {uploading && (
-        <div style={{ height: 5, borderRadius: 999, background: "var(--color-border)", overflow: "hidden" }}>
-          <div style={finalizing
-            ? { height: "100%", width: "40%", borderRadius: 999, background: "linear-gradient(90deg, var(--color-accent), var(--color-accent-strong))", animation: "app-upload-indef 1.1s ease-in-out infinite" }
-            : { height: "100%", width: `${pct}%`, borderRadius: 999, background: "linear-gradient(90deg, var(--color-accent), var(--color-accent-strong))", transition: "width 0.15s linear" }} />
+        <div
+          style={{
+            height: 5,
+            borderRadius: 999,
+            background: "var(--color-border)",
+            overflow: "hidden",
+          }}
+        >
+          <div
+            style={
+              finalizing
+                ? {
+                    height: "100%",
+                    width: "40%",
+                    borderRadius: 999,
+                    background:
+                      "linear-gradient(90deg, var(--color-accent), var(--color-accent-strong))",
+                    animation: "app-upload-indef 1.1s ease-in-out infinite",
+                  }
+                : {
+                    height: "100%",
+                    width: `${pct}%`,
+                    borderRadius: 999,
+                    background:
+                      "linear-gradient(90deg, var(--color-accent), var(--color-accent-strong))",
+                    transition: "width 0.15s linear",
+                  }
+            }
+          />
         </div>
       )}
     </div>
@@ -98,14 +197,21 @@ export function App() {
   useEffect(() => {
     if (!playerMenuOpen) return;
     const onDown = (e: MouseEvent) => {
-      if (!playerMenuRef.current?.contains(e.target as Node)) setPlayerMenuOpen(false);
+      if (!playerMenuRef.current?.contains(e.target as Node))
+        setPlayerMenuOpen(false);
     };
     document.addEventListener("mousedown", onDown);
     return () => document.removeEventListener("mousedown", onDown);
   }, [playerMenuOpen]);
-  useEscape(playerMenuOpen, useCallback(() => setPlayerMenuOpen(false), []));
+  useEscape(
+    playerMenuOpen,
+    useCallback(() => setPlayerMenuOpen(false), []),
+  );
 
-  const refresh = () => listSongs().then(setSongs).catch(() => {});
+  const refresh = () =>
+    listSongs()
+      .then(setSongs)
+      .catch(() => {});
 
   // syncKaraoke fires a manual alignment (Generate/Re-sync) and refreshes so the
   // "Syncing" indicator appears. Empty-lyrics is already gated in the menu; the
@@ -121,7 +227,19 @@ export function App() {
   useEffect(() => {
     getSession()
       .then(setSession)
-      .catch(() => setSession({ authenticated: false, username: "", imageGenEnabled: false, studioEnabled: false, chatEnabled: false, alignmentEnabled: false, imageModels: [], defaultImageModel: "", authMode: "" }));
+      .catch(() =>
+        setSession({
+          authenticated: false,
+          username: "",
+          imageGenEnabled: false,
+          studioEnabled: false,
+          chatEnabled: false,
+          alignmentEnabled: false,
+          imageModels: [],
+          defaultImageModel: "",
+          authMode: "",
+        }),
+      );
     refresh();
   }, []);
 
@@ -148,7 +266,8 @@ export function App() {
     // Skip when a deep link or an overlay URL is in play: /song/:id is cued by the
     // effect above, and any ?player= means the resync effect owns the URL — restoring
     // a track underneath it would let that effect open the overlay unbidden.
-    if (restoreDone.current || route.name === "song" || playerParam !== null) return;
+    if (restoreDone.current || route.name === "song" || playerParam !== null)
+      return;
     if (playerApi.getState().current) {
       restoreDone.current = true; // something's already playing — nothing to restore
       return;
@@ -200,10 +319,13 @@ export function App() {
   // Every in-app open pushes an entry, so closing returns to the surface it was
   // launched from — including the big player, when the lyrics view was opened
   // from there.
-  const expandPlayer = useCallback((mode: PlayerParam, from?: PlayerParam) => {
-    if (!curId) return;
-    pushPlayer(curId, mode, from);
-  }, [curId]);
+  const expandPlayer = useCallback(
+    (mode: PlayerParam, from?: PlayerParam) => {
+      if (!curId) return;
+      pushPlayer(curId, mode, from);
+    },
+    [curId],
+  );
   const lyricsUnavailable = useCallback(() => {
     if (!curId) return;
     leaveLyricsForArtwork(curId);
@@ -251,7 +373,8 @@ export function App() {
   // that don't have the bug.
   const prevRouteName = useRef(route.name);
   useEffect(() => {
-    const leftVisualizer = prevRouteName.current === "visualizer" && route.name !== "visualizer";
+    const leftVisualizer =
+      prevRouteName.current === "visualizer" && route.name !== "visualizer";
     prevRouteName.current = route.name;
     if (!leftVisualizer) return;
     // Run after the new route has committed so .hero-track (Home) is in the DOM.
@@ -322,7 +445,11 @@ export function App() {
       await refresh();
       setFeedVersion((v) => v + 1);
       // New uploads land unpublished — say so, so the user knows where it went.
-      flash(song.published ? `Added “${song.title}”` : `Uploaded “${song.title}” — unpublished`);
+      flash(
+        song.published
+          ? `Added “${song.title}”`
+          : `Uploaded “${song.title}” — unpublished`,
+      );
       // Land on the Unpublished list — the review-and-publish surface — so the freshly
       // uploaded song is right there with its Publish/Edit menu. A dedupe upload that
       // returns an already-published song wouldn't appear there, so only jump when new.
@@ -362,8 +489,14 @@ export function App() {
     setSongs((prev) =>
       prev.map((s) => {
         if (s.id === updated.id) return updated;
-        if (shareCover && norm(s.artistName) === norm(updated.artistName) && norm(s.album) === key) {
-          return s.coverArtId === updated.coverArtId ? s : { ...s, coverArtId: updated.coverArtId };
+        if (
+          shareCover &&
+          norm(s.artistName) === norm(updated.artistName) &&
+          norm(s.album) === key
+        ) {
+          return s.coverArtId === updated.coverArtId
+            ? s
+            : { ...s, coverArtId: updated.coverArtId };
         }
         return s;
       }),
@@ -410,7 +543,11 @@ export function App() {
         aria-label="favorite"
         className="iconbtn-sm"
         onClick={() => fav.toggle(song.id)}
-        style={{ color: fav.has(song.id) ? "var(--color-accent-strong)" : "var(--color-muted)" }}
+        style={{
+          color: fav.has(song.id)
+            ? "var(--color-accent-strong)"
+            : "var(--color-muted)",
+        }}
       >
         <Icon name={fav.has(song.id) ? "starFilled" : "star"} size="18px" />
       </button>
@@ -429,13 +566,31 @@ export function App() {
             authenticated={authed}
             alignmentEnabled={!!session?.alignmentEnabled}
             onSync={() => syncKaraoke(song)}
-            onPlayNext={() => { player.setQueue(playNext(player.queue, song)); setMenuFor(null); flash("Playing next"); }}
-            onAddToQueue={() => { player.setQueue(addToQueue(player.queue, song)); setMenuFor(null); flash("Added to queue"); }}
-            onAddToPlaylist={() => { setAddFor(song); setMenuFor(null); }}
+            onPlayNext={() => {
+              player.setQueue(playNext(player.queue, song));
+              setMenuFor(null);
+              flash("Playing next");
+            }}
+            onAddToQueue={() => {
+              player.setQueue(addToQueue(player.queue, song));
+              setMenuFor(null);
+              flash("Added to queue");
+            }}
+            onAddToPlaylist={() => {
+              setAddFor(song);
+              setMenuFor(null);
+            }}
             onShare={() => shareSong(song)}
-            onEdit={() => { setEditing(song); setMenuFor(null); }}
+            onEdit={() => {
+              setEditing(song);
+              setMenuFor(null);
+            }}
             onPublish={() => togglePublish(song)}
-            onDelete={() => { setMenuFor(null); setDeleteErr(""); setDeleteFor(song); }}
+            onDelete={() => {
+              setMenuFor(null);
+              setDeleteErr("");
+              setDeleteFor(song);
+            }}
             onClose={() => setMenuFor(null)}
           />
         )}
@@ -448,7 +603,10 @@ export function App() {
   // identical everywhere. The trigger is styled to match the bar's other 40px icon
   // buttons; SongMenu's useMenuPlacement flips it upward above the docked bar.
   const playerMenu = (song: Song): ReactNode => (
-    <span ref={playerMenuRef} style={{ position: "relative", display: "inline-flex" }}>
+    <span
+      ref={playerMenuRef}
+      style={{ position: "relative", display: "inline-flex" }}
+    >
       {/* iconBtn, not a copy of it: this sits in the mini bar's action row and
           must carry the same muted tint as the rest of them. */}
       <button
@@ -464,13 +622,34 @@ export function App() {
           authenticated={authed}
           alignmentEnabled={!!session?.alignmentEnabled}
           onSync={() => syncKaraoke(song)}
-          onPlayNext={() => { player.setQueue(playNext(player.queue, song)); setPlayerMenuOpen(false); flash("Playing next"); }}
-          onAddToQueue={() => { player.setQueue(addToQueue(player.queue, song)); setPlayerMenuOpen(false); flash("Added to queue"); }}
-          onAddToPlaylist={() => { setAddFor(song); setPlayerMenuOpen(false); }}
+          onPlayNext={() => {
+            player.setQueue(playNext(player.queue, song));
+            setPlayerMenuOpen(false);
+            flash("Playing next");
+          }}
+          onAddToQueue={() => {
+            player.setQueue(addToQueue(player.queue, song));
+            setPlayerMenuOpen(false);
+            flash("Added to queue");
+          }}
+          onAddToPlaylist={() => {
+            setAddFor(song);
+            setPlayerMenuOpen(false);
+          }}
           onShare={() => shareSong(song)}
-          onEdit={() => { setEditing(song); setPlayerMenuOpen(false); }}
-          onPublish={() => { setPlayerMenuOpen(false); togglePublish(song); }}
-          onDelete={() => { setPlayerMenuOpen(false); setDeleteErr(""); setDeleteFor(song); }}
+          onEdit={() => {
+            setEditing(song);
+            setPlayerMenuOpen(false);
+          }}
+          onPublish={() => {
+            setPlayerMenuOpen(false);
+            togglePublish(song);
+          }}
+          onDelete={() => {
+            setPlayerMenuOpen(false);
+            setDeleteErr("");
+            setDeleteFor(song);
+          }}
           onClose={() => setPlayerMenuOpen(false)}
         />
       )}
@@ -481,38 +660,116 @@ export function App() {
 
   return (
     <div className="app-shell" style={{ minHeight: "100vh" }}>
-      <Rail route={route} authenticated={authed} studioEnabled={!!session?.studioEnabled} authMode={session?.authMode} username={session?.username ?? ""} playerActive={!!player.current} onUpload={triggerUpload} onQueue={() => setShowQueue((v) => !v)} />
+      <Rail
+        route={route}
+        authenticated={authed}
+        studioEnabled={!!session?.studioEnabled}
+        authMode={session?.authMode}
+        username={session?.username ?? ""}
+        playerActive={!!player.current}
+        onUpload={triggerUpload}
+        onQueue={() => setShowQueue((v) => !v)}
+      />
 
       <div className="page-shell">
         {route.name === "home" ? (
-          <Home authenticated={authed} onPlay={onPlay} onShare={shareSong} onUpload={triggerUpload} renderRowActions={rowActions} reloadKey={feedVersion} />
+          <Home
+            authenticated={authed}
+            onPlay={onPlay}
+            onShare={shareSong}
+            onUpload={triggerUpload}
+            renderRowActions={rowActions}
+            reloadKey={feedVersion}
+          />
         ) : route.name === "search" ? (
           <Search onPlay={onPlay} />
         ) : route.name === "studio" ? (
-          authed && session?.studioEnabled ? <StudioPage key={route.genreId ?? "studio"} imageGenEnabled={!!session?.imageGenEnabled} chatEnabled={!!session?.chatEnabled} imageModels={session?.imageModels ?? []} defaultImageModel={session?.defaultImageModel ?? ""} initialGenreId={route.genreId} /> : <Home authenticated={authed} onPlay={onPlay} onShare={shareSong} onUpload={triggerUpload} renderRowActions={rowActions} reloadKey={feedVersion} />
+          authed && session?.studioEnabled ? (
+            <StudioPage
+              key={route.genreId ?? "studio"}
+              imageGenEnabled={!!session?.imageGenEnabled}
+              chatEnabled={!!session?.chatEnabled}
+              imageModels={session?.imageModels ?? []}
+              defaultImageModel={session?.defaultImageModel ?? ""}
+              initialGenreId={route.genreId}
+            />
+          ) : (
+            <Home
+              authenticated={authed}
+              onPlay={onPlay}
+              onShare={shareSong}
+              onUpload={triggerUpload}
+              renderRowActions={rowActions}
+              reloadKey={feedVersion}
+            />
+          )
         ) : route.name === "playlist" ? (
-          <PlaylistPage key={route.id} id={route.id} authenticated={authed} onPlay={onPlay} onShare={shareUrl} renderRowActions={rowActions} reloadKey={feedVersion} imageGenEnabled={!!session?.imageGenEnabled} chatEnabled={!!session?.chatEnabled} />
+          <PlaylistPage
+            key={route.id}
+            id={route.id}
+            authenticated={authed}
+            onPlay={onPlay}
+            onShare={shareUrl}
+            renderRowActions={rowActions}
+            reloadKey={feedVersion}
+            imageGenEnabled={!!session?.imageGenEnabled}
+            chatEnabled={!!session?.chatEnabled}
+          />
         ) : route.name === "playlists" ? (
           <PlaylistsPage authenticated={authed} onPlay={onPlay} />
         ) : route.name === "genre" ? (
-          <Detail kind="genre" id={route.id} authenticated={authed} studioEnabled={!!session?.studioEnabled} imageGenEnabled={!!session?.imageGenEnabled} onPlay={onPlay} onShare={shareUrl} renderRowActions={rowActions} reloadKey={feedVersion} />
+          <Detail
+            kind="genre"
+            id={route.id}
+            authenticated={authed}
+            studioEnabled={!!session?.studioEnabled}
+            imageGenEnabled={!!session?.imageGenEnabled}
+            onPlay={onPlay}
+            onShare={shareUrl}
+            renderRowActions={rowActions}
+            reloadKey={feedVersion}
+          />
         ) : route.name === "artist" ? (
-          <Detail kind="artist" id={route.id} authenticated={authed} studioEnabled={!!session?.studioEnabled} imageGenEnabled={!!session?.imageGenEnabled} onPlay={onPlay} onShare={shareUrl} renderRowActions={rowActions} reloadKey={feedVersion} />
+          <Detail
+            kind="artist"
+            id={route.id}
+            authenticated={authed}
+            studioEnabled={!!session?.studioEnabled}
+            imageGenEnabled={!!session?.imageGenEnabled}
+            onPlay={onPlay}
+            onShare={shareUrl}
+            renderRowActions={rowActions}
+            reloadKey={feedVersion}
+          />
         ) : route.name === "song" ? (
           // A shared /song/:id link opens the full-screen player overlay (see the
           // auto-open effect); Home sits behind it so closing lands on a real page.
-          <Home authenticated={authed} onPlay={onPlay} onShare={shareSong} onUpload={triggerUpload} renderRowActions={rowActions} reloadKey={feedVersion} />
-        ) : route.name === "visualizer" ? (
-          // Rendered full-screen (fixed) below, outside this constrained wrapper.
-          null
-        ) : (
+          <Home
+            authenticated={authed}
+            onPlay={onPlay}
+            onShare={shareSong}
+            onUpload={triggerUpload}
+            renderRowActions={rowActions}
+            reloadKey={feedVersion}
+          />
+        ) : route.name === "visualizer" ? null : ( // Rendered full-screen (fixed) below, outside this constrained wrapper.
           <Library
             songs={songs}
             favoriteIds={fav.ids}
             authenticated={authed}
             studioEnabled={!!session?.studioEnabled}
             imageGenEnabled={!!session?.imageGenEnabled}
-            initialTab={route.name === "favorites" ? "favorites" : route.name === "unpublished" ? (authed ? "unpublished" : "all") : route.name === "genres" ? "genres" : "all"}
+            initialTab={
+              route.name === "favorites"
+                ? "favorites"
+                : route.name === "unpublished"
+                  ? authed
+                    ? "unpublished"
+                    : "all"
+                  : route.name === "genres"
+                    ? "genres"
+                    : "all"
+            }
             tabResetKey={tabResetKey}
             onPlay={(s) => onPlay(s)}
             renderRowActions={rowActions}
@@ -520,38 +777,95 @@ export function App() {
         )}
       </div>
 
-      <input ref={uploadRef} type="file" accept=".mp3,audio/mpeg" onChange={onUpload} style={{ display: "none" }} disabled={uploading} />
+      <input
+        ref={uploadRef}
+        type="file"
+        accept=".mp3,audio/mpeg"
+        onChange={onUpload}
+        style={{ display: "none" }}
+        disabled={uploading}
+      />
 
-      <PlayerBar fav={fav} onShare={shareSong} renderMenu={playerMenu} alignmentEnabled={!!session?.alignmentEnabled} open={playerParam !== null} lyrics={playerParam === "lyrics"} onExpand={expandPlayer} onLyricsUnavailable={lyricsUnavailable} onClose={closePlayerView} />
+      <PlayerBar
+        fav={fav}
+        onShare={shareSong}
+        renderMenu={playerMenu}
+        alignmentEnabled={!!session?.alignmentEnabled}
+        open={playerParam !== null}
+        lyrics={playerParam === "lyrics"}
+        onExpand={expandPlayer}
+        onLyricsUnavailable={lyricsUnavailable}
+        onClose={closePlayerView}
+      />
 
-      {route.name === "visualizer" && <VisualizerView fav={fav} onShare={shareSong} />}
+      {route.name === "visualizer" && (
+        <VisualizerView fav={fav} onShare={shareSong} />
+      )}
 
       {showQueue && (
         <QueueDrawer
           queue={player.queue}
           nowPlaying={player.current}
           onChange={player.setQueue}
-          onPlay={(i) => { const s = player.queue[i]; onPlay(s, player.queue.slice(i + 1)); }}
+          onPlay={(i) => {
+            const s = player.queue[i];
+            onPlay(s, player.queue.slice(i + 1));
+          }}
           onClose={() => setShowQueue(false)}
         />
       )}
       {/* key on the id so a different song remounts: the editor's field state and its
           fetched play stats are seeded per song and would otherwise persist. */}
-      {editing && <TagEditor key={editing.id} song={editing} onClose={() => setEditing(null)} onSaved={(saved) => { propagateSong(saved); setEditing(saved); }} />}
+      {editing && (
+        <TagEditor
+          key={editing.id}
+          song={editing}
+          onClose={() => setEditing(null)}
+          onSaved={(saved) => {
+            propagateSong(saved);
+            setEditing(saved);
+          }}
+        />
+      )}
       {deleteFor && (
         <ConfirmDialog
           title="Delete song"
-          message={<>Delete “{deleteFor.title}” by {deleteFor.artistName}? This removes it from your library, playlists, and history. This can’t be undone.</>}
+          message={
+            <>
+              Delete “{deleteFor.title}” by {deleteFor.artistName}? This removes
+              it from your library, playlists, and history. This can’t be
+              undone.
+            </>
+          }
           confirmLabel={deleteBusy ? "Deleting" : "Delete"}
           danger
           busy={deleteBusy}
           error={deleteErr}
           onConfirm={confirmDelete}
-          onCancel={() => { if (!deleteBusy) setDeleteFor(null); }}
+          onCancel={() => {
+            if (!deleteBusy) setDeleteFor(null);
+          }}
         />
       )}
-      {addFor && <AddToPlaylist song={addFor} authenticated={authed} onClose={() => setAddFor(null)} onDone={(name) => { setAddFor(null); flash(`Added to ${name}`); }} />}
-      {toast && <UploadToast message={toast} uploading={uploading} pct={uploadPct} bottom={player.current ? 120 : 80} />}
+      {addFor && (
+        <AddToPlaylist
+          song={addFor}
+          authenticated={authed}
+          onClose={() => setAddFor(null)}
+          onDone={(name) => {
+            setAddFor(null);
+            flash(`Added to ${name}`);
+          }}
+        />
+      )}
+      {toast && (
+        <UploadToast
+          message={toast}
+          uploading={uploading}
+          pct={uploadPct}
+          bottom={player.current ? 120 : 80}
+        />
+      )}
       <style>{`.iconbtn, .iconbtn-sm { display: grid; place-items: center; background: transparent; border: none; cursor: pointer; color: var(--color-muted); border-radius: var(--radius-ui); } .iconbtn { width: 40px; height: 40px; } .iconbtn-sm { width: 32px; height: 32px; border-radius: 8px; } .iconbtn:hover, .iconbtn-sm:hover { background: var(--color-active); color: var(--color-ink); } @keyframes app-spin { to { transform: rotate(360deg); } } @keyframes app-upload-indef { 0% { transform: translateX(-110%); } 100% { transform: translateX(310%); } } @media (prefers-reduced-motion: reduce) { [style*="app-upload-indef"] { animation: none !important; } }`}</style>
     </div>
   );

@@ -1,6 +1,19 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
 import { coverUrl } from "./cover";
-import { getHome, getTopTen, search, reportPlay, getFavorites, addFavorite, removeFavorite, uploadSong, getAlign, postAlign, peekAlign, invalidateAlign } from "./api";
+import {
+  getHome,
+  getTopTen,
+  search,
+  reportPlay,
+  getFavorites,
+  addFavorite,
+  removeFavorite,
+  uploadSong,
+  getAlign,
+  postAlign,
+  peekAlign,
+  invalidateAlign,
+} from "./api";
 
 function mockFetch(body: unknown, ok = true) {
   const spy = vi.fn().mockResolvedValue({
@@ -28,7 +41,13 @@ describe("coverUrl", () => {
 
 describe("api clients", () => {
   it("getHome hits /api/home", async () => {
-    const f = mockFetch({ hero: null, topTen: [], recentlyAdded: [], genres: [], playlists: [] });
+    const f = mockFetch({
+      hero: null,
+      topTen: [],
+      recentlyAdded: [],
+      genres: [],
+      playlists: [],
+    });
     const feed = await getHome();
     expect(f).toHaveBeenCalledWith("/api/home");
     expect(feed.topTen).toEqual([]);
@@ -42,7 +61,13 @@ describe("api clients", () => {
   });
 
   it("search encodes the query", async () => {
-    const f = mockFetch({ top: null, songs: [], artists: [], genres: [], playlists: [] });
+    const f = mockFetch({
+      top: null,
+      songs: [],
+      artists: [],
+      genres: [],
+      playlists: [],
+    });
     await search("neon rain");
     expect(f).toHaveBeenCalledWith("/api/search?q=neon%20rain");
   });
@@ -54,7 +79,9 @@ describe("api clients", () => {
   });
 
   it("reportPlay swallows network errors", async () => {
-    globalThis.fetch = vi.fn().mockRejectedValue(new Error("offline")) as unknown as typeof fetch;
+    globalThis.fetch = vi
+      .fn()
+      .mockRejectedValue(new Error("offline")) as unknown as typeof fetch;
     await expect(reportPlay("s1")).resolves.toBeUndefined();
   });
 
@@ -89,15 +116,28 @@ class FakeXHR {
   static last: FakeXHR;
   status = 0;
   responseText = "";
-  upload: { onprogress?: (e: { lengthComputable: boolean; loaded: number; total: number }) => void } = {};
+  upload: {
+    onprogress?: (e: {
+      lengthComputable: boolean;
+      loaded: number;
+      total: number;
+    }) => void;
+  } = {};
   onload?: () => void;
   onerror?: () => void;
   method = "";
   url = "";
   sent?: unknown;
-  constructor() { FakeXHR.last = this; }
-  open(method: string, url: string) { this.method = method; this.url = url; }
-  send(body: unknown) { this.sent = body; }
+  constructor() {
+    FakeXHR.last = this;
+  }
+  open(method: string, url: string) {
+    this.method = method;
+    this.url = url;
+  }
+  send(body: unknown) {
+    this.sent = body;
+  }
 }
 
 function mockXHR() {
@@ -170,7 +210,11 @@ describe("karaoke alignment", () => {
   });
 
   it("getAlign parses a ready payload", async () => {
-    fetchStatus(200, { status: "ready", engine: "e", lines: [{ text: "hi", start: 1, end: 2, words: [] }] });
+    fetchStatus(200, {
+      status: "ready",
+      engine: "e",
+      lines: [{ text: "hi", start: 1, end: 2, words: [] }],
+    });
     const a = await getAlign("s1");
     expect(a?.status).toBe("ready");
     expect(a?.lines?.[0].text).toBe("hi");
@@ -192,7 +236,10 @@ describe("karaoke alignment", () => {
   // frame: peekAlign is read during render, before any fetch could resolve.
   // Each case uses its own song id so entries can't bleed between tests.
   it("getAlign memoizes a ready payload for peekAlign", async () => {
-    fetchStatus(200, { status: "ready", lines: [{ text: "hi", start: 1, end: 2, words: [] }] });
+    fetchStatus(200, {
+      status: "ready",
+      lines: [{ text: "hi", start: 1, end: 2, words: [] }],
+    });
     expect(peekAlign("cache-ready")).toBeUndefined(); // nothing known yet
     await getAlign("cache-ready");
     expect(peekAlign("cache-ready")?.status).toBe("ready");
@@ -210,7 +257,10 @@ describe("karaoke alignment", () => {
   // (no lyrics, alignment disabled), so the server's status must win on the next
   // read instead of one invented here.
   it("postAlign forgets a memoized ready entry so the next read refetches", async () => {
-    fetchStatus(200, { status: "ready", lines: [{ text: "hi", start: 1, end: 2, words: [] }] });
+    fetchStatus(200, {
+      status: "ready",
+      lines: [{ text: "hi", start: 1, end: 2, words: [] }],
+    });
     await getAlign("cache-resync");
     fetchStatus(202);
     await postAlign("cache-resync");
@@ -222,7 +272,10 @@ describe("karaoke alignment", () => {
   // enqueues a re-sync server-side, and the song echoed back still reports the
   // pre-enqueue status, so nothing in the response reveals the timing is stale.
   it("invalidateAlign forgets a memoized entry", async () => {
-    fetchStatus(200, { status: "ready", lines: [{ text: "hi", start: 1, end: 2, words: [] }] });
+    fetchStatus(200, {
+      status: "ready",
+      lines: [{ text: "hi", start: 1, end: 2, words: [] }],
+    });
     await getAlign("cache-edit");
     invalidateAlign("cache-edit");
     expect(peekAlign("cache-edit")).toBeUndefined();

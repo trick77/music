@@ -62,7 +62,10 @@ function parseSqlite(s: string): Date | null {
 }
 
 const dayMonthYear = new Intl.DateTimeFormat("en-GB", {
-  day: "numeric", month: "short", year: "numeric", timeZone: "UTC",
+  day: "numeric",
+  month: "short",
+  year: "numeric",
+  timeZone: "UTC",
 });
 
 /** formatDateAdded renders a song's upload date — "12 Mar 2026". */
@@ -86,7 +89,10 @@ function startOfLocalDay(d: Date): number {
  * is a claim about the calendar, so a play at 22:00 last night must not read "Today"
  * merely because it was under 24 hours ago. Rounding absorbs DST's 23/25-hour days.
  */
-export function formatLastPlayed(lastPlayedAt: string, now: Date = new Date()): string {
+export function formatLastPlayed(
+  lastPlayedAt: string,
+  now: Date = new Date(),
+): string {
   const d = parseSqlite(lastPlayedAt);
   if (!d) return "Never"; // the server sends "" for a song nobody has played
   const days = Math.round((startOfLocalDay(now) - startOfLocalDay(d)) / DAY_MS);

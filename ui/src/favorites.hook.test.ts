@@ -28,7 +28,10 @@ function fakeWindow(initial?: string[]) {
       listeners.set(type, [...(listeners.get(type) ?? []), fn]);
     },
     removeEventListener: (type: string, fn: (e: unknown) => void) => {
-      listeners.set(type, (listeners.get(type) ?? []).filter((f) => f !== fn));
+      listeners.set(
+        type,
+        (listeners.get(type) ?? []).filter((f) => f !== fn),
+      );
     },
     // Test helpers (not part of the Window surface the hook uses).
     raw: store,
@@ -280,7 +283,11 @@ describe("useFavorites when auth resolves after mount", () => {
 
   it("ignores a server list that lands after the hook unmounts", async () => {
     let settle: (v: string[]) => void = () => {};
-    vi.spyOn(api, "getFavorites").mockReturnValue(new Promise<string[]>((r) => { settle = r; }));
+    vi.spyOn(api, "getFavorites").mockReturnValue(
+      new Promise<string[]>((r) => {
+        settle = r;
+      }),
+    );
     const h = renderHook(() => useFavorites(true));
     h.unmount();
     settle(["s1"]);

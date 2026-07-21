@@ -6,7 +6,10 @@ import type { Song } from "./api";
 // which is a side-effecting module exercised via Playwright, not unit tests. We
 // mock it here to feed a fixed snapshot so the render is deterministic and no
 // audio/DOM is touched. A hoisted holder lets each test swap the current song.
-const h = vi.hoisted(() => ({ current: null as Song | null, queue: [] as Song[] }));
+const h = vi.hoisted(() => ({
+  current: null as Song | null,
+  queue: [] as Song[],
+}));
 vi.mock("./player", () => ({
   usePlayer: () => ({
     current: h.current,
@@ -16,8 +19,16 @@ vi.mock("./player", () => ({
     durationMs: 0,
     airplayAvailable: false,
     airplayActive: false,
-    play() {}, toggle() {}, stop() {}, next() {}, prev() {}, seek() {},
-    setQueue() {}, remove() {}, patchSong() {}, showAirplayPicker() {},
+    play() {},
+    toggle() {},
+    stop() {},
+    next() {},
+    prev() {},
+    seek() {},
+    setQueue() {},
+    remove() {},
+    patchSong() {},
+    showAirplayPicker() {},
   }),
 }));
 
@@ -25,13 +36,33 @@ import { PlayerBar } from "./PlayerBar";
 
 function song(over: Partial<Song> = {}): Song {
   return {
-    id: "s1", title: "Nightbird", artistName: "Vesper Lake", album: "", year: 0,
-    trackNo: 0, trackTotal: 0, durationMs: 200000, fileSize: 0, createdAt: "", sampleRate: 0, channels: 0, bitrateKbps: 0, genres: [], coverArtId: "", published: true,
-    lyrics: "First line of the song\nSecond line here", ...over,
+    id: "s1",
+    title: "Nightbird",
+    artistName: "Vesper Lake",
+    album: "",
+    year: 0,
+    trackNo: 0,
+    trackTotal: 0,
+    durationMs: 200000,
+    fileSize: 0,
+    createdAt: "",
+    sampleRate: 0,
+    channels: 0,
+    bitrateKbps: 0,
+    genres: [],
+    coverArtId: "",
+    published: true,
+    lyrics: "First line of the song\nSecond line here",
+    ...over,
   };
 }
 
-function render(alignmentEnabled: boolean, current: Song, open: boolean, lyrics: boolean) {
+function render(
+  alignmentEnabled: boolean,
+  current: Song,
+  open: boolean,
+  lyrics: boolean,
+) {
   h.current = current;
   return renderToStaticMarkup(
     <PlayerBar
@@ -84,12 +115,19 @@ describe("PlayerBar lyrics gating", () => {
     // stay unprimed or every other case here would inherit this alignment.
     const { getAlign, peekAlign, invalidateAlign } = await import("./api");
     globalThis.fetch = vi.fn().mockResolvedValue({
-      ok: true, status: 200, json: async () => ({ status: "ready", lines: [] }),
+      ok: true,
+      status: 200,
+      json: async () => ({ status: "ready", lines: [] }),
     }) as unknown as typeof fetch;
     await getAlign("s-nolines");
     expect(peekAlign("s-nolines")?.lines).toEqual([]); // resolved, but nothing to sweep
     try {
-      const html = render(false, song({ id: "s-nolines", alignmentStatus: "ready" }), true, true);
+      const html = render(
+        false,
+        song({ id: "s-nolines", alignmentStatus: "ready" }),
+        true,
+        true,
+      );
       expect(html).toContain("First line of the song");
       expect(html).toContain("rgba(250,249,245,.85)"); // crisp, readable — not a dead end
     } finally {
@@ -108,7 +146,12 @@ describe("PlayerBar lyrics gating", () => {
     // A sync in progress shows no in-progress chrome — just the static lyrics
     // until the sweep takes over. The Generate CTA is suppressed so it can't be
     // re-clicked mid-run.
-    const html = render(true, song({ alignmentStatus: "generating" }), true, true);
+    const html = render(
+      true,
+      song({ alignmentStatus: "generating" }),
+      true,
+      true,
+    );
     expect(html).toContain("rgba(250,249,245,.85)"); // "plain" crisp color
     expect(html).not.toContain("Generate karaoke");
     expect(html).not.toContain("Aligning");
@@ -116,7 +159,9 @@ describe("PlayerBar lyrics gating", () => {
   });
 
   it("offers the lyrics button whenever the track has lyrics, even logged out", () => {
-    expect(render(false, song(), false, false)).toContain('aria-label="Show lyrics"');
+    expect(render(false, song(), false, false)).toContain(
+      'aria-label="Show lyrics"',
+    );
   });
 
   it("hides the lyrics button for a track with no lyrics", () => {
@@ -125,7 +170,9 @@ describe("PlayerBar lyrics gating", () => {
   });
 
   it("offers a stop-and-close button in the mini bar", () => {
-    expect(render(false, song(), false, false)).toContain('aria-label="Stop and close"');
+    expect(render(false, song(), false, false)).toContain(
+      'aria-label="Stop and close"',
+    );
   });
 });
 
@@ -137,27 +184,36 @@ describe("PlayerBar next-button gating", () => {
     h.queue = [];
   });
 
-  const nextButton = (html: string) => /<button aria-label="Next"[^>]*>/.exec(html)?.[0] ?? "";
+  const nextButton = (html: string) =>
+    /<button aria-label="Next"[^>]*>/.exec(html)?.[0] ?? "";
 
   it("disables Next when the queue is empty", () => {
     h.queue = [];
-    expect(nextButton(render(false, song(), false, false))).toContain("disabled");
+    expect(nextButton(render(false, song(), false, false))).toContain(
+      "disabled",
+    );
   });
 
   it("enables Next when a song is queued behind the current one", () => {
     h.queue = [song({ id: "s2" })];
-    expect(nextButton(render(false, song(), false, false))).not.toContain("disabled");
+    expect(nextButton(render(false, song(), false, false))).not.toContain(
+      "disabled",
+    );
   });
 
   it("keeps Previous enabled even with an empty queue", () => {
     h.queue = [];
     const html = render(false, song(), false, false);
-    expect(/<button aria-label="Previous"[^>]*>/.exec(html)?.[0] ?? "").not.toContain("disabled");
+    expect(
+      /<button aria-label="Previous"[^>]*>/.exec(html)?.[0] ?? "",
+    ).not.toContain("disabled");
   });
 
   it("gates Next in the full-screen player too, not just the mini bar", () => {
     h.queue = [];
-    expect(nextButton(render(false, song(), true, false))).toContain("disabled");
+    expect(nextButton(render(false, song(), true, false))).toContain(
+      "disabled",
+    );
   });
 });
 
@@ -168,7 +224,8 @@ describe("PlayerBar transport divider", () => {
   // the app border token, the cover-scrim overlays take white (the token vanishes
   // against the art). An overlay row also renders the mini bar underneath, so a
   // white-tinted divider there is the overlay's.
-  const white = (html: string) => (html.match(/rgba\(255,255,255,0\.2\)/g) ?? []).length;
+  const white = (html: string) =>
+    (html.match(/rgba\(255,255,255,0\.2\)/g) ?? []).length;
 
   it("when the mini bar renders, then a divider follows the transport", () => {
     const html = render(false, song(), false, false);
@@ -196,7 +253,9 @@ describe("PlayerBar visualizer/lyrics buttons", () => {
   // one surface from being satisfied by the other's copy of the same button.
   const split = (html: string) => {
     const at = html.indexOf('aria-label="Close player"');
-    return at === -1 ? { mini: html, overlay: "" } : { mini: html.slice(0, at), overlay: html.slice(at) };
+    return at === -1
+      ? { mini: html, overlay: "" }
+      : { mini: html.slice(0, at), overlay: html.slice(at) };
   };
   const orderedVisThenLyrics = (row: string) => {
     const vis = row.indexOf('aria-label="Open visualizer"');

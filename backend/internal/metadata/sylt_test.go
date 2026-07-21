@@ -13,7 +13,7 @@ func TestSyncedLyricsFrame_SizeMatchesWriteTo(t *testing.T) {
 		{},
 		{{Text: "\nNever", TimeMs: 12000}, {Text: " gonna", TimeMs: 12400}},
 		{{Text: "\nRésumé café", TimeMs: 1000}, {Text: " naïve", TimeMs: 2000}}, // multibyte
-		{{Text: "\n日本語", TimeMs: 3000}},                                        // non-latin
+		{{Text: "\n日本語", TimeMs: 3000}},                                         // non-latin
 	}
 	for i, words := range cases {
 		f := NewSyncedLyricsFrame("eng", words)

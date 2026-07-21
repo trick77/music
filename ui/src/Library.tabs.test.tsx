@@ -5,15 +5,36 @@ import { Library } from "./Library";
 
 function song(over: Partial<Song> = {}): Song {
   return {
-    id: "s1", title: "Neon Rain", artistName: "Aurora Fields", album: "", year: 0, trackNo: 0, trackTotal: 0,
-    durationMs: 200000, fileSize: 0, createdAt: "", sampleRate: 0, channels: 0, bitrateKbps: 0,
-    genres: [], coverArtId: "", published: true, ...over,
+    id: "s1",
+    title: "Neon Rain",
+    artistName: "Aurora Fields",
+    album: "",
+    year: 0,
+    trackNo: 0,
+    trackTotal: 0,
+    durationMs: 200000,
+    fileSize: 0,
+    createdAt: "",
+    sampleRate: 0,
+    channels: 0,
+    bitrateKbps: 0,
+    genres: [],
+    coverArtId: "",
+    published: true,
+    ...over,
   };
 }
 
 const render = (authenticated = true) =>
   renderToStaticMarkup(
-    <Library songs={[song()]} favoriteIds={[]} authenticated={authenticated} initialTab="all" onPlay={() => {}} renderRowActions={() => null} />,
+    <Library
+      songs={[song()]}
+      favoriteIds={[]}
+      authenticated={authenticated}
+      initialTab="all"
+      onPlay={() => {}}
+      renderRowActions={() => null}
+    />,
   );
 
 // Four pills are ~387px — wider than a phone. The strip has to keep that

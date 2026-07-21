@@ -6,8 +6,19 @@ import { UploadToast } from "./App";
 // bar + percentage while an upload is in flight — switching to a spinner and an
 // indeterminate sweep once the bytes are up but the server is still finalizing.
 describe("UploadToast", () => {
-  const render = (uploading: boolean, pct: number, message = "Uploading “neon.mp3”…") =>
-    renderToStaticMarkup(<UploadToast message={message} uploading={uploading} pct={pct} bottom={80} />);
+  const render = (
+    uploading: boolean,
+    pct: number,
+    message = "Uploading “neon.mp3”…",
+  ) =>
+    renderToStaticMarkup(
+      <UploadToast
+        message={message}
+        uploading={uploading}
+        pct={pct}
+        bottom={80}
+      />,
+    );
 
   it("shows only the message as a pill when not uploading", () => {
     const html = render(false, 0, "Added “Neon”");
@@ -43,12 +54,20 @@ describe("UploadToast", () => {
 // --tabbar-h / --safe-b tokens, so the toast can't end up behind the nav.
 describe("UploadToast bottom offset", () => {
   it("when a track is docked, then the toast clears the dock and the mobile tab bar", () => {
-    const html = renderToStaticMarkup(<UploadToast message="Added" uploading={false} pct={0} bottom={120} />);
-    expect(html).toContain("bottom:calc(120px + var(--tabbar-h) + var(--safe-b))");
+    const html = renderToStaticMarkup(
+      <UploadToast message="Added" uploading={false} pct={0} bottom={120} />,
+    );
+    expect(html).toContain(
+      "bottom:calc(120px + var(--tabbar-h) + var(--safe-b))",
+    );
   });
 
   it("when nothing is docked, then it still clears the mobile tab bar", () => {
-    const html = renderToStaticMarkup(<UploadToast message="Added" uploading={false} pct={0} bottom={80} />);
-    expect(html).toContain("bottom:calc(80px + var(--tabbar-h) + var(--safe-b))");
+    const html = renderToStaticMarkup(
+      <UploadToast message="Added" uploading={false} pct={0} bottom={80} />,
+    );
+    expect(html).toContain(
+      "bottom:calc(80px + var(--tabbar-h) + var(--safe-b))",
+    );
   });
 });

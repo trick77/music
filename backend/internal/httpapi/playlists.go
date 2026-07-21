@@ -39,8 +39,12 @@ func (h *playlistHandlers) list(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, map[string]any{"playlists": pls})
 }
 
-func (h *playlistHandlers) publish(w http.ResponseWriter, r *http.Request)   { h.setPublished(w, r, true) }
-func (h *playlistHandlers) unpublish(w http.ResponseWriter, r *http.Request) { h.setPublished(w, r, false) }
+func (h *playlistHandlers) publish(w http.ResponseWriter, r *http.Request) {
+	h.setPublished(w, r, true)
+}
+func (h *playlistHandlers) unpublish(w http.ResponseWriter, r *http.Request) {
+	h.setPublished(w, r, false)
+}
 
 // setPublished flips a playlist's publish state. Authenticated-only (mirrors the
 // other playlist writes); responds with the updated detail, or 404 if unknown.

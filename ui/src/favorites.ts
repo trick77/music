@@ -10,7 +10,9 @@ export function loadFavorites(store: Store): string[] {
     const raw = store.getItem(KEY);
     if (!raw) return [];
     const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed.filter((x): x is string => typeof x === "string") : [];
+    return Array.isArray(parsed)
+      ? parsed.filter((x): x is string => typeof x === "string")
+      : [];
   } catch {
     return [];
   }
@@ -59,10 +61,14 @@ export function useFavorites(authed: boolean | null) {
     setIds([]);
     let cancelled = false;
     getFavorites().then(
-      (list) => { if (!cancelled) setIds(list); },
+      (list) => {
+        if (!cancelled) setIds(list);
+      },
       () => {},
     );
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [authed]);
 
   const toggle = useCallback(
@@ -74,11 +80,17 @@ export function useFavorites(authed: boolean | null) {
       }
       // Logged in: optimistic update, then persist; revert on failure.
       const willAdd = !ids.includes(id);
-      setIds((prev) => (willAdd ? [...prev, id] : prev.filter((x) => x !== id)));
+      setIds((prev) =>
+        willAdd ? [...prev, id] : prev.filter((x) => x !== id),
+      );
       const persist = willAdd ? addFavorite(id) : removeFavorite(id);
       persist.catch(() => {
         setIds((prev) =>
-          willAdd ? prev.filter((x) => x !== id) : prev.includes(id) ? prev : [...prev, id],
+          willAdd
+            ? prev.filter((x) => x !== id)
+            : prev.includes(id)
+              ? prev
+              : [...prev, id],
         );
       });
     },

@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { loadFavorites, toggleFavorite, isFavorite, type Store } from "./favorites";
+import {
+  loadFavorites,
+  toggleFavorite,
+  isFavorite,
+  type Store,
+} from "./favorites";
 
 function fakeStore(initial?: string): Store {
   let value = initial;

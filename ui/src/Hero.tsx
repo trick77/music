@@ -58,7 +58,8 @@ export function Hero({
   // after the last, so a forward move off either end lands on a visual copy and
   // then jumps (without animation) to the real slide — an endless one-way loop.
   // Real slides live at child indices 1..n; clones at 0 and n+1.
-  const seq: (HeroItem | null)[] = n === 0 ? [null] : multi ? [items[n - 1], ...items, items[0]] : items;
+  const seq: (HeroItem | null)[] =
+    n === 0 ? [null] : multi ? [items[n - 1], ...items, items[0]] : items;
   const realOf = (ci: number) => (ci === 0 ? n - 1 : ci === n + 1 ? 0 : ci - 1);
 
   const trackRef = useRef<HTMLDivElement>(null);
@@ -82,7 +83,8 @@ export function Hero({
   const paint = (animate: boolean) => {
     const el = trackRef.current;
     if (!el) return;
-    el.style.transition = animate && !reduce ? `transform ${DUR_MS}ms ${EASE}` : "none";
+    el.style.transition =
+      animate && !reduce ? `transform ${DUR_MS}ms ${EASE}` : "none";
     el.style.transform = `translateX(${-ciRef.current * 100}%)`;
   };
   // The track's live rendered offset as a percentage of its width — read mid-flight
@@ -98,8 +100,13 @@ export function Hero({
   // no animation (reduced motion) that happens immediately since no transition
   // event will fire.
   const normalize = () => {
-    if (ciRef.current === n + 1) { ciRef.current = 1; paint(false); }
-    else if (ciRef.current === 0) { ciRef.current = n; paint(false); }
+    if (ciRef.current === n + 1) {
+      ciRef.current = 1;
+      paint(false);
+    } else if (ciRef.current === 0) {
+      ciRef.current = n;
+      paint(false);
+    }
   };
   const goChild = (ci: number) => {
     ciRef.current = ci;
@@ -108,8 +115,12 @@ export function Hero({
     if (reduce) normalize();
     else movingRef.current = true;
   };
-  const step = (dir: 1 | -1) => { if (!movingRef.current) goChild(ciRef.current + dir); };
-  const toReal = (r: number) => { if (!movingRef.current && r !== active) goChild(r + 1); };
+  const step = (dir: 1 | -1) => {
+    if (!movingRef.current) goChild(ciRef.current + dir);
+  };
+  const toReal = (r: number) => {
+    if (!movingRef.current && r !== active) goChild(r + 1);
+  };
   const bumpDwell = () => setDwell((d) => d + 1);
   // Commit when the drag crossed the distance threshold OR was a quick flick (short
   // travel but fast), so a decisive short swipe still advances instead of snapping
@@ -195,17 +206,38 @@ export function Hero({
     <header
       // The panel is focusable only so ← → work; suppress the browser's default
       // focus ring (it reads as a stray frame around the whole hero).
-      style={{ position: "relative", borderRadius: 20, overflow: "hidden", outline: "none" }}
+      style={{
+        position: "relative",
+        borderRadius: 20,
+        overflow: "hidden",
+        outline: "none",
+      }}
       tabIndex={multi ? 0 : undefined}
       onKeyDown={(e) => {
         if (!multi) return;
-        if (e.key === "ArrowRight") { e.preventDefault(); step(1); bumpDwell(); }
-        if (e.key === "ArrowLeft") { e.preventDefault(); step(-1); bumpDwell(); }
+        if (e.key === "ArrowRight") {
+          e.preventDefault();
+          step(1);
+          bumpDwell();
+        }
+        if (e.key === "ArrowLeft") {
+          e.preventDefault();
+          step(-1);
+          bumpDwell();
+        }
       }}
-      onPointerEnter={() => { hoverRef.current = true; }}
-      onPointerLeave={() => { hoverRef.current = false; }}
-      onFocus={() => { focusRef.current = true; }}
-      onBlur={() => { focusRef.current = false; }}
+      onPointerEnter={() => {
+        hoverRef.current = true;
+      }}
+      onPointerLeave={() => {
+        hoverRef.current = false;
+      }}
+      onFocus={() => {
+        focusRef.current = true;
+      }}
+      onBlur={() => {
+        focusRef.current = false;
+      }}
     >
       <div className="hero-viewport">
         <div
@@ -223,13 +255,29 @@ export function Hero({
             // (backed by the transitioncancel handler) is what lets a mid-animation
             // grab start a fresh drag instead of being swallowed by the moving gate.
             let base = liveBasePercent();
-            if (ciRef.current === n + 1) { ciRef.current = 1; base += n * 100; }
-            else if (ciRef.current === 0) { ciRef.current = n; base -= n * 100; }
+            if (ciRef.current === n + 1) {
+              ciRef.current = 1;
+              base += n * 100;
+            } else if (ciRef.current === 0) {
+              ciRef.current = n;
+              base -= n * 100;
+            }
             movingRef.current = false;
-            try { el.setPointerCapture(e.pointerId); } catch { /* capture is best-effort */ }
+            try {
+              el.setPointerCapture(e.pointerId);
+            } catch {
+              /* capture is best-effort */
+            }
             downRef.current = true;
             const now = performance.now();
-            dragRef.current = { x: e.clientX, base, w: el.clientWidth || 1, lastX: e.clientX, lastT: now, vx: 0 };
+            dragRef.current = {
+              x: e.clientX,
+              base,
+              w: el.clientWidth || 1,
+              lastX: e.clientX,
+              lastT: now,
+              vx: 0,
+            };
             el.style.transition = "none";
             el.style.transform = `translateX(${base}%)`;
           }}
@@ -242,7 +290,8 @@ export function Hero({
             if (dt > 0) d.vx = (e.clientX - d.lastX) / dt;
             d.lastX = e.clientX;
             d.lastT = now;
-            if (el) el.style.transform = `translateX(${d.base + ((e.clientX - d.x) / d.w) * 100}%)`;
+            if (el)
+              el.style.transform = `translateX(${d.base + ((e.clientX - d.x) / d.w) * 100}%)`;
           }}
           onPointerUp={(e) => endDrag(e.clientX)}
           onPointerCancel={() => endDrag()}
@@ -256,20 +305,39 @@ export function Hero({
             // With no fanart, fall back to the song's own cover — shown sharp and
             // muted under a dark gradient (like the full-screen player), cropped to
             // fill the wide banner rather than blurred to stretch it.
-            const coverBg = !useHeroBg && song?.coverArtId ? coverUrl(song.coverArtId, "hero") : "";
-            const accent = (realIdx === 0 && hero?.accentColor) || "var(--color-accent)";
+            const coverBg =
+              !useHeroBg && song?.coverArtId
+                ? coverUrl(song.coverArtId, "hero")
+                : "";
+            const accent =
+              (realIdx === 0 && hero?.accentColor) || "var(--color-accent)";
             const title = song?.title ?? hero?.title ?? "Your library";
-            const subtitle = song ? song.artistName : hero?.subtitle || "Songs, playlists, and the sounds you keep coming back to.";
-            const eyebrow = item?.ranked ? `#${realIdx + 1} most played` : song ? "Featured song" : "Featured";
+            const subtitle = song
+              ? song.artistName
+              : hero?.subtitle ||
+                "Songs, playlists, and the sounds you keep coming back to.";
+            const eyebrow = item?.ranked
+              ? `#${realIdx + 1} most played`
+              : song
+                ? "Featured song"
+                : "Featured";
 
             return (
               <div
                 key={`slide-${i}`}
                 className="hero-slide"
-                style={{ background: `radial-gradient(120% 120% at 30% 20%, ${accent} 0%, var(--color-panel) 70%)` }}
+                style={{
+                  background: `radial-gradient(120% 120% at 30% 20%, ${accent} 0%, var(--color-panel) 70%)`,
+                }}
               >
                 {heroBg ? (
-                  <div style={{ position: "absolute", inset: 0, background: `url(${heroBg}) center/cover no-repeat` }} />
+                  <div
+                    style={{
+                      position: "absolute",
+                      inset: 0,
+                      background: `url(${heroBg}) center/cover no-repeat`,
+                    }}
+                  />
                 ) : coverBg ? (
                   <div
                     style={{
@@ -298,12 +366,20 @@ export function Hero({
                         its genre page when the id resolved (plain text otherwise). */}
                     {genres.map((g) => (
                       <Fragment key={g.name}>
-                        <span aria-hidden="true" style={{ opacity: 0.55, margin: "0 0.45em" }}>·</span>
+                        <span
+                          aria-hidden="true"
+                          style={{ opacity: 0.55, margin: "0 0.45em" }}
+                        >
+                          ·
+                        </span>
                         {g.id ? (
                           <a
                             className="hero-genre"
                             href={`/genre/${g.id}`}
-                            onClick={(e) => { e.preventDefault(); navigate(`/genre/${g.id}`); }}
+                            onClick={(e) => {
+                              e.preventDefault();
+                              navigate(`/genre/${g.id}`);
+                            }}
                           >
                             {genreLabel(g.name)}
                           </a>
@@ -325,7 +401,15 @@ export function Hero({
                   >
                     {title}
                   </h1>
-                  <p style={{ color: "rgba(255,255,255,0.86)", margin: "0.5rem 0 0", fontSize: "var(--text-body)" }}>{subtitle}</p>
+                  <p
+                    style={{
+                      color: "rgba(255,255,255,0.86)",
+                      margin: "0.5rem 0 0",
+                      fontSize: "var(--text-body)",
+                    }}
+                  >
+                    {subtitle}
+                  </p>
                 </div>
               </div>
             );
@@ -335,8 +419,15 @@ export function Hero({
       {activeSong && (
         <div className="hero-actions">
           <button
-            onClick={() => { onPlay(activeSong); bumpDwell(); }}
-            aria-label={activePlaying ? `Pause ${activeSong.title}` : `Play ${activeSong.title}`}
+            onClick={() => {
+              onPlay(activeSong);
+              bumpDwell();
+            }}
+            aria-label={
+              activePlaying
+                ? `Pause ${activeSong.title}`
+                : `Play ${activeSong.title}`
+            }
             style={{
               display: "inline-flex",
               alignItems: "center",
@@ -355,8 +446,15 @@ export function Hero({
             {/* Reserve the width of the longer label ("Pause") so toggling
                 Play↔Pause never resizes the button and shifts its siblings. */}
             <span style={{ display: "inline-grid", justifyItems: "start" }}>
-              <span style={{ gridArea: "1 / 1", visibility: "hidden" }} aria-hidden="true">Pause</span>
-              <span style={{ gridArea: "1 / 1" }}>{activePlaying ? "Pause" : "Play"}</span>
+              <span
+                style={{ gridArea: "1 / 1", visibility: "hidden" }}
+                aria-hidden="true"
+              >
+                Pause
+              </span>
+              <span style={{ gridArea: "1 / 1" }}>
+                {activePlaying ? "Pause" : "Play"}
+              </span>
             </span>
           </button>
           <a
@@ -406,7 +504,10 @@ export function Hero({
               key={i}
               aria-current={i === active ? "true" : undefined}
               aria-label={`Show slide ${i + 1}`}
-              onClick={() => { toReal(i); bumpDwell(); }}
+              onClick={() => {
+                toReal(i);
+                bumpDwell();
+              }}
             />
           ))}
         </div>

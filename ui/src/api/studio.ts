@@ -3,7 +3,15 @@
 // then a final `result` (or `error`). onProgress is called per progress event.
 
 export type StudioProgress = { phase: string; detail: string };
-export type StudioResult = { stylePrompt: string; lyrics: string; coverArtPrompt: string; genres: string[]; bands: string[]; titles: string[]; albums: string[] };
+export type StudioResult = {
+  stylePrompt: string;
+  lyrics: string;
+  coverArtPrompt: string;
+  genres: string[];
+  bands: string[];
+  titles: string[];
+  albums: string[];
+};
 
 // streamStudio POSTs a JSON body and reads an SSE response, dispatching progress
 // events and returning the final result (or throwing on error).
@@ -46,7 +54,8 @@ async function streamStudio(
       }
       if (event === "progress") onProgress(data as StudioProgress);
       else if (event === "result") result = data;
-      else if (event === "error") errorMsg = String(data.error ?? "generation failed");
+      else if (event === "error")
+        errorMsg = String(data.error ?? "generation failed");
     }
   }
   if (errorMsg) throw new Error(errorMsg);
@@ -54,8 +63,15 @@ async function streamStudio(
   return result;
 }
 
-export async function studioGenerate(reference: string, onProgress: (p: StudioProgress) => void): Promise<StudioResult> {
-  return (await streamStudio("/api/studio/generate", { reference }, onProgress)) as unknown as StudioResult;
+export async function studioGenerate(
+  reference: string,
+  onProgress: (p: StudioProgress) => void,
+): Promise<StudioResult> {
+  return (await streamStudio(
+    "/api/studio/generate",
+    { reference },
+    onProgress,
+  )) as unknown as StudioResult;
 }
 
 export async function studioRefine(
@@ -64,7 +80,11 @@ export async function studioRefine(
   instruction: string,
   onProgress: (p: StudioProgress) => void,
 ): Promise<string> {
-  const result = await streamStudio("/api/studio/refine", { reference, lyrics, instruction }, onProgress);
+  const result = await streamStudio(
+    "/api/studio/refine",
+    { reference, lyrics, instruction },
+    onProgress,
+  );
   return String(result.lyrics ?? "");
 }
 
@@ -78,7 +98,9 @@ const MODEL_LABELS: Record<string, string> = {
 };
 
 // imageModelOptions turns the session's model ids into {id,label} picker options.
-export function imageModelOptions(models: string[]): { id: string; label: string }[] {
+export function imageModelOptions(
+  models: string[],
+): { id: string; label: string }[] {
   return (models ?? []).map((id) => ({ id, label: MODEL_LABELS[id] ?? id }));
 }
 

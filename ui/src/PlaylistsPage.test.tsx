@@ -12,13 +12,23 @@ import type { Playlist } from "./api";
 // production row-rendering code is what's under test here, fed real output
 // from a stubbed listPlaylists().
 function playlist(overrides: Partial<Playlist>): Playlist {
-  return { id: "p1", name: "Road Trip", description: "", coverArtId: "", songCount: 3, published: true, ...overrides };
+  return {
+    id: "p1",
+    name: "Road Trip",
+    description: "",
+    coverArtId: "",
+    songCount: 3,
+    published: true,
+    ...overrides,
+  };
 }
 
 describe("PlaylistsPage", () => {
   it("renders a loading state before the fetch resolves", () => {
     vi.spyOn(api, "listPlaylists").mockResolvedValue([]);
-    const html = renderToStaticMarkup(<PlaylistsPage authenticated={false} onPlay={() => {}} />);
+    const html = renderToStaticMarkup(
+      <PlaylistsPage authenticated={false} onPlay={() => {}} />,
+    );
     expect(html).toContain("Playlists");
     expect(html).toContain("Loading");
   });
@@ -33,7 +43,12 @@ describe("PlaylistsPageView", () => {
     const fetched = await api.listPlaylists();
 
     const html = renderToStaticMarkup(
-      <PlaylistsPageView playlists={fetched} authenticated={false} onPlay={() => {}} onNewPlaylist={() => {}} />,
+      <PlaylistsPageView
+        playlists={fetched}
+        authenticated={false}
+        onPlay={() => {}}
+        onNewPlaylist={() => {}}
+      />,
     );
 
     expect(html).toContain("Playlists");
@@ -68,26 +83,46 @@ describe("PlaylistsPageView", () => {
 
   it("offers + New playlist only when authenticated", () => {
     const on = renderToStaticMarkup(
-      <PlaylistsPageView playlists={[]} authenticated={true} onPlay={() => {}} onNewPlaylist={() => {}} />,
+      <PlaylistsPageView
+        playlists={[]}
+        authenticated={true}
+        onPlay={() => {}}
+        onNewPlaylist={() => {}}
+      />,
     );
     expect(on).toContain("New playlist");
 
     const off = renderToStaticMarkup(
-      <PlaylistsPageView playlists={[]} authenticated={false} onPlay={() => {}} onNewPlaylist={() => {}} />,
+      <PlaylistsPageView
+        playlists={[]}
+        authenticated={false}
+        onPlay={() => {}}
+        onNewPlaylist={() => {}}
+      />,
     );
     expect(off).not.toContain("New playlist");
   });
 
   it("shows an empty state with no playlists", () => {
     const html = renderToStaticMarkup(
-      <PlaylistsPageView playlists={[]} authenticated={false} onPlay={() => {}} onNewPlaylist={() => {}} />,
+      <PlaylistsPageView
+        playlists={[]}
+        authenticated={false}
+        onPlay={() => {}}
+        onNewPlaylist={() => {}}
+      />,
     );
     expect(html).toContain("No playlists yet");
   });
 
   it("links each row to its playlist page", () => {
     const html = renderToStaticMarkup(
-      <PlaylistsPageView playlists={[playlist({ id: "p9" })]} authenticated={false} onPlay={() => {}} onNewPlaylist={() => {}} />,
+      <PlaylistsPageView
+        playlists={[playlist({ id: "p9" })]}
+        authenticated={false}
+        onPlay={() => {}}
+        onNewPlaylist={() => {}}
+      />,
     );
     // Rows are click-driven <li> elements (no href), but the quick-play button
     // carries a discoverable label tying the action back to the playlist.

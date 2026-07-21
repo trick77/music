@@ -49,8 +49,12 @@ export function KaraokeView({ lines }: { lines: AlignedLine[] }) {
     // so it can't tell us when the intro ends). Only show the intro animation for
     // a meaningful lead-in, and clear it LEAD seconds before the first word so the
     // first line takes focus cleanly.
-    const firstStart = lines[0]?.words?.[0] != null ? +lines[0].words[0].start
-      : lines[0]?.start != null ? lines[0].start : 0;
+    const firstStart =
+      lines[0]?.words?.[0] != null
+        ? +lines[0].words[0].start
+        : lines[0]?.start != null
+          ? lines[0].start
+          : 0;
     const introEndsAt = firstStart - LEAD;
     const hasIntro = firstStart >= INTRO_MIN;
 
@@ -74,7 +78,8 @@ export function KaraokeView({ lines }: { lines: AlignedLine[] }) {
       const t = (audio ? audio.currentTime : 0) + SWEEP_LEAD;
       let active = -1;
       for (let i = 0; i < lines.length; i++) if (t >= activateAt[i]) active = i;
-      const activeEndTime = active >= 0 ? (lines[active].end ?? activateAt[active]) : -Infinity;
+      const activeEndTime =
+        active >= 0 ? (lines[active].end ?? activateAt[active]) : -Infinity;
       const held = active >= 0 && t <= activeEndTime + HOLD;
       const showNotes = hasIntro && t < introEndsAt;
       if (showNotes !== notesOn) {
@@ -91,7 +96,8 @@ export function KaraokeView({ lines }: { lines: AlignedLine[] }) {
         if (!on) {
           const dist = Math.abs(i - (active < 0 ? 0 : active));
           l.el.style.opacity = Math.max(0.1, 0.48 - dist * 0.1).toFixed(2);
-          l.el.style.filter = "blur(" + Math.min(7, 1 + dist * 1.5).toFixed(1) + "px)";
+          l.el.style.filter =
+            "blur(" + Math.min(7, 1 + dist * 1.5).toFixed(1) + "px)";
         } else {
           l.el.style.opacity = "";
           l.el.style.filter = "";
@@ -116,7 +122,11 @@ export function KaraokeView({ lines }: { lines: AlignedLine[] }) {
       });
       if (active !== lastActive) {
         const el = L[active < 0 ? 0 : active]?.el;
-        if (el) inner!.style.transform = "translateY(" + (window.innerHeight * 0.4 - (el.offsetTop + el.offsetHeight / 2)) + "px)";
+        if (el)
+          inner!.style.transform =
+            "translateY(" +
+            (window.innerHeight * 0.4 - (el.offsetTop + el.offsetHeight / 2)) +
+            "px)";
         lastActive = active;
       }
       raf = requestAnimationFrame(frame);
@@ -127,7 +137,11 @@ export function KaraokeView({ lines }: { lines: AlignedLine[] }) {
       // an uncancellable rAF loop mutating detached DOM.
       if (cancelled) return;
       const el = L[0]?.el;
-      if (el) inner!.style.transform = "translateY(" + (window.innerHeight * 0.4 - (el.offsetTop + el.offsetHeight / 2)) + "px)";
+      if (el)
+        inner!.style.transform =
+          "translateY(" +
+          (window.innerHeight * 0.4 - (el.offsetTop + el.offsetHeight / 2)) +
+          "px)";
       raf = requestAnimationFrame(frame);
     }
     const onResize = () => {
@@ -135,7 +149,8 @@ export function KaraokeView({ lines }: { lines: AlignedLine[] }) {
       lastActive = -2;
     };
     window.addEventListener("resize", onResize);
-    if (document.fonts && document.fonts.ready) document.fonts.ready.then(start);
+    if (document.fonts && document.fonts.ready)
+      document.fonts.ready.then(start);
     else raf = requestAnimationFrame(start);
 
     return () => {
@@ -157,7 +172,11 @@ export function KaraokeView({ lines }: { lines: AlignedLine[] }) {
         </div>
         <div ref={innerRef} className="kv-inner">
           {lines.map((ln, li) => (
-            <LineRow key={li} line={ln} register={(rt) => (lineRefs.current[li] = rt)} />
+            <LineRow
+              key={li}
+              line={ln}
+              register={(rt) => (lineRefs.current[li] = rt)}
+            />
           ))}
         </div>
       </div>
@@ -165,7 +184,13 @@ export function KaraokeView({ lines }: { lines: AlignedLine[] }) {
   );
 }
 
-function LineRow({ line, register }: { line: AlignedLine; register: (rt: LineRt) => void }) {
+function LineRow({
+  line,
+  register,
+}: {
+  line: AlignedLine;
+  register: (rt: LineRt) => void;
+}) {
   const elRef = useRef<HTMLDivElement>(null);
   const wordRefs = useRef<HTMLSpanElement[]>([]);
   const wl = line.words ?? [];
@@ -178,14 +203,23 @@ function LineRow({ line, register }: { line: AlignedLine; register: (rt: LineRt)
   return (
     <div ref={elRef} className="kv-line">
       <div className="kv-lc">
-        {wl.length
-          ? wl.map((w, i) => (
-              <span key={i}>
-                <span ref={(el) => { if (el) wordRefs.current[i] = el; }} className="kv-word">{w.w}</span>
-                {i < wl.length - 1 ? " " : ""}
+        {wl.length ? (
+          wl.map((w, i) => (
+            <span key={i}>
+              <span
+                ref={(el) => {
+                  if (el) wordRefs.current[i] = el;
+                }}
+                className="kv-word"
+              >
+                {w.w}
               </span>
-            ))
-          : <span className="kv-word">{line.text || " "}</span>}
+              {i < wl.length - 1 ? " " : ""}
+            </span>
+          ))
+        ) : (
+          <span className="kv-word">{line.text || " "}</span>
+        )}
       </div>
     </div>
   );

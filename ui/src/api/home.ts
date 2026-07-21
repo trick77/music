@@ -17,7 +17,10 @@ export type HomeHero = {
   accentColor: string;
 };
 
-export type GenreChapter = GenreSummary & { backgroundFanartId: string; songs: Song[] };
+export type GenreChapter = GenreSummary & {
+  backgroundFanartId: string;
+  songs: Song[];
+};
 
 export type HomeFeed = {
   hero: HomeHero | null;
@@ -27,7 +30,10 @@ export type HomeFeed = {
   playlists: Playlist[];
 };
 
-export type SearchHit = { type: "song" | "artist" | "genre" | "playlist"; id: string };
+export type SearchHit = {
+  type: "song" | "artist" | "genre" | "playlist";
+  id: string;
+};
 
 export type SearchResults = {
   top: SearchHit | null;

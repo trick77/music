@@ -11,7 +11,9 @@ describe("share urls", () => {
     expect(songShareUrl("abc")).toBe("https://music.example.com/song/abc");
   });
   it("builds an absolute playlist url", () => {
-    expect(playlistShareUrl("xyz")).toBe("https://music.example.com/playlist/xyz");
+    expect(playlistShareUrl("xyz")).toBe(
+      "https://music.example.com/playlist/xyz",
+    );
   });
 });
 
@@ -25,12 +27,20 @@ describe("copyText", () => {
     const writeText = vi.fn(() => Promise.resolve());
     vi.stubGlobal("navigator", { clipboard: { writeText } });
 
-    await expect(copyText("https://music.example.com/song/abc")).resolves.toBe(true);
-    expect(writeText).toHaveBeenCalledWith("https://music.example.com/song/abc");
+    await expect(copyText("https://music.example.com/song/abc")).resolves.toBe(
+      true,
+    );
+    expect(writeText).toHaveBeenCalledWith(
+      "https://music.example.com/song/abc",
+    );
   });
 
   it("when the clipboard write is refused, then it reports failure instead of throwing", async () => {
-    vi.stubGlobal("navigator", { clipboard: { writeText: () => Promise.reject(new Error("NotAllowedError")) } });
+    vi.stubGlobal("navigator", {
+      clipboard: {
+        writeText: () => Promise.reject(new Error("NotAllowedError")),
+      },
+    });
 
     await expect(copyText("x")).resolves.toBe(false);
   });

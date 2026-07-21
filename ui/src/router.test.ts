@@ -3,8 +3,16 @@ import { reactStub, renderHook } from "./testHooks";
 
 vi.mock("react", () => reactStub);
 
-const { parsePath, parsePlayerParam, pushPlayer, replacePlayer, closeToOrigin, leaveLyricsForArtwork, navigate, useRoute } =
-  await import("./router");
+const {
+  parsePath,
+  parsePlayerParam,
+  pushPlayer,
+  replacePlayer,
+  closeToOrigin,
+  leaveLyricsForArtwork,
+  navigate,
+  useRoute,
+} = await import("./router");
 
 describe("parsePath", () => {
   it("maps root to home", () => {
@@ -33,7 +41,10 @@ describe("parsePath", () => {
   });
   it("parses the studio route with and without a target genre", () => {
     expect(parsePath("/studio")).toEqual({ name: "studio" });
-    expect(parsePath("/studio/genre/g1")).toEqual({ name: "studio", genreId: "g1" });
+    expect(parsePath("/studio/genre/g1")).toEqual({
+      name: "studio",
+      genreId: "g1",
+    });
   });
   it("parses the search and artist routes", () => {
     expect(parsePath("/search")).toEqual({ name: "search" });
@@ -113,14 +124,22 @@ describe("player URL helpers", () => {
   it("pushPlayer pushes the song deep link, marked as ours, and notifies listeners", () => {
     pushPlayer("abc", "lyrics");
     // The marker is what lets the close tell an in-app open from a deep link.
-    expect(pushState).toHaveBeenCalledWith({ appPushed: true }, "", "/song/abc?player=lyrics");
+    expect(pushState).toHaveBeenCalledWith(
+      { appPushed: true },
+      "",
+      "/song/abc?player=lyrics",
+    );
     expect(replaceState).not.toHaveBeenCalled();
     expect(dispatchEvent).toHaveBeenCalledTimes(1);
   });
 
   it("replacePlayer replaces in place (no new history entry)", () => {
     replacePlayer("abc", "full");
-    expect(replaceState).toHaveBeenCalledWith({ appPushed: true }, "", "/song/abc?player=full");
+    expect(replaceState).toHaveBeenCalledWith(
+      { appPushed: true },
+      "",
+      "/song/abc?player=full",
+    );
     expect(pushState).not.toHaveBeenCalled();
     expect(dispatchEvent).toHaveBeenCalledTimes(1);
   });
@@ -130,7 +149,11 @@ describe("player URL helpers", () => {
     // close would try to go back to a page the visitor never came from.
     stubWindow(null);
     replacePlayer("abc", "full");
-    expect(replaceState).toHaveBeenCalledWith(null, "", "/song/abc?player=full");
+    expect(replaceState).toHaveBeenCalledWith(
+      null,
+      "",
+      "/song/abc?player=full",
+    );
   });
 
   it("closeToOrigin returns to the trigger point when we pushed the entry", () => {
@@ -160,7 +183,11 @@ describe("player URL helpers", () => {
 
   it("pushPlayer records the state it was opened out of", () => {
     pushPlayer("abc", "lyrics", "full");
-    expect(pushState).toHaveBeenCalledWith({ appPushed: true, from: "full" }, "", "/song/abc?player=lyrics");
+    expect(pushState).toHaveBeenCalledWith(
+      { appPushed: true, from: "full" },
+      "",
+      "/song/abc?player=lyrics",
+    );
   });
 
   it("leaveLyricsForArtwork pops back to the big player it was opened from", () => {
@@ -178,14 +205,22 @@ describe("player URL helpers", () => {
     stubWindow({ appPushed: true });
     leaveLyricsForArtwork("abc");
     expect(back).not.toHaveBeenCalled();
-    expect(replaceState).toHaveBeenCalledWith({ appPushed: true }, "", "/song/abc?player=full");
+    expect(replaceState).toHaveBeenCalledWith(
+      { appPushed: true },
+      "",
+      "/song/abc?player=full",
+    );
   });
 
   it("leaveLyricsForArtwork rewrites in place on a dishonest deep link", () => {
     stubWindow(null);
     leaveLyricsForArtwork("abc");
     expect(back).not.toHaveBeenCalled();
-    expect(replaceState).toHaveBeenCalledWith(null, "", "/song/abc?player=full");
+    expect(replaceState).toHaveBeenCalledWith(
+      null,
+      "",
+      "/song/abc?player=full",
+    );
   });
 });
 
@@ -212,7 +247,8 @@ describe("navigate and useRoute", () => {
       dispatchEvent: () => {
         for (const fn of handlers["popstate"] ?? []) fn();
       },
-      addEventListener: (t: string, fn: () => void) => (handlers[t] ??= []).push(fn),
+      addEventListener: (t: string, fn: () => void) =>
+        (handlers[t] ??= []).push(fn),
       removeEventListener: (t: string, fn: () => void) => {
         removed.push(t);
         handlers[t] = (handlers[t] ?? []).filter((h) => h !== fn);
@@ -229,7 +265,11 @@ describe("navigate and useRoute", () => {
 
     navigate("/genre/rock");
 
-    expect(pushState).toHaveBeenCalledWith({ appPushed: true }, "", "/genre/rock");
+    expect(pushState).toHaveBeenCalledWith(
+      { appPushed: true },
+      "",
+      "/genre/rock",
+    );
     expect(view.result()).toEqual({ name: "genre", id: "rock" });
 
     view.unmount();

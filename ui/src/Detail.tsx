@@ -1,10 +1,5 @@
 import { useEffect, useState, type ReactNode } from "react";
-import {
-  getGenre,
-  getArtist,
-  type GenreDetail as GD,
-  type Song,
-} from "./api";
+import { getGenre, getArtist, type GenreDetail as GD, type Song } from "./api";
 import { fanartUrl } from "./fanart";
 import { coverUrl } from "./cover";
 import { navigate } from "./router";
@@ -46,14 +41,30 @@ type Props = {
 // Per-kind data loads behind one shared layout so arrangements can change
 // without a rewrite. The genre background editor is preserved behind the
 // authenticated flag. (Playlists have their own dedicated PlaylistPage.)
-export function Detail({ kind, id, authenticated, studioEnabled, imageGenEnabled, onPlay, onShare, renderRowActions, reloadKey }: Props) {
+export function Detail({
+  kind,
+  id,
+  authenticated,
+  studioEnabled,
+  imageGenEnabled,
+  onPlay,
+  onShare,
+  renderRowActions,
+  reloadKey,
+}: Props) {
   const { current } = usePlayer();
   const [genre, setGenre] = useState<GD | null>(null);
-  const [artist, setArtist] = useState<{ artist: { id: string; name: string; songCount: number }; songs: Song[] } | null>(null);
+  const [artist, setArtist] = useState<{
+    artist: { id: string; name: string; songCount: number };
+    songs: Song[];
+  } | null>(null);
   const [editingGenre, setEditingGenre] = useState(false);
   const [notFound, setNotFound] = useState(false);
 
-  const loadGenre = () => getGenre(id).then(setGenre).catch(() => setNotFound(true));
+  const loadGenre = () =>
+    getGenre(id)
+      .then(setGenre)
+      .catch(() => setNotFound(true));
 
   // Clear stale content only when navigating to a different page. A reloadKey
   // bump (e.g. after a tag edit) must NOT null the view — that would flash a
@@ -67,7 +78,10 @@ export function Detail({ kind, id, authenticated, studioEnabled, imageGenEnabled
 
   useEffect(() => {
     if (kind === "genre") loadGenre();
-    else getArtist(id).then(setArtist).catch(() => setNotFound(true));
+    else
+      getArtist(id)
+        .then(setArtist)
+        .catch(() => setNotFound(true));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [kind, id, reloadKey]);
 
@@ -75,7 +89,9 @@ export function Detail({ kind, id, authenticated, studioEnabled, imageGenEnabled
     return (
       <p style={{ color: "var(--color-muted)" }}>
         Not found.{" "}
-        <button onClick={() => navigate("/")} style={linkBtn}>Home</button>
+        <button onClick={() => navigate("/")} style={linkBtn}>
+          Home
+        </button>
       </p>
     );
   }
@@ -121,18 +137,60 @@ export function Detail({ kind, id, authenticated, studioEnabled, imageGenEnabled
         }}
       >
         <div className="scrim" />
-        <button onClick={() => history.back()} aria-label="Back" style={{ ...linkBtn, position: "absolute", top: 14, left: 14, width: 40, height: 40, color: "#fff", display: "grid", placeItems: "center" }}>
+        <button
+          onClick={() => history.back()}
+          aria-label="Back"
+          style={{
+            ...linkBtn,
+            position: "absolute",
+            top: 14,
+            left: 14,
+            width: 40,
+            height: 40,
+            color: "#fff",
+            display: "grid",
+            placeItems: "center",
+          }}
+        >
           <Icon name="chevronLeft" size="24px" />
         </button>
-        <div style={{ position: "relative", padding: "clamp(1.1rem, 2.6vw, 2rem)", width: "100%" }}>
-          <div style={{ fontSize: "var(--text-micro)", letterSpacing: "0.14em", textTransform: "uppercase", color: "rgba(255,255,255,0.8)" }}>
+        <div
+          style={{
+            position: "relative",
+            padding: "clamp(1.1rem, 2.6vw, 2rem)",
+            width: "100%",
+          }}
+        >
+          <div
+            style={{
+              fontSize: "var(--text-micro)",
+              letterSpacing: "0.14em",
+              textTransform: "uppercase",
+              color: "rgba(255,255,255,0.8)",
+            }}
+          >
             {kind}
           </div>
-          <h1 style={{ margin: "0.15rem 0 0.35rem", fontFamily: "var(--font-serif)", fontSize: "clamp(1.8rem, 4vw, 2.8rem)", color: "#fff", textShadow: "0 2px 18px rgba(0,0,0,0.55)" }}>{view.title}</h1>
-          <p style={{ margin: "0 0 1rem", color: "rgba(255,255,255,0.85)" }}>{view.subtitle}</p>
+          <h1
+            style={{
+              margin: "0.15rem 0 0.35rem",
+              fontFamily: "var(--font-serif)",
+              fontSize: "clamp(1.8rem, 4vw, 2.8rem)",
+              color: "#fff",
+              textShadow: "0 2px 18px rgba(0,0,0,0.55)",
+            }}
+          >
+            {view.title}
+          </h1>
+          <p style={{ margin: "0 0 1rem", color: "rgba(255,255,255,0.85)" }}>
+            {view.subtitle}
+          </p>
           <div style={{ display: "flex", gap: "0.6rem", flexWrap: "wrap" }}>
             {songs.length > 0 && (
-              <button onClick={() => onPlay(songs[0], songs.slice(1))} style={pillPrimary}>
+              <button
+                onClick={() => onPlay(songs[0], songs.slice(1))}
+                style={pillPrimary}
+              >
                 <Glyph name="play" size={18} /> Play
               </button>
             )}
@@ -140,42 +198,132 @@ export function Detail({ kind, id, authenticated, studioEnabled, imageGenEnabled
               <Icon name="share" size="18px" /> Share
             </button>
             {view.onEdit && (
-              <button onClick={view.onEdit} style={pillGhost}>Edit</button>
+              <button onClick={view.onEdit} style={pillGhost}>
+                Edit
+              </button>
             )}
           </div>
         </div>
       </div>
 
-      <div className="glass" style={{ borderRadius: 16, marginTop: "-1.5rem", position: "relative", padding: "0.5rem 1rem" }}>
+      <div
+        className="glass"
+        style={{
+          borderRadius: 16,
+          marginTop: "-1.5rem",
+          position: "relative",
+          padding: "0.5rem 1rem",
+        }}
+      >
         {songs.length === 0 ? (
-          <p style={{ color: "var(--color-muted)", padding: "1rem" }}>No songs yet.</p>
+          <p style={{ color: "var(--color-muted)", padding: "1rem" }}>
+            No songs yet.
+          </p>
         ) : (
           songs.map((s, i) => (
-            <div key={s.id} style={{ display: "grid", gridTemplateColumns: "40px 1fr auto", alignItems: "center", gap: "0.75rem", padding: "0.5rem 0", borderBottom: i < songs.length - 1 ? "1px solid var(--color-border)" : "none" }}>
-              <button onClick={() => onPlay(s, songs.slice(i + 1))} aria-label={`Play ${s.title}`} style={linkBtn}>
-                <SongCover song={s} size={40} radius={6} imgSize="thumb" fallbackFontSize="0.9rem" />
+            <div
+              key={s.id}
+              style={{
+                display: "grid",
+                gridTemplateColumns: "40px 1fr auto",
+                alignItems: "center",
+                gap: "0.75rem",
+                padding: "0.5rem 0",
+                borderBottom:
+                  i < songs.length - 1
+                    ? "1px solid var(--color-border)"
+                    : "none",
+              }}
+            >
+              <button
+                onClick={() => onPlay(s, songs.slice(i + 1))}
+                aria-label={`Play ${s.title}`}
+                style={linkBtn}
+              >
+                <SongCover
+                  song={s}
+                  size={40}
+                  radius={6}
+                  imgSize="thumb"
+                  fallbackFontSize="0.9rem"
+                />
               </button>
-              <button onClick={() => onPlay(s, songs.slice(i + 1))} style={{ ...linkBtn, textAlign: "left", minWidth: 0 }}>
-                <div style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: current?.id === s.id ? "var(--color-accent-strong)" : undefined }}>{s.title}</div>
-                <div className="row-meta" style={{ display: "flex", alignItems: "center", gap: "0.6rem", color: "var(--color-muted)", fontSize: "var(--text-label)" }}>
-                  <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.artistName}</span>
-                  <UnpublishedBadge show={authenticated && !s.published} placement="meta" />
+              <button
+                onClick={() => onPlay(s, songs.slice(i + 1))}
+                style={{ ...linkBtn, textAlign: "left", minWidth: 0 }}
+              >
+                <div
+                  style={{
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
+                    color:
+                      current?.id === s.id
+                        ? "var(--color-accent-strong)"
+                        : undefined,
+                  }}
+                >
+                  {s.title}
+                </div>
+                <div
+                  className="row-meta"
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "0.6rem",
+                    color: "var(--color-muted)",
+                    fontSize: "var(--text-label)",
+                  }}
+                >
+                  <span
+                    style={{
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    {s.artistName}
+                  </span>
+                  <UnpublishedBadge
+                    show={authenticated && !s.published}
+                    placement="meta"
+                  />
                 </div>
               </button>
-              <span style={{ display: "flex", alignItems: "center", gap: "0.35rem" }}>{renderRowActions(s)}</span>
+              <span
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "0.35rem",
+                }}
+              >
+                {renderRowActions(s)}
+              </span>
             </div>
           ))
         )}
       </div>
 
       {editingGenre && genre && (
-        <GenreEditor detail={genre} studioEnabled={studioEnabled} imageGenEnabled={imageGenEnabled} onClose={() => setEditingGenre(false)} onChanged={() => loadGenre()} />
+        <GenreEditor
+          detail={genre}
+          studioEnabled={studioEnabled}
+          imageGenEnabled={imageGenEnabled}
+          onClose={() => setEditingGenre(false)}
+          onChanged={() => loadGenre()}
+        />
       )}
     </div>
   );
 }
 
-const linkBtn: React.CSSProperties = { background: "none", border: "none", color: "var(--color-accent-strong)", cursor: "pointer", padding: 0 };
+const linkBtn: React.CSSProperties = {
+  background: "none",
+  border: "none",
+  color: "var(--color-accent-strong)",
+  cursor: "pointer",
+  padding: 0,
+};
 
 const pillPrimary: React.CSSProperties = {
   display: "inline-flex",

@@ -1,6 +1,11 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
-import { render as rtlRender, screen, act, cleanup } from "@testing-library/react";
+import {
+  render as rtlRender,
+  screen,
+  act,
+  cleanup,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { Song } from "./api";
 import type { Fav } from "./PlayerControls";
@@ -34,8 +39,16 @@ vi.mock("./player", () => ({
     durationMs: 0,
     airplayAvailable: false,
     airplayActive: h.airplayActive,
-    play() {}, toggle() {}, stop() {}, next() {}, prev() {}, seek() {},
-    setQueue() {}, remove() {}, patchSong() {}, showAirplayPicker() {},
+    play() {},
+    toggle() {},
+    stop() {},
+    next() {},
+    prev() {},
+    seek() {},
+    setQueue() {},
+    remove() {},
+    patchSong() {},
+    showAirplayPicker() {},
   }),
 }));
 vi.mock("./analyser", () => ({
@@ -64,13 +77,35 @@ beforeEach(() => {
   window.localStorage.clear();
 });
 
-import { VisualizerView, synthTargets, accrueStarvation, nextSynthetic, STARVE_LIMIT_MS, GIVE_UP_MS } from "./VisualizerView";
+import {
+  VisualizerView,
+  synthTargets,
+  accrueStarvation,
+  nextSynthetic,
+  STARVE_LIMIT_MS,
+  GIVE_UP_MS,
+} from "./VisualizerView";
 
 function song(over: Partial<Song> = {}): Song {
   return {
-    id: "s1", title: "Nightbird", artistName: "Vesper Lake", album: "", year: 0,
-    trackNo: 0, trackTotal: 0, durationMs: 200000, fileSize: 0, createdAt: "", sampleRate: 0, channels: 0, bitrateKbps: 0, genres: [], coverArtId: "", published: true,
-    lyrics: "First line of the song\nSecond line here", ...over,
+    id: "s1",
+    title: "Nightbird",
+    artistName: "Vesper Lake",
+    album: "",
+    year: 0,
+    trackNo: 0,
+    trackTotal: 0,
+    durationMs: 200000,
+    fileSize: 0,
+    createdAt: "",
+    sampleRate: 0,
+    channels: 0,
+    bitrateKbps: 0,
+    genres: [],
+    coverArtId: "",
+    published: true,
+    lyrics: "First line of the song\nSecond line here",
+    ...over,
   };
 }
 
@@ -78,7 +113,10 @@ function song(over: Partial<Song> = {}): Song {
 function render(current: Song | null) {
   h.current = current;
   return renderToStaticMarkup(
-    <VisualizerView fav={{ has: () => false, toggle: () => {} }} onShare={() => {}} />,
+    <VisualizerView
+      fav={{ has: () => false, toggle: () => {} }}
+      onShare={() => {}}
+    />,
   );
 }
 
@@ -129,8 +167,15 @@ describe("synthTargets (fallback bars when the real analyser can't run)", () => 
     }
     // Averaged over a full cycle the low columns should out-energise the top ones.
     const avg = (lo: number, hi: number) => {
-      let sum = 0, n = 0;
-      for (let t = 0; t < 6000; t += 100) { const f = synthTargets(t, true); for (let i = lo; i < hi; i++) { sum += f[i]; n++; } }
+      let sum = 0,
+        n = 0;
+      for (let t = 0; t < 6000; t += 100) {
+        const f = synthTargets(t, true);
+        for (let i = lo; i < hi; i++) {
+          sum += f[i];
+          n++;
+        }
+      }
       return sum / n;
     };
     expect(avg(0, 6)).toBeGreaterThan(avg(22, 28));
@@ -153,7 +198,8 @@ describe("accrueStarvation (dead-tap detector for the synthetic fallback)", () =
 
   it("trips the fallback once past the limit on a genuinely dead tap", () => {
     let ms = 0;
-    for (let i = 0; i < 10; i++) ms = accrueStarvation(ms, 500, advancingSilent);
+    for (let i = 0; i < 10; i++)
+      ms = accrueStarvation(ms, 500, advancingSilent);
     expect(ms).toBeGreaterThan(STARVE_LIMIT_MS);
   });
 
@@ -161,7 +207,11 @@ describe("accrueStarvation (dead-tap detector for the synthetic fallback)", () =
   // used to permanently drop to synthetic bars on resume. Pausing must reset it.
   it("resets on pause, so resuming keeps the real spectrum", () => {
     let ms = accrueStarvation(0, 2000, advancingSilent); // silent while playing
-    ms = accrueStarvation(ms, 60000, { playing: false, advancing: false, hasSignal: false }); // long pause
+    ms = accrueStarvation(ms, 60000, {
+      playing: false,
+      advancing: false,
+      hasSignal: false,
+    }); // long pause
     expect(ms).toBe(0);
   });
 
@@ -169,13 +219,21 @@ describe("accrueStarvation (dead-tap detector for the synthetic fallback)", () =
   // advancing), which must not count as a dead tap.
   it("does not accumulate while the element is still loading (not advancing)", () => {
     let ms = 0;
-    ms = accrueStarvation(ms, 4000, { playing: true, advancing: false, hasSignal: false });
+    ms = accrueStarvation(ms, 4000, {
+      playing: true,
+      advancing: false,
+      hasSignal: false,
+    });
     expect(ms).toBe(0);
   });
 
   it("resets the moment any real signal appears", () => {
     let ms = accrueStarvation(0, 2000, advancingSilent);
-    ms = accrueStarvation(ms, 16, { playing: true, advancing: true, hasSignal: true });
+    ms = accrueStarvation(ms, 16, {
+      playing: true,
+      advancing: true,
+      hasSignal: true,
+    });
     expect(ms).toBe(0);
   });
 });
@@ -241,7 +299,9 @@ const cancelRaf = vi.fn();
 
 // A stand-in for the audible <audio> element. Only `paused` and `currentTime` are
 // read by the view, so the rest of HTMLAudioElement is irrelevant here.
-function audio(over: { paused?: boolean; currentTime?: number } = {}): HTMLAudioElement {
+function audio(
+  over: { paused?: boolean; currentTime?: number } = {},
+): HTMLAudioElement {
   return { paused: false, currentTime: 12.5, ...over } as HTMLAudioElement;
 }
 
@@ -273,10 +333,17 @@ function cellsPainted() {
 
 describe("VisualizerView animation loop", () => {
   beforeEach(() => {
-    ctx = { fillStyle: "", setTransform: vi.fn(), clearRect: vi.fn(), fillRect: vi.fn() };
+    ctx = {
+      fillStyle: "",
+      setTransform: vi.fn(),
+      clearRect: vi.fn(),
+      fillRect: vi.fn(),
+    };
     // The effect bails out entirely when getContext returns null, so this must be
     // a working stub rather than jsdom's not-implemented default.
-    vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue(ctx as unknown as CanvasRenderingContext2D);
+    vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue(
+      ctx as unknown as CanvasRenderingContext2D,
+    );
     frameCb = null;
     cancelRaf.mockClear();
     vi.stubGlobal("requestAnimationFrame", (cb: FrameRequestCallback) => {
@@ -392,7 +459,9 @@ describe("VisualizerView animation loop", () => {
     // The fallback is recoverable, not a latch: the second stream is never torn
     // down, so the real spectrum can come back.
     expect(h.stopAnalysis).not.toHaveBeenCalled();
-    expect(h.syncAnalysis.mock.calls.length).toBeGreaterThan(callsAfterRecovery);
+    expect(h.syncAnalysis.mock.calls.length).toBeGreaterThan(
+      callsAfterRecovery,
+    );
   });
 
   it("when starvation runs unbroken past the give-up point, then the second stream is torn down for good", () => {
@@ -466,8 +535,15 @@ describe("VisualizerView animation loop", () => {
 
 describe("VisualizerView reduced motion", () => {
   beforeEach(() => {
-    ctx = { fillStyle: "", setTransform: vi.fn(), clearRect: vi.fn(), fillRect: vi.fn() };
-    vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue(ctx as unknown as CanvasRenderingContext2D);
+    ctx = {
+      fillStyle: "",
+      setTransform: vi.fn(),
+      clearRect: vi.fn(),
+      fillRect: vi.fn(),
+    };
+    vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue(
+      ctx as unknown as CanvasRenderingContext2D,
+    );
     frameCb = null;
     vi.stubGlobal("requestAnimationFrame", (cb: FrameRequestCallback) => {
       frameCb = cb;
@@ -509,8 +585,15 @@ describe("VisualizerView reduced motion", () => {
 
 describe("VisualizerView debug tracing", () => {
   beforeEach(() => {
-    ctx = { fillStyle: "", setTransform: vi.fn(), clearRect: vi.fn(), fillRect: vi.fn() };
-    vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue(ctx as unknown as CanvasRenderingContext2D);
+    ctx = {
+      fillStyle: "",
+      setTransform: vi.fn(),
+      clearRect: vi.fn(),
+      fillRect: vi.fn(),
+    };
+    vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue(
+      ctx as unknown as CanvasRenderingContext2D,
+    );
     frameCb = null;
     vi.stubGlobal("requestAnimationFrame", (cb: FrameRequestCallback) => {
       frameCb = cb;
@@ -593,7 +676,9 @@ describe("VisualizerView debug tracing", () => {
     const whileReal = logLines().filter((l) => l.startsWith("[vizf]")).length;
     h.bands.mockImplementation((n: number) => new Array(n).fill(0));
     step(STARVE_LIMIT_MS + 100); // starved: falls back to synthetic
-    const whileSynthetic = logLines().filter((l) => l.startsWith("[vizf]")).length;
+    const whileSynthetic = logLines().filter((l) =>
+      l.startsWith("[vizf]"),
+    ).length;
     h.bands.mockImplementation((n: number) => new Array(n).fill(0.5));
     step(16); // signal returns: measured again
 
@@ -625,8 +710,15 @@ describe("VisualizerView debug tracing", () => {
 
 describe("VisualizerView dismissal and actions", () => {
   beforeEach(() => {
-    ctx = { fillStyle: "", setTransform: vi.fn(), clearRect: vi.fn(), fillRect: vi.fn() };
-    vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue(ctx as unknown as CanvasRenderingContext2D);
+    ctx = {
+      fillStyle: "",
+      setTransform: vi.fn(),
+      clearRect: vi.fn(),
+      fillRect: vi.fn(),
+    };
+    vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue(
+      ctx as unknown as CanvasRenderingContext2D,
+    );
     vi.stubGlobal("requestAnimationFrame", (cb: FrameRequestCallback) => {
       frameCb = cb;
       return 7;
@@ -697,8 +789,12 @@ describe("VisualizerView dismissal and actions", () => {
 
     // An unpublished song's /song/:id link 404s for the recipient, so offering
     // Share would only ever produce a broken link.
-    expect(screen.queryByRole("button", { name: "Share" })).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Close visualizer" })).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Share" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Close visualizer" }),
+    ).toBeInTheDocument();
   });
 
   it("when a song is playing, then its title and artist label the view", () => {
@@ -717,6 +813,8 @@ describe("VisualizerView dismissal and actions", () => {
     mount();
 
     expect(screen.getByText("Nothing is playing")).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Share" })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Share" }),
+    ).not.toBeInTheDocument();
   });
 });

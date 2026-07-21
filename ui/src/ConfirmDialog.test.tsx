@@ -3,7 +3,14 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { ConfirmDialog } from "./ConfirmDialog";
 
 describe("ConfirmDialog", () => {
-  const base = { title: "Delete song", message: "Delete “Enter Sandman”?", confirmLabel: "Delete", danger: true, onConfirm: () => {}, onCancel: () => {} };
+  const base = {
+    title: "Delete song",
+    message: "Delete “Enter Sandman”?",
+    confirmLabel: "Delete",
+    danger: true,
+    onConfirm: () => {},
+    onCancel: () => {},
+  };
 
   it("renders a labeled dialog with title, message and both buttons", () => {
     const html = renderToStaticMarkup(<ConfirmDialog {...base} />);
@@ -15,7 +22,9 @@ describe("ConfirmDialog", () => {
   });
 
   it("shows the error line and disables confirm while busy", () => {
-    const html = renderToStaticMarkup(<ConfirmDialog {...base} busy error="Could not delete" />);
+    const html = renderToStaticMarkup(
+      <ConfirmDialog {...base} busy error="Could not delete" />,
+    );
     expect(html).toContain("Could not delete");
     expect(html).toContain("disabled");
   });

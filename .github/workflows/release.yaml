@@ -21,9 +21,15 @@ on:
     # hand — including after a change to this workflow, which .github/** ignores.
     paths-ignore:
       - "docs/**"
+      # The align sidecar ships as its own separate image, built and pushed by
+      # align-image.yaml. Nothing under sidecar/ is copied into the main image, so
+      # a sidecar-only change cannot alter what this workflow builds.
       - "sidecar/**"
+      # Coverage gate scripts: CI-only, never copied into the image.
+      - "hack/**"
       - ".github/**"
       - "**/*.md"
+      - "LICENSE"
       - ".gitignore"
       - ".env.example"
       - "Makefile"
@@ -113,3 +119,22 @@ jobs:
           gh api "repos/${{ github.repository }}/git/refs" \
             -f ref="refs/tags/${{ steps.ver.outputs.version }}" \
             -f sha="${{ github.sha }}"
+
+      # Runs after the tag exists, so the release attaches to it rather than
+      # creating a second pointer at the same commit. Without this the repo has
+      # tags but no releases, and there is no one place that says which image
+      # digest a given version corresponds to.
+      - name: Create release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          VERSION="${{ steps.ver.outputs.version }}"
+          cat > /tmp/release-notes.md <<NOTES
+          Container image: \`ghcr.io/${{ github.repository }}:$VERSION\`
+          NOTES
+          # The heredoc is indented to stay inside this block scalar; strip that
+          # indentation back out before the notes are published.
+          sed -i 's/^          //' /tmp/release-notes.md
+          gh release create "$VERSION" \
+            --title "$VERSION" \
+            --notes-file /tmp/release-notes.md

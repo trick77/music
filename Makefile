@@ -6,27 +6,32 @@ tidy:
 test:
 	cd backend && go test ./...
 
-# Floor enforced by backend-coverage; a drop below it fails the build.
-BACKEND_MIN_COVERAGE ?= 75
-
+# The coverage floor is NOT defined here. It lives in hack/coverage-floors and is
+# enforced by hack/coverage-gate.sh, which CI calls too — so `make backend-coverage`
+# and a CI run answer with the same number against the same threshold. These targets
+# only produce the artifacts; the gate decides pass or fail.
+#
 # -coverpkg=./... credits code executed by *other* packages' tests. Without it
 # internal/mockoidc reports 0% despite the unit suite exercising it on every run,
 # because go attributes coverage only to the package under test. cmd/ holds the
-# binary entrypoints (main, wiring, signal handling), which unit tests can't reach
-# and which are covered by running the app — they'd only add constant dead weight.
+# binary entrypoints (main, wiring, signal handling), which unit tests can't reach;
+# the gate excludes that tree itself, so no filtering is needed here.
+#
+# The Cobertura conversion is not cosmetic: Go reports statement percentages and
+# exposes no line metric, and the gate measures lines. It also merges the duplicate
+# blocks -coverpkg emits (one set per test binary), which a naive sum gets wrong.
 backend-coverage:
 	mkdir -p coverage
-	cd backend && go test ./... -covermode=atomic -coverpkg=./... -coverprofile=../coverage/raw.out
-	{ echo "mode: atomic"; grep -v '^mode:' coverage/raw.out | grep -v '^github.com/trick77/music/cmd/'; } > coverage/backend.out
-	cd backend && go tool cover -func=../coverage/backend.out
-	@total=$$(cd backend && go tool cover -func=../coverage/backend.out | awk 'END {gsub("%","",$$NF); print $$NF}'); \
-	 awk -v t="$$total" -v m="$(BACKEND_MIN_COVERAGE)" 'BEGIN { if (t+0 < m+0) { printf "\nFAIL: backend coverage %.1f%% is below the %s%% floor\n", t, m; exit 1 } printf "\nbackend coverage %.1f%% (floor %s%%)\n", t, m }'
+	cd backend && go test ./... -covermode=atomic -coverpkg=./... -coverprofile=../coverage/backend.out
+	cd backend && go run github.com/boumenot/gocover-cobertura@v1.5.0 < ../coverage/backend.out > ../coverage/backend.xml
+	./hack/coverage-gate.sh backend
 
 fe-test:
 	cd ui && npm run test -- --run --passWithNoTests
 
 fe-coverage:
 	cd ui && npm run test:coverage
+	./hack/coverage-gate.sh ui
 
 fe-build:
 	cd ui && npm ci && npm run build

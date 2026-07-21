@@ -46,16 +46,21 @@ assert_matched() {
   base="$(git merge-base "$BASE_REF" HEAD)"
   # Test files are excluded from coverage reports by design, so a diff touching
   # only tests legitimately matches no coverage data — don't flag that.
-  # test-setup.ts is the same category: it is vitest's setupFiles entry, excluded
-  # from coverage in vite.config.ts, and it runs before the instrumented modules
-  # load so it never appears in the report at all. Without it here, the commit
-  # that first adds that file trips the absent-from-report check below.
+  #
+  # Vitest setup files are the same category: they are the `setupFiles` entry,
+  # excluded from coverage, and therefore never present in the report. A commit
+  # touching only the setup file would otherwise trip the absent-from-report
+  # check below. Match all the conventions in use across this repo family rather
+  # than one repo's filename — peeq and music use src/test-setup.ts, loom uses
+  # vitest.setup.ts, lens uses src/test/setup.ts, lens-console uses
+  # test-setup.ts. Type-only declarations are likewise never instrumented.
+  #
   # Keep the filtered list rather than testing with `grep -qv`: under ugrep (a
   # common macOS `grep`) the -q/-v combination returns 1 even when non-matching
   # lines exist, which would silently disable this guard locally while it still
   # works under GNU grep. The names are needed below anyway.
   changed="$(git diff --name-only "$base"...HEAD -- "$@" |
-    grep -vE '(_test\.go|\.test\.tsx?|/test-setup\.ts)$' || true)"
+    grep -vE '(_test\.go|\.test\.tsx?|\.d\.ts|(^|/)(test-setup|vitest\.setup|setup)\.ts)$' || true)"
 
   [[ -n "$changed" ]] || return 0
   grep -q 'No lines with coverage information' "$report" || return 0
@@ -89,7 +94,7 @@ if [[ -f coverage/backend.xml ]]; then
   checked=1
   echo "== backend patch coverage (>= ${PATCH_MIN}%) =="
   # gocover-cobertura writes an ABSOLUTE path into <sources>, e.g.
-  # /home/runner/work/music/music/backend. diff-cover joins that with each
+  # /home/runner/work/peeq/peeq/backend. diff-cover joins that with each
   # class's module-relative filename, producing an absolute path that never
   # matches git's repo-relative paths — so every file silently misses and the
   # gate passes vacuously at "No lines with coverage information".

@@ -32,7 +32,7 @@ jobs:
         with:
           go-version-file: backend/go.mod
           cache-dependency-path: backend/go.sum
-      - uses: actions/setup-python@v6
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
       - run: pip install diff-cover==10.3.0
@@ -91,7 +91,7 @@ jobs:
           node-version: "22"
           cache: npm
           cache-dependency-path: ui/package-lock.json
-      - uses: actions/setup-python@v6
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
       - run: pip install diff-cover==10.3.0
@@ -113,7 +113,7 @@ jobs:
         working-directory: sidecar/align
     steps:
       - uses: actions/checkout@v7
-      - uses: actions/setup-python@v6
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.11"
       # The align sidecar's custom logic (word grouping/interpolation, language

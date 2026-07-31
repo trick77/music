@@ -45,9 +45,10 @@ trap 'rm -rf "$TMP"' EXIT
 cp "$MASTER" "$OUT/favicon.svg"
 
 # --- from the master ---------------------------------------------------------
-# -b none stays even though these come out opaque: the ground is the master's
-# own background rect, not something the renderer supplies. Keeping the renderer
-# out of it is what lets the checks below catch a master that lost that rect.
+# -b none keeps the renderer from inventing a ground the master does not have.
+# These stay TRANSPARENT: the browser composites the tab icon itself, and a bare
+# note is the good case for letting it — the glyph encloses no area, so there is
+# no interior for the tab's own colour to fill and read as a background.
 rsvg-convert -b none -w 192 -h 192 "$MASTER" -o "$OUT/icon-192.png"
 rsvg-convert -b none -w 512 -h 512 "$MASTER" -o "$OUT/icon-512.png"
 
@@ -81,16 +82,15 @@ magick -size 1200x630 xc:"$DARK" \
 # --- verify the grounds survived --------------------------------------------
 # Rendering can succeed and still produce the wrong thing — most plausibly a
 # source that lost its background rect, which yields a touch icon iOS flattens
-# onto black, or a favicon whose corners leak the tab bar's white. That fails
-# silently in a viewer and only shows up on a real device, so assert every
-# ground here instead.
+# onto black. That fails silently in a viewer and only shows up on a real
+# device, so assert every ground here instead.
 #
-# EVERY output is opaque. icon-192/512 and the .ico frames used to be
-# transparent, back when the master was a rounded tile and the browser
-# composited it onto the tab; that is what put white in the favicon's corners on
-# Safari, so the master carries its own #1f1f1e now. If any of these goes back
-# to opaque=false, a source has lost its background rect — do not "fix" it by
-# relaxing the check.
+# The split is the point, so both directions are checked. The master's rasters
+# MUST stay transparent: the browser composites the tab icon, and a ground there
+# is a square tile sitting in the tab bar. The two OS tiles MUST stay opaque:
+# iOS flattens alpha onto black and Android fills it with the launcher's own
+# colour, so a transparent one ships as a black square on an iPhone. Neither
+# expectation is a formality — do not "fix" a failure by relaxing the check.
 fail=0
 check_alpha() { # <file> <expected true|false>
 	local got
@@ -102,9 +102,9 @@ check_alpha() { # <file> <expected true|false>
 		fail=1
 	fi
 }
-for s in 16 32 48; do check_alpha "$TMP/fav_$s.png" true; done
-check_alpha "$OUT/icon-192.png" true
-check_alpha "$OUT/icon-512.png" true
+for s in 16 32 48; do check_alpha "$TMP/fav_$s.png" false; done
+check_alpha "$OUT/icon-192.png" false
+check_alpha "$OUT/icon-512.png" false
 check_alpha "$OUT/apple-touch-icon.png" true
 check_alpha "$OUT/icon-maskable-512.png" true
 check_alpha "$OUT/og-card.png" true

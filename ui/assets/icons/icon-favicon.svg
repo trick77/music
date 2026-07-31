@@ -3,8 +3,8 @@
   gen-icons.sh ships it as-is; no raster is rendered from it.
 
   It is a copy of tile.svg with ONE change: the frame's rect carries a fill.
-  Everything else — the paths, the 2.5 stroke, the true-bbox centring, the 96%
-  coverage — is tile.svg's and is documented there.
+  Everything else — the paths, the gradient ink, the 2 stroke, the true-bbox
+  centring, the 96% coverage — is tile.svg's and is documented there.
 
   WHY THIS EXISTS AS ITS OWN SOURCE. tile.svg is the master for the PWA rasters
   (icon-192, icon-512), and those must stay transparent: a launcher composites
@@ -15,8 +15,8 @@
   WHY IT HAS A GROUND AT ALL. Safari on the desktop draws favicons on a LIGHT
   PLATE in its favourites and bookmarks bars. Measured off a screenshot, dark
   appearance: the plate is rgb(192,192,192) and covers the whole 16x16 square,
-  on a bar that is rgb(29,29,28). A transparent mark in #d97757 lands on that as
-  an orange scribble on a white card, which is what this file fixes.
+  on a bar that is rgb(29,29,28). A transparent orange mark lands on that as an
+  orange scribble on a white card, which is what this file fixes.
 
   The TAB BAR does not do this — same screenshot, the canvas corners came back
   rgb(54,54,54) against a rgb(45,45,44) tab bar, i.e. the bar's own colour. So
@@ -44,12 +44,23 @@
   #33322f, NOT the #1f1f1e the two OS tiles use. Those sit large against a home
   screen; this sits at 16px against a white tab, where #1f1f1e (L* 11.7) reads
   as a black square — the exact look this change is here to avoid. #33322f
-  (L* 20.8) still reads as the app's own dark and leaves the #d97757 stroke
-  plenty of contrast. Change it and gen-icons.sh's ground assertion has to move
-  with it.
+  (L* 20.8) still reads as the app's own dark and leaves the gradient stroke
+  (#e08a68 -> #c25f34) plenty of contrast. Change it and gen-icons.sh's ground
+  assertion has to move with it.
+
+  The gradient's dark end is the one to watch here, not its light end: #c25f34
+  is what the frame's bottom-right corner paints, and that corner is where the
+  stroke meets the #33322f ground at the sharpest angle. Rendered at 16px on
+  both surfaces it holds. The gradient does not touch the ground, so
+  gen-icons.sh's p{256,96} sample is unaffected by it — that point is inside the
+  frame and clear of the headphones.
 -->
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
-  <g transform="translate(-3.9649 -3.9649) scale(2.99707)" fill="none" stroke="#d97757" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+  <linearGradient id="og" x1="0" y1="0" x2="0.72" y2="1">
+    <stop offset="0" stop-color="#e08a68"/>
+    <stop offset="1" stop-color="#c25f34"/>
+  </linearGradient>
+  <g transform="translate(-4.8640 -4.8640) scale(3.07200)" fill="none" stroke="url(#og)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
     <rect x="3" y="3" width="18" height="18" rx="2" fill="#33322f"/>
     <g transform="translate(5.8537 5.8537) scale(0.51220)">
       <path d="M3 14h3a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-7a9 9 0 0 1 18 0v7a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3"/>

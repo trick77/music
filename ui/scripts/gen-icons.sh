@@ -143,11 +143,17 @@ fi
 # Painting the safe circle over in the ground colour leaves nothing but ground
 # IF the mark is fully inside it, so the whole image collapses to one flat
 # colour and its standard deviation is exactly 0. Any mark left outside shows up
-# as spread. Calibrated by rendering the glyph at a sweep of coverages: 0 up to
-# and including 58.5%, and 0.0012 at 59% — which is where the geometry says it
-# crosses (the flag's top-right corner is 13.978 units out in the 24-space, and
-# 25.6/13.978 caps the scale at 1.831, i.e. 58.7% coverage). The threshold sits
-# well under that first real reading.
+# as spread. Calibrated by rendering the glyph at a sweep of coverages: exactly 0
+# up to and including 61%, then 0.00083 at 62% — which is where the geometry says
+# it crosses (the frame's corner is sqrt(2)*(10-3)+3 = 12.899 units out from the
+# centre in the 24-space, so 25.6/12.899 caps the scale at 1.985, i.e. 62.0%
+# coverage). The threshold sits well under that first real reading.
+#
+# Both numbers moved when the frame's stroke went 2.5 -> 2: half-side 10.25 -> 10
+# and corner radius 3.25 -> 3 in the 24-space, which pushed the cap from 58.7% up
+# to 62.0%. The sweep above was re-run at the new stroke rather than adjusted on
+# paper. Re-run it again if the stroke moves; tile-maskable.svg's own 52% sits
+# ten points under the cap either way.
 CIRCLE_STDDEV="$(magick "$OUT/icon-maskable-512.png" -alpha off \
 	-fill "$DARK" -draw 'circle 256,256 256,51.2' \
 	-format '%[fx:standard_deviation]' info:)"

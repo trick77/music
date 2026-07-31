@@ -39,6 +39,7 @@ func serveSizedImage(w http.ResponseWriter, r *http.Request, store *media.Store,
 		defer f.Close()
 		if info, err := f.Stat(); err == nil {
 			w.Header().Set("Content-Type", "image/jpeg")
+			setImmutable(w)
 			http.ServeContent(w, r, filepath.Base(cacheRel), info.ModTime(), f)
 			return
 		}
@@ -71,6 +72,9 @@ func serveSizedImage(w http.ResponseWriter, r *http.Request, store *media.Store,
 		}
 	}
 	w.Header().Set("Content-Type", "image/jpeg")
+	// Freshly scaled bytes carry no ModTime, so there is no validator to fall back
+	// on — being explicit is the only thing keeping this out of heuristic caching.
+	setImmutable(w)
 	http.ServeContent(w, r, filepath.Base(cacheRel), time.Time{}, bytes.NewReader(scaled))
 }
 
@@ -91,6 +95,7 @@ func serveStoreFile(w http.ResponseWriter, r *http.Request, store *media.Store, 
 	if ct := mime.TypeByExtension(filepath.Ext(relPath)); ct != "" {
 		w.Header().Set("Content-Type", ct)
 	}
+	setImmutable(w)
 	http.ServeContent(w, r, filepath.Base(relPath), info.ModTime(), f)
 }
 

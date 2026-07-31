@@ -17,6 +17,9 @@ Self-hosted, song-first music player: Go backend serving a JSON API + an embedde
 - Module `github.com/trick77/music`, Go 1.25, `CGO_ENABLED=0`.
 - Pure-Go SQLite `ncruces/go-sqlite3` v0.35.2 (never `mattn/go-sqlite3`). One SQLite file.
 - HTTP: stdlib `net/http` (Go 1.22 method routing), no framework.
+- Caching: content-addressed images (cover/fanart/coverart) → `immutable`; JSON GETs get a
+  body-hash ETag from `withJSONETag`; stream + SPA shell → revalidate; errors → `no-store`.
+  A URL whose bytes can change never gets `immutable`.
 - Frontend: Vite + React 19 + TS + Tailwind v4, built into `backend/web/dist` and embedded by Go.
 - Design tokens = loom's `--*` CSS variables + self-hosted Anthropic fonts. Accent = clay #c6613f / #d97757.
 - **Karaoke alignment: follow `docs/ALIGN.md`** for how the sidecar/backend/frontend pipeline works

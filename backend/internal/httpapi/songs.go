@@ -306,6 +306,11 @@ func (h *songHandlers) serveFile(w http.ResponseWriter, r *http.Request, attach 
 			serverError(w, "stat file", err)
 			return
 		}
+		// The URL is fixed per song while the bytes are not (a re-upload replaces
+		// the file in place), so this is store-and-revalidate rather than immutable.
+		// A strong ETag over size+mtime turns replaying a track into a 304 and keeps
+		// If-Range seeks valid; ServeContent handles both from here.
+		setStreamValidators(w, info.ModTime(), info.Size())
 		http.ServeContent(w, r, song.ID+".mp3", info.ModTime(), f)
 		return
 	}
@@ -468,6 +473,10 @@ func downloadName(s *library.Song) string {
 
 func httpError(w http.ResponseWriter, code int, msg string) {
 	w.Header().Set("Content-Type", "application/json")
+	// An error must never be held onto. A 404 with no Cache-Control is
+	// heuristically cacheable, so "image not ready" answered while generation is
+	// still running could keep hiding the finished image afterwards.
+	setNoStore(w)
 	w.WriteHeader(code)
 	json.NewEncoder(w).Encode(map[string]string{"error": msg})
 }

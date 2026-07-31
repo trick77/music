@@ -265,7 +265,10 @@ func build(cfg config.Config, st *store.Store, spa http.Handler, gen imagegen.Pr
 	// Anything not under /api/ is the SPA. Share routes (/song/{id},
 	// /playlist/{id}) get server-injected Open Graph meta for link previews.
 	root := http.NewServeMux()
-	root.Handle("/api/", mux)
+	// JSON reads get a body-derived ETag, so a client whose copy is unchanged gets
+	// a 304 instead of the payload. Images, audio, SSE and every write pass through
+	// untouched — they set their own cache headers where they are served.
+	root.Handle("/api/", withJSONETag(mux))
 	var spaHandler http.Handler = spa
 	if shareRepo != nil {
 		if shell, err := web.IndexHTML(); err == nil {

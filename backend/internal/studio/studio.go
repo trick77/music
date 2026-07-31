@@ -50,9 +50,21 @@ func (f ProgressFunc) emit(p Progress) {
 	}
 }
 
+// PartialFunc receives a GenerateResult that is only partly filled in, once per
+// completed turn, so the UI can show each part the moment it exists instead of
+// holding everything back until the last turn finishes. Fields the turn did not
+// produce are zero. It may be nil.
+type PartialFunc func(GenerateResult)
+
+func (f PartialFunc) emit(r GenerateResult) {
+	if f != nil {
+		f(r)
+	}
+}
+
 // Provider generates and refines Suno prompts. The real implementation drives an
-// LLM research loop; tests inject a fake. onProgress may be nil.
+// LLM research loop; tests inject a fake. onProgress and onPartial may be nil.
 type Provider interface {
-	Generate(ctx context.Context, req GenerateRequest, onProgress ProgressFunc) (GenerateResult, error)
+	Generate(ctx context.Context, req GenerateRequest, onProgress ProgressFunc, onPartial PartialFunc) (GenerateResult, error)
 	Refine(ctx context.Context, req RefineRequest, onProgress ProgressFunc) (string, error)
 }

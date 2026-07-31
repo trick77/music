@@ -65,10 +65,12 @@ function result(overrides: Partial<StudioResult> = {}): StudioResult {
 // surface can be inspected, and progress can be pushed at will.
 function deferredGenerate() {
   let push!: (p: StudioProgress) => void;
+  let pushPartial!: (p: Partial<StudioResult>) => void;
   let finish!: (r: StudioResult) => void;
   let fail!: (e: Error) => void;
-  mocked.studioGenerate.mockImplementation((_ref, onProgress) => {
+  mocked.studioGenerate.mockImplementation((_ref, onProgress, onPartial) => {
     push = onProgress;
+    pushPartial = onPartial ?? (() => {});
     return new Promise<StudioResult>((res, rej) => {
       finish = res;
       fail = rej;
@@ -76,6 +78,8 @@ function deferredGenerate() {
   });
   return {
     push: (p: StudioProgress) => act(() => void push(p)),
+    // One finished turn arriving mid-run, as the server streams it.
+    partial: (p: Partial<StudioResult>) => act(() => void pushPartial(p)),
     finish: async (r: StudioResult) => {
       await act(async () => finish(r));
     },
@@ -143,7 +147,8 @@ describe("StudioPage reference form", () => {
 
     expect(mocked.studioGenerate).toHaveBeenCalledWith(
       "Enter Sandman",
-      expect.any(Function),
+      expect.any(Function), // progress
+      expect.any(Function), // partial results
     );
   });
 });
@@ -193,6 +198,102 @@ describe("StudioPage research progress", () => {
 
     expect(screen.queryByText("Starting research")).not.toBeInTheDocument();
     expect(screen.getByLabelText("Lyrics (editable)")).toBeInTheDocument();
+  });
+});
+
+// Generation runs in three turns, and each one's output is shown the moment it
+// lands rather than at the very end — the page should never be a blank wait.
+describe("StudioPage progressive results", () => {
+  it("when a run starts, then every card is already on the page as a placeholder", async () => {
+    const user = userEvent.setup();
+    deferredGenerate();
+    render(<StudioPage />);
+
+    await generate(user);
+
+    const pending = screen.getAllByRole("generic", { busy: true });
+    expect(pending.length).toBeGreaterThanOrEqual(4);
+    expect(screen.getByText("→ Suno “Lyrics” · being written")).toBeVisible();
+  });
+
+  it("when the first turn lands, then its card fills while the rest keep waiting", async () => {
+    const user = userEvent.setup();
+    const run = deferredGenerate();
+    render(<StudioPage />);
+    await generate(user);
+
+    run.partial({
+      stylePrompt: "1990s, grunge, distorted guitars",
+      genres: ["grunge"],
+    });
+
+    // The style prompt is readable and copyable right away...
+    expect(
+      screen.getByText("1990s, grunge, distorted guitars"),
+    ).toBeInTheDocument();
+    // The genre pill from the same turn is up too (the style prompt text also
+    // contains the word, hence the exact match on the pill).
+    expect(screen.getByText("Grunge")).toBeInTheDocument();
+    // ...while the lyrics are still being written, and cannot be refined yet.
+    expect(
+      screen.queryByLabelText("Lyrics (editable)"),
+    ).not.toBeInTheDocument();
+    expect(screen.getByLabelText("Refine lyrics instruction")).toBeDisabled();
+  });
+
+  it("when the lyrics turn lands, then they are editable before the run ends", async () => {
+    const user = userEvent.setup();
+    const run = deferredGenerate();
+    render(<StudioPage />);
+    await generate(user);
+
+    run.partial({ stylePrompt: "1990s, grunge" });
+    run.partial({ lyrics: "[Verse]\nthe river takes it back" });
+
+    expect(screen.getByLabelText("Lyrics (editable)")).toHaveValue(
+      "[Verse]\nthe river takes it back",
+    );
+    // The naming turn has not answered yet, so its slot is still a placeholder.
+    expect(screen.getByText("→ naming it")).toBeVisible();
+  });
+
+  it("when a later turn fails, then the parts that did land stay on screen", async () => {
+    const user = userEvent.setup();
+    const run = deferredGenerate();
+    render(<StudioPage />);
+    await generate(user);
+
+    run.partial({ stylePrompt: "1990s, grunge, distorted guitars" });
+    await run.fail(new Error("studio request failed (502)"));
+
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      "studio request failed (502)",
+    );
+    // The finished style prompt is still usable...
+    expect(
+      screen.getByText("1990s, grunge, distorted guitars"),
+    ).toBeInTheDocument();
+    // ...and nothing is left shimmering or drawn as an empty box.
+    expect(
+      screen.queryByLabelText("Lyrics (editable)"),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("generic", { busy: true }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("when the run ends, then the final result replaces what the partials built", async () => {
+    const user = userEvent.setup();
+    const run = deferredGenerate();
+    render(<StudioPage />);
+    await generate(user);
+
+    run.partial({ lyrics: "[Verse]\nfirst draft" });
+    await run.finish(result());
+
+    expect(screen.getByLabelText("Lyrics (editable)")).toHaveValue(
+      "[Verse]\nthe river takes it back",
+    );
   });
 });
 

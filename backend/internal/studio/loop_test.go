@@ -51,7 +51,7 @@ func TestRunResearch_dispatchesToolThenReturnsFinalContent(t *testing.T) {
 	tools := &fakeTools{}
 
 	var progress []Progress
-	out, err := runResearch(context.Background(), chat, tools, "sys", "Metallica, Enter Sandman",
+	out, _, err := runResearch(context.Background(), chat, tools, "sys", "Metallica, Enter Sandman",
 		func(p Progress) { progress = append(progress, p) })
 	if err != nil {
 		t.Fatalf("runResearch: %v", err)
@@ -95,7 +95,7 @@ func (a *alwaysToolsChat) Chat(_ context.Context, _ []llm.Message, tools []llm.T
 
 func TestRunResearch_forcesFinalAnswerAfterRoundCap(t *testing.T) {
 	chat := &alwaysToolsChat{}
-	out, err := runResearch(context.Background(), chat, &fakeTools{}, "sys", "ref", nil)
+	out, _, err := runResearch(context.Background(), chat, &fakeTools{}, "sys", "ref", nil)
 	if err != nil {
 		t.Fatalf("runResearch: %v", err)
 	}

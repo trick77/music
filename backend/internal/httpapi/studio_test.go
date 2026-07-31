@@ -17,12 +17,17 @@ type fakeStudio struct {
 	err    error
 }
 
-func (f fakeStudio) Generate(_ context.Context, req studio.GenerateRequest, onProgress studio.ProgressFunc) (studio.GenerateResult, error) {
+func (f fakeStudio) Generate(_ context.Context, req studio.GenerateRequest, onProgress studio.ProgressFunc, onPartial studio.PartialFunc) (studio.GenerateResult, error) {
 	if onProgress != nil {
 		onProgress(studio.Progress{Phase: "researching", Detail: "Searching the web for " + req.Reference})
 	}
 	if f.err != nil {
 		return studio.GenerateResult{}, f.err
+	}
+	// The real provider streams a partial per finished turn; the fake streams the
+	// style prompt early so the handler's partial path is exercised.
+	if onPartial != nil {
+		onPartial(studio.GenerateResult{StylePrompt: f.result.StylePrompt, Genres: f.result.Genres})
 	}
 	return f.result, nil
 }
@@ -65,6 +70,14 @@ func TestStudioGenerate_streamsProgressThenResult(t *testing.T) {
 	}
 	if !strings.Contains(body, "event: result") || !strings.Contains(body, "1990s,heavy metal") || !strings.Contains(body, "1991 thrash cover") {
 		t.Fatalf("missing result event: %s", body)
+	}
+	// A finished part must go out as its own `partial` event BEFORE the closing
+	// result — otherwise the page waits for the whole run to end before it shows
+	// anything, which is exactly what the turn split exists to avoid.
+	partialAt := strings.Index(body, "event: partial")
+	resultAt := strings.Index(body, "event: result")
+	if partialAt < 0 || partialAt > resultAt {
+		t.Fatalf("expected a partial event before the result: %s", body)
 	}
 	// Band/title/album ideas ride along in the same result event.
 	if !strings.Contains(body, "Ashen Verdict") || !strings.Contains(body, "Sleep Now") || !strings.Contains(body, "Nightfall Sessions") {

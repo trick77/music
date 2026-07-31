@@ -74,7 +74,7 @@ func TestRunResearch_feedsToolFailureBackToTheModel(t *testing.T) {
 		toolCallMsg("tavily__tavily_search", `{"query":"x"}`),
 		{Role: "assistant", Content: `{"final":"answer"}`},
 	}}
-	out, err := runResearch(context.Background(), chat, &failingTools{}, "sys", "ref", nil)
+	out, _, err := runResearch(context.Background(), chat, &failingTools{}, "sys", "ref", nil)
 	if err != nil {
 		t.Fatalf("a tool failure must not fail the run: %v", err)
 	}
@@ -118,7 +118,7 @@ func (b *brokenTools) Tools(context.Context) ([]llm.Tool, error) {
 
 func TestRunResearch_abortsWhenToolDiscoveryFails(t *testing.T) {
 	chat := &capturingChat{replies: []llm.Message{{Role: "assistant", Content: "should never be reached"}}}
-	if _, err := runResearch(context.Background(), chat, &brokenTools{}, "sys", "ref", nil); err == nil {
+	if _, _, err := runResearch(context.Background(), chat, &brokenTools{}, "sys", "ref", nil); err == nil {
 		t.Fatal("expected runResearch to fail when tool discovery fails")
 	}
 	if chat.calls != 0 {
@@ -135,7 +135,7 @@ func (e errChat) Chat(context.Context, []llm.Message, []llm.Tool) (llm.Message, 
 
 func TestRunResearch_propagatesChatError(t *testing.T) {
 	boom := errors.New("model unavailable")
-	if _, err := runResearch(context.Background(), errChat{boom}, &fakeTools{}, "sys", "ref", nil); !errors.Is(err, boom) {
+	if _, _, err := runResearch(context.Background(), errChat{boom}, &fakeTools{}, "sys", "ref", nil); !errors.Is(err, boom) {
 		t.Fatalf("err = %v, want %v", err, boom)
 	}
 }
@@ -179,7 +179,7 @@ func TestGenerate_rejectsReplyMissingRequiredField(t *testing.T) {
 	for name, reply := range cases {
 		t.Run(name, func(t *testing.T) {
 			p := New(&cannedChat{reply: reply}, &fakeTools{})
-			if _, err := p.Generate(context.Background(), GenerateRequest{Reference: "x"}, nil); err == nil {
+			if _, err := p.Generate(context.Background(), GenerateRequest{Reference: "x"}, nil, nil); err == nil {
 				t.Error("expected an error")
 			}
 		})

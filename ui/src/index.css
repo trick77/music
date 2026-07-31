@@ -684,6 +684,29 @@ select.ui-control {
   }
 }
 
+/* Skeleton line: a card slot that is still being written (Studio fills its
+   cards one turn at a time). Breathes rather than sweeps, so several of them
+   side by side stay calm. */
+@keyframes ui-skeleton {
+  0%,
+  100% {
+    opacity: 0.35;
+  }
+  50% {
+    opacity: 0.75;
+  }
+}
+.studio-skeleton {
+  background: color-mix(in srgb, var(--color-ink) 16%, transparent);
+  animation: ui-skeleton 1.6s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .studio-skeleton {
+    animation: none;
+    opacity: 0.45;
+  }
+}
+
 /* Modal overlay: loom-style dim + 2px backdrop blur behind an open dialog.
    z-index sits ABOVE the docked player (z 60) so a modal always dims and covers
    it — a modal is modal. This is load-bearing on wide touch tablets (iPad Pro

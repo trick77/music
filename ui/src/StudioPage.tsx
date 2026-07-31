@@ -6,6 +6,7 @@ import {
   studioCoverArtUrl,
   imageModelOptions,
   type StudioProgress,
+  type StudioPartial,
   type StudioResult,
 } from "./api";
 import { copyText } from "./share";
@@ -16,6 +17,49 @@ import { Button, Spinner, buttonStyle, controlClass, t } from "./ui";
 import { genreLabel } from "./titleCase";
 
 const STYLE_LIMIT = 500;
+
+// EMPTY_RESULT seeds the result the moment generation starts, so every card has
+// a slot to sit in while its turn is still running.
+const EMPTY_RESULT: StudioResult = {
+  stylePrompt: "",
+  lyrics: "",
+  coverArtPrompt: "",
+  genres: [],
+  bands: [],
+  titles: [],
+  albums: [],
+};
+
+// hasContent reports whether any turn actually delivered something.
+export function hasContent(r: StudioResult): boolean {
+  return Boolean(
+    r.stylePrompt ||
+    r.lyrics ||
+    r.coverArtPrompt ||
+    r.genres.length ||
+    r.bands.length ||
+    r.titles.length ||
+    r.albums.length,
+  );
+}
+
+// mergePartial folds one finished part into the result, ignoring blank fields.
+// The server sends the whole GenerateResult shape each time, so a plain spread
+// would let a later turn's empty strings wipe an earlier turn's answer.
+export function mergePartial(
+  prev: StudioResult,
+  partial: StudioPartial,
+): StudioResult {
+  const next = { ...prev };
+  if (partial.stylePrompt) next.stylePrompt = partial.stylePrompt;
+  if (partial.lyrics) next.lyrics = partial.lyrics;
+  if (partial.coverArtPrompt) next.coverArtPrompt = partial.coverArtPrompt;
+  if (partial.genres?.length) next.genres = partial.genres;
+  if (partial.bands?.length) next.bands = partial.bands;
+  if (partial.titles?.length) next.titles = partial.titles;
+  if (partial.albums?.length) next.albums = partial.albums;
+  return next;
+}
 
 // CopyButton copies text and briefly confirms, mirroring the app's share flow.
 function CopyButton({
@@ -144,12 +188,112 @@ export function ResultCard({
   );
 }
 
+// PendingCard holds a card's place while the turn that fills it is still
+// running: same header, same box, greyed placeholder lines instead of content.
+// Reserving the slot is the point — the page keeps its shape as parts land, so
+// nothing below jumps when a card fills in.
+function PendingCard({
+  name,
+  note,
+  lines = 3,
+  tall = false,
+}: {
+  name: string;
+  note?: string;
+  lines?: number;
+  tall?: boolean;
+}) {
+  return (
+    <div style={{ marginBottom: "1.4rem" }} aria-busy="true">
+      <div
+        style={{
+          display: "flex",
+          alignItems: "baseline",
+          gap: "0.5rem",
+          marginBottom: "0.4rem",
+        }}
+      >
+        <span
+          style={{
+            fontWeight: 600,
+            fontSize: "var(--text-ui)",
+            color: "var(--color-muted)",
+          }}
+        >
+          {name}
+        </span>
+        {note && (
+          <span
+            style={{
+              color: "var(--color-muted)",
+              fontSize: "var(--text-label)",
+            }}
+          >
+            {note}
+          </span>
+        )}
+      </div>
+      <div
+        style={{
+          background: "color-mix(in srgb, var(--color-bg) 70%, #000)",
+          border: "1px solid var(--color-border)",
+          borderRadius: "var(--radius-ui)",
+          padding: "14px",
+          minHeight: tall ? 260 : undefined,
+          display: "flex",
+          flexDirection: "column",
+          gap: "0.6rem",
+        }}
+      >
+        {Array.from({ length: lines }).map((_, i) => (
+          <span
+            key={i}
+            className="studio-skeleton"
+            style={{
+              display: "block",
+              height: 10,
+              borderRadius: 5,
+              // Ragged widths read as text rather than as a loading bar.
+              width: `${[92, 78, 85, 64, 88, 72, 80, 58][i % 8]}%`,
+            }}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
 // IdentityCard groups everything that names and classifies the track: up to
 // three band-name, song-title and album-name ideas (each varying from an
 // obvious pick to a more oblique one, with a copy button), plus the model-picked
 // genres as a footer row. Columns wrap responsively (band first, then title,
 // then album). Any empty list is omitted; the whole card is hidden when the
 // model returned nothing to name or classify.
+// PendingColumn is an idea column whose turn has not answered yet: the label is
+// already correct, the rows are placeholders. It keeps the card from opening as
+// a gap between the description and the genre row.
+function PendingColumn({ label }: { label: string }) {
+  return (
+    <div aria-busy="true">
+      <div style={{ ...t.label, marginBottom: "0.5rem" }}>{label}</div>
+      <div style={{ display: "flex", flexDirection: "column", gap: "0.35rem" }}>
+        {[0, 1, 2].map((i) => (
+          <span
+            key={i}
+            style={{
+              display: "block",
+              height: 34,
+              borderRadius: "var(--radius-ui)",
+              background: "color-mix(in srgb, var(--color-bg) 70%, #000)",
+              border: "1px solid var(--color-border)",
+            }}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function IdeaColumn({ label, options }: { label: string; options: string[] }) {
   return (
     <div>
@@ -192,11 +336,15 @@ function IdentityCard({
   titles,
   albums,
   genres,
+  namingPending = false,
 }: {
   bands: string[];
   titles: string[];
   albums: string[];
   genres: string[];
+  // The genres land a turn before the names do, so the card can already be up
+  // with its name columns still being written.
+  namingPending?: boolean;
 }) {
   if (!bands?.length && !titles?.length && !albums?.length && !genres?.length)
     return null;
@@ -246,12 +394,20 @@ function IdentityCard({
           gap: "1.2rem 1.6rem",
         }}
       >
-        {bands?.length > 0 && <IdeaColumn label="Band name" options={bands} />}
-        {titles?.length > 0 && (
-          <IdeaColumn label="Song title" options={titles} />
+        {bands?.length > 0 ? (
+          <IdeaColumn label="Band name" options={bands} />
+        ) : (
+          namingPending && <PendingColumn label="Band name" />
         )}
-        {albums?.length > 0 && (
+        {titles?.length > 0 ? (
+          <IdeaColumn label="Song title" options={titles} />
+        ) : (
+          namingPending && <PendingColumn label="Song title" />
+        )}
+        {albums?.length > 0 ? (
           <IdeaColumn label="Album name" options={albums} />
+        ) : (
+          namingPending && <PendingColumn label="Album name" />
         )}
       </div>
       {genres?.length > 0 && (
@@ -458,17 +614,32 @@ export function StudioPage({
     const ref = reference.trim();
     if (!ref || busy) return;
     setStatus("loading");
-    setResult(null);
+    // Seed an empty result rather than null: the cards render straight away as
+    // placeholders and fill in as each turn lands, instead of the page sitting
+    // blank behind a spinner until everything is done. generatedRef is set here
+    // too, so the cover-art card keeps its identity as the parts arrive.
+    setResult(EMPTY_RESULT);
+    setGeneratedRef(ref);
     setSteps([]);
     setError("");
     setRefineInstruction("");
     try {
-      const res = await studioGenerate(ref, (p) => setSteps((s) => [...s, p]));
+      const res = await studioGenerate(
+        ref,
+        (p) => setSteps((s) => [...s, p]),
+        (partial) =>
+          setResult((prev) => mergePartial(prev ?? EMPTY_RESULT, partial)),
+      );
+      // The closing result is authoritative — it overwrites whatever the
+      // partials built up, so a merge slip can't survive into the final state.
       setResult(res);
-      setGeneratedRef(ref);
       setStatus("done");
     } catch (e) {
       setError((e as Error).message || "Generation failed");
+      // Whatever finished before the failure stays on screen — those parts are
+      // real and usable. A run that produced nothing leaves nothing behind, so
+      // the error stands alone instead of over a row of empty boxes.
+      setResult((prev) => (prev && hasContent(prev) ? prev : null));
       setStatus("error");
     }
   };
@@ -496,6 +667,25 @@ export function StudioPage({
   };
 
   const current = steps.length > 0 ? steps[steps.length - 1] : null;
+
+  // A card is "pending" only while the turn that fills it is still running: an
+  // empty box the user emptied by hand (or an empty field on a finished run) is
+  // theirs to keep, not a placeholder. The lyrics slot is also pending during a
+  // refine, since those exact lines are being replaced — the other cards stay up.
+  const generating = status === "loading";
+  const lyricsPending = generating ? !result?.lyrics : refining;
+  const stylePending = generating && !result?.stylePrompt;
+  const identityPending =
+    generating &&
+    !result?.bands.length &&
+    !result?.titles.length &&
+    !result?.albums.length &&
+    !result?.genres.length;
+  const coverPending = generating && !result?.coverArtPrompt;
+  // After a failed run the parts that never arrived are dropped rather than
+  // drawn as empty boxes; on a finished run an empty field is the user's own
+  // edit and keeps its card.
+  const keepEmptySlots = status !== "error";
 
   return (
     <div style={{ maxWidth: 720 }}>
@@ -675,15 +865,33 @@ export function StudioPage({
             </p>
           )}
 
-          {/* Results */}
-          {result && !busy && (
+          {/* Results. Rendered as soon as generation starts: each card shows its
+              content the moment its turn lands, and a placeholder until then. */}
+          {result && (
             <div style={{ marginTop: "2rem" }}>
-              <ResultCard
-                name="Lyrics"
-                note="→ Suno “Lyrics” · original, editable"
-                text={result.lyrics}
-                onChange={(value) => setResult({ ...result, lyrics: value })}
-              />
+              {lyricsPending ? (
+                <PendingCard
+                  name="Lyrics"
+                  note={
+                    refining
+                      ? "→ Suno “Lyrics” · being rewritten"
+                      : "→ Suno “Lyrics” · being written"
+                  }
+                  lines={8}
+                  tall
+                />
+              ) : (
+                (result.lyrics || keepEmptySlots) && (
+                  <ResultCard
+                    name="Lyrics"
+                    note="→ Suno “Lyrics” · original, editable"
+                    text={result.lyrics}
+                    onChange={(value) =>
+                      setResult({ ...result, lyrics: value })
+                    }
+                  />
+                )
+              )}
               <form
                 onSubmit={(e) => {
                   e.preventDefault();
@@ -702,44 +910,71 @@ export function StudioPage({
                   placeholder="Refine the lyrics — e.g. “do not say lullaby”, “darker chorus”"
                   aria-label="Refine lyrics instruction"
                   className={controlClass}
-                  disabled={busy}
+                  disabled={busy || !result.lyrics}
                   style={{ flex: 1 }}
                 />
                 <Button
                   type="submit"
                   variant="secondary"
                   busy={refining}
-                  disabled={busy || refineInstruction.trim() === ""}
+                  disabled={
+                    busy || !result.lyrics || refineInstruction.trim() === ""
+                  }
                   style={{ whiteSpace: "nowrap" }}
                 >
                   Refine
                 </Button>
               </form>
 
-              <ResultCard
-                name="Style prompt"
-                note="→ Suno “Style”"
-                count={`${result.stylePrompt.length} / ${STYLE_LIMIT}`}
-                text={result.stylePrompt}
-                monospace
-              />
+              {stylePending ? (
+                <PendingCard
+                  name="Style prompt"
+                  note="→ Suno “Style” · researching"
+                  lines={2}
+                />
+              ) : (
+                (result.stylePrompt || keepEmptySlots) && (
+                  <ResultCard
+                    name="Style prompt"
+                    note="→ Suno “Style”"
+                    count={`${result.stylePrompt.length} / ${STYLE_LIMIT}`}
+                    text={result.stylePrompt}
+                    monospace
+                  />
+                )
+              )}
 
-              <IdentityCard
-                bands={result.bands}
-                titles={result.titles}
-                albums={result.albums}
-                genres={result.genres}
-              />
+              {identityPending ? (
+                <PendingCard name="Identity" note="→ naming it" lines={3} />
+              ) : (
+                <IdentityCard
+                  bands={result.bands}
+                  titles={result.titles}
+                  albums={result.albums}
+                  genres={result.genres}
+                  namingPending={generating && !result.bands.length}
+                />
+              )}
 
-              <ResultCard
-                name="Cover-art prompt"
-                note="→ image generator · editable"
-                text={result.coverArtPrompt}
-                onChange={(value) =>
-                  setResult({ ...result, coverArtPrompt: value })
-                }
-              />
-              {imageGenEnabled && (
+              {coverPending ? (
+                <PendingCard
+                  name="Cover-art prompt"
+                  note="→ image generator · picturing it"
+                  lines={2}
+                />
+              ) : (
+                (result.coverArtPrompt || keepEmptySlots) && (
+                  <ResultCard
+                    name="Cover-art prompt"
+                    note="→ image generator · editable"
+                    text={result.coverArtPrompt}
+                    onChange={(value) =>
+                      setResult({ ...result, coverArtPrompt: value })
+                    }
+                  />
+                )
+              )}
+              {imageGenEnabled && !coverPending && (
                 <CoverArtCard
                   key={generatedRef}
                   prompt={result.coverArtPrompt}

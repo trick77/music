@@ -33,7 +33,10 @@ Self-hosted, song-first music player: Go backend serving a JSON API + an embedde
 - `make test` / `make fe-test` — backend Go tests / frontend Vitest.
 - `make fe-build` — build SPA into `backend/web/dist` (embedded by Go; do not commit built assets).
 - `make build` — full single binary → `bin/music`. `make run` — local (needs `BACKEND_SESSION_SECRET`).
+- `make dev` + `make dev-ui` (two shells) — normal local loop, no container runtime. Never claim Docker/OrbStack is needed to run or test backend/UI.
 - `make docker-dev` — single-image stack on :8080 with dev autologin.
+- Docker only for: `make docker-dev`, prod `compose.yaml`, building the `music-align` sidecar. Karaoke stays off while `BACKEND_ALIGN_URL` is unset.
+- Never source `.env` for local runs — its paths are container paths and Go never reads it.
 
 ## Migrations
 - Add `backend/internal/store/migrations/NNNN_*.sql`; runner applies pending ones in order. Never edit an applied migration.

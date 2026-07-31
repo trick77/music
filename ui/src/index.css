@@ -556,6 +556,25 @@ html {
     display: none;
   }
 }
+/* The chart splits into two columns once the page can give each one a full row.
+   A row needs ~400px before the title starts truncating early; .page-shell caps
+   content at 1080px and spends 2.5rem on padding, so 1000px of viewport is the
+   first width where both columns clear that. Below it the rule never applies and
+   the rows stack exactly as before.
+
+   Column-major on purpose: ranks run 1-5 down the left, then 6-10 down the
+   right, the way a printed chart reads. grid-auto-flow: column fills each track
+   before moving right, and --top-rows (set on the element by Home.tsx) is what
+   tells it where to break. */
+@media (min-width: 1000px) {
+  .top-chart {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: repeat(var(--top-rows, 5), auto);
+    grid-auto-flow: column;
+    column-gap: 2rem;
+  }
+}
 /* Docked mini-player. It owns the floor on desktop, where it must clear the home
    indicator itself. On a phone the tab bar is already down there, so the dock
    stands on top of it — anything else buries the whole navigation (and the tag

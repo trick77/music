@@ -182,7 +182,20 @@ export function Home({
           <div style={sectionHead}>
             <h3 style={{ margin: 0, ...t.title }}>Top ten played</h3>
           </div>
-          <div>
+          {/* Two columns once the viewport can carry them (see .top-chart), read
+              top-to-bottom per column: 1-5 down the left, 6-10 down the right.
+              The row count is handed to CSS because grid-auto-flow: column needs
+              an explicit track count to know where to break, and only React
+              knows how many entries came back. Below four entries a split reads
+              as a stray short column, so the class stays off. */}
+          <div
+            className={feed.topTen.length >= 4 ? "top-chart" : undefined}
+            style={
+              {
+                "--top-rows": Math.ceil(feed.topTen.length / 2),
+              } as React.CSSProperties
+            }
+          >
             {feed.topTen.map((s, i) => (
               <div key={s.id} className="top-row">
                 <span

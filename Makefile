@@ -1,4 +1,4 @@
-.PHONY: build test backend-coverage fe-build fe-test fe-coverage run tidy docker-dev docker-dev-down
+.PHONY: build test backend-coverage fe-build fe-test fe-coverage run dev dev-ui tidy docker-dev docker-dev-down
 
 tidy:
 	cd backend && go mod tidy
@@ -41,6 +41,21 @@ build: fe-build
 
 run:
 	cd backend && go run ./cmd/music
+
+# Everyday local dev — no container runtime. The store is an in-process SQLite
+# file and karaoke is off unless BACKEND_ALIGN_URL is set, so nothing here needs
+# Docker/OrbStack. BACKEND_SESSION_SECRET is the one hard requirement the binary
+# has, and this fills it with a throwaway so `make dev` just starts; export your
+# own first and that wins. Do NOT source .env for this — its paths (/data/...)
+# are the container's, and the Go binary never reads that file anyway.
+dev:
+	cd backend && BACKEND_SESSION_SECRET=$${BACKEND_SESSION_SECRET:-dev-secret} go run ./cmd/music
+
+# The Vite dev server, proxying /api to :8080 (ui/vite.config.ts). Run alongside
+# `make dev` in a second shell; use this rather than `make fe-build` while
+# iterating, so the UI hot-reloads instead of needing a Go rebuild to be served.
+dev-ui:
+	cd ui && npm run dev
 
 docker-dev:
 	docker compose -f compose.dev.yaml up --build --remove-orphans

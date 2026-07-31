@@ -1,5 +1,8 @@
 /bin/
 /data/
+# `make dev` / `make run` start the binary with cwd=backend, so the default
+# BACKEND_DB_PATH and BACKEND_MEDIA_DIR land here, not in /data.
+/backend/data/
 node_modules/
 ui/dist/
 # Test coverage output (make backend-coverage / make fe-coverage)

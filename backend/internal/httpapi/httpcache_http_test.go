@@ -1,7 +1,9 @@
 package httpapi
 
 import (
+	"bytes"
 	"encoding/json"
+	"log"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -186,5 +188,67 @@ func TestAssembledServer_writeGetsNoETag(t *testing.T) {
 	}
 	if got := rr.Header().Get("ETag"); got != "" {
 		t.Errorf("write response carries ETag %q", got)
+	}
+}
+
+// The cover DOWNLOAD url is song-scoped, not content-addressed: it resolves the
+// song's *current* cover. Marking it immutable would keep handing the user the
+// artwork they just replaced, for a year.
+func TestAssembledServer_coverDownloadRevalidates(t *testing.T) {
+	h := testServer(t, config.AuthModeDev)
+	songID := uploadSongID(t, h)
+	if rr := uploadCover(t, h, songID); rr.Code != http.StatusOK {
+		t.Fatalf("PUT cover = %d, body=%s", rr.Code, rr.Body.String())
+	}
+
+	rr := httptest.NewRecorder()
+	h.ServeHTTP(rr, httptest.NewRequest("GET", "/api/songs/"+songID+"/cover/download", nil))
+	if rr.Code != http.StatusOK {
+		t.Fatalf("GET cover download = %d, body=%s", rr.Code, rr.Body.String())
+	}
+	if got := rr.Header().Get("Cache-Control"); got != revalidateCache {
+		t.Errorf("cover download Cache-Control = %q, want %q", got, revalidateCache)
+	}
+}
+
+// Every other assembled test drives httptest.NewRecorder, which happily takes two
+// WriteHeader calls. A real server logs "superfluous response.WriteHeader call"
+// for each one, so a wrapper that writes the header twice would put a line in the
+// log for every image, stream and error the API serves. Asserted over the whole
+// assembled chain (logging → recovery → withJSONETag → handlers), since that is
+// where the extra writer wrappers actually live.
+func TestAssembledServer_noSuperfluousWriteHeader(t *testing.T) {
+	h := testServer(t, config.AuthModeDev)
+	songID := uploadSongID(t, h)
+	cr := uploadCover(t, h, songID)
+	if cr.Code != http.StatusOK {
+		t.Fatalf("PUT cover = %d, body=%s", cr.Code, cr.Body.String())
+	}
+	var updated struct {
+		CoverArtID string `json:"coverArtId"`
+	}
+	json.Unmarshal(cr.Body.Bytes(), &updated)
+
+	var logged bytes.Buffer
+	srv := httptest.NewUnstartedServer(h)
+	srv.Config.ErrorLog = log.New(&logged, "", 0)
+	srv.Start()
+	defer srv.Close()
+
+	for _, path := range []string{
+		"/api/home",                        // buffered JSON 200
+		"/api/cover/" + updated.CoverArtID, // image, passthrough
+		"/api/cover/" + updated.CoverArtID + "?size=thumb", // scaled image
+		"/api/songs/" + songID + "/stream",                 // audio, ReadFrom
+		"/api/songs/does-not-exist/stream",                 // JSON error, non-200
+	} {
+		resp, err := http.Get(srv.URL + path)
+		if err != nil {
+			t.Fatalf("GET %s: %v", path, err)
+		}
+		resp.Body.Close()
+	}
+	if logged.Len() != 0 {
+		t.Errorf("server logged %q", logged.String())
 	}
 }

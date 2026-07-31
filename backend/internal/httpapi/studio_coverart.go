@@ -102,5 +102,9 @@ func (h *songHandlers) getStudioCoverArt(w http.ResponseWriter, r *http.Request)
 		httpError(w, http.StatusNotFound, "not found")
 		return
 	}
+	// Written once, in the 'ready' state, so the bytes never change — but this
+	// route is auth-gated, so "public" would let a shared cache hand the image to
+	// an anonymous visitor.
+	setPrivateImmutable(w)
 	serveSizedImage(w, r, h.media, c.ImagePath)
 }

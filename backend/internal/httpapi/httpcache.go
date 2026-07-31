@@ -31,10 +31,27 @@ const immutableCache = "public, max-age=31536000, immutable"
 // another.
 const revalidateCache = "private, no-cache"
 
+// privateImmutableCache is immutableCache for an authentication-gated URL. The
+// bytes never change, so the caller may hold them forever, but "public" would
+// invite a shared cache to hand an authed-only image to an anonymous visitor.
+const privateImmutableCache = "private, max-age=31536000, immutable"
+
 // setImmutable marks a response as permanently cacheable. Call it only for a URL
-// that is content-addressed by construction (see immutableCache).
+// that is content-addressed by construction (see immutableCache) — never for a
+// URL that resolves through a mutable pointer, such as a song's current cover.
 func setImmutable(w http.ResponseWriter) {
 	w.Header().Set("Cache-Control", immutableCache)
+}
+
+// setPrivateImmutable is setImmutable for a route behind an auth check.
+func setPrivateImmutable(w http.ResponseWriter) {
+	w.Header().Set("Cache-Control", privateImmutableCache)
+}
+
+// setRevalidate marks a response as store-and-revalidate: the URL stays put while
+// its bytes may change, so the client must ask before reusing its copy.
+func setRevalidate(w http.ResponseWriter) {
+	w.Header().Set("Cache-Control", revalidateCache)
 }
 
 // setNoStore forbids caching entirely. Errors get this: a 404 with no
@@ -114,12 +131,20 @@ type condWriter struct {
 }
 
 func (cw *condWriter) WriteHeader(code int) {
-	if cw.status == 0 {
-		cw.status = code
+	if cw.decided {
+		// Repeat call. Forward it while passing through, so a handler that really
+		// does write the header twice still gets net/http's warning; swallow it
+		// while buffering, where finish() owns the single WriteHeader.
+		if !cw.buffering {
+			cw.ResponseWriter.WriteHeader(code)
+		}
+		return
 	}
-	if cw.decide(); !cw.buffering {
-		cw.ResponseWriter.WriteHeader(cw.status)
-	}
+	cw.status = code
+	// decide() emits the header itself when it picks passthrough — calling
+	// WriteHeader again here would make net/http log "superfluous
+	// response.WriteHeader call" for every image, stream and error response.
+	cw.decide()
 }
 
 func (cw *condWriter) Write(b []byte) (int, error) {
@@ -189,6 +214,14 @@ func (cw *condWriter) decide() {
 // the real writer first so no bytes are lost.
 func (cw *condWriter) passthrough() {
 	cw.buffering = false
+	// This body is still a session-dependent JSON 200 — it just cannot carry a
+	// validator any more. It must not lose the "private"/Vary marking the rest of
+	// the JSON surface gets, or a shared cache could hold one caller's copy.
+	h := cw.Header()
+	if h.Get("Cache-Control") == "" {
+		h.Set("Cache-Control", revalidateCache)
+		h.Add("Vary", "Cookie")
+	}
 	cw.ResponseWriter.WriteHeader(cw.status)
 	if len(cw.buf) > 0 {
 		_, _ = cw.ResponseWriter.Write(cw.buf)

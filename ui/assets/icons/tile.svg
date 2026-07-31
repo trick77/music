@@ -1,12 +1,43 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
-  <!-- App-tile favicon master: rounded orange tile (#d97757) with the app's cream
-       (#faf9f5) lucide "music" note, filled and bolded so it survives 16px tab sizes.
-       Rasterized to PNG/ICO via headless Chrome for crisp edges (see gen-icons.sh). -->
-  <rect x="0" y="0" width="24" height="24" rx="5.5" fill="#d97757"/>
-  <g transform="translate(4.6 4.6) scale(0.615)" stroke="#faf9f5" fill="#faf9f5"
-     stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round">
-    <path fill="none" d="M9 18V5l12-2v13"/>
-    <circle cx="6" cy="18" r="3.3"/>
-    <circle cx="18" cy="16" r="3.3"/>
+<!--
+  Music's icon: the lucide "music" note — the exact glyph the app uses in its own
+  menus — in the accent orange on the app's ground. This is the master. It ships
+  as-is (gen-icons.sh copies it to public/favicon.svg) and every raster except
+  the two OS tiles is rendered from it.
+
+  The paths are lucide's (ISC), copied rather than imported — nothing loads
+  lucide-react to draw a static asset. One departure from how lucide itself
+  would render them: stroke is 2.5, not lucide's 2. At 16px a 2-unit stroke
+  washes out. It is given in glyph units, so it scales with the glyph and stays
+  proportional in the two tiled sources.
+
+  Sized off the glyph's TRUE bbox — x[6-3, 21] y[3, 18+3] grown by half the
+  stroke, which comes out 20.5 square and exactly centred on (12,12) — not the
+  nominal 24x24 box the paths only partly fill. Scaling by the box is what makes
+  a glyph read as a dot at favicon sizes. Here it spans 96% of the tile, near
+  enough edge to edge: a tab already sets the icon in padding of its own, so a
+  margin inside the tile only shrinks the mark for nothing. The two tiled
+  sources inset their glyph instead, because there the tile itself is visible.
+
+  THE CANVAS CARRIES AN OPAQUE GROUND, edge to edge, and this file is NOT
+  transparent. The favicon used to be a rounded orange tile with transparent
+  corners, on the reasoning that a browser composites the icon onto the tab and
+  should be allowed to. Anything outside a rounded silhouette is the client's to
+  paint, and Safari's tab bar is light: at 16px those four corners come out
+  near-white, a set of pale notches on exactly the chrome they were meant to sit
+  in. A rounded shape cannot avoid this, so the ground goes under the whole
+  64x64 canvas instead, the way the two tiled sources beside it do. The trade is
+  deliberate — the silhouette is a square rather than a rounded square, and a
+  square edge that matches the app's own ground beats a rounded one that leaks
+  white.
+
+  With no alpha left, every raster is opaque and gen-icons.sh asserts exactly
+  that. Regenerate them with ui/scripts/gen-icons.sh after touching this file.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <rect width="64" height="64" fill="#1f1f1e"/>
+  <g transform="translate(-3.965 -3.965) scale(2.9971)" fill="none" stroke="#d97757" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M9 18V5l12-2v13"/>
+    <circle cx="6" cy="18" r="3"/>
+    <circle cx="18" cy="16" r="3"/>
   </g>
 </svg>

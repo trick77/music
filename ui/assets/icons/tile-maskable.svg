@@ -1,0 +1,33 @@
+<!--
+  Source for icon-maskable-512.png only. Not shipped: ui/assets/ is outside
+  Vite's publicDir, so nothing here is copied into the bundle.
+
+  A maskable icon is cropped to whatever shape the Android launcher prefers —
+  circle, squircle, rounded square, teardrop — and only the middle 80% of the
+  square survives that crop. So this differs from tile-touch.svg in exactly one
+  way: the glyph is smaller again, which keeps every pixel of it inside that
+  safe circle no matter which mask the launcher picks. The tile runs edge to
+  edge for the same reason it does on iOS — the launcher fills whatever the icon
+  leaves transparent, and that fill is not ours to choose.
+
+  52%, and that number is measured rather than guessed. The glyph's farthest
+  point from centre is the top-right corner of the flag: (21,3) is 12.728 units
+  out in the 24-space, and the round join adds half the 2.5 stroke, so 13.978.
+  The safe circle has radius 25.6 in the 64-space, so the glyph clears it for
+  any scale up to 1.831 — coverage 58.7%. At 52% the scale is 1.6234 and the
+  farthest pixel lands at 22.69, an 11% margin. A note is a kinder shape here
+  than a square mark would be: its extremes are two round note heads and one
+  rounded corner, not four hard corners, so it can sit larger than a square
+  glyph could at the same clearance.
+
+  Same lucide "music" paths, 2.5 stroke and true-bbox centring as the other two;
+  see tile.svg for all of it, and for why the nominal 24x24 box is not used.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <rect width="64" height="64" fill="#1f1f1e"/>
+  <g transform="translate(12.519 12.519) scale(1.6234)" fill="none" stroke="#d97757" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M9 18V5l12-2v13"/>
+    <circle cx="6" cy="18" r="3"/>
+    <circle cx="18" cy="16" r="3"/>
+  </g>
+</svg>

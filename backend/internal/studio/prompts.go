@@ -7,9 +7,48 @@ import (
 	"github.com/trick77/music/internal/library"
 )
 
+// lyricCraftRules is the shared songwriting standard for every lyric the studio
+// produces. It lives in one const because generateSystemPrompt and
+// refineSystemPrompt must never drift apart: a refine pass without these rules
+// would quietly undo them on the first revision.
+const lyricCraftRules = `CRAFT RULES for the lyrics — these decide whether a singer can actually sing them:
+- SENSE BEFORE RHYME. Write each line for what it has to say, THEN look for a
+  rhyme. Never bend a sentence, invert word order, or reach for an odd word just
+  to land a rhyme — that is the single clearest tell of machine-written lyrics.
+- SLANT RHYME IS GOOD. Near rhymes (home/alone, again/end, fire/quiet) sound more
+  natural than perfect ones, and an unrhymed line is better than a forced rhyme.
+  Perfect rhyme on every single line reads as amateur greeting-card verse.
+- NO THESAURUS WORDS. Only words people say out loud. Reject lacked, yearn,
+  forlorn, cascade, ethereal, myriad, behold, asunder. Plain concrete nouns and
+  verbs beat abstract or literary ones every time.
+- SINGABLE LINE ENDINGS. The last word of a line is the note the singer holds, so
+  favor open vowels and soft consonants (-ay, -ow, -ine, -on, -ing, -ove). Avoid
+  ending on a clustered consonant that has to be swallowed (-acked, -ashed,
+  -isped, -ilked) — EXCEPT where the style calls for that percussive bite:
+  hip-hop, punk, hardcore, thrash and other rhythm-forward genres land hard
+  consonants on purpose, so let the style prompt decide.
+- STRESS ON THE BEAT. Keep each line's natural spoken stress on the strong beats,
+  and keep rhymed lines close in syllable count so the phrasing repeats. Never
+  end a line on an unstressed syllable the singer has to rush past.
+- CONCRETE OVER ABSTRACT. One specific image — a room, an object, a time of day —
+  outperforms a stack of feeling-words. Show the situation, do not summarize it.
+- REPEAT THE CHORUS VERBATIM. The same words every time it comes around; that is
+  what makes a hook. Vary a verse if you like, never the chorus.
+- SAY IT ALOUD IN YOUR HEAD before you commit a couplet. If it would feel
+  embarrassing to sing, rewrite it.
+
+Worked example of the trap to avoid:
+  BAD:  "the sidewalk cracked / it was something I always lacked"
+        — "lacked" exists only because it rhymes; nobody sings that word and the
+        line states nothing.
+  GOOD: "the sidewalk cracked in the heat / and I sat on the curb till you came"
+        — nothing forced, plain words, an actual picture; the rhyme is dropped
+        rather than faked.`
+
 // generateSystemPrompt instructs MiMo to research a named song and emit a Suno
 // prompt. It encodes the suno-prompt-generator rules, Suno tag literacy, the
-// epoch-correct cover-art requirement, and a strict JSON output contract.
+// lyric craft rules, the epoch-correct cover-art requirement, and a strict JSON
+// output contract.
 const generateSystemPrompt = `You are a music producer's assistant that turns a named reference song into a
 Suno AI prompt. You do NOT have reliable knowledge of any specific song's exact
 details or lyrics, so you MUST research the song on the web first using the
@@ -56,6 +95,7 @@ Using what you learn, produce SEVEN things:
    [Instrumental], [Guitar Solo], [Break], [Build], [Drop], [Outro], [Fade Out],
    and performance cues like [Whispered], [Spoken Word], [Belted], [Big Finish].
    Use tags you confirmed are current; the list above is a floor, not a ceiling.
+   Obey the CRAFT RULES stated after item 7 — they matter as much as the theme.
 
 3. coverArtPrompt — a CONCISE prompt for a downstream image generator: one or two
    vivid sentences, at most ~60 words. Ground the imagery in the THEMES, STORY, and
@@ -94,6 +134,8 @@ Using what you learn, produce SEVEN things:
    distinct from one another AND from the titles and albums, and NEVER the
    reference song's real artist or band name.
 
+` + lyricCraftRules + `
+
 When you have finished researching, respond with ONLY a single JSON object and
 nothing else (no prose, no code fences):
 {"stylePrompt":"...","lyrics":"...","coverArtPrompt":"...","genres":["...","...","..."],"titles":["...","...","..."],"albums":["...","...","..."],"bands":["...","...","..."]}`
@@ -106,7 +148,11 @@ Suno meta/structure tags ([Verse], [Chorus], [Bridge], etc.). Keep them original
 do not reproduce the reference song's distinctive lines, hook, or chorus verbatim,
 but do not word-swap or paraphrase the original into awkward phrasing either —
 ordinary words and the shared theme are fine. Do not research; rewrite only the
-lyrics you are given. Respond with ONLY a single JSON object and nothing else:
+lyrics you are given.
+
+` + lyricCraftRules + `
+
+Respond with ONLY a single JSON object and nothing else:
 {"lyrics":"..."}`
 
 // genrePromptSystemPrompt instructs the model to author a single image prompt

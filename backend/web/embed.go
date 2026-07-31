@@ -41,19 +41,22 @@ func CacheControl(path string) string {
 // IsDeliberate404 reports whether path is one the app ships no file for ON
 // PURPOSE and must answer with 404 rather than the SPA shell.
 //
-// Only /favicon.ico qualifies. Music declares an SVG icon in <head>; the clients
-// that probe for a bare /favicon.ico are RSS readers, Windows bookmark
-// thumbnails and old IE, none of which this targets. Left alone, that probe
-// falls through to the SPA fallback and gets index.html with a 200 — an icon
-// request answered with HTML, which is worse than no icon. Every browser handles
-// a 404 by falling back to the declared icon.
+// Two paths qualify. Music declares an SVG icon in <head>; the clients that
+// probe for a bare /favicon.ico are RSS readers, Windows bookmark thumbnails and
+// old IE, none of which this targets. /favicon.svg is here because the tab icon
+// was renamed to /icon.svg to match peeq and loom and the icon-*.png rasters
+// beside it — the old path is still in caches and bookmarks and must not answer.
+//
+// Left alone, either probe falls through to the SPA fallback and gets index.html
+// with a 200 — an icon request answered with HTML, which is worse than no icon.
+// Every browser handles a 404 by falling back to the declared icon.
 //
 // This is exported because the SPA fallback is not the only thing in front of
 // it: httpapi wraps the handler with the share-meta layer, whose own catch-all
 // would otherwise answer the probe with an Open-Graph-injected shell before
 // SPAHandler ever ran. Both must agree, so both ask here.
 func IsDeliberate404(path string) bool {
-	return path == "/favicon.ico"
+	return path == "/favicon.ico" || path == "/favicon.svg"
 }
 
 // SPAHandler serves the embedded dist directory; unknown paths fall back to
@@ -90,7 +93,7 @@ func IndexHTML() ([]byte, error) {
 // HasFile reports whether path resolves to an embedded static file (icon,
 // manifest, hashed bundle, …) rather than an SPA route. It mirrors SPAHandler's
 // own fallback test, so the share-meta layer can inject default Open Graph tags
-// for navigation routes only and never wrap a real asset (e.g. /favicon.svg) in
+// for navigation routes only and never wrap a real asset (e.g. /icon.svg) in
 // HTML. The root path "/" is not a file and yields false, as intended.
 //
 // /favicon.ico is not among them — nothing ships at that path, so this reports

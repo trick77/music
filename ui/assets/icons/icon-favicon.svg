@@ -1,5 +1,5 @@
 <!--
-  Source for public/favicon.svg — the browser tab icon, and nothing else.
+  Source for public/icon.svg — the browser tab icon, and nothing else.
   gen-icons.sh ships it as-is; no raster is rendered from it.
 
   It is a copy of tile.svg with ONE change: the frame's rect carries a fill.

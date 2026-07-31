@@ -17,7 +17,9 @@
 # it had to be backgrounded, polled for and killed); rsvg-convert is one
 # synchronous call, and works off macOS.
 #
-# There is no favicon.ico here. Music declares an SVG icon in <head>, and the
+# There is no favicon.ico here, and no /favicon.svg either: the tab icon is
+# /icon.svg, which is the name peeq and loom already use and the one that matches
+# the icon-*.png rasters beside it. Music declares an SVG icon in <head>, and the
 # clients that go looking for a bare /favicon.ico are RSS readers, Windows
 # bookmark thumbnails and old IE — none of which this targets. backend/web
 # answers that path with a 404 instead.
@@ -30,9 +32,9 @@ DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)" # ui/
 SRC="$DIR/assets/icons"
 OUT="$DIR/public"
 MASTER="$SRC/tile.svg"   # the shape; renders the PWA rasters, never ships itself
-FAVICON="$SRC/favicon.svg" # the master with a filled frame; ships as-is
+FAVICON="$SRC/icon-favicon.svg" # the master with a filled frame; ships as-is
 DARK='#1f1f1e'           # app surface, the tile ground and the card background (index.css --color-bg)
-TAB='#33322f'            # the tab icon's ground — lighter than DARK, see favicon.svg
+TAB='#33322f'            # the tab icon's ground — lighter than DARK, see icon-favicon.svg
 INK='#faf9f5'            # app ink, for the card wordmark (index.css --color-ink)
 
 FONT="/System/Library/Fonts/SFNS.ttf" # app's system-ui fallback, for the card wordmark
@@ -48,10 +50,10 @@ mkdir -p "$OUT"
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
 
-# --- favicon.svg: served directly as the modern tab icon ---------------------
+# --- icon.svg: served directly as the modern tab icon ------------------------
 # Its own source, not the master: Safari on the desktop composites the tab icon
 # onto white, so this one carries a ground where the master does not.
-cp "$FAVICON" "$OUT/favicon.svg"
+cp "$FAVICON" "$OUT/icon.svg"
 
 # --- from the master ---------------------------------------------------------
 # -b none keeps the renderer from inventing a ground the master does not have.
@@ -90,7 +92,7 @@ magick -size 1200x630 xc:"$DARK" \
 # MUST stay transparent: a launcher composites them itself. The two OS tiles MUST
 # stay opaque: iOS flattens alpha onto black and Android fills it with the
 # launcher's own colour, so a transparent one ships as a black square on an
-# iPhone. And favicon.svg must be BOTH — a filled frame inside transparent
+# iPhone. And icon.svg must be BOTH — a filled frame inside transparent
 # corners. None of these is a formality; do not "fix" a failure by relaxing the
 # check.
 fail=0
@@ -110,25 +112,25 @@ check_alpha "$OUT/apple-touch-icon.png" true
 check_alpha "$OUT/icon-maskable-512.png" true
 check_alpha "$OUT/og-card.png" true
 
-# favicon.svg ships as SVG, so there is no raster to read — render one here just
+# icon.svg ships as SVG, so there is no raster to read — render one here just
 # to assert it. Two samples, because it has to be a chip and not a tile: the
 # canvas corner transparent, and a point inside the frame but clear of the
 # headphones (they start around y=170 at this size) filled with $TAB. Losing the
 # fill is the regression that put this check here, and it is invisible until
 # someone opens a tab in Safari.
-rsvg-convert -b none -w 512 -h 512 "$OUT/favicon.svg" -o "$TMP/favicon.png"
+rsvg-convert -b none -w 512 -h 512 "$OUT/icon.svg" -o "$TMP/icon-favicon.png"
 # -alpha on before both reads. Without it an image that happens to be fully
 # opaque carries no alpha channel, and then %[hex:...] returns six digits
 # instead of eight and %[fx:...a] does not report 1 — the comparisons below
 # would be measuring ImageMagick's channel bookkeeping rather than the icon.
-fav_corner="$(magick "$TMP/favicon.png" -alpha on -format '%[fx:p{0,0}.a]' info:)"
-fav_ground="$(magick "$TMP/favicon.png" -alpha on -format '%[hex:p{256,96}]' info: | tr '[:upper:]' '[:lower:]')"
+fav_corner="$(magick "$TMP/icon-favicon.png" -alpha on -format '%[fx:p{0,0}.a]' info:)"
+fav_ground="$(magick "$TMP/icon-favicon.png" -alpha on -format '%[hex:p{256,96}]' info: | tr '[:upper:]' '[:lower:]')"
 if [[ "$fav_corner" != "0" ]]; then
-	echo "gen-icons: favicon.svg's canvas corner has alpha $fav_corner, expected 0" >&2
+	echo "gen-icons: icon.svg's canvas corner has alpha $fav_corner, expected 0" >&2
 	fail=1
 fi
 if [[ "$fav_ground" != "${TAB#\#}ff" ]]; then
-	echo "gen-icons: favicon.svg's frame is #$fav_ground, expected ${TAB}ff" >&2
+	echo "gen-icons: icon.svg's frame is #$fav_ground, expected ${TAB}ff" >&2
 	fail=1
 fi
 
@@ -155,4 +157,4 @@ if (($(echo "$CIRCLE_STDDEV > 0.0005" | bc -l))); then
 fi
 
 [[ "$fail" == 0 ]] || exit 1
-echo "gen-icons: wrote favicon.svg apple-touch-icon.png icon-192.png icon-512.png icon-maskable-512.png og-card.png -> $OUT"
+echo "gen-icons: wrote icon.svg apple-touch-icon.png icon-192.png icon-512.png icon-maskable-512.png og-card.png -> $OUT"

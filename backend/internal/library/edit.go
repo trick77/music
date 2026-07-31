@@ -161,8 +161,15 @@ type Suggestion struct {
 
 // Suggest returns up to 10 existing values for a field matching q (case-
 // insensitive substring), most-used first.
+//
+// Genres rank prefix matches ahead of the merely-containing ones, because the tag
+// editor completes a genre inline as you type ("sing" → "singer-songwriter"): on a
+// pure count ordering a popular substring match can push the only completable
+// candidate past the LIMIT, leaving Tab with nothing to accept.
 func (r *Repo) Suggest(ctx context.Context, field, q string) ([]Suggestion, error) {
-	like := "%" + strings.ToLower(strings.TrimSpace(q)) + "%"
+	norm := strings.ToLower(strings.TrimSpace(q))
+	like := "%" + norm + "%"
+	args := []any{like}
 	var query string
 	switch field {
 	case "artist":
@@ -174,11 +181,13 @@ func (r *Repo) Suggest(ctx context.Context, field, q string) ([]Suggestion, erro
 			GROUP BY lower(trim(s.album)) ORDER BY c DESC, s.album LIMIT 10`
 	case "genre":
 		query = `SELECT g.name, COUNT(sg.song_id) c FROM genres g JOIN song_genres sg ON sg.genre_id = g.id
-			WHERE lower(g.name) LIKE ? GROUP BY g.id ORDER BY c DESC, g.name LIMIT 10`
+			WHERE lower(g.name) LIKE ? GROUP BY g.id
+			ORDER BY (lower(g.name) LIKE ?) DESC, c DESC, g.name LIMIT 10`
+		args = append(args, norm+"%")
 	default:
 		return nil, ErrUnknownSuggestField
 	}
-	rows, err := r.db.QueryContext(ctx, query, like)
+	rows, err := r.db.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, err
 	}

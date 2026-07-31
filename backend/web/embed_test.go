@@ -15,18 +15,23 @@ func TestSPAHandler_servesIndex(t *testing.T) {
 	}
 }
 
-// Music ships no favicon.ico on purpose, so the bare root probe must 404 rather
-// than reach the SPA fallback — which would answer an icon request with the whole
-// index.html at 200. This is testable in CI precisely because the file is absent:
-// it needs no built frontend.
-func TestSPAHandler_faviconICOIsNotTheSPAShell(t *testing.T) {
-	rr := httptest.NewRecorder()
-	SPAHandler().ServeHTTP(rr, httptest.NewRequest("GET", "/favicon.ico", nil))
-	if rr.Code != http.StatusNotFound {
-		t.Fatalf("status = %d, want 404; body %q", rr.Code, rr.Body.String())
-	}
-	if strings.Contains(rr.Body.String(), `<div id="root">`) {
-		t.Fatalf("favicon.ico served the SPA shell:\n%s", rr.Body.String())
+// Music ships neither favicon.ico nor favicon.svg on purpose, so both probes must
+// 404 rather than reach the SPA fallback — which would answer an icon request with
+// the whole index.html at 200. /favicon.svg is the path the tab icon used before it
+// was renamed to /icon.svg, and it is still in caches and bookmarks. This is
+// testable in CI precisely because the files are absent: it needs no built frontend.
+func TestSPAHandler_retiredIconPathsAreNotTheSPAShell(t *testing.T) {
+	for _, path := range []string{"/favicon.ico", "/favicon.svg"} {
+		t.Run(path, func(t *testing.T) {
+			rr := httptest.NewRecorder()
+			SPAHandler().ServeHTTP(rr, httptest.NewRequest("GET", path, nil))
+			if rr.Code != http.StatusNotFound {
+				t.Fatalf("status = %d, want 404; body %q", rr.Code, rr.Body.String())
+			}
+			if strings.Contains(rr.Body.String(), `<div id="root">`) {
+				t.Fatalf("%s served the SPA shell:\n%s", path, rr.Body.String())
+			}
+		})
 	}
 }
 
@@ -82,7 +87,7 @@ func TestIndexHTML_returnsEmbeddedShell(t *testing.T) {
 
 // HasFile decides whether the share-meta layer may wrap a path in HTML. It must
 // mirror SPAHandler's fallback test: real embedded files are true, SPA routes
-// (and the root) are false — otherwise a real asset like /favicon.svg would be
+// (and the root) are false — otherwise a real asset like /icon.svg would be
 // served as an HTML document.
 //
 // Only dist/index.html is committed; the hashed bundles and icons are built in

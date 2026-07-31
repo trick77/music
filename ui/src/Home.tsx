@@ -104,11 +104,11 @@ export function Home({
 
   // The genre pills trailing a Top-ten row's artist. Each links to its genre page
   // when the id resolved (plain pill otherwise, matching the Hero eyebrow), capped
-  // at GENRE_CAP with a "+N" for the rest. Renders nothing when the song has no genre.
+  // at GENRE_CAP; the rest are simply dropped (no "+N" marker — the count read as
+  // noise on a row that is already dense). Renders nothing when the song has no genre.
   const renderGenreChips = (song: Song) => {
     if (song.genres.length === 0) return null;
     const shown = song.genres.slice(0, GENRE_CAP);
-    const overflow = song.genres.length - shown.length;
     return (
       // Wrapper is display:contents so the chips stay flex children of the meta
       // line on tablet+/desktop; on phones .top-genres is hidden (the row is too
@@ -141,9 +141,6 @@ export function Home({
             </span>
           );
         })}
-        {overflow > 0 && (
-          <span style={{ ...t.label, flex: "none" }}>+{overflow}</span>
-        )}
       </span>
     );
   };

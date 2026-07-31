@@ -444,7 +444,7 @@ describe("Home genre chips", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("when a song has more genres than the cap, then the extras collapse into a count", async () => {
+  it("when a song has more genres than the cap, then the extras are dropped silently", async () => {
     mocked.getHome.mockResolvedValue(
       feed({
         topTen: [
@@ -455,12 +455,12 @@ describe("Home genre chips", () => {
 
     await renderHome();
 
-    // Two shown, the remaining two summarised — the meta line must not crowd out
-    // the artist name.
+    // Two shown, the remaining two dropped without a "+N" count — the meta line
+    // must not crowd out the artist name.
     expect(screen.getByText(/dream pop/i)).toBeInTheDocument();
     expect(screen.getByText(/shoegaze/i)).toBeInTheDocument();
     expect(screen.queryByText(/ambient/i)).not.toBeInTheDocument();
-    expect(screen.getByText("+2")).toBeInTheDocument();
+    expect(screen.queryByText("+2")).not.toBeInTheDocument();
   });
 
   it("when a song has no genres, then no chip separator is rendered", async () => {

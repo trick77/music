@@ -315,6 +315,52 @@ describe("Home top ten", () => {
     expect(screen.getByText("2")).toBeInTheDocument();
   });
 
+  // The two-column split itself is a media query, so jsdom can't see it. What
+  // Home owns is the pair of inputs that query depends on: the .top-chart opt-in
+  // and the --top-rows count that tells grid-auto-flow: column where to break.
+  // Get either wrong and a wide viewport mis-splits the chart.
+  const chartEl = () => document.querySelector(".top-chart");
+
+  it("when the chart is long enough to split, then it opts in and reports half its rows", async () => {
+    mocked.getHome.mockResolvedValue(
+      feed({
+        topTen: Array.from({ length: 10 }, (_, i) => top({ id: `s${i}` })),
+      }),
+    );
+
+    await renderHome();
+
+    expect(chartEl()).not.toBeNull();
+    expect(chartEl()?.getAttribute("style")).toContain("--top-rows: 5");
+  });
+
+  it("when the chart has an odd length, then the extra row lands in the left column", async () => {
+    mocked.getHome.mockResolvedValue(
+      feed({
+        topTen: Array.from({ length: 7 }, (_, i) => top({ id: `s${i}` })),
+      }),
+    );
+
+    await renderHome();
+
+    // ceil(7/2) = 4 — column-major fills the left track first, so the odd row
+    // belongs at the bottom left, never as a lone straggler on the right.
+    expect(chartEl()?.getAttribute("style")).toContain("--top-rows: 4");
+  });
+
+  it("when the chart is too short to split, then it stays a single column", async () => {
+    mocked.getHome.mockResolvedValue(
+      feed({
+        topTen: Array.from({ length: 3 }, (_, i) => top({ id: `s${i}` })),
+      }),
+    );
+
+    await renderHome();
+
+    // A 2+1 split reads as a stray short column; below four the class stays off.
+    expect(chartEl()).toBeNull();
+  });
+
   it("when a signed-in viewer sees an unpublished chart entry, then it is badged", async () => {
     mocked.getHome.mockResolvedValue(
       feed({ topTen: [top({ published: false })] }),

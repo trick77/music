@@ -266,8 +266,11 @@ the instruction does not change.
 Respond with ONLY a single JSON object and nothing else (no prose, no code fences):
 {"prompt":"..."}`
 
+// generateUserPrompt opens the generate conversation: the reference plus the
+// turn-1 request. The turn instructions ride in the user message, not the system
+// prompt, so turn 1 is asked for its two fields the same way turns 2 and 3 are.
 func generateUserPrompt(reference string) string {
-	return fmt.Sprintf("Reference song: %s", reference)
+	return fmt.Sprintf("Reference song: %s\n\n%s", reference, generateTurn1Prompt)
 }
 
 func genrePromptUserPrompt(genre string) string {

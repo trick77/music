@@ -113,6 +113,12 @@ func TestGenerate_parsesThreeFieldsFromFencedJSON(t *testing.T) {
 	if !strings.Contains(chat.users[0], "Enter Sandman") {
 		t.Fatalf("user prompt missing reference: %q", chat.users[0])
 	}
+	// ...and so must the turn-1 request itself. Each turn's instructions live in
+	// its own user message; an unsent one is invisible to the compiler and to a
+	// canned-reply fake, so assert the turn-1 rules and JSON contract are there.
+	if !strings.Contains(chat.users[0], "stylePrompt") || !strings.Contains(chat.users[0], "genres") {
+		t.Fatalf("turn 1 must ask for the style prompt and genres: %q", chat.users[0])
+	}
 	// The lyrics turn must carry the Suno tag vocabulary and the craft rules.
 	if !strings.Contains(chat.users[1], "[Verse]") {
 		t.Fatalf("lyrics turn should mention Suno tags: %q", chat.users[1])

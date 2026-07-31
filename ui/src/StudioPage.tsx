@@ -974,14 +974,20 @@ export function StudioPage({
                   />
                 )
               )}
-              {imageGenEnabled && !coverPending && (
-                <CoverArtCard
-                  key={generatedRef}
-                  prompt={result.coverArtPrompt}
-                  models={imageModels}
-                  defaultModel={defaultImageModel}
-                />
-              )}
+              {/* Gated exactly like the prompt card above it: a run that died
+                  before the cover-art turn has no prompt to generate from, so the
+                  generator is dropped rather than left under the error with a
+                  permanently disabled button. */}
+              {imageGenEnabled &&
+                !coverPending &&
+                (result.coverArtPrompt || keepEmptySlots) && (
+                  <CoverArtCard
+                    key={generatedRef}
+                    prompt={result.coverArtPrompt}
+                    models={imageModels}
+                    defaultModel={defaultImageModel}
+                  />
+                )}
             </div>
           )}
         </>

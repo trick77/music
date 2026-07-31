@@ -301,6 +301,40 @@ func TestSuggest_artistAndGenreCounts(t *testing.T) {
 	}
 }
 
+// The genre typeahead completes inline (type "sing" → "singer-songwriter"), so a genre
+// that STARTS with the query has to come back ahead of the merely-containing ones —
+// otherwise a popular substring match wins on count and there is nothing to complete.
+func TestSuggest_genrePrefixMatchesOutrankPopularSubstrings(t *testing.T) {
+	r := newRepo(t)
+	ctx := context.Background()
+	// "throat singing" contains "sing" and is on three songs; "singer-songwriter"
+	// starts with it and is on one.
+	for i, g := range []string{"Throat Singing", "Throat Singing", "Throat Singing", "Singer-Songwriter"} {
+		p := sampleParams()
+		p.Title = string(rune('A' + i))
+		p.ContentHash = "h" + p.Title
+		p.FilePath = "songs/" + p.Title + ".mp3"
+		p.Genres = []string{g}
+		if _, err := r.Create(ctx, NewID(), p); err != nil {
+			t.Fatalf("Create %s: %v", p.Title, err)
+		}
+	}
+
+	got, err := r.Suggest(ctx, "genre", "sing")
+	if err != nil {
+		t.Fatalf("Suggest genre: %v", err)
+	}
+	if len(got) != 2 {
+		t.Fatalf("genre suggest = %#v, want both matches", got)
+	}
+	if got[0].Value != "singer-songwriter" || got[0].Count != 1 {
+		t.Fatalf("prefix match not first: %#v", got)
+	}
+	if got[1].Value != "throat singing" || got[1].Count != 3 {
+		t.Fatalf("substring match not kept: %#v", got)
+	}
+}
+
 func TestList_newestFirst(t *testing.T) {
 	r := newRepo(t)
 	ctx := context.Background()

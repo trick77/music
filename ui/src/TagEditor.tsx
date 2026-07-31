@@ -103,6 +103,19 @@ const cleanLyrics = (raw: string) =>
     .replace(/\n{3,}/g, "\n\n") // collapse blank-line runs
     .trim();
 
+// genreHighlight picks which suggestion the genre field starts on. /api/suggest matches
+// SUBSTRINGS while the inline completion is prefix-shaped, so the most-used candidate is
+// often one that can't complete what was typed ("sing" → "throat singing"). Starting on
+// the first candidate that does keeps the ghost text and the highlighted row in
+// agreement — otherwise Tab adds something the user was never shown completing.
+function genreHighlight(opts: Suggestion[], q: string): number {
+  const k = q.trim().toLowerCase();
+  const i = opts.findIndex((o) =>
+    genreLabel(o.value).toLowerCase().startsWith(k),
+  );
+  return i === -1 ? 0 : i;
+}
+
 // TagEditor is a tabbed editor (Details / Cover / Lyrics / Info) — a centered modal on
 // desktop, full-screen on mobile and touch tablets. Tabs keep each screen short as the form grows
 // (docs/design-system.md). All four tabs stay mounted so unsaved edits survive
@@ -121,6 +134,9 @@ export function TagEditor({ song, onClose, onSaved }: Props) {
   const [lyrics, setLyrics] = useState(song.lyrics ?? "");
   const [coverOp, setCoverOp] = useState<CoverOp>({ kind: "keep" });
   const [artistOpts, setArtistOpts] = useState<Suggestion[]>([]);
+  const [genreOpts, setGenreOpts] = useState<Suggestion[]>([]);
+  const [genreIdx, setGenreIdx] = useState(0);
+  const [genreOpen, setGenreOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [stats, setStats] = useState<SongStats | null>(null);
@@ -222,6 +238,67 @@ export function TagEditor({ song, onClose, onSaved }: Props) {
       setGenres([...genres, v]);
     setGenreInput("");
   };
+
+  // Genre suggestions, debounced so a fast typist doesn't fire a request per keystroke.
+  // The cleanup both cancels the pending timer and disowns an in-flight response, so a
+  // slow early request can never overwrite the list a later keystroke produced.
+  useEffect(() => {
+    const q = genreInput.trim();
+    if (!q) {
+      setGenreOpts([]);
+      setGenreOpen(false);
+      return;
+    }
+    let live = true;
+    const timer = setTimeout(() => {
+      suggest("genre", q)
+        .then((opts) => {
+          if (!live) return;
+          setGenreOpts(opts);
+          setGenreIdx(genreHighlight(opts, q));
+          setGenreOpen(opts.length > 0);
+        })
+        .catch(() => {});
+    }, 150);
+    return () => {
+      live = false;
+      clearTimeout(timer);
+    };
+  }, [genreInput]);
+
+  // What Tab (and the Tab button, and the ghost text) would complete to — undefined
+  // when the list is closed or empty, which is exactly when Tab must fall through to
+  // its normal focus move rather than being swallowed.
+  const genreHint = genreOpen ? genreOpts[genreIdx] : undefined;
+  const genreHintLabel = genreHint ? genreLabel(genreHint.value) : "";
+  // Only the part still to be typed is ghosted, and only when the candidate really
+  // extends what's in the field — a substring-only match completes nothing.
+  const genreGhost =
+    genreInput &&
+    genreHintLabel.toLowerCase().startsWith(genreInput.toLowerCase())
+      ? genreHintLabel.slice(genreInput.length)
+      : "";
+
+  // The stored (lowercase) value goes into the chip, never the display label — the
+  // labelled form would read as a new genre to the case-insensitive dedupe below it.
+  // The highlight has to still match what's in the field: between a keystroke and the
+  // debounced response the list belongs to the PREVIOUS query, and accepting from it
+  // would add a genre that was never offered for the text now typed. Substring is the
+  // right test — it's what /api/suggest matched on, so an arrow-picked candidate that
+  // only contains the query is still fair game.
+  const acceptGenre = () => {
+    const typed = genreInput.trim().toLowerCase();
+    if (!genreHint || !genreHintLabel.toLowerCase().includes(typed))
+      return false;
+    addGenre(genreHint.value);
+    setGenreOpts([]);
+    setGenreOpen(false);
+    return true;
+  };
+
+  // Escape closes the suggestion list and stops there. Registered only while the list
+  // is up, so it sits above the editor's own handler and the modal survives the press.
+  useEscape(!!genreHint, () => setGenreOpen(false));
 
   const onSave = async () => {
     setSaving(true);
@@ -526,18 +603,133 @@ export function TagEditor({ song, onClose, onSaved }: Props) {
                     </span>
                   ))}
                 </div>
-                <input
-                  className={controlClass}
-                  placeholder="Add genre and press Enter"
-                  value={genreInput}
-                  onChange={(e) => setGenreInput(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      e.preventDefault();
-                      addGenre(genreInput);
-                    }
-                  }}
-                />
+                <div style={{ display: "flex", gap: "var(--space-2)" }}>
+                  <div style={{ position: "relative", flex: 1 }}>
+                    <input
+                      className={controlClass}
+                      placeholder="Add genre — Tab completes, Enter adds"
+                      value={genreInput}
+                      role="combobox"
+                      aria-expanded={!!genreHint}
+                      aria-controls="genre-suggestions"
+                      aria-autocomplete="list"
+                      aria-activedescendant={
+                        genreHint ? `genre-option-${genreIdx}` : undefined
+                      }
+                      onChange={(e) => setGenreInput(e.target.value)}
+                      onBlur={() => setTimeout(() => setGenreOpen(false), 150)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          addGenre(genreInput);
+                          setGenreOpen(false);
+                        } else if (e.key === "Tab" && !e.shiftKey) {
+                          // Only swallowed when there is something to complete: Tab is
+                          // the sole keyboard exit from this field, and Shift+Tab is
+                          // navigation, never completion.
+                          if (acceptGenre()) e.preventDefault();
+                        } else if (e.key === "ArrowDown" && genreHint) {
+                          e.preventDefault();
+                          setGenreIdx(
+                            Math.min(genreIdx + 1, genreOpts.length - 1),
+                          );
+                        } else if (e.key === "ArrowUp" && genreHint) {
+                          e.preventDefault();
+                          setGenreIdx(Math.max(genreIdx - 1, 0));
+                        }
+                      }}
+                    />
+                    {genreGhost && (
+                      // Sits on top of the input in the same box, so the tail lands
+                      // exactly where the next keystroke would. The typed part is
+                      // rendered transparent purely to push the tail into place.
+                      <div
+                        aria-hidden
+                        style={{
+                          position: "absolute",
+                          inset: 0,
+                          display: "flex",
+                          alignItems: "center",
+                          padding: "0 12px",
+                          fontFamily: "var(--font-sans)",
+                          fontSize: "var(--text-input)",
+                          whiteSpace: "pre",
+                          overflow: "hidden",
+                          pointerEvents: "none",
+                          color: "var(--color-muted)",
+                        }}
+                      >
+                        <span style={{ color: "transparent" }}>
+                          {genreInput}
+                        </span>
+                        {genreGhost}
+                      </div>
+                    )}
+                    {genreHint && (
+                      <div
+                        id="genre-suggestions"
+                        role="listbox"
+                        style={{
+                          position: "absolute",
+                          top: "100%",
+                          left: 0,
+                          right: 0,
+                          background: "var(--color-panel)",
+                          border: "1px solid var(--color-border)",
+                          borderRadius: "var(--radius-ui)",
+                          zIndex: 5,
+                        }}
+                      >
+                        {genreOpts.map((o, i) => (
+                          <div
+                            key={o.value}
+                            id={`genre-option-${i}`}
+                            role="option"
+                            aria-selected={i === genreIdx}
+                            // Commits on mousedown, before the field's blur can close
+                            // the list out from under the tap.
+                            onMouseDown={(e) => {
+                              e.preventDefault();
+                              addGenre(o.value);
+                              setGenreOpts([]);
+                              setGenreOpen(false);
+                            }}
+                            style={{
+                              padding: "8px 12px",
+                              cursor: "pointer",
+                              display: "flex",
+                              justifyContent: "space-between",
+                              fontSize: "var(--text-ui)",
+                              background:
+                                i === genreIdx
+                                  ? "var(--color-active)"
+                                  : undefined,
+                            }}
+                          >
+                            <span>{genreLabel(o.value)}</span>
+                            <span style={{ color: "var(--color-muted)" }}>
+                              {o.count}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  {/* Touch keyboards have no Tab key, so completing needs a control of
+                      its own. Shown on every device rather than behind a coarse-pointer
+                      check: it doubles as the hint that Tab is what completes here. */}
+                  <Button
+                    variant="ghost"
+                    disabled={!genreHint}
+                    title="Complete the highlighted genre"
+                    onMouseDown={(e) => {
+                      e.preventDefault(); // keep focus in the field for the next genre
+                      acceptGenre();
+                    }}
+                  >
+                    Tab
+                  </Button>
+                </div>
               </div>
               <div style={{ display: "flex", gap: "var(--space-3)" }}>
                 <div style={{ flex: 1 }}>

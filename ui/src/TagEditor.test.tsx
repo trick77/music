@@ -57,6 +57,14 @@ function suggestion(value: string, count: number): Suggestion {
   return { value, count };
 }
 
+const GENRE_PLACEHOLDER = "Add genre — Tab completes, Enter adds";
+
+// The genre suggestions are debounced, so every assertion about the dropdown has to
+// wait for the request the keystrokes queued rather than for the keystrokes alone.
+function genreInput(): HTMLInputElement {
+  return screen.getByPlaceholderText(GENRE_PLACEHOLDER) as HTMLInputElement;
+}
+
 // Mounts the editor with spy callbacks so every test can assert on close/save
 // without repeating the wiring.
 function renderEditor(overrides: Partial<Song> = {}) {
@@ -186,7 +194,7 @@ describe("TagEditor genres", () => {
     // Given
     const user = userEvent.setup();
     renderEditor({ genres: [] });
-    const input = screen.getByPlaceholderText("Add genre and press Enter");
+    const input = genreInput();
 
     // When
     await user.type(input, "darkwave{Enter}");
@@ -204,10 +212,7 @@ describe("TagEditor genres", () => {
     renderEditor({ genres: ["synthwave"] });
 
     // When
-    await user.type(
-      screen.getByPlaceholderText("Add genre and press Enter"),
-      "SYNTHWAVE{Enter}",
-    );
+    await user.type(genreInput(), "SYNTHWAVE{Enter}");
 
     // Then
     // Case-insensitive dedupe: "Synthwave" and "synthwave" are the same tag, and
@@ -223,10 +228,7 @@ describe("TagEditor genres", () => {
     renderEditor({ genres: [] });
 
     // When
-    await user.type(
-      screen.getByPlaceholderText("Add genre and press Enter"),
-      "   {Enter}",
-    );
+    await user.type(genreInput(), "   {Enter}");
 
     // Then
     expect(
@@ -249,6 +251,263 @@ describe("TagEditor genres", () => {
     expect(
       screen.getByRole("button", { name: "Remove Darkwave" }),
     ).toBeInTheDocument();
+  });
+});
+
+describe("TagEditor genre typeahead", () => {
+  // The endpoint matches substrings, so these fixtures deliberately mix a match that
+  // only contains the query with one that starts with it.
+  const singMatches = [
+    suggestion("throat singing", 12),
+    suggestion("singer-songwriter", 3),
+  ];
+
+  it("when a prefix is typed, then the completion is shown inline and the matches are listed with their counts", async () => {
+    // Given
+    const user = userEvent.setup();
+    mocked.suggest.mockResolvedValue(singMatches);
+    renderEditor({ genres: [] });
+
+    // When
+    await user.type(genreInput(), "Sing");
+
+    // Then
+    await waitFor(() =>
+      expect(mocked.suggest).toHaveBeenCalledWith("genre", "Sing"),
+    );
+    // Only the tail is rendered as the ghost — the typed part stays the input's own.
+    expect(await screen.findByText("er-Songwriter")).toBeInTheDocument();
+    expect(
+      screen.getByRole("option", { name: /Throat Singing/ }),
+    ).toBeVisible();
+    expect(screen.getByText("12")).toBeInTheDocument();
+  });
+
+  it("when a substring match outranks the prefix match, then the prefix one is highlighted and completes", async () => {
+    // Given
+    const user = userEvent.setup();
+    // "throat singing" comes first and is more used, but it cannot complete "sing".
+    mocked.suggest.mockResolvedValue(singMatches);
+    renderEditor({ genres: [] });
+
+    // When
+    await user.type(genreInput(), "sing");
+    await screen.findByRole("listbox");
+
+    // Then
+    expect(
+      screen.getByRole("option", { name: /Singer-Songwriter/ }),
+    ).toHaveAttribute("aria-selected", "true");
+    expect(
+      screen.getByRole("option", { name: /Throat Singing/ }),
+    ).toHaveAttribute("aria-selected", "false");
+  });
+
+  it("when nothing typed is a prefix of a match, then no inline completion is shown", async () => {
+    // Given
+    const user = userEvent.setup();
+    mocked.suggest.mockResolvedValue([suggestion("throat singing", 12)]);
+    renderEditor({ genres: [] });
+
+    // When
+    await user.type(genreInput(), "sing");
+    await screen.findByRole("listbox");
+
+    // Then
+    // A ghost tail would read as "sing…ing" — a completion the field cannot make.
+    expect(screen.queryByText("ing")).not.toBeInTheDocument();
+  });
+
+  it("when Tab is pressed, then the highlighted suggestion is added in its stored form", async () => {
+    // Given
+    const user = userEvent.setup();
+    mocked.suggest.mockResolvedValue(singMatches);
+    renderEditor({ genres: [] });
+    await user.type(genreInput(), "sing");
+    await screen.findByRole("listbox");
+
+    // When
+    await user.keyboard("{Tab}");
+
+    // Then
+    expect(
+      screen.getByRole("button", { name: "Remove Singer-Songwriter" }),
+    ).toBeInTheDocument();
+    expect(genreInput()).toHaveValue("");
+    expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
+  });
+
+  it("when the arrow keys move the highlight, then Tab adds the newly highlighted genre", async () => {
+    // Given
+    const user = userEvent.setup();
+    mocked.suggest.mockResolvedValue(singMatches);
+    renderEditor({ genres: [] });
+    await user.type(genreInput(), "sing");
+    await screen.findByRole("listbox");
+
+    // When
+    // The prefix match ("singer-songwriter", index 1) starts highlighted; up moves
+    // to the substring match above it.
+    await user.keyboard("{ArrowUp}{Tab}");
+
+    // Then
+    expect(
+      screen.getByRole("button", { name: "Remove Throat Singing" }),
+    ).toBeInTheDocument();
+  });
+
+  it("when Tab is pressed with no suggestions, then nothing is added and focus leaves the field", async () => {
+    // Given
+    const user = userEvent.setup();
+    mocked.suggest.mockResolvedValue([]);
+    renderEditor({ genres: [] });
+    const input = genreInput();
+    await user.type(input, "zzz");
+    await waitFor(() => expect(mocked.suggest).toHaveBeenCalled());
+
+    // When
+    await user.keyboard("{Tab}");
+
+    // Then
+    // Tab is the only way out of the field by keyboard — it must never be trapped.
+    expect(screen.queryByRole("button", { name: /^Remove/ })).toBeNull();
+    expect(input).not.toHaveFocus();
+  });
+
+  it("when Shift+Tab is pressed, then the suggestion is not accepted", async () => {
+    // Given
+    const user = userEvent.setup();
+    mocked.suggest.mockResolvedValue(singMatches);
+    renderEditor({ genres: [] });
+    await user.type(genreInput(), "sing");
+    await screen.findByRole("listbox");
+
+    // When
+    await user.keyboard("{Shift>}{Tab}{/Shift}");
+
+    // Then
+    // Backwards tabbing is navigation, never completion.
+    expect(screen.queryByRole("button", { name: /^Remove/ })).toBeNull();
+  });
+
+  it("when Tab is pressed before the list catches up, then the superseded suggestion is not accepted", async () => {
+    // Given
+    const user = userEvent.setup();
+    // The follow-up query never resolves, so the list stays the one fetched for "sing"
+    // — the same state a fast typist sees inside the debounce window.
+    mocked.suggest.mockImplementation((_field: string, q: string) =>
+      q === "sing" ? Promise.resolve(singMatches) : new Promise(() => {}),
+    );
+    renderEditor({ genres: [] });
+    await user.type(genreInput(), "sing");
+    await screen.findByRole("listbox");
+
+    // When
+    await user.keyboard("x{Tab}");
+
+    // Then
+    // "singer-songwriter" no longer matches "singx" and no ghost was ever shown for
+    // it, so Tab must leave the field rather than add it silently.
+    expect(screen.queryByRole("button", { name: /^Remove/ })).toBeNull();
+    expect(genreInput()).not.toHaveFocus();
+  });
+
+  it("when Enter is pressed, then the literal text is added rather than the suggestion", async () => {
+    // Given
+    const user = userEvent.setup();
+    mocked.suggest.mockResolvedValue(singMatches);
+    renderEditor({ genres: [] });
+    await user.type(genreInput(), "sing");
+    await screen.findByRole("listbox");
+
+    // When
+    await user.keyboard("{Enter}");
+
+    // Then
+    // Enter is the only way to coin a genre that does not exist yet, even when it
+    // is a prefix of one that does.
+    expect(
+      screen.getByRole("button", { name: "Remove Sing" }),
+    ).toBeInTheDocument();
+  });
+
+  it("when a suggestion is tapped, then it is added — the touch path with no Tab key", async () => {
+    // Given
+    const user = userEvent.setup();
+    mocked.suggest.mockResolvedValue(singMatches);
+    renderEditor({ genres: [] });
+    await user.type(genreInput(), "sing");
+    await screen.findByRole("listbox");
+
+    // When
+    await user.click(screen.getByRole("option", { name: /Throat Singing/ }));
+
+    // Then
+    expect(
+      screen.getByRole("button", { name: "Remove Throat Singing" }),
+    ).toBeInTheDocument();
+  });
+
+  it("when the Tab button is pressed, then it completes like the Tab key", async () => {
+    // Given
+    const user = userEvent.setup();
+    mocked.suggest.mockResolvedValue(singMatches);
+    renderEditor({ genres: [] });
+    await user.type(genreInput(), "sing");
+    await screen.findByRole("listbox");
+
+    // When
+    // Touch keyboards have no Tab key, so the button is the completion affordance.
+    await user.click(screen.getByRole("button", { name: "Tab" }));
+
+    // Then
+    expect(
+      screen.getByRole("button", { name: "Remove Singer-Songwriter" }),
+    ).toBeInTheDocument();
+  });
+
+  it("when there is nothing to complete, then the Tab button is disabled", async () => {
+    // Given / When
+    renderEditor({ genres: [] });
+
+    // Then
+    expect(screen.getByRole("button", { name: "Tab" })).toBeDisabled();
+  });
+
+  it("when Escape is pressed with the list open, then only the list closes", async () => {
+    // Given
+    const user = userEvent.setup();
+    mocked.suggest.mockResolvedValue(singMatches);
+    const { onClose } = renderEditor({ genres: [] });
+    await user.type(genreInput(), "sing");
+    await screen.findByRole("listbox");
+
+    // When
+    await user.keyboard("{Escape}");
+
+    // Then
+    // The dropdown is the topmost surface, so the press stops there — a second one
+    // closes the editor.
+    await waitFor(() => expect(screen.queryByRole("listbox")).toBeNull());
+    expect(onClose).not.toHaveBeenCalled();
+    await user.keyboard("{Escape}");
+    expect(onClose).toHaveBeenCalled();
+  });
+
+  it("when the field is emptied, then the list closes and no request is made", async () => {
+    // Given
+    const user = userEvent.setup();
+    mocked.suggest.mockResolvedValue(singMatches);
+    renderEditor({ genres: [] });
+    await user.type(genreInput(), "sing");
+    await screen.findByRole("listbox");
+
+    // When
+    await user.clear(genreInput());
+
+    // Then
+    await waitFor(() => expect(screen.queryByRole("listbox")).toBeNull());
+    expect(mocked.suggest).not.toHaveBeenCalledWith("genre", "");
   });
 });
 
@@ -707,10 +966,7 @@ describe("TagEditor saving", () => {
     // Given
     const user = userEvent.setup();
     renderEditor({ genres: ["synthwave"] });
-    await user.type(
-      screen.getByPlaceholderText("Add genre and press Enter"),
-      "darkwave",
-    );
+    await user.type(genreInput(), "darkwave");
 
     // When
     await user.click(screen.getByRole("button", { name: "Save changes" }));
@@ -730,10 +986,7 @@ describe("TagEditor saving", () => {
     // Given
     const user = userEvent.setup();
     renderEditor({ genres: ["synthwave"] });
-    await user.type(
-      screen.getByPlaceholderText("Add genre and press Enter"),
-      "Synthwave",
-    );
+    await user.type(genreInput(), "Synthwave");
 
     // When
     await user.click(screen.getByRole("button", { name: "Save changes" }));

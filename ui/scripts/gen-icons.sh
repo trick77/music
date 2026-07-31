@@ -29,9 +29,11 @@ set -euo pipefail
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)" # ui/
 SRC="$DIR/assets/icons"
 OUT="$DIR/public"
-MASTER="$SRC/tile.svg" # ships as-is to public/favicon.svg; it is not a copy
-DARK='#1f1f1e'         # app surface, the icon ground and the card background (index.css --color-bg)
-INK='#faf9f5'          # app ink, for the card wordmark (index.css --color-ink)
+MASTER="$SRC/tile.svg"   # the shape; renders the PWA rasters, never ships itself
+FAVICON="$SRC/favicon.svg" # the master with a filled frame; ships as-is
+DARK='#1f1f1e'           # app surface, the tile ground and the card background (index.css --color-bg)
+TAB='#33322f'            # the tab icon's ground — lighter than DARK, see favicon.svg
+INK='#faf9f5'            # app ink, for the card wordmark (index.css --color-ink)
 
 FONT="/System/Library/Fonts/SFNS.ttf" # app's system-ui fallback, for the card wordmark
 [ -f "$FONT" ] || FONT="/System/Library/Fonts/Helvetica.ttc"
@@ -46,14 +48,16 @@ mkdir -p "$OUT"
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
 
-# --- favicon.svg: the master, served directly as the modern tab icon ---------
-cp "$MASTER" "$OUT/favicon.svg"
+# --- favicon.svg: served directly as the modern tab icon ---------------------
+# Its own source, not the master: Safari on the desktop composites the tab icon
+# onto white, so this one carries a ground where the master does not.
+cp "$FAVICON" "$OUT/favicon.svg"
 
 # --- from the master ---------------------------------------------------------
 # -b none keeps the renderer from inventing a ground the master does not have.
-# These stay TRANSPARENT: the browser composites the tab icon itself, and a bare
-# note is the good case for letting it — the glyph encloses no area, so there is
-# no interior for the tab's own colour to fill and read as a background.
+# These stay TRANSPARENT: a launcher composites them itself, and both glyphs are
+# outlines enclosing no area, so there is no interior for its colour to fill and
+# read as a background.
 rsvg-convert -b none -w 192 -h 192 "$MASTER" -o "$OUT/icon-192.png"
 rsvg-convert -b none -w 512 -h 512 "$MASTER" -o "$OUT/icon-512.png"
 
@@ -82,12 +86,13 @@ magick -size 1200x630 xc:"$DARK" \
 # onto black. That fails silently in a viewer and only shows up on a real
 # device, so assert every ground here instead.
 #
-# The split is the point, so both directions are checked. The master's rasters
-# MUST stay transparent: the browser composites the tab icon, and a ground there
-# is a square tile sitting in the tab bar. The two OS tiles MUST stay opaque:
-# iOS flattens alpha onto black and Android fills it with the launcher's own
-# colour, so a transparent one ships as a black square on an iPhone. Neither
-# expectation is a formality — do not "fix" a failure by relaxing the check.
+# The split is the point, so every direction is checked. The master's rasters
+# MUST stay transparent: a launcher composites them itself. The two OS tiles MUST
+# stay opaque: iOS flattens alpha onto black and Android fills it with the
+# launcher's own colour, so a transparent one ships as a black square on an
+# iPhone. And favicon.svg must be BOTH — a filled frame inside transparent
+# corners. None of these is a formality; do not "fix" a failure by relaxing the
+# check.
 fail=0
 check_alpha() { # <file> <expected true|false>
 	local got
@@ -104,6 +109,28 @@ check_alpha "$OUT/icon-512.png" false
 check_alpha "$OUT/apple-touch-icon.png" true
 check_alpha "$OUT/icon-maskable-512.png" true
 check_alpha "$OUT/og-card.png" true
+
+# favicon.svg ships as SVG, so there is no raster to read — render one here just
+# to assert it. Two samples, because it has to be a chip and not a tile: the
+# canvas corner transparent, and a point inside the frame but clear of the
+# headphones (they start around y=170 at this size) filled with $TAB. Losing the
+# fill is the regression that put this check here, and it is invisible until
+# someone opens a tab in Safari.
+rsvg-convert -b none -w 512 -h 512 "$OUT/favicon.svg" -o "$TMP/favicon.png"
+# -alpha on before both reads. Without it an image that happens to be fully
+# opaque carries no alpha channel, and then %[hex:...] returns six digits
+# instead of eight and %[fx:...a] does not report 1 — the comparisons below
+# would be measuring ImageMagick's channel bookkeeping rather than the icon.
+fav_corner="$(magick "$TMP/favicon.png" -alpha on -format '%[fx:p{0,0}.a]' info:)"
+fav_ground="$(magick "$TMP/favicon.png" -alpha on -format '%[hex:p{256,96}]' info: | tr '[:upper:]' '[:lower:]')"
+if [[ "$fav_corner" != "0" ]]; then
+	echo "gen-icons: favicon.svg's canvas corner has alpha $fav_corner, expected 0" >&2
+	fail=1
+fi
+if [[ "$fav_ground" != "${TAB#\#}ff" ]]; then
+	echo "gen-icons: favicon.svg's frame is #$fav_ground, expected ${TAB}ff" >&2
+	fail=1
+fi
 
 # The maskable icon has one more thing to prove: Android crops it to the
 # launcher's own shape, and only the middle 80% of the square — a circle of

@@ -281,8 +281,15 @@ export function TagEditor({ song, onClose, onSaved }: Props) {
 
   // The stored (lowercase) value goes into the chip, never the display label — the
   // labelled form would read as a new genre to the case-insensitive dedupe below it.
+  // The highlight has to still match what's in the field: between a keystroke and the
+  // debounced response the list belongs to the PREVIOUS query, and accepting from it
+  // would add a genre that was never offered for the text now typed. Substring is the
+  // right test — it's what /api/suggest matched on, so an arrow-picked candidate that
+  // only contains the query is still fair game.
   const acceptGenre = () => {
-    if (!genreHint) return false;
+    const typed = genreInput.trim().toLowerCase();
+    if (!genreHint || !genreHintLabel.toLowerCase().includes(typed))
+      return false;
     addGenre(genreHint.value);
     setGenreOpts([]);
     setGenreOpen(false);

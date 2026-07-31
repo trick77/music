@@ -390,6 +390,28 @@ describe("TagEditor genre typeahead", () => {
     expect(screen.queryByRole("button", { name: /^Remove/ })).toBeNull();
   });
 
+  it("when Tab is pressed before the list catches up, then the superseded suggestion is not accepted", async () => {
+    // Given
+    const user = userEvent.setup();
+    // The follow-up query never resolves, so the list stays the one fetched for "sing"
+    // — the same state a fast typist sees inside the debounce window.
+    mocked.suggest.mockImplementation((_field: string, q: string) =>
+      q === "sing" ? Promise.resolve(singMatches) : new Promise(() => {}),
+    );
+    renderEditor({ genres: [] });
+    await user.type(genreInput(), "sing");
+    await screen.findByRole("listbox");
+
+    // When
+    await user.keyboard("x{Tab}");
+
+    // Then
+    // "singer-songwriter" no longer matches "singx" and no ghost was ever shown for
+    // it, so Tab must leave the field rather than add it silently.
+    expect(screen.queryByRole("button", { name: /^Remove/ })).toBeNull();
+    expect(genreInput()).not.toHaveFocus();
+  });
+
   it("when Enter is pressed, then the literal text is added rather than the suggestion", async () => {
     // Given
     const user = userEvent.setup();

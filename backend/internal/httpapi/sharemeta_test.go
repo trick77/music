@@ -11,6 +11,8 @@ import (
 
 	"github.com/trick77/music/internal/config"
 	"github.com/trick77/music/internal/library"
+	"github.com/trick77/music/internal/store"
+	"github.com/trick77/music/web"
 )
 
 // patchSongTitle edits a song's title via the API so we can inject a hostile
@@ -205,6 +207,46 @@ func TestShareMeta_rootEmitsDefaultCard(t *testing.T) {
 	}
 }
 
+// The app ships no favicon.ico, and the probe for one must 404 through the FULLY
+// ASSEMBLED handler — not merely through web.SPAHandler in isolation.
+//
+// That distinction is the whole point of this test. web.SPAHandler 404s the path
+// itself and has its own unit test proving it, but httpapi wraps it in the
+// share-meta layer, whose catch-all serves the Open-Graph shell to anything that
+// is not a real file — and a file that does not exist is not a real file. So the
+// handler-level test passed while the running server answered the icon probe
+// with 200 and a page of HTML. Only a request through testServer sees that.
+func TestShareMeta_faviconICOIs404NotTheShell(t *testing.T) {
+	// Built with the REAL web.SPAHandler rather than testServer's stub, because
+	// the stub answers everything with 200 "SPA" and would hide the very status
+	// under test. This is the production wiring from server.go.
+	st, err := store.Open(t.TempDir() + "/test.db")
+	if err != nil {
+		t.Fatalf("store.Open: %v", err)
+	}
+	t.Cleanup(func() { st.Close() })
+	cfg := config.Config{
+		AuthMode:    config.AuthModeDev,
+		DevUser:     config.DevUserConfig{Username: "dev"},
+		MediaDir:    t.TempDir(),
+		MaxUploadMB: 50,
+	}
+	h := New(cfg, st, web.SPAHandler())
+	if s, ok := h.(*server); ok {
+		t.Cleanup(s.Wait)
+	}
+
+	rr := httptest.NewRecorder()
+	h.ServeHTTP(rr, httptest.NewRequest("GET", "/favicon.ico", nil))
+
+	if rr.Code != http.StatusNotFound {
+		t.Fatalf("status = %d, want 404; body:\n%s", rr.Code, rr.Body.String())
+	}
+	if body := rr.Body.String(); strings.Contains(body, "og:image") || strings.Contains(body, "<div id=\"root\">") {
+		t.Fatalf("favicon.ico was answered with the SPA shell:\n%s", body)
+	}
+}
+
 func TestShareMeta_staticFileNotWrapped(t *testing.T) {
 	// A request that resolves to a real embedded asset (icon, manifest, hashed
 	// bundle) must be served untouched by the static/SPA handler — never wrapped in
@@ -218,7 +260,8 @@ func TestShareMeta_staticFileNotWrapped(t *testing.T) {
 	})
 	// repo is only nil-checked on the static-file branch, never dereferenced.
 	h := withShareMeta(library.NewRepo(nil), []byte("<html><head></head></html>"),
-		spa, func(p string) bool { return p == "/manifest.webmanifest" })
+		spa, func(p string) bool { return p == "/manifest.webmanifest" },
+		web.IsDeliberate404)
 
 	rr := httptest.NewRecorder()
 	h.ServeHTTP(rr, httptest.NewRequest("GET", "/manifest.webmanifest", nil))

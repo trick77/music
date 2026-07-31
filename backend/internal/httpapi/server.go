@@ -269,7 +269,7 @@ func build(cfg config.Config, st *store.Store, spa http.Handler, gen imagegen.Pr
 	var spaHandler http.Handler = spa
 	if shareRepo != nil {
 		if shell, err := web.IndexHTML(); err == nil {
-			spaHandler = withShareMeta(shareRepo, shell, spa, web.HasFile)
+			spaHandler = withShareMeta(shareRepo, shell, spa, web.HasFile, web.IsDeliberate404)
 		}
 	}
 	root.Handle("/", spaHandler)

@@ -1,8 +1,8 @@
 <!--
   Music's icon: lucide's "headphones" held inside lucide's "square-play" frame.
-  This is the master. It ships as-is (gen-icons.sh copies it to
-  public/favicon.svg) and every raster except the two OS tiles is rendered from
-  it.
+  This is the master: the shape every other source here is a copy of, and what
+  every raster except the two OS tiles is rendered from. It does not itself
+  ship — favicon.svg beside it is the file that reaches a browser.
 
   The paths are lucide's (ISC), copied rather than imported — nothing loads
   lucide-react to draw a static asset. Nothing is filled: lucide draws every
@@ -30,17 +30,29 @@
   first thing to check on a real screen — if the mark reads too faint at 16px,
   the lever is an explicit stroke-width on the inner group, not a bigger glyph.
 
-  TRANSPARENT ON PURPOSE. The browser composites this onto the tab, and nothing
-  here encloses a surface it would have to fill: both glyphs are outlines, so
-  the tab's own colour runs through the frame and between the ear cups alike.
-  There is no interior to leak and no silhouette whose corners could, which is
-  what a ground would otherwise be protecting against.
+  TRANSPARENT — for what is still rendered from it, which is now the two PWA
+  rasters and nothing else. That transparency is UNTESTED rather than reasoned
+  safe. The argument for it was that icon-192 and icon-512 go to a launcher that
+  composites them itself; Android does composite a purpose:"any" icon onto its
+  own background, and that background is often light, so the argument is the
+  same shape as the one that just failed below. Nobody has looked at these on a
+  real launcher. If someone reports a washed-out icon on Android, this is the
+  first place to look, and the fix is the one favicon.svg already models.
 
-  iOS and Android flatten alpha — onto black, and onto the launcher's own fill —
-  so apple-touch-icon.png and icon-maskable-512.png are rendered from the opaque
-  sources beside this file instead, and gen-icons.sh asserts each raster's ground
-  either way. Regenerate the rasters with ui/scripts/gen-icons.sh after touching
-  this file.
+  The tab icon used to be rendered from this too, on that same reasoning, and it
+  was wrong: Safari draws favicons on a light plate in its favourites bar, which
+  turns a bare orange outline into a scribble on a white card. It moved to
+  favicon.svg, which is this file with the frame's rect filled. See that file —
+  it carries the measurements, including which Safari surfaces do this and which
+  do not.
+
+  So three of the four consumers want a ground and only this one does not. iOS
+  and Android flatten alpha — onto black, and onto the launcher's own fill — so
+  apple-touch-icon.png and icon-maskable-512.png are rendered from the opaque
+  sources beside this file, and gen-icons.sh asserts every ground in both
+  directions. Regenerate the rasters with ui/scripts/gen-icons.sh after touching
+  this file — and mirror any shape change into favicon.svg, which is a copy and
+  cannot follow on its own.
 -->
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
   <g transform="translate(-3.9649 -3.9649) scale(2.99707)" fill="none" stroke="#d97757" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">

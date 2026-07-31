@@ -1,0 +1,23 @@
+<!--
+  Source for apple-touch-icon.png only. Not shipped: ui/assets/ is outside Vite's
+  publicDir, so nothing here is copied into the bundle.
+
+  It differs from tile.svg in one way — the glyph is smaller, 60% instead of
+  96% — because iOS applies its own superellipse mask, so the tile has edges of
+  its own to breathe against rather than being the whole picture. The corners
+  stay SQUARE for the same reason: rounding them here would double-round them
+  under that mask.
+
+  Same lucide "music" paths, same 2.5 stroke and the same true-bbox centring —
+  see tile.svg for all of it, and for why the nominal 24x24 box is not used. The
+  stroke is in glyph units, so shrinking the glyph thins it in step and the
+  weight stays proportional.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <rect width="64" height="64" fill="#1f1f1e"/>
+  <g transform="translate(9.522 9.522) scale(1.8732)" fill="none" stroke="#d97757" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M9 18V5l12-2v13"/>
+    <circle cx="6" cy="18" r="3"/>
+    <circle cx="18" cy="16" r="3"/>
+  </g>
+</svg>

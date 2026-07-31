@@ -1,85 +1,135 @@
 #!/usr/bin/env bash
-# Regenerate all favicon / PWA / share-card assets from the master tile SVG.
-#
-# The master (assets/icons/tile.svg) is a rounded orange app-tile with the app's
-# cream lucide "music" note — a bare outline note turns to mush at 16px in the
-# macOS Safari tab, so the tile gives it a solid boundary and high contrast.
-#
-# The SVG is rasterized with headless Google Chrome (crisp edges with
-# transparency); ImageMagick only does raster resize/composite/.ico assembly,
-# which it handles well. Do NOT let ImageMagick rasterize the SVG directly — its
-# SVG renderer produces soft, distorted output.
+# Regenerate every favicon / PWA / share-card raster from the three SVG sources
+# in assets/icons/. Run it by hand after editing any of them and commit what it
+# writes.
 #
 #   ui/scripts/gen-icons.sh
 #
-# Re-run whenever the tile or brand color changes, then rebuild the UI so the new
-# bytes land in backend/web/dist.
+# The outputs are COMMITTED rather than generated during the build, so neither
+# `npm run build` nor CI needs an image toolchain. That is the whole reason this
+# is not a package.json script.
+#
+# librsvg does the rasterising, not ImageMagick's own SVG support: IM's internal
+# MSVG delegate renders stroked paths soft and distorted. ImageMagick is used
+# only on rasters it already holds — the .ico assembly, the share card, and
+# re-reading the results to assert their grounds. This replaces an older
+# headless-Chrome screenshot dance (Chrome's `--headless=new` writes the file but
+# does not reliably exit, so it had to be backgrounded, polled for and killed);
+# rsvg-convert is one synchronous call, and works off macOS.
+#
+# Re-run whenever a source or a brand colour changes, then rebuild the UI so the
+# new bytes land in backend/web/dist.
 set -euo pipefail
 
-DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"   # ui/
-ICONS="$DIR/assets/icons"
-SRC="$ICONS/tile.svg"
+DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)" # ui/
+SRC="$DIR/assets/icons"
 OUT="$DIR/public"
-DARK='#1f1f1e'        # app surface, for the share-card background (index.css --color-bg)
-ORANGE='#d97757'      # app accent / tile background (index.css --color-accent)
-INK='#faf9f5'         # app ink, for the wordmark (index.css --color-ink)
+MASTER="$SRC/tile.svg" # ships as-is to public/favicon.svg; it is not a copy
+DARK='#1f1f1e'         # app surface, the icon ground and the card background (index.css --color-bg)
+INK='#faf9f5'          # app ink, for the card wordmark (index.css --color-ink)
 
-CHROME="/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
-FONT="/System/Library/Fonts/SFNS.ttf"       # app's system-ui fallback, for the card wordmark
+FONT="/System/Library/Fonts/SFNS.ttf" # app's system-ui fallback, for the card wordmark
 [ -f "$FONT" ] || FONT="/System/Library/Fonts/Helvetica.ttc"
 
-command -v magick >/dev/null || { echo "magick (ImageMagick) not found" >&2; exit 1; }
-[ -x "$CHROME" ] || { echo "Google Chrome not found at $CHROME" >&2; exit 1; }
+for tool in rsvg-convert magick; do
+	if ! command -v "$tool" >/dev/null 2>&1; then
+		echo "gen-icons: $tool not found — brew install librsvg imagemagick" >&2
+		exit 1
+	fi
+done
 mkdir -p "$OUT"
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
 
-# Render the master tile to a large transparent PNG via headless Chrome.
-# `--headless=new` writes the screenshot but does not reliably exit, so run it in
-# the background, wait for the file, then kill it — never block on Chrome exiting.
-cat > "$TMP/render.html" <<EOF
-<!doctype html><meta charset="utf-8">
-<style>html,body{margin:0;padding:0;background:transparent}img{width:100vw;height:100vh}</style>
-<img src="file://$SRC">
-EOF
-MASTER="$TMP/tile.png"
-"$CHROME" --headless=new --disable-gpu --hide-scrollbars --force-device-scale-factor=1 \
-  --no-first-run --user-data-dir="$TMP/chrome" --default-background-color=00000000 \
-  --screenshot="$MASTER" --window-size=1024,1024 "file://$TMP/render.html" >/dev/null 2>&1 &
-CPID=$!
-for _ in $(seq 1 80); do [ -s "$MASTER" ] && break; sleep 0.25; done
-sleep 0.4  # let the screenshot finish writing
-kill "$CPID" 2>/dev/null || true; wait "$CPID" 2>/dev/null || true
-[ -s "$MASTER" ] || { echo "Chrome render failed" >&2; exit 1; }
+# --- favicon.svg: the master, served directly as the modern tab icon ---------
+cp "$MASTER" "$OUT/favicon.svg"
 
-# fit resizes the master tile to $1 px at $2, keeping the transparent rounded corners.
-fit() { magick "$MASTER" -filter Lanczos -resize "${1}x${1}" "$2"; }
-# fit_opaque flattens the tile onto an opaque orange square ($1 px) at $2 — for icons
-# the OS masks/rounds itself (apple-touch, maskable), so corners must be filled.
-fit_opaque() { magick "$MASTER" -filter Lanczos -resize "${1}x${1}" -background "$ORANGE" -flatten "$2"; }
+# --- from the master ---------------------------------------------------------
+# -b none stays even though these come out opaque: the ground is the master's
+# own background rect, not something the renderer supplies. Keeping the renderer
+# out of it is what lets the checks below catch a master that lost that rect.
+rsvg-convert -b none -w 192 -h 192 "$MASTER" -o "$OUT/icon-192.png"
+rsvg-convert -b none -w 512 -h 512 "$MASTER" -o "$OUT/icon-512.png"
 
-# --- favicon.svg: the tile master, served directly as the modern tab icon ---
-cp "$SRC" "$OUT/favicon.svg"
-
-# --- favicon.ico: 16/32/48 rounded tiles (transparent corners) ---
-for s in 16 32 48; do fit "$s" "$TMP/fav_$s.png"; done
+# --- favicon.ico: 16/32/48 frames, also from the master ----------------------
+# Rendered at each size rather than downsampled from one big raster, so every
+# frame gets librsvg's own hinting at the size it will actually be seen at.
+for s in 16 32 48; do
+	rsvg-convert -b none -w "$s" -h "$s" "$MASTER" -o "$TMP/fav_$s.png"
+done
 magick "$TMP/fav_16.png" "$TMP/fav_32.png" "$TMP/fav_48.png" "$OUT/favicon.ico"
 
-# --- apple-touch-icon: full-bleed orange square (iOS applies its own rounded mask) ---
-fit_opaque 180 "$OUT/apple-touch-icon.png"
+# --- from the tiled sources --------------------------------------------------
+# These two carry a smaller glyph and square corners because the OS crops them:
+# iOS with its superellipse mask, Android with whatever the launcher picks. They
+# also run edge to edge, because iOS flattens alpha onto black and Android fills
+# it with the launcher's own colour — neither is ours to choose.
+rsvg-convert -w 180 -h 180 "$SRC/tile-touch.svg" -o "$OUT/apple-touch-icon.png"
+rsvg-convert -w 512 -h 512 "$SRC/tile-maskable.svg" -o "$OUT/icon-maskable-512.png"
 
-# --- PWA "any" icons: rounded tiles, transparent corners ---
-fit 192 "$OUT/icon-192.png"
-fit 512 "$OUT/icon-512.png"
-
-# --- PWA maskable: full-bleed orange square, note well inside the central safe zone ---
-fit_opaque 512 "$OUT/icon-maskable-512.png"
-
-# --- Default share card (WhatsApp/iMessage): tile + "Music" on dark, opaque ---
-magick "$MASTER" -filter Lanczos -resize 240x240 "$TMP/tile_card.png"
+# --- default share card (WhatsApp/iMessage): mark + "Music" on dark ----------
+# Rendered from tile-touch.svg, not the master: the card's background is the same
+# #1f1f1e as the icon ground, so a 96% mark would read as a note crowding the
+# card rather than as a mark set in it. The 60% source gives it the inset for
+# free, and its edges are invisible against a matching background anyway.
+rsvg-convert -w 240 -h 240 "$SRC/tile-touch.svg" -o "$TMP/card_mark.png"
 magick -size 1200x630 xc:"$DARK" \
-  \( "$TMP/tile_card.png" \) -gravity center -geometry +0-70 -composite \
-  -font "$FONT" -pointsize 132 -fill "$INK" -gravity center -annotate +0+120 'Music' \
-  "$OUT/og-card.png"
+	\( "$TMP/card_mark.png" \) -gravity center -geometry +0-70 -composite \
+	-font "$FONT" -pointsize 132 -fill "$INK" -gravity center -annotate +0+120 'Music' \
+	"$OUT/og-card.png"
 
-echo "Wrote: favicon.svg favicon.ico apple-touch-icon.png icon-192.png icon-512.png icon-maskable-512.png og-card.png -> $OUT"
+# --- verify the grounds survived --------------------------------------------
+# Rendering can succeed and still produce the wrong thing — most plausibly a
+# source that lost its background rect, which yields a touch icon iOS flattens
+# onto black, or a favicon whose corners leak the tab bar's white. That fails
+# silently in a viewer and only shows up on a real device, so assert every
+# ground here instead.
+#
+# EVERY output is opaque. icon-192/512 and the .ico frames used to be
+# transparent, back when the master was a rounded tile and the browser
+# composited it onto the tab; that is what put white in the favicon's corners on
+# Safari, so the master carries its own #1f1f1e now. If any of these goes back
+# to opaque=false, a source has lost its background rect — do not "fix" it by
+# relaxing the check.
+fail=0
+check_alpha() { # <file> <expected true|false>
+	local got
+	# ImageMagick 7 prints "True"/"False"; 6 printed "true"/"false". Fold the
+	# case so this script is not pinned to one major version.
+	got="$(magick identify -format '%[opaque]' "$1" | tr '[:upper:]' '[:lower:]')"
+	if [[ "$got" != "$2" ]]; then
+		echo "gen-icons: $(basename "$1") is opaque=$got, expected $2" >&2
+		fail=1
+	fi
+}
+for s in 16 32 48; do check_alpha "$TMP/fav_$s.png" true; done
+check_alpha "$OUT/icon-192.png" true
+check_alpha "$OUT/icon-512.png" true
+check_alpha "$OUT/apple-touch-icon.png" true
+check_alpha "$OUT/icon-maskable-512.png" true
+check_alpha "$OUT/og-card.png" true
+
+# The maskable icon has one more thing to prove: Android crops it to the
+# launcher's own shape, and only the middle 80% of the square — a circle of
+# radius 204.8 at 512px — is guaranteed to survive. Assert the glyph clears that
+# circle rather than trusting the transform in tile-maskable.svg to still match
+# its comment.
+#
+# Painting the safe circle over in the ground colour leaves nothing but ground
+# IF the mark is fully inside it, so the whole image collapses to one flat
+# colour and its standard deviation is exactly 0. Any mark left outside shows up
+# as spread. Calibrated by rendering the glyph at a sweep of coverages: 0 up to
+# and including 58.5%, and 0.0012 at 59% — which is where the geometry says it
+# crosses (the flag's top-right corner is 13.978 units out in the 24-space, and
+# 25.6/13.978 caps the scale at 1.831, i.e. 58.7% coverage). The threshold sits
+# well under that first real reading.
+CIRCLE_STDDEV="$(magick "$OUT/icon-maskable-512.png" -alpha off \
+	-fill "$DARK" -draw 'circle 256,256 256,51.2' \
+	-format '%[fx:standard_deviation]' info:)"
+if (($(echo "$CIRCLE_STDDEV > 0.0005" | bc -l))); then
+	echo "gen-icons: icon-maskable-512.png has mark outside the 80% safe circle (stddev $CIRCLE_STDDEV)" >&2
+	fail=1
+fi
+
+[[ "$fail" == 0 ]] || exit 1
+echo "gen-icons: wrote favicon.svg favicon.ico apple-touch-icon.png icon-192.png icon-512.png icon-maskable-512.png og-card.png -> $OUT"

@@ -10,13 +10,32 @@
   inside its own copy of this frame, but that is peeq's departure from lucide,
   not one to inherit — a filled shape is a different mark.
 
+  THE INK IS A GRADIENT, not the flat #d97757 it used to be: #e08a68 down to
+  #c25f34, at roughly 145°. This is peeq's treatment, taken deliberately — it
+  is the house look across all four of peeq's icon sources and its .sharepage-logo
+  in CSS, and it is the difference between the two marks that reads as one
+  having shine and the other being flat. It costs nothing to inherit because
+  music already ships the same palette: #c25f34 IS the color-accent-fill token
+  in index.css, and #e08a68 is color-accent-strong (#d97757) lifted, so the
+  midpoint of the ramp is still the accent the app is drawn in.
+
+  The gradient is in objectBoundingBox units, which means the frame and the
+  headphones each ramp across their OWN box rather than sharing one light
+  source. That is what peeq does and it is the wanted reading: the headphones
+  get their own top-left highlight instead of sampling one flat slice of a
+  canvas-wide ramp. A userSpaceOnUse gradient was rendered beside it and is the
+  duller of the two.
+
   Two glyphs, two jobs. The frame is the holder: a shape with no outline has
   nothing to hold it at 16px, which is the whole reason peeq put its wedge in
-  one. The headphones are the mark. Stroke is 2.5 rather than lucide's 2 because
-  at 16px a 2-unit line washes out.
+  one. The headphones are the mark. Stroke is 2 — lucide's own weight. It was
+  2.5 on the claim that a 2-unit line washes out at 16px; rendered at 16px side
+  by side on both a dark tab bar and Safari's light plate, it does not, and the
+  thinner frame is the one that was chosen. 1.8 was rendered too and is where it
+  does start to read delicate, so 2 is the floor, not a step on the way down.
 
   Sized off the frame's TRUE bbox — x[3,21] y[3,21] grown by half the stroke to
-  20.5 square, exactly centred on (12,12) — not the nominal 24x24 box the paths
+  20 square, exactly centred on (12,12) — not the nominal 24x24 box the paths
   only partly fill. Scaling by the box is what makes a glyph read as a dot at
   favicon sizes. Here it spans 96% of the canvas, near enough edge to edge: a
   tab already sets the icon in padding of its own, so a margin inside the canvas
@@ -24,9 +43,15 @@
   instead, because there the tile itself is visible.
 
   The headphones sit at 10.5 units inside the frame's 15.5-unit interior. Note
-  what that scale does to the stroke: the inner group is scaled 0.5122, so its
-  2.5 stroke paints at about 1.28 units and the headphones read lighter than the
-  frame around them. That is the shape as it was chosen, but it is also the
+  what that scale does to the stroke: the inner group is scaled 0.5122, so the
+  inherited 2 stroke paints at about 1.02 units and the headphones read lighter
+  than the frame around them. The inner group deliberately has NO stroke-width
+  of its own — it inherits, so thinning the frame thins the headphones in step
+  and the two keep their ratio. Pinning it (to hold the headphones at the old
+  weight while the frame thinned) was tried and is wrong twice over: it reads as
+  headphones nearly as heavy as their holder, and the number would have to be a
+  different one in each of the four sources, since they draw the same glyph at
+  four different scales. That is the shape as it was chosen, but it is also the
   first thing to check on a real screen — if the mark reads too faint at 16px,
   the lever is an explicit stroke-width on the inner group, not a bigger glyph.
 
@@ -53,9 +78,20 @@
   directions. Regenerate the rasters with ui/scripts/gen-icons.sh after touching
   this file — and mirror any shape change into icon-favicon.svg, which is a copy and
   cannot follow on its own.
+
+  THE TRANSFORM IS DERIVED, not typed. All four sources place the glyph with
+  scale = 64*C/(18+stroke) and translate = 32 - 12*scale, where C is that file's
+  coverage: 0.96 here and in icon-favicon.svg, 0.60 in tile-touch.svg, 0.52 in
+  tile-maskable.svg. Change the stroke and every one of the four transforms has
+  to be recomputed from that, or the mark silently stops filling the coverage
+  its own comment claims.
 -->
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
-  <g transform="translate(-3.9649 -3.9649) scale(2.99707)" fill="none" stroke="#d97757" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+  <linearGradient id="og" x1="0" y1="0" x2="0.72" y2="1">
+    <stop offset="0" stop-color="#e08a68"/>
+    <stop offset="1" stop-color="#c25f34"/>
+  </linearGradient>
+  <g transform="translate(-4.8640 -4.8640) scale(3.07200)" fill="none" stroke="url(#og)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
     <rect x="3" y="3" width="18" height="18" rx="2"/>
     <g transform="translate(5.8537 5.8537) scale(0.51220)">
       <path d="M3 14h3a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-7a9 9 0 0 1 18 0v7a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3"/>

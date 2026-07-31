@@ -12,17 +12,26 @@
 
   52%, and that number is measured rather than guessed. The mark is the frame, a
   rounded square: at 52% its half-side is 16.64 in the 64-space and its outer
-  corner radius is 5.28, so the farthest painted pixel sits at
-  sqrt(2)*(16.64-5.28)+5.28 = 21.35, against a safe radius of 25.6. That is a
-  17% margin, and gen-icons.sh asserts it on the rendered PNG rather than
-  trusting this arithmetic to stay true.
+  corner radius is (2 + half the 2 stroke) * 1.664 = 4.992, so the farthest
+  painted pixel sits at sqrt(2)*(16.64-4.992)+4.992 = 21.47, against a safe
+  radius of 25.6. That is a 16% margin, and gen-icons.sh asserts it on the
+  rendered PNG rather than trusting this arithmetic to stay true. Note that the
+  half-side does NOT move when the stroke does — coverage is what is held fixed,
+  so a thinner stroke buys a slightly larger glyph, not a smaller silhouette.
+  Only the corner radius shrinks with it, which is why the margin moved by a
+  point rather than not at all.
 
-  Same lucide headphones in the same lucide frame, 2.5 stroke and true-bbox
-  centring as the other two; see tile.svg for all of it.
+  Same lucide headphones in the same lucide frame, same gradient ink, 2 stroke
+  and true-bbox centring as the other two; see tile.svg for all of it, including
+  the scale = 64*0.52/(18+2) the transform below comes from.
 -->
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <linearGradient id="og" x1="0" y1="0" x2="0.72" y2="1">
+    <stop offset="0" stop-color="#e08a68"/>
+    <stop offset="1" stop-color="#c25f34"/>
+  </linearGradient>
   <rect width="64" height="64" fill="#1f1f1e"/>
-  <g transform="translate(12.5190 12.5190) scale(1.62341)" fill="none" stroke="#d97757" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+  <g transform="translate(12.0320 12.0320) scale(1.66400)" fill="none" stroke="url(#og)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
     <rect x="3" y="3" width="18" height="18" rx="2"/>
     <g transform="translate(5.8537 5.8537) scale(0.51220)">
       <path d="M3 14h3a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-7a9 9 0 0 1 18 0v7a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3"/>

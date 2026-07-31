@@ -103,6 +103,11 @@ func (h *songHandlers) downloadCover(w http.ResponseWriter, r *http.Request) {
 	// Extension comes from the stored file — covers may be JPEG or PNG.
 	name := downloadBase(song) + filepath.Ext(relPath)
 	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=%q", name))
+	// NOT immutable: this URL is song-scoped, not content-addressed. Replacing the
+	// song's artwork points it at different bytes, so a client holding this forever
+	// would keep re-downloading the cover the user just replaced. Private, because
+	// the route is auth-gated.
+	setRevalidate(w)
 	serveStoreFile(w, r, h.media, relPath)
 }
 
@@ -116,5 +121,7 @@ func (h *songHandlers) getCover(w http.ResponseWriter, r *http.Request) {
 		serverError(w, "get cover", err)
 		return
 	}
+	// A cover id is looked up by content hash, so these bytes can never change.
+	setImmutable(w)
 	serveSizedImage(w, r, h.media, path)
 }

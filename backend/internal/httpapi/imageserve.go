@@ -13,6 +13,12 @@ import (
 )
 
 // imageSizes maps a ?size= name to the longest-side pixel bound of the variant.
+//
+// The name is part of the URL and the URL is cached immutably, so a name's bound
+// is frozen once shipped: re-pointing "thumb" at a different pixel size would
+// leave every client holding the old variant with no way to recall it, and would
+// also collide with the `<path>.thumb.jpg` copies already on the volume. Want a
+// different size? Add a new name (and drop the stale variant files).
 var imageSizes = map[string]int{"thumb": 160, "card": 480, "hero": 1600}
 
 // sizeParam resolves the ?size= query. An empty or unrecognized value serves the
@@ -28,6 +34,11 @@ func sizeParam(r *http.Request) (int, string, bool) {
 // serveSizedImage serves relPath from the media store. With ?size=thumb|card|hero
 // it serves (and caches on the volume) a downscaled JPEG variant; otherwise it
 // serves the original bytes. All paths stay sandboxed via media.Store.
+//
+// The cache policy belongs to the route, not to this helper: only the handler
+// knows whether its URL is content-addressed (setImmutable) or resolves through a
+// mutable pointer (setRevalidate). Set it before calling; error paths override it
+// with no-store on the way out.
 func serveSizedImage(w http.ResponseWriter, r *http.Request, store *media.Store, relPath string) {
 	dim, name, sized := sizeParam(r)
 	if !sized {
@@ -71,11 +82,14 @@ func serveSizedImage(w http.ResponseWriter, r *http.Request, store *media.Store,
 		}
 	}
 	w.Header().Set("Content-Type", "image/jpeg")
+	// Freshly scaled bytes carry no ModTime, so there is no validator to fall back
+	// on — the caller's Cache-Control is the only thing keeping this out of
+	// heuristic caching.
 	http.ServeContent(w, r, filepath.Base(cacheRel), time.Time{}, bytes.NewReader(scaled))
 }
 
 // serveStoreFile serves the original bytes at relPath with a content type derived
-// from its extension.
+// from its extension. Like serveSizedImage, it leaves Cache-Control to the route.
 func serveStoreFile(w http.ResponseWriter, r *http.Request, store *media.Store, relPath string) {
 	f, err := store.Open(relPath)
 	if err != nil {

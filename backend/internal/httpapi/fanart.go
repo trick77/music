@@ -77,6 +77,9 @@ func (h *songHandlers) getFanart(w http.ResponseWriter, r *http.Request) {
 		httpError(w, http.StatusNotFound, "image not ready")
 		return
 	}
+	// A fanart row's image_path is written exactly once (MarkFanartReady on a row
+	// created in 'generating'), so this id can never point at different bytes.
+	setImmutable(w)
 	serveSizedImage(w, r, h.media, fa.ImagePath)
 }
 

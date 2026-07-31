@@ -1,6 +1,9 @@
 // --- Studio (Phase 9) -------------------------------------------------------
 // Generate/refine stream Server-Sent Events: `progress` while MiMo researches,
-// then a final `result` (or `error`). onProgress is called per progress event.
+// `partial` each time one part of the answer is finished, then a final `result`
+// (or `error`). onProgress is called per progress event, onPartial per partial —
+// generate runs in three turns, so the page can fill card by card instead of
+// waiting for the whole run.
 
 export type StudioProgress = { phase: string; detail: string };
 export type StudioResult = {
@@ -13,12 +16,17 @@ export type StudioResult = {
   albums: string[];
 };
 
+// StudioPartial is one finished part of a generate run — the fields that turn
+// produced, everything else absent or blank.
+export type StudioPartial = Partial<StudioResult>;
+
 // streamStudio POSTs a JSON body and reads an SSE response, dispatching progress
-// events and returning the final result (or throwing on error).
+// and partial events and returning the final result (or throwing on error).
 async function streamStudio(
   path: string,
   body: unknown,
   onProgress: (p: StudioProgress) => void,
+  onPartial?: (p: StudioPartial) => void,
 ): Promise<Record<string, unknown>> {
   const r = await fetch(path, {
     method: "POST",
@@ -53,6 +61,7 @@ async function streamStudio(
         continue;
       }
       if (event === "progress") onProgress(data as StudioProgress);
+      else if (event === "partial") onPartial?.(data as StudioPartial);
       else if (event === "result") result = data;
       else if (event === "error")
         errorMsg = String(data.error ?? "generation failed");
@@ -66,11 +75,13 @@ async function streamStudio(
 export async function studioGenerate(
   reference: string,
   onProgress: (p: StudioProgress) => void,
+  onPartial?: (p: StudioPartial) => void,
 ): Promise<StudioResult> {
   return (await streamStudio(
     "/api/studio/generate",
     { reference },
     onProgress,
+    onPartial,
   )) as unknown as StudioResult;
 }
 

@@ -45,10 +45,11 @@ Worked example of the trap to avoid:
         — nothing forced, plain words, an actual picture; the rhyme is dropped
         rather than faked.`
 
-// generateSystemPrompt instructs MiMo to research a named song and emit a Suno
-// prompt. It encodes the suno-prompt-generator rules, Suno tag literacy, the
-// lyric craft rules, the epoch-correct cover-art requirement, and a strict JSON
-// output contract.
+// generateSystemPrompt frames the whole generate conversation. The deliverables
+// are split across three turns of one message history (see generateTurn*Prompt)
+// rather than crammed into a single reply: each turn has one job, the craft
+// rules sit next to the turn that needs them instead of behind a research
+// transcript, and every turn's output can reach the UI the moment it lands.
 const generateSystemPrompt = `You are a music producer's assistant that turns a named reference song into a
 Suno AI prompt. You do NOT have reliable knowledge of any specific song's exact
 details or lyrics, so you MUST research the song on the web first using the
@@ -56,7 +57,18 @@ available tools (web search, and page fetch when available). Also search for the
 CURRENT set of Suno prompt/meta tags — Suno's supported tags change over time —
 and prefer tags you can confirm are current.
 
-Using what you learn, produce SEVEN things:
+The work comes in THREE turns, each asking for one part: first the style prompt
+and genres, then the lyrics, then the naming and cover art. Do ALL your web
+research in the first turn — the later turns build on what you found there and
+must not call any tools. Answer every turn with ONLY the single JSON object that
+turn asks for: no prose, no commentary, no code fences.
+
+NEVER mention real artist, band, or song names in any output — describe only
+musical characteristics.`
+
+// generateTurn1Prompt asks for the research-derived half: the style prompt and
+// the genre labels. It is the only turn that may call tools.
+const generateTurn1Prompt = `Research the reference song now, then produce TWO things:
 
 1. stylePrompt — a comma-separated list of style/genre descriptors for Suno's
    "Style" box. Rules: NO spaces after commas; lowercase except proper nouns;
@@ -84,49 +96,72 @@ Using what you learn, produce SEVEN things:
    and NO Suno meta/structure/section tags (e.g. [Verse], [Chorus], [Intro]) —
    song structure belongs ONLY in the lyrics field, never here.
 
-2. lyrics — ORIGINAL lyrics that YOU compose as a brand-new song on the researched
-   THEME, mood and imagery — inspired by the reference, NOT a line-by-line rewrite of
-   it. Write them to be natural and singable; do not paraphrase the original line for
-   line or swap out single words, which produces awkward, unusable phrasing. For
-   copyright, what matters is that you do NOT reproduce the reference song's
-   distinctive lines, its hook, or its chorus verbatim — ordinary words, common
-   images, and the shared theme are free to use. Structure them with Suno meta/structure tags such as
-   [Intro], [Verse], [Pre-Chorus], [Chorus], [Post-Chorus], [Bridge], [Hook],
-   [Instrumental], [Guitar Solo], [Break], [Build], [Drop], [Outro], [Fade Out],
-   and performance cues like [Whispered], [Spoken Word], [Belted], [Big Finish].
-   Use tags you confirmed are current; the list above is a floor, not a ceiling.
-   Obey the CRAFT RULES stated after item 7 — they matter as much as the theme.
+2. genres — an array of UP TO 3 concise genre names that best classify the song
+   (1-3 words each, e.g. "synthwave", "dream pop", "drum and bass"). Lowercase,
+   no duplicates, most representative first. These are the song's genres, distinct
+   from the fuller comma-separated stylePrompt above. Return fewer than 3 if the
+   song does not warrant three; never more than 3.
 
-3. coverArtPrompt — a CONCISE prompt for a downstream image generator: one or two
+Respond with ONLY a single JSON object and nothing else (no prose, no code
+fences):
+{"stylePrompt":"...","genres":["...","...","..."]}`
+
+// generateTurn2Prompt asks for the lyrics alone, with the craft rules sitting
+// right next to the request rather than at the top of a long system prompt. It
+// runs tool-free on the turn-1 history, so the research and the style prompt the
+// craft rules defer to are both still in context.
+const generateTurn2Prompt = `Now write the lyrics. Do not call any tools — you have everything you need.
+
+lyrics — ORIGINAL lyrics that YOU compose as a brand-new song on the researched
+THEME, mood and imagery — inspired by the reference, NOT a line-by-line rewrite of
+it. Write them to be natural and singable; do not paraphrase the original line for
+line or swap out single words, which produces awkward, unusable phrasing. For
+copyright, what matters is that you do NOT reproduce the reference song's
+distinctive lines, its hook, or its chorus verbatim — ordinary words, common
+images, and the shared theme are free to use. Structure them with Suno meta/structure tags such as
+[Intro], [Verse], [Pre-Chorus], [Chorus], [Post-Chorus], [Bridge], [Hook],
+[Instrumental], [Guitar Solo], [Break], [Build], [Drop], [Outro], [Fade Out],
+and performance cues like [Whispered], [Spoken Word], [Belted], [Big Finish].
+Use tags you confirmed are current; the list above is a floor, not a ceiling.
+They must fit the style prompt you just wrote, and they must obey the CRAFT
+RULES below — those matter as much as the theme.
+
+` + lyricCraftRules + `
+
+Respond with ONLY a single JSON object and nothing else (no prose, no code
+fences):
+{"lyrics":"..."}`
+
+// generateTurn3Prompt asks for everything downstream of the lyrics — cover art
+// and the three naming lists — now that the lyrics are a real message in the
+// history rather than a same-breath promise.
+const generateTurn3Prompt = `Now name the track and picture it. Do not call any tools. Produce FOUR things,
+all grounded in the lyrics you just wrote:
+
+1. coverArtPrompt — a CONCISE prompt for a downstream image generator: one or two
    vivid sentences, at most ~60 words. Ground the imagery in the THEMES, STORY, and
-   KEY IMAGES of the lyrics you wrote in step 2 above — not just the genre and era.
+   KEY IMAGES of the lyrics you just wrote — not just the genre and era.
    Image models degrade on long rambling descriptions, so favor a single strong
    central subject, palette, and mood over exhaustive detail. It MUST also bake in
    the researched genre and era/epoch so the aesthetic is period-correct (e.g. a
    1991 thrash-metal cover, not a modern one). No text in the image; square album
    composition.
 
-4. genres — an array of UP TO 3 concise genre names that best classify the song
-   (1-3 words each, e.g. "synthwave", "dream pop", "drum and bass"). Lowercase,
-   no duplicates, most representative first. These are the song's genres, distinct
-   from the fuller comma-separated stylePrompt above. Return fewer than 3 if the
-   song does not warrant three; never more than 3.
-
-5. titles — an array of EXACTLY 3 original song-title ideas for the lyrics you
-   wrote in step 2. They must VARY IN DIRECTNESS: the FIRST is the most obvious
+2. titles — an array of EXACTLY 3 original song-title ideas for the lyrics you
+   just wrote. They must VARY IN DIRECTNESS: the FIRST is the most obvious
    pick (e.g. built from the hook/chorus or the central phrase), and the LAST is
    more oblique and evocative (an image, symbol, or metaphor drawn from the
    lyrics — NOT a lyric line copied verbatim). 1-6 words each, Title Case, no
    surrounding quotes, all distinct from one another, and NEVER the reference
    song's real title.
 
-6. albums — an array of EXACTLY 3 album-name ideas in the same varied spirit
+3. albums — an array of EXACTLY 3 album-name ideas in the same varied spirit
    (obvious first, oblique last), evoking the overall mood and era rather than a
    single line. Same rules: 1-6 words each, Title Case, no quotes, all distinct
    from one another AND from the titles, and never the reference song's real
    album or title.
 
-7. bands — an array of EXACTLY 3 original band/artist-name ideas that could
+4. bands — an array of EXACTLY 3 original band/artist-name ideas that could
    plausibly have recorded this song, fitting the researched genre and era/epoch
    and suiting the lyrics' mood. A band name names the ACT, not the song — do NOT
    reuse or echo any of the titles or albums. Same varied spirit (obvious first,
@@ -134,11 +169,9 @@ Using what you learn, produce SEVEN things:
    distinct from one another AND from the titles and albums, and NEVER the
    reference song's real artist or band name.
 
-` + lyricCraftRules + `
-
-When you have finished researching, respond with ONLY a single JSON object and
-nothing else (no prose, no code fences):
-{"stylePrompt":"...","lyrics":"...","coverArtPrompt":"...","genres":["...","...","..."],"titles":["...","...","..."],"albums":["...","...","..."],"bands":["...","...","..."]}`
+Respond with ONLY a single JSON object and nothing else (no prose, no code
+fences):
+{"coverArtPrompt":"...","titles":["...","...","..."],"albums":["...","...","..."],"bands":["...","...","..."]}`
 
 // refineSystemPrompt instructs MiMo to rewrite only the lyrics per an instruction.
 const refineSystemPrompt = `You revise Suno lyrics. You are given a reference song, the current ORIGINAL
@@ -233,8 +266,11 @@ the instruction does not change.
 Respond with ONLY a single JSON object and nothing else (no prose, no code fences):
 {"prompt":"..."}`
 
+// generateUserPrompt opens the generate conversation: the reference plus the
+// turn-1 request. The turn instructions ride in the user message, not the system
+// prompt, so turn 1 is asked for its two fields the same way turns 2 and 3 are.
 func generateUserPrompt(reference string) string {
-	return fmt.Sprintf("Reference song: %s", reference)
+	return fmt.Sprintf("Reference song: %s\n\n%s", reference, generateTurn1Prompt)
 }
 
 func genrePromptUserPrompt(genre string) string {

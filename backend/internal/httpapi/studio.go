@@ -56,7 +56,11 @@ func (h *studioHandlers) generate(w http.ResponseWriter, r *http.Request) {
 	defer cancel()
 
 	onProgress := func(p studio.Progress) { stream("progress", p); flush() }
-	res, err := h.provider.Generate(ctx, studio.GenerateRequest{Reference: req.Reference}, onProgress)
+	// Each finished turn goes out as a `partial` carrying only the fields it
+	// produced, so the page fills card by card; the closing `result` still carries
+	// the whole payload and is what the UI trusts.
+	onPartial := func(r studio.GenerateResult) { stream("partial", r); flush() }
+	res, err := h.provider.Generate(ctx, studio.GenerateRequest{Reference: req.Reference}, onProgress, onPartial)
 	if err != nil {
 		stream("error", map[string]string{"error": "generation failed"})
 		flush()

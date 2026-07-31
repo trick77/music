@@ -15,6 +15,21 @@ func TestSPAHandler_servesIndex(t *testing.T) {
 	}
 }
 
+// Music ships no favicon.ico on purpose, so the bare root probe must 404 rather
+// than reach the SPA fallback — which would answer an icon request with the whole
+// index.html at 200. This is testable in CI precisely because the file is absent:
+// it needs no built frontend.
+func TestSPAHandler_faviconICOIsNotTheSPAShell(t *testing.T) {
+	rr := httptest.NewRecorder()
+	SPAHandler().ServeHTTP(rr, httptest.NewRequest("GET", "/favicon.ico", nil))
+	if rr.Code != http.StatusNotFound {
+		t.Fatalf("status = %d, want 404; body %q", rr.Code, rr.Body.String())
+	}
+	if strings.Contains(rr.Body.String(), `<div id="root">`) {
+		t.Fatalf("favicon.ico served the SPA shell:\n%s", rr.Body.String())
+	}
+}
+
 func TestSPAHandler_unknownFallsBackToIndex(t *testing.T) {
 	rr := httptest.NewRecorder()
 	SPAHandler().ServeHTTP(rr, httptest.NewRequest("GET", "/library", nil))
@@ -67,7 +82,7 @@ func TestIndexHTML_returnsEmbeddedShell(t *testing.T) {
 
 // HasFile decides whether the share-meta layer may wrap a path in HTML. It must
 // mirror SPAHandler's fallback test: real embedded files are true, SPA routes
-// (and the root) are false — otherwise a real asset like /favicon.ico would be
+// (and the root) are false — otherwise a real asset like /favicon.svg would be
 // served as an HTML document.
 //
 // Only dist/index.html is committed; the hashed bundles and icons are built in

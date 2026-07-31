@@ -11,11 +11,16 @@
 #
 # librsvg does the rasterising, not ImageMagick's own SVG support: IM's internal
 # MSVG delegate renders stroked paths soft and distorted. ImageMagick is used
-# only on rasters it already holds — the .ico assembly, the share card, and
-# re-reading the results to assert their grounds. This replaces an older
-# headless-Chrome screenshot dance (Chrome's `--headless=new` writes the file but
-# does not reliably exit, so it had to be backgrounded, polled for and killed);
-# rsvg-convert is one synchronous call, and works off macOS.
+# only on rasters it already holds — the share card, and re-reading the results
+# to assert their grounds. This replaces an older headless-Chrome screenshot
+# dance (Chrome's `--headless=new` writes the file but does not reliably exit, so
+# it had to be backgrounded, polled for and killed); rsvg-convert is one
+# synchronous call, and works off macOS.
+#
+# There is no favicon.ico here. Music declares an SVG icon in <head>, and the
+# clients that go looking for a bare /favicon.ico are RSS readers, Windows
+# bookmark thumbnails and old IE — none of which this targets. backend/web
+# answers that path with a 404 instead.
 #
 # Re-run whenever a source or a brand colour changes, then rebuild the UI so the
 # new bytes land in backend/web/dist.
@@ -51,14 +56,6 @@ cp "$MASTER" "$OUT/favicon.svg"
 # no interior for the tab's own colour to fill and read as a background.
 rsvg-convert -b none -w 192 -h 192 "$MASTER" -o "$OUT/icon-192.png"
 rsvg-convert -b none -w 512 -h 512 "$MASTER" -o "$OUT/icon-512.png"
-
-# --- favicon.ico: 16/32/48 frames, also from the master ----------------------
-# Rendered at each size rather than downsampled from one big raster, so every
-# frame gets librsvg's own hinting at the size it will actually be seen at.
-for s in 16 32 48; do
-	rsvg-convert -b none -w "$s" -h "$s" "$MASTER" -o "$TMP/fav_$s.png"
-done
-magick "$TMP/fav_16.png" "$TMP/fav_32.png" "$TMP/fav_48.png" "$OUT/favicon.ico"
 
 # --- from the tiled sources --------------------------------------------------
 # These two carry a smaller glyph and square corners because the OS crops them:
@@ -102,7 +99,6 @@ check_alpha() { # <file> <expected true|false>
 		fail=1
 	fi
 }
-for s in 16 32 48; do check_alpha "$TMP/fav_$s.png" false; done
 check_alpha "$OUT/icon-192.png" false
 check_alpha "$OUT/icon-512.png" false
 check_alpha "$OUT/apple-touch-icon.png" true
@@ -132,4 +128,4 @@ if (($(echo "$CIRCLE_STDDEV > 0.0005" | bc -l))); then
 fi
 
 [[ "$fail" == 0 ]] || exit 1
-echo "gen-icons: wrote favicon.svg favicon.ico apple-touch-icon.png icon-192.png icon-512.png icon-maskable-512.png og-card.png -> $OUT"
+echo "gen-icons: wrote favicon.svg apple-touch-icon.png icon-192.png icon-512.png icon-maskable-512.png og-card.png -> $OUT"

@@ -19,8 +19,9 @@ import (
 // methods are delegated to the SPA handler unchanged — humans always boot the
 // app, a stale share link yields the in-app not-found (no card, no data leak),
 // and asset bytes are never wrapped in HTML. hasFile reports whether a path
-// resolves to an embedded static file (web.HasFile).
-func withShareMeta(repo *library.Repo, shell []byte, spa http.Handler, hasFile func(string) bool) http.Handler {
+// resolves to an embedded static file (web.HasFile); deliberate404 reports
+// whether a path ships no file on purpose and must 404 (web.IsDeliberate404).
+func withShareMeta(repo *library.Repo, shell []byte, spa http.Handler, hasFile, deliberate404 func(string) bool) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodGet && len(shell) > 0 && repo != nil {
 			switch {
@@ -41,8 +42,12 @@ func withShareMeta(repo *library.Repo, shell []byte, spa http.Handler, hasFile f
 				}
 			default:
 				// Any other navigation route (the app root, /library, …) that isn't a
-				// real asset gets the default site card.
-				if !hasFile(r.URL.Path) {
+				// real asset gets the default site card. Paths the app 404s on purpose
+				// are not navigation routes and must not be wrapped either: they ship
+				// no file, so hasFile is false for them, and without the second test
+				// this branch answers an icon probe with an Open-Graph shell at 200
+				// before the SPA handler's own 404 is ever reached.
+				if !hasFile(r.URL.Path) && !deliberate404(r.URL.Path) {
 					serveShell(w, shell, defaultMeta(r))
 					return
 				}

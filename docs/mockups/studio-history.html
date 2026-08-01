@@ -218,6 +218,19 @@
   }
   .banner.warn { border-left-color: var(--color-accent); color: color-mix(in srgb, var(--color-ink) 80%, transparent); }
 
+  .decided {
+    border: 1px solid var(--color-border); border-left: 3px solid var(--color-accent);
+    border-radius: var(--radius-ui); background: var(--color-panel);
+    padding: var(--space-4) var(--space-5); margin: 0 0 var(--space-6); max-width: 78ch;
+  }
+  .decided-h {
+    font-size: var(--text-micro); letter-spacing: .09em; text-transform: uppercase;
+    color: var(--color-accent-strong); font-weight: 600; margin-bottom: var(--space-3);
+  }
+  .decided .kv { align-items: baseline; }
+  .decided .kv span:first-child { min-width: 108px; }
+  .decided .kv span:last-child { font-size: var(--text-label); }
+
   /* ── A trigger variants ───────────────────────────────────── */
   .tri-h { font-size: var(--text-ui); margin-bottom: var(--space-2); }
   .btn.icon { display: inline-grid; place-items: center; padding: 8px 10px; color: var(--color-muted); }
@@ -295,11 +308,19 @@
 
   <h1>Studio history</h1>
   <p class="lede">
-    Two decisions to make, mocked separately. <b>Question 1:</b> where history lives.
-    <b>Question 2:</b> how the run you are working on right now reads, given it is
-    not history yet but will be — and that refining it overwrites its own entry.
-    Everything below is a static mock; nothing is wired up.
+    Static mocks; nothing is wired up. The decisions are made — this page is now the
+    record of what was chosen and what was passed over.
   </p>
+
+  <div class="decided">
+    <div class="decided-h">Decided</div>
+    <div class="kv"><span>Placement</span><span><b>A</b> — side drawer from the right, matching the existing queue drawer (fixed right, 340px, Escape closes). Not B (inline strip), not C (fourth mode tab).</span></div>
+    <div class="kv"><span>Trigger</span><span><b>A1</b> — a clock-arrow icon button beside Generate. No label, no count badge; the run count sits in the drawer header instead.</span></div>
+    <div class="kv"><span>Current run</span><span><b>3</b> — the live run is not in the list at all. History holds finished runs only; the run on screen joins the list when you leave the page. No “current vs saved” vocabulary needed anywhere.</span></div>
+    <div class="kv"><span>Saved run</span><span>Opens read-only with <b>everything</b> the run produced — all three band, title and album ideas, genres, lyrics, style prompt, cover-art prompt, and the cover image. No refine field, no editable boxes.</span></div>
+    <div class="kv"><span>Storage</span><span>Server-side SQLite, cover PNG kept with the run. Written on a completed run only. Nothing expires; each entry gets a delete. Suno runs only for now.</span></div>
+    <div class="kv" style="border-top:1px solid var(--color-border);padding-top:9px"><span style="color:var(--color-accent-strong)">Still open</span><span>What labels a history row. The real song and artist are <b>not</b> in the model's output today — <a href="#labels" style="color:var(--color-accent-strong)">three options below</a>.</span></div>
+  </div>
 
   <!-- ══════════════════ QUESTION 1 ══════════════════ -->
   <div class="opt">
@@ -349,18 +370,17 @@
           </div>
         </div>
         <aside class="drawer">
-          <h4>History <span class="x">✕</span></h4>
+          <h4>History <span style="color:var(--color-muted);font-weight:400">12 runs</span> <span class="x">✕</span></h4>
           <ul class="hist">
-            <li class="entry live">
-              <span class="live-dot"></span>
-              <span class="who"><span class="ref">This Must Be the Place</span><br /><span class="meta">Talking Heads · art pop</span></span>
-              <span class="pill now">On screen</span>
-            </li>
-            <li class="entry"><span class="who"><span class="ref">Enter Sandman</span><br /><span class="meta">Metallica · thrash metal</span></span><span class="when">2h ago</span><span class="lock">🔒</span></li>
-            <li class="entry"><span class="who"><span class="ref">Blue Monday</span><br /><span class="meta">New Order · synth-pop</span></span><span class="when">Yesterday</span><span class="lock">🔒</span></li>
-            <li class="entry"><span class="who"><span class="ref">Teardrop</span><br /><span class="meta">Massive Attack · trip hop</span></span><span class="when">Tue</span><span class="lock">🔒</span></li>
-            <li class="entry"><span class="who"><span class="ref">Redbone</span><br /><span class="meta">Childish Gambino · psychedelic soul</span></span><span class="when">Jul 28</span><span class="lock">🔒</span></li>
+            <li class="entry"><span class="who"><span class="ref">Enter Sandman</span><br /><span class="meta">Metallica · thrash metal</span></span><span class="when">2h ago</span></li>
+            <li class="entry"><span class="who"><span class="ref">Blue Monday</span><br /><span class="meta">New Order · synth-pop</span></span><span class="when">Yesterday</span></li>
+            <li class="entry"><span class="who"><span class="ref">Teardrop</span><br /><span class="meta">Massive Attack · trip hop</span></span><span class="when">Tue</span></li>
+            <li class="entry"><span class="who"><span class="ref">Redbone</span><br /><span class="meta">Childish Gambino · psychedelic soul</span></span><span class="when">Jul 28</span></li>
+            <li class="entry"><span class="who"><span class="ref">Just Like Honey</span><br /><span class="meta">The Jesus and Mary Chain · noise pop</span></span><span class="when">Jul 26</span></li>
           </ul>
+          <p class="hint" style="border-top:1px solid var(--color-border);padding-top:var(--space-3);margin-top:var(--space-3)">
+            The run on screen joins this list when you leave the page.
+          </p>
         </aside>
       </div>
     </div>
@@ -599,6 +619,81 @@
     </div>
   </div>
 
+  <!-- ══════════════════ WHAT LABELS A ROW ══════════════════ -->
+  <div class="opt" id="labels">
+    <div class="opt-head"><span class="tag q">Open</span><h2>What actually labels a history row?</h2></div>
+    <p class="note">
+      The rows above show a song on one line and an artist underneath. <b>That data
+      does not exist today.</b> <code>GenerateResult</code> carries the style prompt,
+      lyrics, cover-art prompt, genres, and the <i>invented</i> band/title/album ideas —
+      never the real ones. The prompt forbids them twice: <i>“NEVER mention real
+      artist, band, or song names in any output.”</i> The only place the real song
+      lives is the reference string you typed. Three ways to label a row:
+    </p>
+    <div class="cols">
+
+      <div>
+        <h2 class="tri-h"><span class="tag">L1</span> &nbsp;The reference, verbatim</h2>
+        <p class="caption">One line, exactly as typed. Nothing to get wrong and nothing new to build — but rows are ragged, since people type “Metallica, Enter Sandman”, “Enter Sandman by Metallica” and “enter sandman” interchangeably.</p>
+        <div class="frame"><div class="stage"><aside class="drawer" style="width:100%;border-left:0;padding:var(--space-4)">
+          <ul class="hist">
+            <li class="entry"><span class="who"><span class="ref">Metallica, Enter Sandman</span><br /><span class="meta">thrash metal · heavy metal</span></span><span class="when">2h</span></li>
+            <li class="entry"><span class="who"><span class="ref">Enter Sandman by Metallica</span><br /><span class="meta">thrash metal</span></span><span class="when">Yest.</span></li>
+            <li class="entry"><span class="who"><span class="ref">blue monday new order</span><br /><span class="meta">synth-pop · post-punk</span></span><span class="when">Tue</span></li>
+          </ul>
+        </aside></div></div>
+      </div>
+
+      <div>
+        <h2 class="tri-h"><span class="tag">L2</span> &nbsp;Split on the comma</h2>
+        <p class="caption">Client-side guess: text before the comma is the artist, after it the song. Free, and right for the format the placeholder suggests — wrong the moment someone writes “by”, reverses the order, or omits one. No way to tell a bad split from a good one.</p>
+        <div class="frame"><div class="stage"><aside class="drawer" style="width:100%;border-left:0;padding:var(--space-4)">
+          <ul class="hist">
+            <li class="entry"><span class="who"><span class="ref">Enter Sandman</span><br /><span class="meta">Metallica</span></span><span class="when">2h</span></li>
+            <li class="entry" style="border-color:var(--color-danger)"><span class="who"><span class="ref">—</span><br /><span class="meta">Enter Sandman by Metallica</span></span><span class="when">Yest.</span></li>
+            <li class="entry" style="border-color:var(--color-danger)"><span class="who"><span class="ref">—</span><br /><span class="meta">blue monday new order</span></span><span class="when">Tue</span></li>
+          </ul>
+          <p class="hint" style="color:var(--color-danger)">Two of three misparsed. Nothing detects it.</p>
+        </aside></div></div>
+      </div>
+
+      <div>
+        <h2 class="tri-h"><span class="tag">L3 · recommended</span> &nbsp;Ask the model</h2>
+        <p class="caption">Turn 1 already researches the song, so it knows. Two extra fields — the real artist and the real title — returned as <i>metadata about the reference</i>, never as prompt content. Rows become uniform and sortable regardless of how the reference was typed. Falls back to L1 verbatim if the fields come back empty.</p>
+        <div class="frame"><div class="stage"><aside class="drawer" style="width:100%;border-left:0;padding:var(--space-4)">
+          <ul class="hist">
+            <li class="entry"><span class="who"><span class="ref">Enter Sandman</span><br /><span class="meta">Metallica · thrash metal</span></span><span class="when">2h</span></li>
+            <li class="entry"><span class="who"><span class="ref">Enter Sandman</span><br /><span class="meta">Metallica · thrash metal</span></span><span class="when">Yest.</span></li>
+            <li class="entry"><span class="who"><span class="ref">Blue Monday</span><br /><span class="meta">New Order · synth-pop</span></span><span class="when">Tue</span></li>
+          </ul>
+          <p class="hint">All three typed differently. Same row shape.</p>
+        </aside></div></div>
+      </div>
+
+      <div>
+        <h2 class="tri-h"><span class="tag q">catch</span> &nbsp;What L3 costs</h2>
+        <p class="caption">
+          It needs a deliberate hole in a rule that currently has none. The carve-out has
+          to be narrow and explicit, or the model starts reading it as permission to put
+          real names in the style prompt — which is the thing the rule exists to stop.
+        </p>
+        <div class="frame"><div class="studio" style="padding:var(--space-4)">
+          <div class="card mono" style="font-size:var(--text-micro);line-height:1.7">
+            <span style="color:var(--color-muted)">// added to turn 1</span><br />
+            3. referenceArtist, referenceTitle — the REAL artist and title of the<br />
+            &nbsp;&nbsp; reference song you researched. These two fields are the ONLY<br />
+            &nbsp;&nbsp; place a real name may ever appear: they label the run in a list<br />
+            &nbsp;&nbsp; and are never pasted into Suno. The rule still holds absolutely<br />
+            &nbsp;&nbsp; for stylePrompt, lyrics, titles, albums, bands and the cover-art<br />
+            &nbsp;&nbsp; prompt. Leave them empty if unsure.
+          </div>
+          <p class="hint">Costs no extra tool call and no extra turn — two more keys in a JSON object turn 1 already returns.</p>
+        </div></div>
+      </div>
+
+    </div>
+  </div>
+
   <!-- ══════════════════ QUESTION 2 ══════════════════ -->
   <div class="opt" style="margin-top:72px">
     <div class="opt-head"><span class="tag q">Question 2</span><h2>How does the current run read, when it is not history yet?</h2></div>
@@ -645,7 +740,7 @@
         </aside></div></div>
       </div>
       <div>
-        <h2 style="font-size:var(--text-ui);margin-bottom:var(--space-2)"><span class="tag">3</span> &nbsp;Not in the list at all</h2>
+        <h2 style="font-size:var(--text-ui);margin-bottom:var(--space-2)"><span class="tag">3 · picked</span> &nbsp;Not in the list at all</h2>
         <p class="caption">History lists only finished, read-only runs. The current run is simply the page you are on — it appears in the list once you leave. A one-line footer says so, and nothing needs a “current vs saved” vocabulary at all.</p>
         <div class="frame"><div class="stage"><aside class="drawer" style="width:100%;border-left:0">
           <h4>History</h4>

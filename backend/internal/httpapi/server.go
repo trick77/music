@@ -97,11 +97,11 @@ func build(cfg config.Config, st *store.Store, spa http.Handler, gen imagegen.Pr
 	mux.HandleFunc("GET /api/auth/session", func(w http.ResponseWriter, r *http.Request) {
 		id := identify(cfg, r)
 		writeJSON(w, map[string]any{
-			"authenticated":    id.Authenticated,
-			"username":         id.Username,
-			"imageGenEnabled":  cfg.ImageGenEnabled() && id.Authenticated,
-			"studioEnabled":    cfg.StudioEnabled() && id.Authenticated,
-			"chatEnabled":      cfg.ChatEnabled() && id.Authenticated,
+			"authenticated":   id.Authenticated,
+			"username":        id.Username,
+			"imageGenEnabled": cfg.ImageGenEnabled() && id.Authenticated,
+			"studioEnabled":   cfg.StudioEnabled() && id.Authenticated,
+			"chatEnabled":     cfg.ChatEnabled() && id.Authenticated,
 			// Studio history needs the library store, not the studio provider: an
 			// install with no database has no history and the icon stays hidden.
 			"historyEnabled":   historyEnabled && id.Authenticated,

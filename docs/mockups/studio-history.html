@@ -323,10 +323,11 @@
     <div class="decided-h">Decided</div>
     <div class="kv"><span>Placement</span><span><b>A</b> — side drawer from the right, matching the existing queue drawer (fixed right, 340px, Escape closes). Not B (inline strip), not C (fourth mode tab).</span></div>
     <div class="kv"><span>Trigger</span><span><b>A1</b> — a clock-arrow icon button beside Generate. No label, no count badge; the run count sits in the drawer header instead.</span></div>
-    <div class="kv"><span>Current run</span><span><b>3</b> — the live run is not in the list at all. History holds finished runs only; the run on screen joins the list when you leave the page. No “current vs saved” vocabulary needed anywhere.</span></div>
+    <div class="kv"><span>Current run</span><span><b>3</b> — the live run is not in the list at all. History holds finished runs only; the run on screen joins the list once you leave. Nothing announces it — no “current vs saved” vocabulary anywhere.</span></div>
+    <div class="kv"><span>List length</span><span><b>P1</b> — 25 most recent, then an explicit “Show 25 more”, with the total in the footer (<code>25 of 243</code>). Server pages at <code>LIMIT 25</code>. Date headers (Today / This week / Earlier) group the rows. Not infinite scroll; the filter is a later addition.</span></div>
     <div class="kv"><span>Saved run</span><span>Opens read-only with <b>everything</b> the run produced — all three band, title and album ideas, genres, lyrics, style prompt, cover-art prompt, and the cover image. No refine field, no editable boxes.</span></div>
     <div class="kv"><span>Storage</span><span>Server-side SQLite, cover PNG kept with the run. Written on a completed run only. Nothing expires; each entry gets a delete. Suno runs only for now.</span></div>
-    <div class="kv" style="border-top:1px solid var(--color-border);padding-top:9px"><span style="color:var(--color-accent-strong)">Still open</span><span>What labels a history row — the real song and artist are <b>not</b> in the model's output today (<a href="#labels" style="color:var(--color-accent-strong)">three options</a>). And how many rows the drawer shows at once, since the list reaches hundreds (<a href="#paging" style="color:var(--color-accent-strong)">three options</a>).</span></div>
+    <div class="kv"><span>Row label</span><span><b>L3</b> — turn 1 returns two new fields, <code>referenceArtist</code> and <code>referenceTitle</code>, as metadata about the reference. One clause added to the blanket rule at <code>prompts.go:66</code>; the three field-scoped rules (<code>:94</code>, <code>:155</code>, <code>:161</code>) stay untouched. Falls back to the reference verbatim when they come back empty.</span></div>
   </div>
 
   <!-- ══════════════════ QUESTION 1 ══════════════════ -->
@@ -385,9 +386,6 @@
             <li class="entry"><span class="who"><span class="ref">Redbone</span><br /><span class="meta">Childish Gambino · psychedelic soul</span></span><span class="when">Jul 28</span></li>
             <li class="entry"><span class="who"><span class="ref">Just Like Honey</span><br /><span class="meta">The Jesus and Mary Chain · noise pop</span></span><span class="when">Jul 26</span></li>
           </ul>
-          <p class="hint" style="border-top:1px solid var(--color-border);padding-top:var(--space-3);margin-top:var(--space-3)">
-            The run on screen joins this list when you leave the page.
-          </p>
         </aside>
       </div>
     </div>
@@ -639,7 +637,7 @@
     <div class="cols">
 
       <div>
-        <h2 class="tri-h"><span class="tag">P1 · recommended</span> &nbsp;25, then “Show more”</h2>
+        <h2 class="tri-h"><span class="tag">P1 · picked</span> &nbsp;25, then “Show more”</h2>
         <p class="caption">The 25 most recent, with an explicit button for the next 25. You always know where the end of the list is, the drawer never grows behind your back, and there is nothing to implement beyond one query with a limit.</p>
         <div class="frame"><div class="stage"><aside class="drawer" style="width:100%;border-left:0;padding:var(--space-4)">
           <h4 style="margin-bottom:var(--space-3)">History <span style="color:var(--color-muted);font-weight:400">243 runs</span></h4>
@@ -749,7 +747,7 @@
       </div>
 
       <div>
-        <h2 class="tri-h"><span class="tag">L3 · recommended</span> &nbsp;Ask the model</h2>
+        <h2 class="tri-h"><span class="tag">L3 · picked</span> &nbsp;Ask the model</h2>
         <p class="caption">Turn 1 already researches the song, so it knows. Two extra fields — the real artist and the real title — returned as <i>metadata about the reference</i>, never as prompt content. Rows become uniform and sortable regardless of how the reference was typed. Falls back to L1 verbatim if the fields come back empty.</p>
         <div class="frame"><div class="stage"><aside class="drawer" style="width:100%;border-left:0;padding:var(--space-4)">
           <ul class="hist">
@@ -836,7 +834,7 @@
       </div>
       <div>
         <h2 style="font-size:var(--text-ui);margin-bottom:var(--space-2)"><span class="tag">3 · picked</span> &nbsp;Not in the list at all</h2>
-        <p class="caption">History lists only finished, read-only runs. The current run is simply the page you are on — it appears in the list once you leave. A one-line footer says so, and nothing needs a “current vs saved” vocabulary at all.</p>
+        <p class="caption">History lists only finished, read-only runs. The current run is simply the page you are on — it appears in the list once you leave. Nothing announces that; the list is just a list, and no “current vs saved” vocabulary is needed anywhere.</p>
         <div class="frame"><div class="stage"><aside class="drawer" style="width:100%;border-left:0">
           <h4>History</h4>
           <ul class="hist">
@@ -844,9 +842,6 @@
             <li class="entry"><span class="who"><span class="ref">Blue Monday</span><br /><span class="meta">New Order</span></span><span class="when">Yest.</span></li>
             <li class="entry"><span class="who"><span class="ref">Teardrop</span><br /><span class="meta">Massive Attack</span></span><span class="when">Tue</span></li>
           </ul>
-          <p class="hint" style="border-top:1px solid var(--color-border);padding-top:var(--space-3);margin-top:var(--space-3)">
-            The run on screen joins this list when you leave the page.
-          </p>
         </aside></div></div>
       </div>
       <div>

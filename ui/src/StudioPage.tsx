@@ -699,7 +699,8 @@ export function StudioPage({
       </p>
 
       {/* Mode switch appears only when the image generator is configured. Song →
-          Suno is last per the studio ordering. */}
+          Suno leads: it is the Studio's primary mode and its default, so it sits
+          where the eye lands first rather than at the end of the row. */}
       {imageGenEnabled && (
         <div
           role="tablist"
@@ -716,9 +717,9 @@ export function StudioPage({
         >
           {(
             [
+              ["suno", "Song → Suno"],
               ["fanart", "Genre → Fanart"],
               ["coverart", "Album Cover"],
-              ["suno", "Song → Suno"],
             ] as const
           ).map(([m, label]) => (
             <button

@@ -20,13 +20,14 @@ export type StudioResult = {
 // produced, everything else absent or blank.
 export type StudioPartial = Partial<StudioResult>;
 
-// streamStudio POSTs a JSON body and reads an SSE response, dispatching progress
-// and partial events and returning the final result (or throwing on error).
+// streamStudio POSTs a JSON body and reads an SSE response, dispatching progress,
+// partial and saved events and returning the final result (or throwing on error).
 async function streamStudio(
   path: string,
   body: unknown,
   onProgress: (p: StudioProgress) => void,
   onPartial?: (p: StudioPartial) => void,
+  onSaved?: (id: string) => void,
 ): Promise<Record<string, unknown>> {
   const r = await fetch(path, {
     method: "POST",
@@ -63,6 +64,11 @@ async function streamStudio(
       if (event === "progress") onProgress(data as StudioProgress);
       else if (event === "partial") onPartial?.(data as StudioPartial);
       else if (event === "result") result = data;
+      // `saved` lands after `result`: the server writes the run once it has one
+      // to write. It carries the id of that row, which the caller threads into a
+      // later refine so the refine overwrites this entry instead of creating a
+      // second one. It is absent whenever no library is configured.
+      else if (event === "saved") onSaved?.(String(data.id ?? ""));
       else if (event === "error")
         errorMsg = String(data.error ?? "generation failed");
     }
@@ -76,24 +82,30 @@ export async function studioGenerate(
   reference: string,
   onProgress: (p: StudioProgress) => void,
   onPartial?: (p: StudioPartial) => void,
+  onSaved?: (id: string) => void,
 ): Promise<StudioResult> {
   return (await streamStudio(
     "/api/studio/generate",
     { reference },
     onProgress,
     onPartial,
+    onSaved,
   )) as unknown as StudioResult;
 }
 
+// historyId is the saved run these lyrics belong to, when there is one. Passing
+// it makes the server overwrite that run's stored lyrics; omitting it leaves
+// history untouched, which is right for a run that was never saved.
 export async function studioRefine(
   reference: string,
   lyrics: string,
   instruction: string,
   onProgress: (p: StudioProgress) => void,
+  historyId?: string,
 ): Promise<string> {
   const result = await streamStudio(
     "/api/studio/refine",
-    { reference, lyrics, instruction },
+    { reference, lyrics, instruction, historyId },
     onProgress,
   );
   return String(result.lyrics ?? "");

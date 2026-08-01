@@ -262,3 +262,50 @@ describe("studio cover art", () => {
     expect(studioCoverArtUrl("ca1")).toBe("/api/studio/coverart/ca1");
   });
 });
+
+describe("the saved event", () => {
+  // The server writes the run after it streams the result, so `saved` always
+  // arrives last. Missing it would make the next refine create a second entry.
+  it("hands the new run id to onSaved after the result", async () => {
+    sseFetch([frame("result", RESULT), frame("saved", { id: "run42" })]);
+    const order: string[] = [];
+    const out = await studioGenerate(
+      "Kito – Drift",
+      () => order.push("progress"),
+      () => order.push("partial"),
+      (id) => order.push(`saved:${id}`),
+    );
+    expect(out.lyrics).toBe("line one");
+    expect(order).toEqual(["saved:run42"]);
+  });
+
+  // A stream with no saved event (no library configured) must still resolve.
+  it("resolves normally when no saved event arrives", async () => {
+    sseFetch([frame("result", RESULT)]);
+    const onSaved = vi.fn();
+    await expect(
+      studioGenerate("r", () => {}, undefined, onSaved),
+    ).resolves.toMatchObject({ lyrics: "line one" });
+    expect(onSaved).not.toHaveBeenCalled();
+  });
+
+  it("is harmless when no onSaved callback is passed", async () => {
+    sseFetch([frame("result", RESULT), frame("saved", { id: "run42" })]);
+    await expect(studioGenerate("r", () => {})).resolves.toMatchObject({
+      lyrics: "line one",
+    });
+  });
+
+  // Threading the id back into refine is what makes a refine overwrite the saved
+  // run instead of leaving a stale copy behind.
+  it("sends the history id along with a refine", async () => {
+    const f = sseFetch([frame("result", { lyrics: "tighter" })]);
+    await studioRefine("r", "l", "i", () => {}, "run42");
+    expect(JSON.parse(f.mock.calls[0][1].body as string)).toEqual({
+      reference: "r",
+      lyrics: "l",
+      instruction: "i",
+      historyId: "run42",
+    });
+  });
+});

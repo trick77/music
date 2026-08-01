@@ -234,6 +234,7 @@ export function App() {
           imageGenEnabled: false,
           studioEnabled: false,
           chatEnabled: false,
+          historyEnabled: false,
           alignmentEnabled: false,
           imageModels: [],
           defaultImageModel: "",
@@ -689,6 +690,7 @@ export function App() {
               key={route.genreId ?? "studio"}
               imageGenEnabled={!!session?.imageGenEnabled}
               chatEnabled={!!session?.chatEnabled}
+              historyEnabled={!!session?.historyEnabled}
               imageModels={session?.imageModels ?? []}
               defaultImageModel={session?.defaultImageModel ?? ""}
               initialGenreId={route.genreId}

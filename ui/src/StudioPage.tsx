@@ -1,10 +1,11 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   studioGenerate,
   studioRefine,
   generateStudioCoverArt,
   studioCoverArtUrl,
   imageModelOptions,
+  patchStudioRun,
   type StudioProgress,
   type StudioPartial,
   type StudioResult,
@@ -13,6 +14,8 @@ import { copyText } from "./share";
 import { Icon } from "./Icon";
 import { GenreFanartMode } from "./StudioGenreFanart";
 import { AlbumCoverMode } from "./StudioAlbumCover";
+import { StudioHistoryDrawer } from "./StudioHistoryDrawer";
+import { StudioHistoryRun } from "./StudioHistoryRun";
 import { Button, Spinner, buttonStyle, controlClass, t } from "./ui";
 import { IdentityCard, ResultCard } from "./StudioShared";
 
@@ -22,6 +25,11 @@ import { IdentityCard, ResultCard } from "./StudioShared";
 export { ResultCard } from "./StudioShared";
 
 const STYLE_LIMIT = 500;
+
+// HAND_EDIT_DEBOUNCE_MS is how long typing in the lyrics box settles before the
+// saved copy is updated. Long enough that a sentence is one write, short enough
+// that closing the page straight after typing still saves.
+const HAND_EDIT_DEBOUNCE_MS = 800;
 
 // EMPTY_RESULT seeds the result the moment generation starts, so every card has
 // a slot to sit in while its turn is still running.
@@ -275,12 +283,16 @@ export function CoverArtCard({
 export function StudioPage({
   imageGenEnabled = false,
   chatEnabled = false,
+  historyEnabled = false,
   imageModels = [],
   defaultImageModel = "",
   initialGenreId,
 }: {
   imageGenEnabled?: boolean;
   chatEnabled?: boolean;
+  // True when the server has a library to keep runs in. False hides the history
+  // icon outright — there is nothing behind it.
+  historyEnabled?: boolean;
   imageModels?: string[];
   defaultImageModel?: string;
   initialGenreId?: string;
@@ -301,6 +313,34 @@ export function StudioPage({
   const [error, setError] = useState("");
   const [refineInstruction, setRefineInstruction] = useState("");
   const [refining, setRefining] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
+  const [openRunId, setOpenRunId] = useState("");
+  // The id of this run's row, handed back by the server's `saved` event. It is
+  // what makes a refine or a hand edit overwrite this entry instead of leaving a
+  // stale copy behind; it is "" whenever nothing was saved.
+  const [savedRunId, setSavedRunId] = useState("");
+  // Pending hand-edit write. Held in a ref so a re-render cannot lose the handle
+  // and leave a timer running past unmount.
+  const patchTimer = useRef<number | undefined>(undefined);
+
+  useEffect(() => {
+    return () => window.clearTimeout(patchTimer.current);
+  }, []);
+
+  // saveLyricsSoon debounces the write behind a hand edit, so a sentence typed
+  // into the lyrics box is one request rather than one per keystroke. With no
+  // saved run there is nothing to write to, and the edit is simply not persisted
+  // — queueing it would mean guessing which row it belongs to.
+  const saveLyricsSoon = (lyrics: string) => {
+    window.clearTimeout(patchTimer.current);
+    if (!savedRunId) return;
+    const id = savedRunId;
+    patchTimer.current = window.setTimeout(() => {
+      // Best effort: a failed background save must not interrupt the editing the
+      // user is in the middle of.
+      patchStudioRun(id, { lyrics }).catch(() => {});
+    }, HAND_EDIT_DEBOUNCE_MS);
+  };
 
   const busy = status === "loading" || refining;
   const stale =
@@ -321,12 +361,17 @@ export function StudioPage({
     setSteps([]);
     setError("");
     setRefineInstruction("");
+    // Drop the previous run's id here, or this generation's first refine would
+    // overwrite the last run's saved entry instead of its own.
+    setSavedRunId("");
+    window.clearTimeout(patchTimer.current);
     try {
       const res = await studioGenerate(
         ref,
         (p) => setSteps((s) => [...s, p]),
         (partial) =>
           setResult((prev) => mergePartial(prev ?? EMPTY_RESULT, partial)),
+        (id) => setSavedRunId(id),
       );
       // The closing result is authoritative — it overwrites whatever the
       // partials built up, so a merge slip can't survive into the final state.
@@ -348,12 +393,16 @@ export function StudioPage({
     setRefining(true);
     setSteps([]);
     setError("");
+    // A rewrite lands in a moment and replaces these lyrics wholesale; a pending
+    // hand-edit save would write the words being replaced.
+    window.clearTimeout(patchTimer.current);
     try {
       const lyrics = await studioRefine(
         generatedRef,
         result.lyrics,
         instr,
         (p) => setSteps((s) => [...s, p]),
+        savedRunId,
       );
       setResult({ ...result, lyrics });
       setRefineInstruction("");
@@ -484,6 +533,30 @@ export function StudioPage({
             >
               {status === "loading" ? "Working" : "Generate"}
             </Button>
+            {/* A1: an icon, no label and no count — the run total lives in the
+                drawer header, where it is information rather than a nag. */}
+            {historyEnabled && (
+              <button
+                type="button"
+                aria-label="History"
+                title="History"
+                onClick={() => setShowHistory(true)}
+                style={{
+                  display: "grid",
+                  placeItems: "center",
+                  width: 40,
+                  height: 40,
+                  flexShrink: 0,
+                  background: "none",
+                  border: "1px solid var(--color-border)",
+                  borderRadius: "var(--radius-ui)",
+                  color: "var(--color-muted)",
+                  cursor: "pointer",
+                }}
+              >
+                <Icon name="history" size="18px" />
+              </button>
+            )}
           </form>
           <p
             style={{
@@ -494,8 +567,14 @@ export function StudioPage({
           >
             Studio researches the song on the web, captures its style, writes
             fresh original lyrics on the same theme (never the original words),
-            suggests band, title and album names, and sketches cover art.
-            Results are shown once and not stored.
+            suggests band, title and album names, and sketches cover art.{" "}
+            {/* The closing sentence has to follow the truth: with a library
+                configured a finished run is kept and can be reopened, so the
+                old "shown once and not stored" would be a lie. Without one,
+                nothing is stored and the original sentence still holds. */}
+            {historyEnabled
+              ? "Runs are kept so you can look them up later. Only the run on screen can be refined."
+              : "Results are shown once and not stored."}
           </p>
           {stale && (
             <p
@@ -585,9 +664,10 @@ export function StudioPage({
                     name="Lyrics"
                     note="→ Suno “Lyrics” · original, editable"
                     text={result.lyrics}
-                    onChange={(value) =>
-                      setResult({ ...result, lyrics: value })
-                    }
+                    onChange={(value) => {
+                      setResult({ ...result, lyrics: value });
+                      saveLyricsSoon(value);
+                    }}
                   />
                 )
               )}
@@ -624,6 +704,19 @@ export function StudioPage({
                   Refine
                 </Button>
               </form>
+              {/* The overwrite happens here, so the rule is stated here — nobody
+                  should have to open history to learn it. */}
+              {historyEnabled && savedRunId !== "" && (
+                <p
+                  style={{
+                    ...t.label,
+                    margin: "-1.2rem 0 1.6rem",
+                  }}
+                >
+                  Refining rewrites these lyrics and updates this run’s saved
+                  copy. The previous wording is not kept.
+                </p>
+              )}
 
               {stylePending ? (
                 <PendingCard
@@ -690,6 +783,32 @@ export function StudioPage({
             </div>
           )}
         </>
+      )}
+
+      {/* Both surfaces are unmounted when closed, so Escape unwinds them one at a
+          time (the run sheet opens last and therefore closes first). The drawer
+          is never told about a run it cannot see: currentRunId is only set once
+          the server has confirmed this run's row. */}
+      {showHistory && (
+        <StudioHistoryDrawer
+          onClose={() => setShowHistory(false)}
+          onOpen={(id) => setOpenRunId(id)}
+          currentRunId={savedRunId || undefined}
+        />
+      )}
+      {openRunId !== "" && (
+        <StudioHistoryRun
+          id={openRunId}
+          onClose={() => setOpenRunId("")}
+          onRegenerate={(ref) => {
+            // Hand the reference back to the form and get out of the way; the
+            // user presses Generate, which starts a new entry. Nothing about the
+            // saved run is touched.
+            setReference(ref);
+            setOpenRunId("");
+            setShowHistory(false);
+          }}
+        />
       )}
     </div>
   );

@@ -467,3 +467,34 @@ func TestStudioHistory_403WhenAnonymous(t *testing.T) {
 		}
 	}
 }
+
+// The session flag must track the routes exactly: it is what hides the history
+// icon on an install that has no history to show.
+func TestSession_historyEnabledTracksTheRoutes(t *testing.T) {
+	ts := newStudioHistoryServer(t, fakeStudio{})
+	sessionFlag := func(h http.Handler) bool {
+		rr := httptest.NewRecorder()
+		h.ServeHTTP(rr, httptest.NewRequest("GET", "/api/auth/session", nil))
+		var s struct {
+			HistoryEnabled bool `json:"historyEnabled"`
+		}
+		if err := json.Unmarshal(rr.Body.Bytes(), &s); err != nil {
+			t.Fatalf("decode session: %v", err)
+		}
+		return s.HistoryEnabled
+	}
+	if !sessionFlag(ts.dev) {
+		t.Fatalf("historyEnabled = false with a store, want true")
+	}
+	// Anonymous callers cannot use the routes, so the flag is false for them too.
+	if sessionFlag(ts.anon) {
+		t.Fatalf("historyEnabled = true for an anonymous caller, want false")
+	}
+
+	// No store, no history.
+	cfg := config.Config{AuthMode: config.AuthModeDev, DevUser: config.DevUserConfig{Username: "dev"},
+		ChatAPIKey: "chat-key", TavilyAPIKey: "tavily-key"}
+	if sessionFlag(NewWithStudioProvider(cfg, nil, studioSPA(), fakeStudio{})) {
+		t.Fatalf("historyEnabled = true with no store, want false")
+	}
+}

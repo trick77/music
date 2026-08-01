@@ -218,6 +218,13 @@
   }
   .banner.warn { border-left-color: var(--color-accent); color: color-mix(in srgb, var(--color-ink) 80%, transparent); }
 
+  .spin {
+    width: 13px; height: 13px; border-radius: 50%; display: inline-block;
+    border: 2px solid var(--color-border); border-top-color: var(--color-muted);
+    animation: sp .8s linear infinite;
+  }
+  @keyframes sp { to { transform: rotate(360deg); } }
+
   .decided {
     border: 1px solid var(--color-border); border-left: 3px solid var(--color-accent);
     border-radius: var(--radius-ui); background: var(--color-panel);
@@ -319,7 +326,7 @@
     <div class="kv"><span>Current run</span><span><b>3</b> — the live run is not in the list at all. History holds finished runs only; the run on screen joins the list when you leave the page. No “current vs saved” vocabulary needed anywhere.</span></div>
     <div class="kv"><span>Saved run</span><span>Opens read-only with <b>everything</b> the run produced — all three band, title and album ideas, genres, lyrics, style prompt, cover-art prompt, and the cover image. No refine field, no editable boxes.</span></div>
     <div class="kv"><span>Storage</span><span>Server-side SQLite, cover PNG kept with the run. Written on a completed run only. Nothing expires; each entry gets a delete. Suno runs only for now.</span></div>
-    <div class="kv" style="border-top:1px solid var(--color-border);padding-top:9px"><span style="color:var(--color-accent-strong)">Still open</span><span>What labels a history row. The real song and artist are <b>not</b> in the model's output today — <a href="#labels" style="color:var(--color-accent-strong)">three options below</a>.</span></div>
+    <div class="kv" style="border-top:1px solid var(--color-border);padding-top:9px"><span style="color:var(--color-accent-strong)">Still open</span><span>What labels a history row — the real song and artist are <b>not</b> in the model's output today (<a href="#labels" style="color:var(--color-accent-strong)">three options</a>). And how many rows the drawer shows at once, since the list reaches hundreds (<a href="#paging" style="color:var(--color-accent-strong)">three options</a>).</span></div>
   </div>
 
   <!-- ══════════════════ QUESTION 1 ══════════════════ -->
@@ -616,6 +623,88 @@
           </div>
         </div>
       </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════ HOW MANY ROWS ══════════════════ -->
+  <div class="opt" id="paging">
+    <div class="opt-head"><span class="tag q">Open</span><h2>How much of the list is shown?</h2></div>
+    <p class="note">
+      Runs accumulate and nothing expires, so this list reaches hundreds. Everything
+      below still <i>keeps</i> every run — the question is only how many rows the drawer
+      renders at once. All three fetch a page at a time from the server
+      (<code>LIMIT 25</code> keyed on the last row seen), so a long history never
+      arrives in one response.
+    </p>
+    <div class="cols">
+
+      <div>
+        <h2 class="tri-h"><span class="tag">P1 · recommended</span> &nbsp;25, then “Show more”</h2>
+        <p class="caption">The 25 most recent, with an explicit button for the next 25. You always know where the end of the list is, the drawer never grows behind your back, and there is nothing to implement beyond one query with a limit.</p>
+        <div class="frame"><div class="stage"><aside class="drawer" style="width:100%;border-left:0;padding:var(--space-4)">
+          <h4 style="margin-bottom:var(--space-3)">History <span style="color:var(--color-muted);font-weight:400">243 runs</span></h4>
+          <ul class="hist">
+            <li class="entry"><span class="who"><span class="ref">Enter Sandman</span><br /><span class="meta">Metallica · thrash metal</span></span><span class="when">2h</span></li>
+            <li class="entry"><span class="who"><span class="ref">Blue Monday</span><br /><span class="meta">New Order · synth-pop</span></span><span class="when">Yest.</span></li>
+            <li class="entry" style="opacity:.55"><span class="who"><span class="ref">Teardrop</span><br /><span class="meta">Massive Attack · trip hop</span></span><span class="when">Tue</span></li>
+            <li class="entry" style="opacity:.3"><span class="who"><span class="ref">Redbone</span><br /><span class="meta">Childish Gambino</span></span><span class="when">Jul 28</span></li>
+          </ul>
+          <p class="hint" style="text-align:center"><span class="link">Show 25 more</span> · 25 of 243</p>
+        </aside></div></div>
+      </div>
+
+      <div>
+        <h2 class="tri-h"><span class="tag">P2</span> &nbsp;Infinite scroll</h2>
+        <p class="caption">Loads the next page as you near the bottom. Nothing to click — but the scrollbar lies about how much is left, there is no way to reach the oldest run, and a drawer that keeps growing is hard to leave.</p>
+        <div class="frame"><div class="stage"><aside class="drawer" style="width:100%;border-left:0;padding:var(--space-4)">
+          <h4 style="margin-bottom:var(--space-3)">History</h4>
+          <ul class="hist">
+            <li class="entry"><span class="who"><span class="ref">Enter Sandman</span><br /><span class="meta">Metallica · thrash metal</span></span><span class="when">2h</span></li>
+            <li class="entry"><span class="who"><span class="ref">Blue Monday</span><br /><span class="meta">New Order · synth-pop</span></span><span class="when">Yest.</span></li>
+            <li class="entry" style="opacity:.55"><span class="who"><span class="ref">Teardrop</span><br /><span class="meta">Massive Attack</span></span><span class="when">Tue</span></li>
+          </ul>
+          <p class="hint" style="text-align:center;display:flex;align-items:center;justify-content:center;gap:8px">
+            <span class="spin"></span> Loading more…
+          </p>
+        </aside></div></div>
+      </div>
+
+      <div>
+        <h2 class="tri-h"><span class="tag">P3</span> &nbsp;25 plus a filter</h2>
+        <p class="caption">P1, plus a field that searches the whole history server-side rather than the 25 on screen. At 243 runs, paging to find one song is hopeless and typing three letters is not — but it is a second query, a debounce, and an empty-result state to build.</p>
+        <div class="frame"><div class="stage"><aside class="drawer" style="width:100%;border-left:0;padding:var(--space-4)">
+          <h4 style="margin-bottom:var(--space-3)">History <span style="color:var(--color-muted);font-weight:400">243 runs</span></h4>
+          <div class="input" style="margin-bottom:var(--space-3);font-size:var(--text-label)">metal</div>
+          <ul class="hist">
+            <li class="entry"><span class="who"><span class="ref">Enter Sandman</span><br /><span class="meta">Metallica · thrash metal</span></span><span class="when">2h</span></li>
+            <li class="entry"><span class="who"><span class="ref">Raining Blood</span><br /><span class="meta">Slayer · thrash metal</span></span><span class="when">Jul 24</span></li>
+            <li class="entry"><span class="who"><span class="ref">Ace of Spades</span><br /><span class="meta">Motörhead · speed metal</span></span><span class="when">Jul 19</span></li>
+          </ul>
+          <p class="hint" style="text-align:center">3 of 243 match</p>
+        </aside></div></div>
+      </div>
+
+      <div>
+        <h2 class="tri-h"><span class="tag q">note</span> &nbsp;Date headers, whichever wins</h2>
+        <p class="caption">Cheap to add and it does most of the scanning work: 25 undifferentiated rows read as a wall, the same 25 under Today / This week / Earlier read as a timeline. Also lets the row drop its date column and give the width back to the song name.</p>
+        <div class="frame"><div class="stage"><aside class="drawer" style="width:100%;border-left:0;padding:var(--space-4)">
+          <h4 style="margin-bottom:var(--space-3)">History <span style="color:var(--color-muted);font-weight:400">243 runs</span></h4>
+          <div class="hist-title"><span class="lbl">Today</span></div>
+          <ul class="hist">
+            <li class="entry"><span class="who"><span class="ref">Enter Sandman</span><br /><span class="meta">Metallica · thrash metal</span></span></li>
+          </ul>
+          <div class="hist-title" style="margin-top:var(--space-4)"><span class="lbl">This week</span></div>
+          <ul class="hist">
+            <li class="entry"><span class="who"><span class="ref">Blue Monday</span><br /><span class="meta">New Order · synth-pop</span></span></li>
+            <li class="entry"><span class="who"><span class="ref">Teardrop</span><br /><span class="meta">Massive Attack · trip hop</span></span></li>
+          </ul>
+          <div class="hist-title" style="margin-top:var(--space-4)"><span class="lbl">Earlier</span></div>
+          <ul class="hist">
+            <li class="entry"><span class="who"><span class="ref">Redbone</span><br /><span class="meta">Childish Gambino · psych soul</span></span></li>
+          </ul>
+        </aside></div></div>
+      </div>
+
     </div>
   </div>
 

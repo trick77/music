@@ -69,24 +69,50 @@ describe("AlbumCoverMode", () => {
   it("lists only albums that are missing cover art", async () => {
     mocked.listAlbums.mockResolvedValue([
       album({ artistId: "a1", album: "Ride the Lightning", hasCover: false }),
-      album({ artistId: "a2", artistName: "New Order", album: "Power, Corruption & Lies", hasCover: true }),
-      album({ artistId: "a3", artistName: "Slayer", album: "Reign in Blood", hasCover: false }),
+      album({
+        artistId: "a2",
+        artistName: "New Order",
+        album: "Power, Corruption & Lies",
+        hasCover: true,
+      }),
+      album({
+        artistId: "a3",
+        artistName: "Slayer",
+        album: "Reign in Blood",
+        hasCover: false,
+      }),
     ]);
     render(
-      <AlbumCoverMode chatEnabled={false} imageModels={[]} defaultImageModel="" />,
+      <AlbumCoverMode
+        chatEnabled={false}
+        imageModels={[]}
+        defaultImageModel=""
+      />,
     );
-    expect(await screen.findByRole("option", { name: /Ride the Lightning/ })).toBeInTheDocument();
-    expect(screen.getByRole("option", { name: /Reign in Blood/ })).toBeInTheDocument();
-    expect(screen.queryByRole("option", { name: /Power, Corruption/ })).not.toBeInTheDocument();
+    expect(
+      await screen.findByRole("option", { name: /Ride the Lightning/ }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("option", { name: /Reign in Blood/ }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("option", { name: /Power, Corruption/ }),
+    ).not.toBeInTheDocument();
   });
 
   it("says so when every album already has artwork", async () => {
     mocked.listAlbums.mockResolvedValue([album({ hasCover: true })]);
     render(
-      <AlbumCoverMode chatEnabled={false} imageModels={[]} defaultImageModel="" />,
+      <AlbumCoverMode
+        chatEnabled={false}
+        imageModels={[]}
+        defaultImageModel=""
+      />,
     );
     expect(
-      await screen.findByRole("option", { name: /no albums are missing artwork/i }),
+      await screen.findByRole("option", {
+        name: /no albums are missing artwork/i,
+      }),
     ).toBeInTheDocument();
   });
 });

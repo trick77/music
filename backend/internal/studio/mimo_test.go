@@ -297,6 +297,49 @@ func TestPrompts_sunoTagsAreStaticNotResearched(t *testing.T) {
 	}
 }
 
+// The lyric killer is not a rare-word problem: "there is signal in the noise" is
+// built from common words, so the thesaurus rule never caught it. The craft rules
+// must name the aphorism failure mode outright and carry the say-it-to-a-person
+// test — and because refine rewrites lyrics from the same rules, both lyric
+// prompts have to embed them or the first revision hands the clichés back.
+func TestPrompts_lyricRulesBanMachineAphorisms(t *testing.T) {
+	for _, want := range []string{
+		"NO MACHINE APHORISMS",
+		"signal",
+		"ONE PERSON SAY THIS SENTENCE OUT LOUD TO ANOTHER PERSON?",
+		"there is signal in the noise",
+	} {
+		if !strings.Contains(lyricCraftRules, want) {
+			t.Fatalf("craft rules lost the anti-cliché rule, missing %q: %q", want, lyricCraftRules)
+		}
+	}
+	for name, p := range map[string]string{"generate turn 2": generateTurn2Prompt, "refine": refineSystemPrompt} {
+		if !strings.Contains(p, lyricCraftRules) {
+			t.Fatalf("%s prompt is missing the shared craft rules: %q", name, p)
+		}
+	}
+}
+
+// "clean vocals" on every song is a non-description. Turn 1 must ask for the
+// lead vocal's register — while still refusing to name the singer's sex, which
+// stays a literal-wording ban rather than a ban on describing the voice at all.
+func TestPrompts_styleAsksForVocalRegister(t *testing.T) {
+	for _, want := range []string{
+		"DESCRIBE THE",
+		"REGISTER",
+		"baritone lead vocal",
+		`NEVER write "male vocals", "female`,
+	} {
+		if !strings.Contains(generateTurn1Prompt, want) {
+			t.Fatalf("turn 1 lost the vocal-register rule, missing %q: %q", want, generateTurn1Prompt)
+		}
+	}
+	// The old blanket ban must be gone, or the register requirement contradicts it.
+	if strings.Contains(generateTurn1Prompt, "Do NOT describe vocal character") {
+		t.Fatalf("turn 1 still carries the blanket vocal ban: %q", generateTurn1Prompt)
+	}
+}
+
 // Refine must NOT re-run the web-research/discovery loop: it should be a single
 // tool-less completion, so the model is handed no tools and no tool is dispatched.
 func TestRefine_doesNotResearch(t *testing.T) {

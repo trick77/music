@@ -21,6 +21,16 @@ const lyricCraftRules = `CRAFT RULES for the lyrics — these decide whether a s
 - NO THESAURUS WORDS. Only words people say out loud. Reject lacked, yearn,
   forlorn, cascade, ethereal, myriad, behold, asunder. Plain concrete nouns and
   verbs beat abstract or literary ones every time.
+- NO MACHINE APHORISMS. This is the failure mode that gives away a machine-written
+  lyric, and it is NOT about rare words — every word in "there is signal in the
+  noise" is common, and the line is still unusable. Never write a line that states
+  a thesis about life, and never reach for an abstract systems metaphor. The
+  offenders, by name: signal, noise, static, frequency, wavelength, echo, fracture,
+  gravity, orbit, wires, circuits, embers, ashes, mirrors, glass, machine, and the
+  sentence frames "the space between ...", "the weight of ...", "we are the ...",
+  "there is X in the Y". The test that catches these when a word-list cannot: WOULD
+  ONE PERSON SAY THIS SENTENCE OUT LOUD TO ANOTHER PERSON? If it only works as a
+  caption, a poster, or a fortune cookie, cut it and write what actually happened.
 - SINGABLE LINE ENDINGS. The last word of a line is the note the singer holds, so
   favor open vowels and soft consonants (-ay, -ow, -ine, -on, -ing, -ove). Avoid
   ending on a clustered consonant that has to be swallowed (-acked, -ashed,
@@ -32,6 +42,8 @@ const lyricCraftRules = `CRAFT RULES for the lyrics — these decide whether a s
   end a line on an unstressed syllable the singer has to rush past.
 - CONCRETE OVER ABSTRACT. One specific image — a room, an object, a time of day —
   outperforms a stack of feeling-words. Show the situation, do not summarize it.
+  This is the positive form of NO MACHINE APHORISMS above: when you catch yourself
+  writing the abstraction, put a person somewhere doing something instead.
 - REPEAT THE CHORUS VERBATIM. The same words every time it comes around; that is
   what makes a hook. Vary a verse if you like, never the chorus.
 - SAY IT ALOUD IN YOUR HEAD before you commit a couplet. If it would feel
@@ -43,7 +55,13 @@ Worked example of the trap to avoid:
         line states nothing.
   GOOD: "the sidewalk cracked in the heat / and I sat on the curb till you came"
         — nothing forced, plain words, an actual picture; the rhyme is dropped
-        rather than faked.`
+        rather than faked.
+
+  BAD:  "there is signal in the noise"
+        — an aphorism, not a sentence anyone says. No person, no place, no moment;
+        it could sit in any song about anything, which means it belongs in none.
+  GOOD: "you kept talking through the radio hiss"
+        — the same idea, but somebody is doing something somewhere.`
 
 // sunoTagReference is the Suno meta/structure tag vocabulary, kept STATIC ON
 // PURPOSE. It used to be researched: the system prompt told the model to search
@@ -110,12 +128,20 @@ const generateTurn1Prompt = `Research the reference song now, then produce THREE
    style, and NOT the album's overall style. The same artist, and even the same
    album, routinely spans different genres from one track to the next, so a
    generic artist/album descriptor will misdescribe this song; if the track
-   departs from what the artist is known for, capture the track. Do NOT describe vocal character
-   (timbre, range, or delivery — no raspy/smooth/powerful/breathy/belted), and
-   NEVER state or imply whether the voice is male or female: such words push
-   Suno toward the same wide, raspy voice every time, so leave the voice to
-   Suno's default and include at most the single neutral anchor "clean vocals".
-   Keep every descriptor MEASURED — Suno over-reacts to hyperbolic adjectives
+   departs from what the artist is known for, capture the track. DESCRIBE THE
+   VOICE, starting with its REGISTER — this is required, not optional, and
+   "clean vocals" alone is not a description. Name the lead vocal's register as
+   heard on the recording ("baritone lead vocal", "tenor lead vocal", "alto lead
+   vocal", "low-register vocal", "high-register vocal"). You may add AT MOST ONE
+   further vocal attribute when the recording plainly calls for it — delivery or
+   timbre ("clean vocals", "breathy", "belted", "spoken-word phrasing",
+   "close-mic'd", "double-tracked") — plus a short backing-vocal note if the track
+   has one ("harmonized backing vocals", "gang-vocal chorus"). Never stack vocal
+   adjectives, and stay away from the loud ones (raspy, powerful, soaring, gritty,
+   massive) unless the recording is unmistakably that: they push Suno toward the
+   same wide, raspy voice on every song. NEVER write "male vocals", "female
+   vocals", or otherwise name the singer's sex — give the register and let that
+   speak. Keep every descriptor MEASURED — Suno over-reacts to hyperbolic adjectives
    (e.g. psychedelic, massive, roaring, epic, explosive, brutal, thunderous)
    and generates chaotic, off-genre output, so use restrained wording instead
    (hazy/atmospheric, full/wide, driven/overdriven, grand/cinematic,

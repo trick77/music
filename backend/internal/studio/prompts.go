@@ -28,9 +28,13 @@ const lyricCraftRules = `CRAFT RULES for the lyrics — these decide whether a s
   offenders, by name: signal, noise, static, frequency, wavelength, echo, fracture,
   gravity, orbit, wires, circuits, embers, ashes, mirrors, glass, machine, and the
   sentence frames "the space between ...", "the weight of ...", "we are the ...",
-  "there is X in the Y". The test that catches these when a word-list cannot: WOULD
-  ONE PERSON SAY THIS SENTENCE OUT LOUD TO ANOTHER PERSON? If it only works as a
-  caption, a poster, or a fortune cookie, cut it and write what actually happened.
+  "there is X in the Y". None of those words are banned in themselves — "the radio
+  signal cut out", "her voice echoed down the hall" are fine, because something is
+  happening to someone. What is banned is the FRAME: using one of them as the
+  subject of a statement about life. The test that catches these when a word-list
+  cannot: WOULD ONE PERSON SAY THIS SENTENCE OUT LOUD TO ANOTHER PERSON? If it only
+  works as a caption, a poster, or a fortune cookie, cut it and write what actually
+  happened instead.
 - SINGABLE LINE ENDINGS. The last word of a line is the note the singer holds, so
   favor open vowels and soft consonants (-ay, -ow, -ine, -on, -ing, -ove). Avoid
   ending on a clustered consonant that has to be swallowed (-acked, -ashed,

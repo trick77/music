@@ -1,0 +1,989 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Studio history — placement &amp; current-vs-saved mockups</title>
+<style>
+  :root {
+    --color-bg: #1f1f1e;
+    --color-panel: #1b1b1a;
+    --color-active: #2c2c2a;
+    --color-border: #323230;
+    --color-ink: #faf9f5;
+    --color-muted: #9c9a92;
+    --color-accent: #c6613f;
+    --color-accent-strong: #d97757;
+    --color-accent-fill: #c25f34;
+    --color-online: #5aa06a;
+    --color-danger: #c14638;
+    --color-elevated: #363632;
+    --color-elevated-border: #454540;
+    --font-sans: "Anthropic Sans", system-ui, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    --font-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+    --radius-ui: 10px;
+    --text-display: 1.75rem;
+    --text-title: 1.25rem;
+    --text-body: 1rem;
+    --text-ui: 0.9375rem;
+    --text-label: 0.8125rem;
+    --text-micro: 0.6875rem;
+    --space-1: 4px; --space-2: 8px; --space-3: 12px;
+    --space-4: 16px; --space-5: 24px; --space-6: 32px;
+  }
+  * { box-sizing: border-box; }
+  html { color-scheme: dark; }
+  body {
+    margin: 0;
+    background: var(--color-bg);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    font-size: var(--text-body);
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+  .page { max-width: 1080px; margin: 0 auto; padding: var(--space-6) var(--space-5) 96px; }
+  h1 { font-size: var(--text-display); margin: 0 0 var(--space-2); }
+  h2 { font-size: var(--text-title); margin: 0 0 var(--space-2); }
+  .lede { color: var(--color-muted); margin: 0 0 var(--space-6); max-width: 62ch; }
+
+  .opt { margin: 0 0 56px; }
+  .opt-head {
+    display: flex; align-items: baseline; gap: var(--space-3);
+    padding-bottom: var(--space-2); margin-bottom: var(--space-4);
+    border-bottom: 1px solid var(--color-border);
+  }
+  .tag {
+    font-size: var(--text-micro); letter-spacing: .09em; text-transform: uppercase;
+    background: var(--color-accent-fill); color: var(--color-ink);
+    border-radius: 999px; padding: 3px 10px; font-weight: 600; white-space: nowrap;
+  }
+  .tag.q { background: var(--color-active); color: var(--color-muted); }
+  .note { color: var(--color-muted); font-size: var(--text-label); margin: 0 0 var(--space-4); max-width: 68ch; }
+  .verdict { color: var(--color-ink); }
+  .verdict b { color: var(--color-accent-strong); }
+
+  /* ── app frame ─────────────────────────────────────────────── */
+  .frame {
+    border: 1px solid var(--color-border); border-radius: 14px;
+    background: var(--color-bg); overflow: hidden;
+    box-shadow: 0 18px 40px rgba(0,0,0,.35);
+  }
+  .frame-bar {
+    display: flex; align-items: center; gap: 6px;
+    padding: 9px 12px; background: var(--color-panel);
+    border-bottom: 1px solid var(--color-border);
+  }
+  .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--color-active); }
+  .frame-title { margin-left: var(--space-2); color: var(--color-muted); font-size: var(--text-micro); }
+  .stage { display: flex; min-height: 200px; }
+  .studio { flex: 1; padding: var(--space-5); min-width: 0; }
+  .studio.narrow { max-width: 720px; }
+
+  h3.studio-h { font-size: var(--text-display); margin: 0 0 2px; }
+  .sub { color: var(--color-muted); font-size: var(--text-ui); margin: 0 0 var(--space-5); }
+
+  .tabs {
+    display: inline-flex; padding: 3px; gap: 3px; border: 1px solid var(--color-border);
+    border-radius: 999px; background: var(--color-panel); margin-bottom: var(--space-5);
+  }
+  .tabs button {
+    border: 0; background: transparent; color: var(--color-muted);
+    font-family: inherit; font-size: var(--text-ui); padding: 6px 14px;
+    border-radius: 999px; cursor: pointer;
+  }
+  .tabs button[aria-selected="true"] { background: var(--color-accent-fill); color: var(--color-ink); }
+  .tabs button.hist { color: var(--color-ink); }
+
+  .row { display: flex; gap: var(--space-2); align-items: center; }
+  .input {
+    flex: 1; background: var(--color-panel); border: 1px solid var(--color-border);
+    border-radius: var(--radius-ui); padding: 9px 12px;
+    color: var(--color-muted); font-size: var(--text-ui); font-family: inherit;
+  }
+  .input.filled { color: var(--color-ink); }
+  .btn {
+    border: 1px solid transparent; background: var(--color-accent-fill); color: var(--color-ink);
+    font-family: inherit; font-size: var(--text-ui); padding: 9px 16px;
+    border-radius: var(--radius-ui); cursor: pointer; white-space: nowrap;
+  }
+  .btn.sec { background: transparent; border-color: var(--color-border); color: var(--color-ink); }
+  .btn.sm { padding: 5px 11px; font-size: var(--text-label); }
+  .hint { color: var(--color-muted); font-size: var(--text-label); margin: var(--space-2) 0 0; }
+
+  .card {
+    border: 1px solid var(--color-border); border-radius: var(--radius-ui);
+    background: color-mix(in srgb, var(--color-bg) 70%, #000);
+    padding: 12px 14px; font-size: var(--text-ui);
+    color: color-mix(in srgb, var(--color-ink) 88%, transparent);
+    overflow-wrap: anywhere; word-break: break-word;
+  }
+  .card.mono { font-family: var(--font-mono); font-size: var(--text-label); line-height: 1.55; }
+  .card-head {
+    display: flex; align-items: baseline; justify-content: space-between;
+    gap: var(--space-3); margin: 0 0 6px;
+  }
+  .card-name { font-weight: 600; font-size: var(--text-ui); }
+  .card-name small { font-weight: 400; color: var(--color-muted); font-size: var(--text-label); margin-left: 6px; }
+  .block { margin-bottom: var(--space-5); }
+  .skel { display: block; height: 10px; border-radius: 5px; background: var(--color-active); margin-bottom: 9px; }
+
+  /* ── history primitives ────────────────────────────────────── */
+  .hist-title {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: var(--space-3); margin-bottom: var(--space-3);
+  }
+  .hist-title .lbl {
+    font-size: var(--text-micro); letter-spacing: .09em; text-transform: uppercase;
+    color: var(--color-muted); font-weight: 600;
+  }
+  ul.hist { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+  li.entry {
+    display: flex; align-items: center; gap: var(--space-3);
+    border: 1px solid var(--color-border); border-radius: var(--radius-ui);
+    background: var(--color-panel); padding: 10px 12px; cursor: pointer;
+  }
+  li.entry:hover { background: var(--color-active); }
+  .entry .who { min-width: 0; flex: 1; }
+  .entry .ref {
+    font-size: var(--text-ui); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .entry .meta {
+    color: var(--color-muted); font-size: var(--text-label);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .entry .when { color: var(--color-muted); font-size: var(--text-label); white-space: nowrap; }
+  .lock { color: var(--color-muted); font-size: var(--text-label); }
+
+  /* the live/current entry */
+  li.entry.live {
+    border-color: var(--color-accent); background: color-mix(in srgb, var(--color-accent) 12%, var(--color-panel));
+  }
+  .live-dot {
+    width: 8px; height: 8px; border-radius: 50%; background: var(--color-online);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-online) 25%, transparent);
+    flex: none;
+  }
+  .pill {
+    font-size: var(--text-micro); letter-spacing: .06em; text-transform: uppercase;
+    border-radius: 999px; padding: 2px 8px; font-weight: 600; white-space: nowrap;
+  }
+  .pill.now { background: color-mix(in srgb, var(--color-online) 22%, transparent); color: #a8d3b1; }
+  .pill.saved { background: var(--color-active); color: var(--color-muted); }
+
+  .divider {
+    display: flex; align-items: center; gap: var(--space-3);
+    margin: var(--space-4) 0 var(--space-3);
+    color: var(--color-muted); font-size: var(--text-micro);
+    letter-spacing: .09em; text-transform: uppercase;
+  }
+  .divider::before, .divider::after {
+    content: ""; height: 1px; background: var(--color-border); flex: 1;
+  }
+
+  /* ── A: drawer ─────────────────────────────────────────────── */
+  .drawer {
+    width: 320px; flex: none; border-left: 1px solid var(--color-border);
+    background: var(--color-panel); padding: var(--space-5) var(--space-4);
+  }
+  .drawer h4 { margin: 0 0 var(--space-4); font-size: var(--text-ui); display: flex; justify-content: space-between; align-items: center; }
+  .drawer .x { color: var(--color-muted); cursor: pointer; }
+
+  /* ── C: full page list ─────────────────────────────────────── */
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(232px, 1fr)); gap: var(--space-3); }
+  .tile {
+    border: 1px solid var(--color-border); border-radius: var(--radius-ui);
+    background: var(--color-panel); padding: var(--space-4); cursor: pointer;
+  }
+  .tile:hover { background: var(--color-active); }
+  .tile.live { border-color: var(--color-accent); background: color-mix(in srgb, var(--color-accent) 12%, var(--color-panel)); }
+  .tile .ref { font-size: var(--text-ui); font-weight: 600; margin-bottom: 2px; }
+  .tile .meta { color: var(--color-muted); font-size: var(--text-label); }
+  .tile .top { display: flex; justify-content: space-between; align-items: start; gap: var(--space-2); margin-bottom: var(--space-3); }
+  .chips { display: flex; flex-wrap: wrap; gap: 5px; margin-top: var(--space-3); }
+  .chip { background: var(--color-active); border-radius: 999px; padding: 2px 9px; font-size: var(--text-micro); color: var(--color-muted); }
+
+  /* ── read-only sheet ───────────────────────────────────────── */
+  .scrim { background: rgba(0,0,0,.5); padding: var(--space-5); }
+  .sheet {
+    max-width: 660px; margin: 0 auto; background: var(--color-bg);
+    border: 1px solid var(--color-border); border-radius: 14px; padding: var(--space-5);
+  }
+  .banner {
+    display: flex; align-items: center; gap: var(--space-2);
+    border: 1px solid var(--color-border); border-left: 3px solid var(--color-muted);
+    border-radius: var(--radius-ui); background: var(--color-panel);
+    padding: 10px 12px; color: var(--color-muted); font-size: var(--text-label);
+    margin-bottom: var(--space-4);
+  }
+  .banner.warn { border-left-color: var(--color-accent); color: color-mix(in srgb, var(--color-ink) 80%, transparent); }
+
+  .spin {
+    width: 13px; height: 13px; border-radius: 50%; display: inline-block;
+    border: 2px solid var(--color-border); border-top-color: var(--color-muted);
+    animation: sp .8s linear infinite;
+  }
+  @keyframes sp { to { transform: rotate(360deg); } }
+
+  .decided {
+    border: 1px solid var(--color-border); border-left: 3px solid var(--color-accent);
+    border-radius: var(--radius-ui); background: var(--color-panel);
+    padding: var(--space-4) var(--space-5); margin: 0 0 var(--space-6); max-width: 78ch;
+  }
+  .decided-h {
+    font-size: var(--text-micro); letter-spacing: .09em; text-transform: uppercase;
+    color: var(--color-accent-strong); font-weight: 600; margin-bottom: var(--space-3);
+  }
+  .decided .kv { align-items: baseline; }
+  .decided .kv span:first-child { min-width: 108px; }
+  .decided .kv span:last-child { font-size: var(--text-label); }
+
+  /* ── A trigger variants ───────────────────────────────────── */
+  .tri-h { font-size: var(--text-ui); margin-bottom: var(--space-2); }
+  .btn.icon { display: inline-grid; place-items: center; padding: 8px 10px; color: var(--color-muted); }
+  .btn.icon:hover { color: var(--color-ink); }
+  .link { color: var(--color-accent-strong); cursor: pointer; }
+  .link:hover { text-decoration: underline; }
+  .edge-tab {
+    position: absolute; right: 0; top: 46%; transform: translateY(-50%);
+    display: flex; align-items: center; gap: 7px;
+    background: var(--color-panel); border: 1px solid var(--color-border); border-right: 0;
+    border-radius: var(--radius-ui) 0 0 var(--radius-ui);
+    padding: 10px 12px; color: var(--color-muted);
+    font-size: var(--text-label); cursor: pointer;
+    box-shadow: -6px 0 18px rgba(0,0,0,.3);
+  }
+  .edge-tab:hover { color: var(--color-ink); background: var(--color-active); }
+  .menu {
+    margin: 8px 0 0 auto; width: 200px;
+    background: var(--color-elevated); border: 1px solid var(--color-elevated-border);
+    border-radius: var(--radius-ui); padding: 5px;
+    box-shadow: 0 12px 28px rgba(0,0,0,.45);
+  }
+  .mi {
+    display: flex; align-items: center; gap: 9px; padding: 7px 10px;
+    border-radius: 7px; font-size: var(--text-ui); cursor: pointer;
+  }
+  .mi:hover { background: var(--color-elevated-hover, #3f3f3a); }
+
+  /* full read-only run */
+  .ideas { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 16px 20px; }
+  .col-lbl {
+    font-size: var(--text-micro); letter-spacing: .09em; text-transform: uppercase;
+    color: var(--color-muted); font-weight: 600; margin-bottom: 7px;
+  }
+  .idea {
+    display: flex; align-items: center; justify-content: space-between; gap: 8px;
+    background: var(--color-panel); border: 1px solid var(--color-border);
+    border-radius: var(--radius-ui); padding: 5px 5px 5px 11px;
+    font-size: var(--text-ui); margin-bottom: 5px;
+  }
+  .cover { display: flex; gap: var(--space-4); align-items: flex-end; flex-wrap: wrap; }
+  .cover-img {
+    width: 190px; height: 190px; flex: none; border-radius: var(--radius-ui);
+    border: 1px solid var(--color-border);
+    background:
+      radial-gradient(120% 90% at 62% 22%, rgba(120,165,215,.55), transparent 58%),
+      linear-gradient(200deg, #2b3140 0%, #191a1d 62%, #101012 100%);
+    position: relative; overflow: hidden;
+  }
+  .cover-img::after {
+    content: ""; position: absolute; left: 41%; top: 14%; width: 20%; height: 62%;
+    background: linear-gradient(180deg, rgba(150,190,235,.75), rgba(150,190,235,.08));
+    box-shadow: 0 0 26px rgba(140,180,230,.35);
+  }
+  .kv {
+    display: flex; gap: var(--space-4); padding: 5px 0;
+    border-bottom: 1px solid color-mix(in srgb, var(--color-border) 60%, transparent);
+    font-size: var(--text-label);
+  }
+  .kv:last-child { border-bottom: 0; }
+  .kv span:first-child { color: var(--color-muted); min-width: 92px; flex: none; }
+
+  .cols { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-5); align-items: start; }
+  @media (max-width: 860px) { .cols { grid-template-columns: 1fr; } .drawer { display: none; } }
+
+  table.dec { border-collapse: collapse; width: 100%; font-size: var(--text-ui); margin-top: var(--space-3); }
+  table.dec th, table.dec td { text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--color-border); vertical-align: top; }
+  table.dec th { color: var(--color-muted); font-size: var(--text-label); font-weight: 600; }
+  table.dec td:first-child { white-space: nowrap; color: var(--color-accent-strong); }
+  .caption { color: var(--color-muted); font-size: var(--text-label); margin: var(--space-2) 0 var(--space-4); }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <h1>Studio history</h1>
+  <p class="lede">
+    Static mocks; nothing is wired up. The decisions are made — this page is now the
+    record of what was chosen and what was passed over.
+  </p>
+
+  <div class="decided">
+    <div class="decided-h">Decided</div>
+    <div class="kv"><span>Placement</span><span><b>A</b> — side drawer from the right, matching the existing queue drawer (fixed right, 340px, Escape closes). Not B (inline strip), not C (fourth mode tab).</span></div>
+    <div class="kv"><span>Trigger</span><span><b>A1</b> — a clock-arrow icon button beside Generate. No label, no count badge; the run count sits in the drawer header instead.</span></div>
+    <div class="kv"><span>Current run</span><span><b>3</b> — the live run is not in the list at all. History holds finished runs only; the run on screen joins the list once you leave. Nothing announces it — no “current vs saved” vocabulary anywhere.</span></div>
+    <div class="kv"><span>List length</span><span><b>P1</b> — 25 most recent, then an explicit “Show 25 more”, with the total in the footer (<code>25 of 243</code>). Server pages at <code>LIMIT 25</code>. Date headers (Today / This week / Earlier) group the rows. Not infinite scroll; the filter is a later addition.</span></div>
+    <div class="kv"><span>Saved run</span><span>Opens read-only with <b>everything</b> the run produced — all three band, title and album ideas, genres, lyrics, style prompt, cover-art prompt, and the cover image. No refine field, no editable boxes.</span></div>
+    <div class="kv"><span>Storage</span><span>Server-side SQLite, cover PNG kept with the run. Written on a completed run only. Nothing expires; each entry gets a delete. Suno runs only for now.</span></div>
+    <div class="kv"><span>Row label</span><span><b>L3</b> — turn 1 returns two new fields, <code>referenceArtist</code> and <code>referenceTitle</code>, as metadata about the reference. One clause added to the blanket rule at <code>prompts.go:66</code>; the three field-scoped rules (<code>:94</code>, <code>:155</code>, <code>:161</code>) stay untouched. Falls back to the reference verbatim when they come back empty.</span></div>
+  </div>
+
+  <!-- ══════════════════ QUESTION 1 ══════════════════ -->
+  <div class="opt">
+    <div class="opt-head"><span class="tag q">Question 1</span><h2>Where does history live?</h2></div>
+  </div>
+
+  <!-- A -->
+  <div class="opt">
+    <div class="opt-head"><span class="tag">A · picked</span><h2>Side drawer</h2></div>
+    <p class="note">
+      A control next to Generate slides a panel in from the right. The
+      work area never moves; the drawer is closed by default so the page opens
+      exactly as it does today. On a phone it becomes a full-height sheet.
+      Matches <code>QueueDrawer</code>, which the app already has: fixed to the right,
+      340px, closed with Escape.
+      <span class="verdict"><b>Cost:</b> history is invisible until you go looking for it —
+      which is what makes the trigger worth getting right (<span class="link"><a href="#triggers" style="color:inherit">five options below</a></span>).</span>
+    </p>
+    <div class="frame">
+      <div class="frame-bar"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="frame-title">Studio — drawer open</span></div>
+      <div class="stage">
+        <div class="studio">
+          <h3 class="studio-h">Studio</h3>
+          <p class="sub">Turn a song into a Suno prompt.</p>
+          <div class="tabs">
+            <button>Genre → Fanart</button><button>Album Cover</button><button aria-selected="true">Song → Suno</button>
+          </div>
+          <div class="row">
+            <div class="input filled">Talking Heads, This Must Be the Place</div>
+            <button class="btn">Generate</button>
+            <button class="btn sec icon" title="History" aria-label="History">
+              <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l4 2"/></svg>
+            </button>
+          </div>
+          <p class="hint">Runs are kept so you can look them up later. Only the run on screen can be refined.</p>
+          <div style="margin-top:var(--space-6)">
+            <div class="block">
+              <div class="card-head"><span class="card-name">Lyrics <small>→ Suno “Lyrics” · original, editable</small></span><button class="btn sec sm">Copy</button></div>
+              <div class="card">
+                [Verse]<br />I found the road by the water tower<br />and the light was already going<br /><br />[Chorus]<br />stay where the ground still knows your name…
+              </div>
+            </div>
+            <div class="block">
+              <div class="card-head"><span class="card-name">Style prompt <small>→ Suno “Style”</small></span><button class="btn sec sm">Copy</button></div>
+              <div class="card mono">1980s,art pop,mid-tempo,clean electric guitar,warm synth pads,steady groove,hazy,clean vocals,no humming</div>
+            </div>
+          </div>
+        </div>
+        <aside class="drawer">
+          <h4>History <span style="color:var(--color-muted);font-weight:400">12 runs</span> <span class="x">✕</span></h4>
+          <ul class="hist">
+            <li class="entry"><span class="who"><span class="ref">Enter Sandman</span><br /><span class="meta">Metallica · thrash metal</span></span><span class="when">2h ago</span></li>
+            <li class="entry"><span class="who"><span class="ref">Blue Monday</span><br /><span class="meta">New Order · synth-pop</span></span><span class="when">Yesterday</span></li>
+            <li class="entry"><span class="who"><span class="ref">Teardrop</span><br /><span class="meta">Massive Attack · trip hop</span></span><span class="when">Tue</span></li>
+            <li class="entry"><span class="who"><span class="ref">Redbone</span><br /><span class="meta">Childish Gambino · psychedelic soul</span></span><span class="when">Jul 28</span></li>
+            <li class="entry"><span class="who"><span class="ref">Just Like Honey</span><br /><span class="meta">The Jesus and Mary Chain · noise pop</span></span><span class="when">Jul 26</span></li>
+          </ul>
+        </aside>
+      </div>
+    </div>
+  </div>
+
+  <!-- A trigger options -->
+  <div class="opt" id="triggers">
+    <div class="opt-head"><span class="tag">A · picked</span><h2>What opens the drawer?</h2></div>
+    <p class="note verdict" style="color:var(--color-ink)">
+      <b>Decided: A1.</b> A clock-arrow icon button beside Generate, no label and no
+      badge; the run count lives in the drawer header instead. A2–A5 are kept below
+      as the record of what was considered.
+    </p>
+    <p class="note">
+      The panel is settled. The trigger is not — a second filled button sitting next
+      to Generate competes with the one action that matters on this page, and a
+      count badge makes a quiet feature look like an inbox. Five quieter ways in.
+      All open the same drawer; all close on Escape, like the queue drawer already does.
+    </p>
+
+    <div class="cols">
+
+      <div>
+        <h2 class="tri-h"><span class="tag">A1 · picked</span> &nbsp;Icon only, no count</h2>
+        <p class="caption">Same position, but stripped to a clock-arrow glyph with a tooltip. Reads as a utility rather than a second call to action. The count moves inside the drawer header, where it is information instead of a nag.</p>
+        <div class="frame"><div class="studio" style="padding:var(--space-4)">
+          <div class="row">
+            <div class="input filled">Talking Heads, This Must Be the Place</div>
+            <button class="btn">Generate</button>
+            <button class="btn sec icon" title="History" aria-label="History">
+              <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l4 2"/></svg>
+            </button>
+          </div>
+          <p class="hint">Runs are kept so you can look them up later.</p>
+        </div></div>
+      </div>
+
+      <div>
+        <h2 class="tri-h"><span class="tag">A2</span> &nbsp;A link in the hint line</h2>
+        <p class="caption">No button at all. The explanatory line under the input already tells you runs are kept — so the words “12 earlier runs” in that same sentence become the way in. Zero new chrome; the action row stays a single button.</p>
+        <div class="frame"><div class="studio" style="padding:var(--space-4)">
+          <div class="row">
+            <div class="input filled">Talking Heads, This Must Be the Place</div>
+            <button class="btn">Generate</button>
+          </div>
+          <p class="hint">Runs are kept so you can look them up later — <span class="link">12 earlier runs</span>.</p>
+        </div></div>
+      </div>
+
+      <div>
+        <h2 class="tri-h"><span class="tag">A3</span> &nbsp;Beside the page title</h2>
+        <p class="caption">Out of the action row entirely: a quiet text button on the title line, top-right. Nothing near Generate changes, and it stays put while the mode tabs and the form below shift around.</p>
+        <div class="frame"><div class="studio" style="padding:var(--space-4)">
+          <div style="display:flex;justify-content:space-between;align-items:baseline;gap:var(--space-3)">
+            <h3 class="studio-h" style="font-size:var(--text-title)">Studio</h3>
+            <span class="link" style="display:inline-flex;align-items:center;gap:6px">
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l4 2"/></svg>
+              History
+            </span>
+          </div>
+          <p class="sub" style="margin-bottom:var(--space-4)">Turn a song into a Suno prompt.</p>
+          <div class="row">
+            <div class="input filled">Talking Heads, This Must Be the Place</div>
+            <button class="btn">Generate</button>
+          </div>
+        </div></div>
+      </div>
+
+      <div>
+        <h2 class="tri-h"><span class="tag">A4</span> &nbsp;Edge tab</h2>
+        <p class="caption">A slim tab pinned to the right edge of the viewport — always visible, never in the layout, and it reads as “there is a panel behind this”. Costs a floating element that has to dodge the player bar on a phone.</p>
+        <div class="frame" style="position:relative;overflow:hidden">
+          <div class="studio" style="padding:var(--space-4)">
+            <div class="row">
+              <div class="input filled">Talking Heads, This Must Be the Place</div>
+              <button class="btn">Generate</button>
+            </div>
+            <p class="hint">Runs are kept so you can look them up later.</p>
+            <div style="margin-top:var(--space-4)">
+              <div class="card" style="color:var(--color-muted)">[Verse]<br />I found the road by the water tower…</div>
+            </div>
+          </div>
+          <div class="edge-tab">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l4 2"/></svg>
+            <span>History</span>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <h2 class="tri-h"><span class="tag">A5</span> &nbsp;Overflow menu</h2>
+        <p class="caption">A “⋯” beside Generate holding History — and room for whatever comes next (Clear history, Export). The app already has a Menu component. Costs a click and hides the feature one level down.</p>
+        <div class="frame"><div class="studio" style="padding:var(--space-4);padding-bottom:var(--space-6)">
+          <div class="row">
+            <div class="input filled">Talking Heads, This Must Be the Place</div>
+            <button class="btn">Generate</button>
+            <button class="btn sec icon" aria-label="More">⋯</button>
+          </div>
+          <div class="menu">
+            <div class="mi">
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l4 2"/></svg>
+              History <span style="color:var(--color-muted);margin-left:auto">12</span>
+            </div>
+            <div class="mi" style="color:var(--color-muted)">Clear history…</div>
+          </div>
+        </div></div>
+      </div>
+
+      <div>
+        <h2 class="tri-h"><span class="tag q">note</span> &nbsp;Where the count goes</h2>
+        <p class="caption">If the trigger loses its badge, the drawer header carries the number instead — plus an empty state for the first-ever visit, which the badge versions have no answer for.</p>
+        <div class="frame"><div class="stage"><aside class="drawer" style="width:100%;border-left:0;padding:var(--space-4)">
+          <h4 style="margin-bottom:var(--space-3)">History <span style="color:var(--color-muted);font-weight:400">12 runs</span> <span class="x">✕</span></h4>
+          <ul class="hist">
+            <li class="entry live"><span class="live-dot"></span><span class="who"><span class="ref">This Must Be the Place</span><br /><span class="meta">Talking Heads</span></span><span class="pill now">On screen</span></li>
+            <li class="entry"><span class="who"><span class="ref">Enter Sandman</span><br /><span class="meta">Metallica</span></span><span class="when">2h</span><span class="lock">🔒</span></li>
+          </ul>
+          <div class="divider" style="margin-top:var(--space-5)">or, first visit</div>
+          <p class="hint" style="margin:0">Nothing here yet. Generate a song and it will be kept so you can come back to it.</p>
+        </aside></div></div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- B -->
+  <div class="opt">
+    <div class="opt-head"><span class="tag">B</span><h2>Inline strip under the input</h2></div>
+    <p class="note">
+      History sits in the page flow, directly beneath the reference field and above
+      the results — collapsed to a header row you click to open. Nothing floats,
+      nothing overlays, and it works identically on a phone.
+      <span class="verdict"><b>Cost:</b> it pushes the results down, and a long list needs its own scroll or a “See all” link.</span>
+    </p>
+    <div class="cols">
+      <div class="frame">
+        <div class="frame-bar"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="frame-title">collapsed — the default</span></div>
+        <div class="studio narrow">
+          <div class="row">
+            <div class="input filled">Talking Heads, This Must Be the Place</div>
+            <button class="btn">Generate</button>
+          </div>
+          <p class="hint">Runs are kept so you can look them up later.</p>
+          <div style="margin-top:var(--space-4)">
+            <div class="entry" style="justify-content:space-between">
+              <span class="who"><span class="ref">Earlier runs <span style="color:var(--color-muted)">· 12</span></span></span>
+              <span class="when">Show ▾</span>
+            </div>
+          </div>
+          <div style="margin-top:var(--space-5)">
+            <div class="card-head"><span class="card-name">Lyrics <small>→ Suno “Lyrics”</small></span><button class="btn sec sm">Copy</button></div>
+            <div class="card">[Verse]<br />I found the road by the water tower…</div>
+          </div>
+        </div>
+      </div>
+      <div class="frame">
+        <div class="frame-bar"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="frame-title">expanded</span></div>
+        <div class="studio narrow">
+          <div class="row">
+            <div class="input filled">Talking Heads, This Must Be the Place</div>
+            <button class="btn">Generate</button>
+          </div>
+          <div style="margin-top:var(--space-4)">
+            <div class="hist-title"><span class="lbl">Earlier runs · 12</span><span class="when">Hide ▴</span></div>
+            <ul class="hist">
+              <li class="entry"><span class="who"><span class="ref">Enter Sandman</span><br /><span class="meta">Metallica · thrash metal</span></span><span class="when">2h ago</span><span class="lock">🔒</span></li>
+              <li class="entry"><span class="who"><span class="ref">Blue Monday</span><br /><span class="meta">New Order · synth-pop</span></span><span class="when">Yesterday</span><span class="lock">🔒</span></li>
+              <li class="entry"><span class="who"><span class="ref">Teardrop</span><br /><span class="meta">Massive Attack · trip hop</span></span><span class="when">Tue</span><span class="lock">🔒</span></li>
+            </ul>
+            <p class="hint" style="text-align:center">See all 12</p>
+          </div>
+          <div style="margin-top:var(--space-4)">
+            <div class="card-head"><span class="card-name">Lyrics</span><button class="btn sec sm">Copy</button></div>
+            <div class="card">[Verse]<br />I found the road by the water tower…</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- C -->
+  <div class="opt">
+    <div class="opt-head"><span class="tag">C</span><h2>Fourth mode tab</h2></div>
+    <p class="note">
+      History becomes a peer of the three Studio modes: its own full-width view,
+      with room for a search field, dates and a preview of each run's identity.
+      Switching to it leaves the current run untouched behind the tab.
+      <span class="verdict"><b>Cost:</b> the tab row already carries three modes and only appears when the image generator is configured — history would need to show regardless, so the row becomes conditional in a new way.</span>
+    </p>
+    <div class="frame">
+      <div class="frame-bar"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="frame-title">Studio — History tab</span></div>
+      <div class="studio">
+        <h3 class="studio-h">Studio</h3>
+        <p class="sub">Everything you have generated. Saved runs are read-only.</p>
+        <div class="tabs">
+          <button>Genre → Fanart</button><button>Album Cover</button><button>Song → Suno</button><button aria-selected="true" class="hist">History</button>
+        </div>
+        <div class="row" style="margin-bottom:var(--space-5)">
+          <div class="input">Filter by song, artist or genre</div>
+        </div>
+        <div class="grid">
+          <div class="tile live">
+            <div class="top">
+              <div><div class="ref">This Must Be the Place</div><div class="meta">Talking Heads</div></div>
+              <span class="pill now">On screen</span>
+            </div>
+            <div class="meta">Ashen Verdict · “Ground Still Knows”</div>
+            <div class="chips"><span class="chip">art pop</span><span class="chip">new wave</span></div>
+          </div>
+          <div class="tile">
+            <div class="top">
+              <div><div class="ref">Enter Sandman</div><div class="meta">Metallica</div></div>
+              <span class="when">2h ago</span>
+            </div>
+            <div class="meta">Hollow Sabbath · “Sleep Is a Door”</div>
+            <div class="chips"><span class="chip">thrash metal</span><span class="chip">heavy metal</span></div>
+          </div>
+          <div class="tile">
+            <div class="top">
+              <div><div class="ref">Blue Monday</div><div class="meta">New Order</div></div>
+              <span class="when">Yesterday</span>
+            </div>
+            <div class="meta">Grey Litany · “Machine Weather”</div>
+            <div class="chips"><span class="chip">synth-pop</span><span class="chip">post-punk</span></div>
+          </div>
+          <div class="tile">
+            <div class="top">
+              <div><div class="ref">Teardrop</div><div class="meta">Massive Attack</div></div>
+              <span class="when">Tue</span>
+            </div>
+            <div class="meta">Slow Harbour · “Under the Ribs”</div>
+            <div class="chips"><span class="chip">trip hop</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════ HOW MANY ROWS ══════════════════ -->
+  <div class="opt" id="paging">
+    <div class="opt-head"><span class="tag q">Open</span><h2>How much of the list is shown?</h2></div>
+    <p class="note">
+      Runs accumulate and nothing expires, so this list reaches hundreds. Everything
+      below still <i>keeps</i> every run — the question is only how many rows the drawer
+      renders at once. All three fetch a page at a time from the server
+      (<code>LIMIT 25</code> keyed on the last row seen), so a long history never
+      arrives in one response.
+    </p>
+    <div class="cols">
+
+      <div>
+        <h2 class="tri-h"><span class="tag">P1 · picked</span> &nbsp;25, then “Show more”</h2>
+        <p class="caption">The 25 most recent, with an explicit button for the next 25. You always know where the end of the list is, the drawer never grows behind your back, and there is nothing to implement beyond one query with a limit.</p>
+        <div class="frame"><div class="stage"><aside class="drawer" style="width:100%;border-left:0;padding:var(--space-4)">
+          <h4 style="margin-bottom:var(--space-3)">History <span style="color:var(--color-muted);font-weight:400">243 runs</span></h4>
+          <ul class="hist">
+            <li class="entry"><span class="who"><span class="ref">Enter Sandman</span><br /><span class="meta">Metallica · thrash metal</span></span><span class="when">2h</span></li>
+            <li class="entry"><span class="who"><span class="ref">Blue Monday</span><br /><span class="meta">New Order · synth-pop</span></span><span class="when">Yest.</span></li>
+            <li class="entry" style="opacity:.55"><span class="who"><span class="ref">Teardrop</span><br /><span class="meta">Massive Attack · trip hop</span></span><span class="when">Tue</span></li>
+            <li class="entry" style="opacity:.3"><span class="who"><span class="ref">Redbone</span><br /><span class="meta">Childish Gambino</span></span><span class="when">Jul 28</span></li>
+          </ul>
+          <p class="hint" style="text-align:center"><span class="link">Show 25 more</span> · 25 of 243</p>
+        </aside></div></div>
+      </div>
+
+      <div>
+        <h2 class="tri-h"><span class="tag">P2</span> &nbsp;Infinite scroll</h2>
+        <p class="caption">Loads the next page as you near the bottom. Nothing to click — but the scrollbar lies about how much is left, there is no way to reach the oldest run, and a drawer that keeps growing is hard to leave.</p>
+        <div class="frame"><div class="stage"><aside class="drawer" style="width:100%;border-left:0;padding:var(--space-4)">
+          <h4 style="margin-bottom:var(--space-3)">History</h4>
+          <ul class="hist">
+            <li class="entry"><span class="who"><span class="ref">Enter Sandman</span><br /><span class="meta">Metallica · thrash metal</span></span><span class="when">2h</span></li>
+            <li class="entry"><span class="who"><span class="ref">Blue Monday</span><br /><span class="meta">New Order · synth-pop</span></span><span class="when">Yest.</span></li>
+            <li class="entry" style="opacity:.55"><span class="who"><span class="ref">Teardrop</span><br /><span class="meta">Massive Attack</span></span><span class="when">Tue</span></li>
+          </ul>
+          <p class="hint" style="text-align:center;display:flex;align-items:center;justify-content:center;gap:8px">
+            <span class="spin"></span> Loading more…
+          </p>
+        </aside></div></div>
+      </div>
+
+      <div>
+        <h2 class="tri-h"><span class="tag">P3</span> &nbsp;25 plus a filter</h2>
+        <p class="caption">P1, plus a field that searches the whole history server-side rather than the 25 on screen. At 243 runs, paging to find one song is hopeless and typing three letters is not — but it is a second query, a debounce, and an empty-result state to build.</p>
+        <div class="frame"><div class="stage"><aside class="drawer" style="width:100%;border-left:0;padding:var(--space-4)">
+          <h4 style="margin-bottom:var(--space-3)">History <span style="color:var(--color-muted);font-weight:400">243 runs</span></h4>
+          <div class="input" style="margin-bottom:var(--space-3);font-size:var(--text-label)">metal</div>
+          <ul class="hist">
+            <li class="entry"><span class="who"><span class="ref">Enter Sandman</span><br /><span class="meta">Metallica · thrash metal</span></span><span class="when">2h</span></li>
+            <li class="entry"><span class="who"><span class="ref">Raining Blood</span><br /><span class="meta">Slayer · thrash metal</span></span><span class="when">Jul 24</span></li>
+            <li class="entry"><span class="who"><span class="ref">Ace of Spades</span><br /><span class="meta">Motörhead · speed metal</span></span><span class="when">Jul 19</span></li>
+          </ul>
+          <p class="hint" style="text-align:center">3 of 243 match</p>
+        </aside></div></div>
+      </div>
+
+      <div>
+        <h2 class="tri-h"><span class="tag q">note</span> &nbsp;Date headers, whichever wins</h2>
+        <p class="caption">Cheap to add and it does most of the scanning work: 25 undifferentiated rows read as a wall, the same 25 under Today / This week / Earlier read as a timeline. Also lets the row drop its date column and give the width back to the song name.</p>
+        <div class="frame"><div class="stage"><aside class="drawer" style="width:100%;border-left:0;padding:var(--space-4)">
+          <h4 style="margin-bottom:var(--space-3)">History <span style="color:var(--color-muted);font-weight:400">243 runs</span></h4>
+          <div class="hist-title"><span class="lbl">Today</span></div>
+          <ul class="hist">
+            <li class="entry"><span class="who"><span class="ref">Enter Sandman</span><br /><span class="meta">Metallica · thrash metal</span></span></li>
+          </ul>
+          <div class="hist-title" style="margin-top:var(--space-4)"><span class="lbl">This week</span></div>
+          <ul class="hist">
+            <li class="entry"><span class="who"><span class="ref">Blue Monday</span><br /><span class="meta">New Order · synth-pop</span></span></li>
+            <li class="entry"><span class="who"><span class="ref">Teardrop</span><br /><span class="meta">Massive Attack · trip hop</span></span></li>
+          </ul>
+          <div class="hist-title" style="margin-top:var(--space-4)"><span class="lbl">Earlier</span></div>
+          <ul class="hist">
+            <li class="entry"><span class="who"><span class="ref">Redbone</span><br /><span class="meta">Childish Gambino · psych soul</span></span></li>
+          </ul>
+        </aside></div></div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ══════════════════ WHAT LABELS A ROW ══════════════════ -->
+  <div class="opt" id="labels">
+    <div class="opt-head"><span class="tag q">Open</span><h2>What actually labels a history row?</h2></div>
+    <p class="note">
+      The rows above show a song on one line and an artist underneath. <b>That data
+      does not exist today.</b> <code>GenerateResult</code> carries the style prompt,
+      lyrics, cover-art prompt, genres, and the <i>invented</i> band/title/album ideas —
+      never the real ones. The prompt forbids them twice: <i>“NEVER mention real
+      artist, band, or song names in any output.”</i> The only place the real song
+      lives is the reference string you typed. Note the rules govern what the model
+      <b>emits</b>, not what it knows — it identified the artist and title during turn 1
+      research either way. Three ways to label a row:
+    </p>
+    <div class="cols">
+
+      <div>
+        <h2 class="tri-h"><span class="tag">L1</span> &nbsp;The reference, verbatim</h2>
+        <p class="caption">One line, exactly as typed. Nothing to get wrong and nothing new to build — but rows are ragged, since people type “Metallica, Enter Sandman”, “Enter Sandman by Metallica” and “enter sandman” interchangeably.</p>
+        <div class="frame"><div class="stage"><aside class="drawer" style="width:100%;border-left:0;padding:var(--space-4)">
+          <ul class="hist">
+            <li class="entry"><span class="who"><span class="ref">Metallica, Enter Sandman</span><br /><span class="meta">thrash metal · heavy metal</span></span><span class="when">2h</span></li>
+            <li class="entry"><span class="who"><span class="ref">Enter Sandman by Metallica</span><br /><span class="meta">thrash metal</span></span><span class="when">Yest.</span></li>
+            <li class="entry"><span class="who"><span class="ref">blue monday new order</span><br /><span class="meta">synth-pop · post-punk</span></span><span class="when">Tue</span></li>
+          </ul>
+        </aside></div></div>
+      </div>
+
+      <div>
+        <h2 class="tri-h"><span class="tag">L2</span> &nbsp;Split on the comma</h2>
+        <p class="caption">Client-side guess: text before the comma is the artist, after it the song. Free, and right for the format the placeholder suggests — wrong the moment someone writes “by”, reverses the order, or omits one. No way to tell a bad split from a good one.</p>
+        <div class="frame"><div class="stage"><aside class="drawer" style="width:100%;border-left:0;padding:var(--space-4)">
+          <ul class="hist">
+            <li class="entry"><span class="who"><span class="ref">Enter Sandman</span><br /><span class="meta">Metallica</span></span><span class="when">2h</span></li>
+            <li class="entry" style="border-color:var(--color-danger)"><span class="who"><span class="ref">—</span><br /><span class="meta">Enter Sandman by Metallica</span></span><span class="when">Yest.</span></li>
+            <li class="entry" style="border-color:var(--color-danger)"><span class="who"><span class="ref">—</span><br /><span class="meta">blue monday new order</span></span><span class="when">Tue</span></li>
+          </ul>
+          <p class="hint" style="color:var(--color-danger)">Two of three misparsed. Nothing detects it.</p>
+        </aside></div></div>
+      </div>
+
+      <div>
+        <h2 class="tri-h"><span class="tag">L3 · picked</span> &nbsp;Ask the model</h2>
+        <p class="caption">Turn 1 already researches the song, so it knows. Two extra fields — the real artist and the real title — returned as <i>metadata about the reference</i>, never as prompt content. Rows become uniform and sortable regardless of how the reference was typed. Falls back to L1 verbatim if the fields come back empty.</p>
+        <div class="frame"><div class="stage"><aside class="drawer" style="width:100%;border-left:0;padding:var(--space-4)">
+          <ul class="hist">
+            <li class="entry"><span class="who"><span class="ref">Enter Sandman</span><br /><span class="meta">Metallica · thrash metal</span></span><span class="when">2h</span></li>
+            <li class="entry"><span class="who"><span class="ref">Enter Sandman</span><br /><span class="meta">Metallica · thrash metal</span></span><span class="when">Yest.</span></li>
+            <li class="entry"><span class="who"><span class="ref">Blue Monday</span><br /><span class="meta">New Order · synth-pop</span></span><span class="when">Tue</span></li>
+          </ul>
+          <p class="hint">All three typed differently. Same row shape.</p>
+        </aside></div></div>
+      </div>
+
+      <div>
+        <h2 class="tri-h"><span class="tag q">catch</span> &nbsp;What L3 costs — one sentence</h2>
+        <p class="caption">
+          Less than it first looks. Nothing forbids the model from <i>identifying</i> the
+          song — it researched the artist and title in turn 1 to write the style prompt at
+          all. The rules govern what it <i>emits</i>, and three of the four are already
+          scoped to a single field: the style prompt (<code>:94</code>), titles and albums
+          (<code>:155</code>), bands (<code>:161</code>). Those keep doing the protective
+          work untouched. Only the blanket sentence in the system prompt
+          (<code>:66</code>, “in any output”) overlaps, and it needs one clause added.
+        </p>
+        <div class="frame"><div class="studio" style="padding:var(--space-4)">
+          <div class="card mono" style="font-size:var(--text-micro);line-height:1.7">
+            <span style="color:var(--color-muted)">// added to turn 1</span><br />
+            3. referenceArtist, referenceTitle — the REAL artist and title of the<br />
+            &nbsp;&nbsp; reference song you researched. These two fields are the ONLY<br />
+            &nbsp;&nbsp; place a real name may ever appear: they label the run in a list<br />
+            &nbsp;&nbsp; and are never pasted into Suno. The rule still holds absolutely<br />
+            &nbsp;&nbsp; for stylePrompt, lyrics, titles, albums, bands and the cover-art<br />
+            &nbsp;&nbsp; prompt. Leave them empty if unsure.
+          </div>
+          <p class="hint">Costs no extra tool call and no extra turn — two more keys in a JSON object turn 1 already returns.</p>
+        </div></div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ══════════════════ QUESTION 2 ══════════════════ -->
+  <div class="opt" style="margin-top:72px">
+    <div class="opt-head"><span class="tag q">Question 2</span><h2>How does the current run read, when it is not history yet?</h2></div>
+    <p class="note">
+      The awkward bit: the run on screen is live and refinable, its history entry
+      already exists (or will), and refining overwrites that entry rather than adding
+      to it. Three ways to say that. Shown in the drawer, but each works in any of
+      A / B / C.
+    </p>
+    <div class="cols">
+      <div>
+        <h2 style="font-size:var(--text-ui);margin-bottom:var(--space-2)"><span class="tag">1</span> &nbsp;Pinned at top, live dot</h2>
+        <p class="caption">One list. The current run is the first row, accent-bordered with a green dot and “On screen”. Everything below is locked and dated. Refining just updates that top row in place — it never spawns a second entry.</p>
+        <div class="frame"><div class="stage"><aside class="drawer" style="width:100%;border-left:0">
+          <h4>History</h4>
+          <ul class="hist">
+            <li class="entry live">
+              <span class="live-dot"></span>
+              <span class="who"><span class="ref">This Must Be the Place</span><br /><span class="meta">refined twice · saves as you go</span></span>
+              <span class="pill now">On screen</span>
+            </li>
+            <li class="entry"><span class="who"><span class="ref">Enter Sandman</span><br /><span class="meta">Metallica</span></span><span class="when">2h</span><span class="lock">🔒</span></li>
+            <li class="entry"><span class="who"><span class="ref">Blue Monday</span><br /><span class="meta">New Order</span></span><span class="when">Yest.</span><span class="lock">🔒</span></li>
+          </ul>
+        </aside></div></div>
+      </div>
+      <div>
+        <h2 style="font-size:var(--text-ui);margin-bottom:var(--space-2)"><span class="tag">2</span> &nbsp;Two sections, labelled divider</h2>
+        <p class="caption">The current run sits above an explicit “Saved — read-only” rule. The line does the explaining, so the rows below need no lock icon and no pill. Strongest signal that crossing the line is one-way.</p>
+        <div class="frame"><div class="stage"><aside class="drawer" style="width:100%;border-left:0">
+          <h4>History</h4>
+          <div class="hist-title"><span class="lbl">Working now</span></div>
+          <ul class="hist">
+            <li class="entry live">
+              <span class="live-dot"></span>
+              <span class="who"><span class="ref">This Must Be the Place</span><br /><span class="meta">refining updates this entry</span></span>
+            </li>
+          </ul>
+          <div class="divider">Saved — read-only</div>
+          <ul class="hist">
+            <li class="entry"><span class="who"><span class="ref">Enter Sandman</span><br /><span class="meta">Metallica</span></span><span class="when">2h</span></li>
+            <li class="entry"><span class="who"><span class="ref">Blue Monday</span><br /><span class="meta">New Order</span></span><span class="when">Yest.</span></li>
+          </ul>
+        </aside></div></div>
+      </div>
+      <div>
+        <h2 style="font-size:var(--text-ui);margin-bottom:var(--space-2)"><span class="tag">3 · picked</span> &nbsp;Not in the list at all</h2>
+        <p class="caption">History lists only finished, read-only runs. The current run is simply the page you are on — it appears in the list once you leave. Nothing announces that; the list is just a list, and no “current vs saved” vocabulary is needed anywhere.</p>
+        <div class="frame"><div class="stage"><aside class="drawer" style="width:100%;border-left:0">
+          <h4>History</h4>
+          <ul class="hist">
+            <li class="entry"><span class="who"><span class="ref">Enter Sandman</span><br /><span class="meta">Metallica</span></span><span class="when">2h</span></li>
+            <li class="entry"><span class="who"><span class="ref">Blue Monday</span><br /><span class="meta">New Order</span></span><span class="when">Yest.</span></li>
+            <li class="entry"><span class="who"><span class="ref">Teardrop</span><br /><span class="meta">Massive Attack</span></span><span class="when">Tue</span></li>
+          </ul>
+        </aside></div></div>
+      </div>
+      <div>
+        <h2 style="font-size:var(--text-ui);margin-bottom:var(--space-2)"><span class="tag q">also</span> &nbsp;Where the refine box says it</h2>
+        <p class="caption">Whichever of 1–3 you pick, the refine field is the place the overwrite actually happens. A quiet line under it carries the rule, so nobody has to open history to learn it.</p>
+        <div class="frame"><div class="studio" style="padding:var(--space-4)">
+          <div class="row">
+            <div class="input">Refine the lyrics — e.g. “darker chorus”</div>
+            <button class="btn sec">Refine</button>
+          </div>
+          <p class="hint">Refining rewrites these lyrics and updates this run’s saved copy. The previous wording is not kept.</p>
+        </div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════ READ-ONLY ══════════════════ -->
+  <div class="opt" style="margin-top:72px">
+    <div class="opt-head"><span class="tag q">Both questions</span><h2>Opening a saved run</h2></div>
+    <p class="note">
+      <b>Everything the run produced comes back</b> — not a summary. All three band,
+      title and album ideas (not just the one you happened to copy), the genre chips,
+      the full lyrics, the style prompt with its character count, the cover-art prompt,
+      and the cover image itself if one was generated. Same cards as a live run, minus
+      everything that would change it: no refine field, no editable boxes, no
+      “Generate cover art” button. Copy buttons stay — that is the whole point of
+      keeping the run. The only way forward is a fresh generation, which starts a new
+      entry rather than continuing this one.
+    </p>
+    <p class="note">
+      It is enough content that a modal gets tall. Shown here as a sheet to match how
+      the app already opens things, but it could equally be a full page — worth
+      deciding along with placement A/B/C.
+    </p>
+    <div class="frame">
+      <div class="frame-bar"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="frame-title">saved run — read-only</span></div>
+      <div class="scrim">
+        <div class="sheet">
+          <div style="display:flex;justify-content:space-between;align-items:start;gap:var(--space-3);margin-bottom:var(--space-3)">
+            <div>
+              <div style="font-size:var(--text-title);font-weight:600">Enter Sandman</div>
+              <div class="meta" style="color:var(--color-muted);font-size:var(--text-label)">Metallica · generated 1 Aug 2026, 14:22</div>
+            </div>
+            <span class="x" style="color:var(--color-muted);cursor:pointer">✕</span>
+          </div>
+          <div class="banner"><span>🔒</span><span>Saved run — read-only. Refining is only available for a run in progress.</span></div>
+          <div class="block">
+            <div class="card-head"><span class="card-name">Lyrics</span><button class="btn sec sm">Copy</button></div>
+            <div class="card">[Verse]<br />the hallway light stays on till four<br />and the dog won’t settle down<br /><br />[Chorus]<br />keep the door open, keep the door open…</div>
+          </div>
+          <div class="block">
+            <div class="card-head">
+              <span class="card-name">Style prompt <small>→ Suno “Style”</small></span>
+              <span style="display:flex;align-items:center;gap:var(--space-3)">
+                <span style="color:var(--color-muted);font-size:var(--text-label);font-variant-numeric:tabular-nums">128 / 500</span>
+                <button class="btn sec sm">Copy</button>
+              </span>
+            </div>
+            <div class="card mono">1991,thrash metal,mid-tempo,heavy downtuned guitars,twin-lead guitars,driven bass,tight double kick,dark,clean vocals,no humming</div>
+          </div>
+
+          <!-- Identity: ALL three of each, exactly as generated -->
+          <div class="block">
+            <div class="card-head"><span class="card-name">Identity <small>→ name it &amp; classify it</small></span></div>
+            <div class="card" style="padding:14px">
+              <div class="ideas">
+                <div>
+                  <div class="col-lbl">Band name</div>
+                  <div class="idea">Hollow Sabbath <button class="btn sec sm">Copy</button></div>
+                  <div class="idea">Ashen Verdict <button class="btn sec sm">Copy</button></div>
+                  <div class="idea">Grey Litany <button class="btn sec sm">Copy</button></div>
+                </div>
+                <div>
+                  <div class="col-lbl">Song title</div>
+                  <div class="idea">Sleep Is a Door <button class="btn sec sm">Copy</button></div>
+                  <div class="idea">Hallway Light <button class="btn sec sm">Copy</button></div>
+                  <div class="idea">Four In The Morning <button class="btn sec sm">Copy</button></div>
+                </div>
+                <div>
+                  <div class="col-lbl">Album name</div>
+                  <div class="idea">Nightfall Sessions <button class="btn sec sm">Copy</button></div>
+                  <div class="idea">The Long Dark <button class="btn sec sm">Copy</button></div>
+                  <div class="idea">Teeth Of The Year <button class="btn sec sm">Copy</button></div>
+                </div>
+              </div>
+              <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:14px;padding-top:14px;border-top:1px solid var(--color-border)">
+                <span class="col-lbl" style="margin:0 2px 0 0">Genres</span>
+                <span class="chip" style="background:var(--color-active);color:var(--color-ink)">Thrash Metal</span>
+                <span class="chip" style="background:var(--color-active);color:var(--color-ink)">Heavy Metal</span>
+                <span class="chip" style="background:var(--color-active);color:var(--color-ink)">Speed Metal</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Cover-art prompt AND the image it produced -->
+          <div class="block">
+            <div class="card-head"><span class="card-name">Cover-art prompt <small>→ image generator</small></span><button class="btn sec sm">Copy</button></div>
+            <div class="card">A single unlit hallway door standing open in a dark 1991 suburban house, cold blue light spilling across the carpet, grainy high-contrast photographic album composition.</div>
+          </div>
+          <div class="block">
+            <div class="card-head"><span class="card-name">Cover art <small>· flux-schnell · generated 14:26</small></span><button class="btn sec sm">Download</button></div>
+            <div class="cover">
+              <div class="cover-img" role="img" aria-label="Generated cover art placeholder"></div>
+              <p class="hint" style="margin:0">Kept with the run. Regenerating is only possible from a new run.</p>
+            </div>
+          </div>
+
+          <!-- Provenance: what was asked, and what the research actually did -->
+          <div class="block">
+            <div class="card-head"><span class="card-name">Run details</span></div>
+            <div class="card">
+              <div class="kv"><span>Reference</span><span>Metallica, Enter Sandman</span></div>
+              <div class="kv"><span>Generated</span><span>1 Aug 2026, 14:22 · took 48s</span></div>
+              <div class="kv"><span>Refined</span><span>2× — “darker chorus”, “do not say lullaby”</span></div>
+              <div class="kv"><span>Research</span><span>3 web searches, 2 pages read <span style="color:var(--color-accent-strong);cursor:pointer">show</span></span></div>
+            </div>
+          </div>
+
+          <div class="row" style="justify-content:flex-end">
+            <button class="btn sec">Generate this song again</button>
+          </div>
+          <p class="hint" style="text-align:right">Starts a new run — this one stays as it is.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════ OPEN QUESTIONS ══════════════════ -->
+  <div class="opt" style="margin-top:72px">
+    <div class="opt-head"><span class="tag q">Before building</span><h2>Things the mockups can’t decide</h2></div>
+    <table class="dec">
+      <tr><th>Question</th><th>Why it matters</th></tr>
+      <tr><td>Where stored</td><td>Server-side (SQLite, survives devices, needs a table + endpoints) or browser-local (localStorage, zero backend, lost on another device or a cleared cache).</td></tr>
+      <tr><td>How much</td><td>Keep the last N runs, or everything with a delete button. Lyrics are a few KB each, so either is cheap — this is about clutter, not storage.</td></tr>
+      <tr><td>When it saves</td><td>On the first card landing (a failed run leaves a stub) or only on a completed run (a run that died mid-way is lost).</td></tr>
+      <tr><td>Cover art</td><td>The image is ephemeral today. The mock above assumes it is kept with the run — that means storing PNGs, not just text, and is the one part of “all the data” that costs real disk. Say if the prompt alone is enough.</td></tr>
+      <tr><td>Run details</td><td>The mock keeps the reference, timestamp, duration, the refine instructions used, and a foldaway research trail. Any of that not worth storing?</td></tr>
+      <tr><td>Other modes</td><td>Genre → Fanart and Album Cover also generate. Same history, separate history, or Suno runs only for now.</td></tr>
+      <tr><td>Hand edits</td><td>Lyrics and the cover-art prompt are editable in place today. Does typing in them update the saved copy, or only a refine?</td></tr>
+    </table>
+  </div>
+
+</div>
+</body>
+</html>

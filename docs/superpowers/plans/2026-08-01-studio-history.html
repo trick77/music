@@ -1,0 +1,1873 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Studio History — Implementation Plan</title>
+<style>
+  :root {
+    --color-bg:#1f1f1e; --color-panel:#1b1b1a; --color-active:#2c2c2a;
+    --color-border:#323230; --color-ink:#faf9f5; --color-muted:#9c9a92;
+    --color-accent:#c6613f; --color-accent-strong:#d97757; --color-accent-fill:#c25f34;
+    --color-online:#5aa06a; --color-danger:#c14638;
+    --font-sans:"Anthropic Sans",system-ui,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    --font-mono:ui-monospace,SFMono-Regular,Menlo,monospace;
+    --radius-ui:10px;
+  }
+  *{box-sizing:border-box}
+  html{color-scheme:dark}
+  body{margin:0;background:var(--color-bg);color:var(--color-ink);font-family:var(--font-sans);line-height:1.65;-webkit-font-smoothing:antialiased}
+  .page{max-width:920px;margin:0 auto;padding:32px 24px 120px}
+  h1{font-size:1.75rem;margin:0 0 8px}
+  h2{font-size:1.25rem;margin:48px 0 12px;padding-bottom:8px;border-bottom:1px solid var(--color-border)}
+  h3{font-size:1rem;margin:28px 0 8px}
+  p,li{font-size:.9375rem}
+  .lede{color:var(--color-muted);margin:0 0 24px}
+  code{font-family:var(--font-mono);font-size:.85em;background:var(--color-active);padding:1px 5px;border-radius:5px}
+  pre{background:color-mix(in srgb,var(--color-bg) 70%,#000);border:1px solid var(--color-border);border-radius:var(--radius-ui);padding:14px 16px;overflow-x:auto;margin:10px 0}
+  pre code{background:none;padding:0;font-size:.8125rem;line-height:1.6}
+  .meta{border:1px solid var(--color-border);border-left:3px solid var(--color-accent);border-radius:var(--radius-ui);background:var(--color-panel);padding:16px 20px;margin:0 0 24px}
+  .meta dl{display:grid;grid-template-columns:auto 1fr;gap:6px 18px;margin:0;font-size:.875rem}
+  .meta dt{color:var(--color-muted);white-space:nowrap}
+  .meta dd{margin:0}
+  .task{border:1px solid var(--color-border);border-radius:var(--radius-ui);background:var(--color-panel);padding:4px 20px 16px;margin:0 0 24px}
+  .files{font-size:.8125rem;color:var(--color-muted);margin:0 0 4px}
+  .files b{color:var(--color-ink);font-weight:600}
+  .files code{font-size:.95em}
+  .step{margin:14px 0 0}
+  .step > label{display:flex;gap:9px;align-items:flex-start;font-weight:600;font-size:.9375rem;cursor:pointer}
+  .step input{margin-top:5px;flex:none;accent-color:var(--color-accent-fill)}
+  .why{color:var(--color-muted);font-size:.8125rem;margin:6px 0 0 26px}
+  .warn{border-left:3px solid var(--color-accent);background:var(--color-panel);border-radius:var(--radius-ui);padding:10px 14px;margin:12px 0;font-size:.875rem}
+  .warn b{color:var(--color-accent-strong)}
+  table{border-collapse:collapse;width:100%;font-size:.875rem;margin:10px 0}
+  th,td{text-align:left;padding:8px 12px;border-bottom:1px solid var(--color-border);vertical-align:top}
+  th{color:var(--color-muted);font-size:.8125rem}
+  td:first-child{white-space:nowrap;color:var(--color-accent-strong)}
+  ul{padding-left:20px}
+</style>
+</head>
+<body>
+<div class="page">
+
+<h1>Studio History — Implementation Plan</h1>
+<p class="lede">
+  <b>For agentic workers:</b> REQUIRED SUB-SKILL — use <code>superpowers:subagent-driven-development</code>
+  (recommended) or <code>superpowers:executing-plans</code> to implement this plan task by task.
+  Steps are checkboxes; tick them as you go.
+</p>
+
+<div class="meta">
+  <dl>
+    <dt>Goal</dt><dd>Persist every completed Studio run and let the user reopen any of them read-only from a drawer, without ever being able to resume or refine a saved one.</dd>
+    <dt>Architecture</dt><dd>A new <code>studio_history</code> SQLite table written server-side the moment <code>provider.Generate</code> returns; list/detail/delete served by <code>songHandlers</code> (which already owns the repo, exactly like <code>/api/studio/coverart</code>); a right-side drawer in the UI modelled on <code>QueueDrawer</code> but with the scrim <code>AddToPlaylist</code> uses.</dd>
+    <dt>Tech Stack</dt><dd>Go 1.25 (stdlib <code>net/http</code>, <code>database/sql</code>, modernc sqlite), React 19 + TypeScript, vitest + @testing-library/react.</dd>
+    <dt>Worktree</dt><dd><code>/Users/jan/localgit/music/.claude/worktrees/studio-history</code> — branch <code>studio-history</code>. Read and edit at THAT path.</dd>
+    <dt>Design record</dt><dd><code>docs/mockups/studio-history.html</code> — every choice below traces to it.</dd>
+  </dl>
+</div>
+
+<h2>Global Constraints</h2>
+<ul>
+  <li><b>TDD.</b> Failing test first, then the minimal implementation. (<code>AGENTS.md:6</code>)</li>
+  <li><b>No assertion library.</b> Backend uses stdlib <code>testing</code> and <code>t.Fatalf("x = %v, want %v", got, want)</code>. No testify.</li>
+  <li><b>Never edit an applied migration.</b> New behaviour goes in a new <code>NNNN_*.sql</code>. (<code>AGENTS.md:47-48</code>)</li>
+  <li><b>Coverage floors are hard:</b> <code>backend=75.0</code>, <code>ui=75.0</code> in <code>hack/coverage-floors</code>. Untested files fail the gate.</li>
+  <li><b>Two-tier gate on every endpoint:</b> 403 when not authenticated, 404 when the feature is not configured. Copy <code>studioHandlers.guard</code> (<code>httpapi/studio.go:110-121</code>).</li>
+  <li><b>Cache-Control is set by the route, never the serve helper.</b> (<code>AGENTS.md:21-24</code>)</li>
+  <li><b>Icons are lucide only</b> via <code>&lt;Icon name="…" /&gt;</code>. No unicode glyphs, no icon font. (<code>AGENTS.md:31</code>)</li>
+  <li><b>Overlays use</b> <code>rgba(0,0,0,.5)</code> + 2px backdrop-blur. (<code>AGENTS.md:36</code>) — note <code>QueueDrawer</code> violates this; do not copy that part of it.</li>
+  <li><b>No AI branding or wordmark in UI copy.</b> (<code>AGENTS.md:11</code>)</li>
+  <li><b>History is shared, not per-user.</b> No <code>username</code> column. Endpoints are still gated to authenticated.</li>
+  <li><b>Commit after every task.</b> Conventional commits, never to <code>master</code>.</li>
+</ul>
+
+<h2>Decisions this plan implements</h2>
+<table>
+  <tr><th>Decision</th><th>What it means in code</th></tr>
+  <tr><td>Placement A</td><td>Right-side drawer, <code>position:fixed</code>, width 340, <code>maxWidth:90vw</code>, <code>zIndex:60</code>, unmounted when closed.</td></tr>
+  <tr><td>Trigger A1</td><td>A lucide <code>history</code> icon button beside Generate. No label, no badge. Count lives in the drawer header.</td></tr>
+  <tr><td>Current run 3</td><td>The live run is never in the list. The list is simply what the server has; the current run's row is excluded by id while it is on screen.</td></tr>
+  <tr><td>Paging P1</td><td><code>LIMIT 25</code> keyset on <code>rowid</code> DESC, an explicit "Show 25 more", footer <code>25 of 243</code>, Today / This week / Earlier headers.</td></tr>
+  <tr><td>Label L3</td><td>Turn 1 returns <code>referenceArtist</code> + <code>referenceTitle</code>; falls back to the raw reference when blank.</td></tr>
+  <tr><td>Read-only detail</td><td>Every field the run produced, incl. all three bands/titles/albums and the cover image. No refine box, no textareas.</td></tr>
+  <tr><td>Storage</td><td>Written on completion only. Nothing expires. Delete per entry, behind <code>ConfirmDialog</code>. Cover image referenced by id — the PNG is never copied and never deleted.</td></tr>
+  <tr><td>No store → no history</td><td><code>studioHandlers.repo</code> is nil when the app runs without a library; the write is skipped, the routes are not registered, and the UI hides the icon.</td></tr>
+</table>
+
+<div class="warn">
+  <b>Two structural facts to internalise before Task 1.</b>
+  (1) <code>studioHandlers</code> (<code>httpapi/studio.go:26-29</code>) has <b>no repo and no media store</b> — it is deliberately built outside the <code>st != nil</code> guard in <code>server.go:112</code>. Generate is the only place a full <code>GenerateResult</code> exists server-side, so that struct gains an optional <code>repo</code> field. Read endpoints go on <code>songHandlers</code>, which already has one.
+  (2) SQLite has no array type and this repo has <b>no JSON-column precedent</b>. Genres, bands, titles and albums are display-only lists that are never queried by element, so they are stored as JSON <code>TEXT</code>. Four join tables for four never-joined lists would be worse.
+</div>
+
+<h2>File structure</h2>
+<table>
+  <tr><th>File</th><th>Responsibility</th></tr>
+  <tr><td>Create</td><td><code>backend/internal/store/migrations/0008_studio_history.sql</code> — the table.</td></tr>
+  <tr><td>Create</td><td><code>backend/internal/library/studio_history.go</code> — <code>StudioRun</code> type, <code>Repo</code> methods, JSON list encoding.</td></tr>
+  <tr><td>Create</td><td><code>backend/internal/httpapi/studio_history.go</code> — list / get / delete / patch handlers.</td></tr>
+  <tr><td>Modify</td><td><code>backend/internal/studio/prompts.go</code>, <code>studio.go</code>, <code>mimo.go</code> — the two reference-metadata fields.</td></tr>
+  <tr><td>Modify</td><td><code>backend/internal/httpapi/studio.go</code> — persist after Generate, emit the <code>saved</code> event, update on Refine.</td></tr>
+  <tr><td>Modify</td><td><code>backend/internal/httpapi/server.go</code> — wire the repo in, register four routes.</td></tr>
+  <tr><td>Create</td><td><code>ui/src/api/studioHistory.ts</code> (+ barrel export in <code>ui/src/api/index.ts</code>).</td></tr>
+  <tr><td>Create</td><td><code>ui/src/StudioHistoryDrawer.tsx</code> — the list.</td></tr>
+  <tr><td>Create</td><td><code>ui/src/StudioHistoryRun.tsx</code> — the read-only detail sheet.</td></tr>
+  <tr><td>Modify</td><td><code>ui/src/StudioPage.tsx</code> — icon button, drawer state, saved-run id plumbing.</td></tr>
+</table>
+
+<!-- ══════════════ TASK 1 ══════════════ -->
+<h2>Task 1: The table</h2>
+<div class="task">
+  <p class="files"><b>Create:</b> <code>backend/internal/store/migrations/0008_studio_history.sql</code></p>
+  <p class="files"><b>Test:</b> <code>backend/internal/store/studio_history_migration_test.go</code></p>
+  <p class="files"><b>Produces:</b> table <code>studio_history</code> with columns <code>id, reference, reference_artist, reference_title, style_prompt, lyrics, cover_art_prompt, genres, bands, titles, albums, coverart_id, refine_count, created_at, updated_at</code>.</p>
+
+  <div class="step"><label><input type="checkbox"> Step 1: Write the failing migration test</label></div>
+  <p class="why">Template: <code>backend/internal/store/track_total_migration_test.go</code>. It opens a raw DB, replays 0001…0007 by name from <code>migrationsFS</code>, then applies the migration under test. Here the assertion is that the table exists, that the JSON list columns default to <code>'[]'</code>, and that <code>refine_count</code> defaults to 0.</p>
+<pre><code>package store
+
+import (
+	"database/sql"
+	"testing"
+
+	_ "modernc.org/sqlite"
+)
+
+// applyThrough replays migrations 0001..name inclusive onto a bare DB, so a test
+// can assert what a single migration does rather than what Open() produces.
+func applyThrough(t *testing.T, db *sql.DB, names ...string) {
+	t.Helper()
+	for _, n := range names {
+		body, err := migrationsFS.ReadFile("migrations/" + n)
+		if err != nil {
+			t.Fatalf("read %s: %v", n, err)
+		}
+		if _, err := db.Exec(string(body)); err != nil {
+			t.Fatalf("apply %s: %v", n, err)
+		}
+	}
+}
+
+func TestMigration0008_createsStudioHistory(t *testing.T) {
+	db, err := sql.Open("sqlite", "file:"+t.TempDir()+"/h.db?_pragma=foreign_keys(1)")
+	if err != nil {
+		t.Fatalf("open: %v", err)
+	}
+	defer db.Close()
+	applyThrough(t, db,
+		"0001_init.sql", "0002_song_lyrics.sql", "0003_song_alignment.sql",
+		"0004_lowercase_genres.sql", "0005_normalize_album.sql",
+		"0006_song_audio_info.sql", "0007_track_total.sql",
+		"0008_studio_history.sql",
+	)
+
+	// A row inserted with only the required columns must come back with usable
+	// defaults: empty JSON arrays (not NULL, which would break json.Unmarshal on
+	// read) and a zero refine count.
+	if _, err := db.Exec(
+		`INSERT INTO studio_history(id, reference, style_prompt, lyrics, cover_art_prompt)
+		 VALUES('abc','Metallica, Enter Sandman','1991,thrash metal','[Verse]','a door')`); err != nil {
+		t.Fatalf("insert: %v", err)
+	}
+	var genres, bands, titles, albums string
+	var refines int
+	var createdAt string
+	if err := db.QueryRow(
+		`SELECT genres, bands, titles, albums, refine_count, created_at
+		 FROM studio_history WHERE id='abc'`).
+		Scan(&genres, &bands, &titles, &albums, &refines, &createdAt); err != nil {
+		t.Fatalf("select: %v", err)
+	}
+	for name, got := range map[string]string{"genres": genres, "bands": bands, "titles": titles, "albums": albums} {
+		if got != "[]" {
+			t.Fatalf("%s default = %q, want %q", name, got, "[]")
+		}
+	}
+	if refines != 0 {
+		t.Fatalf("refine_count default = %d, want 0", refines)
+	}
+	if createdAt == "" {
+		t.Fatalf("created_at default is empty")
+	}
+}</code></pre>
+
+  <div class="step"><label><input type="checkbox"> Step 2: Run it and watch it fail</label></div>
+<pre><code>cd backend &amp;&amp; go test ./internal/store/ -run TestMigration0008 -v</code></pre>
+  <p class="why">Expected: FAIL — <code>read 0008_studio_history.sql: file does not exist</code>.</p>
+
+  <div class="step"><label><input type="checkbox"> Step 3: Write the migration</label></div>
+  <p class="why">House style: open with a comment explaining <i>why</i>, spell out NULL-vs-default semantics, and name the Go code that depends on it. Follow <code>0007_track_total.sql</code>.</p>
+<pre><code>-- Studio history. Until now Studio was explicitly ephemeral ("Results are
+-- ephemeral; nothing is stored", studio/studio.go:4); this table is the first
+-- thing to persist a GenerateResult so a finished run can be reopened later.
+--
+-- Rows are written ONLY on a completed generate (httpapi/studio.go), so there is
+-- no 'generating' state and no orphan sweep to run at startup — unlike fanart,
+-- which needs FailOrphanedGenerating.
+--
+-- genres/bands/titles/albums are JSON arrays in a TEXT column, not join tables:
+-- they are display-only lists, never queried by element, and four join tables for
+-- four never-joined lists costs more than it buys. They default to '[]' rather
+-- than NULL so library/studio_history.go can json.Unmarshal unconditionally.
+--
+-- reference_artist/reference_title are the REAL artist and title as identified by
+-- the model during turn-1 research (studio/prompts.go). They are labels for this
+-- list and nothing else; they are empty when the model declined to name them, in
+-- which case the UI falls back to `reference` verbatim.
+--
+-- coverart_id references studio_coverart(id) but is deliberately NOT a foreign
+-- key: deleting a history row must never cascade into an image that other things
+-- may still serve, and a cover generated after the run is attached by UPDATE.
+--
+-- History is SHARED, not per-user: this is a single-user install in practice, so
+-- unlike `favorites` there is no username column.
+CREATE TABLE studio_history (
+    id               TEXT PRIMARY KEY,
+    reference        TEXT NOT NULL,
+    reference_artist TEXT NOT NULL DEFAULT '',
+    reference_title  TEXT NOT NULL DEFAULT '',
+    style_prompt     TEXT NOT NULL,
+    lyrics           TEXT NOT NULL,
+    cover_art_prompt TEXT NOT NULL,
+    genres           TEXT NOT NULL DEFAULT '[]',
+    bands            TEXT NOT NULL DEFAULT '[]',
+    titles           TEXT NOT NULL DEFAULT '[]',
+    albums           TEXT NOT NULL DEFAULT '[]',
+    coverart_id      TEXT,
+    refine_count     INTEGER NOT NULL DEFAULT 0,
+    created_at       TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at       TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+-- The drawer lists newest-first and pages with a keyset on rowid; this index
+-- serves that ordering without a table scan once the list reaches hundreds.
+CREATE INDEX idx_studio_history_created ON studio_history(created_at DESC, rowid DESC);</code></pre>
+
+  <div class="step"><label><input type="checkbox"> Step 4: Run the test — it passes</label></div>
+<pre><code>cd backend &amp;&amp; go test ./internal/store/ -run TestMigration0008 -v
+cd backend &amp;&amp; go test ./internal/store/...</code></pre>
+
+  <div class="step"><label><input type="checkbox"> Step 5: Commit</label></div>
+<pre><code>git add backend/internal/store/migrations/0008_studio_history.sql \
+        backend/internal/store/studio_history_migration_test.go
+git commit -m "feat(studio): add the studio_history table"</code></pre>
+</div>
+
+<!-- ══════════════ TASK 2 ══════════════ -->
+<h2>Task 2: Repo methods</h2>
+<div class="task">
+  <p class="files"><b>Create:</b> <code>backend/internal/library/studio_history.go</code></p>
+  <p class="files"><b>Test:</b> <code>backend/internal/library/studio_history_test.go</code></p>
+  <p class="files"><b>Consumes:</b> the table from Task 1, <code>library.NewID()</code>, the <code>newRepo(t)</code> fixture in <code>songs_test.go:10</code>.</p>
+  <p class="files"><b>Produces:</b>
+    <code>type StudioRun</code>;
+    <code>(*Repo).CreateStudioRun(ctx, StudioRun) error</code>;
+    <code>(*Repo).ListStudioRuns(ctx, limit int, beforeRowID int64) ([]StudioRun, error)</code>;
+    <code>(*Repo).CountStudioRuns(ctx) (int, error)</code>;
+    <code>(*Repo).GetStudioRun(ctx, id string) (*StudioRun, error)</code>;
+    <code>(*Repo).UpdateStudioRunLyrics(ctx, id, lyrics string, bumpRefine bool) error</code>;
+    <code>(*Repo).UpdateStudioRunCoverArt(ctx, id, coverArtID string) error</code>;
+    <code>(*Repo).DeleteStudioRun(ctx, id string) error</code>.
+  </p>
+
+  <div class="step"><label><input type="checkbox"> Step 1: Write the failing tests</label></div>
+<pre><code>package library
+
+import (
+	"context"
+	"testing"
+)
+
+func run(id, ref string) StudioRun {
+	return StudioRun{
+		ID: id, Reference: ref, ReferenceArtist: "Metallica", ReferenceTitle: "Enter Sandman",
+		StylePrompt: "1991,thrash metal", Lyrics: "[Verse]\nx", CoverArtPrompt: "a door",
+		Genres: []string{"thrash metal"}, Bands: []string{"Hollow Sabbath"},
+		Titles: []string{"Sleep Is a Door"}, Albums: []string{"Nightfall Sessions"},
+	}
+}
+
+func TestStudioRun_createAndGet(t *testing.T) {
+	r := newRepo(t)
+	ctx := context.Background()
+	if err := r.CreateStudioRun(ctx, run("a", "Metallica, Enter Sandman")); err != nil {
+		t.Fatalf("CreateStudioRun: %v", err)
+	}
+	got, err := r.GetStudioRun(ctx, "a")
+	if err != nil {
+		t.Fatalf("GetStudioRun: %v", err)
+	}
+	if got == nil {
+		t.Fatalf("GetStudioRun returned nil for an existing run")
+	}
+	// The JSON list columns must survive the round trip as real slices — this is
+	// the whole reason they are stored as JSON rather than a joined string.
+	if len(got.Genres) != 1 || got.Genres[0] != "thrash metal" {
+		t.Fatalf("Genres = %#v, want [thrash metal]", got.Genres)
+	}
+	if got.ReferenceTitle != "Enter Sandman" {
+		t.Fatalf("ReferenceTitle = %q", got.ReferenceTitle)
+	}
+}
+
+// Absent means (nil, nil), never a sentinel error — the house convention.
+func TestStudioRun_getMissingIsNilNil(t *testing.T) {
+	got, err := newRepo(t).GetStudioRun(context.Background(), "nope")
+	if err != nil {
+		t.Fatalf("GetStudioRun: %v", err)
+	}
+	if got != nil {
+		t.Fatalf("GetStudioRun = %#v, want nil", got)
+	}
+}
+
+// The drawer pages with a keyset on rowid, newest first. Page 2 must continue
+// exactly where page 1 stopped, with no repeats and no gaps.
+func TestStudioRun_listPagesNewestFirst(t *testing.T) {
+	r := newRepo(t)
+	ctx := context.Background()
+	for _, id := range []string{"a", "b", "c", "d", "e"} {
+		if err := r.CreateStudioRun(ctx, run(id, "ref "+id)); err != nil {
+			t.Fatalf("CreateStudioRun %s: %v", id, err)
+		}
+	}
+	first, err := r.ListStudioRuns(ctx, 2, 0)
+	if err != nil {
+		t.Fatalf("ListStudioRuns: %v", err)
+	}
+	if len(first) != 2 || first[0].ID != "e" || first[1].ID != "d" {
+		t.Fatalf("page 1 = %v, want [e d]", ids(first))
+	}
+	second, err := r.ListStudioRuns(ctx, 2, first[1].RowID)
+	if err != nil {
+		t.Fatalf("ListStudioRuns page 2: %v", err)
+	}
+	if len(second) != 2 || second[0].ID != "c" || second[1].ID != "b" {
+		t.Fatalf("page 2 = %v, want [c b]", ids(second))
+	}
+	n, err := r.CountStudioRuns(ctx)
+	if err != nil {
+		t.Fatalf("CountStudioRuns: %v", err)
+	}
+	if n != 5 {
+		t.Fatalf("CountStudioRuns = %d, want 5", n)
+	}
+}
+
+func ids(rs []StudioRun) []string {
+	out := []string{}
+	for _, r := range rs {
+		out = append(out, r.ID)
+	}
+	return out
+}
+
+// A refine overwrites the run's lyrics in place and counts. A hand edit
+// overwrites them without counting — it is not a refine.
+func TestStudioRun_updateLyrics(t *testing.T) {
+	r := newRepo(t)
+	ctx := context.Background()
+	if err := r.CreateStudioRun(ctx, run("a", "ref")); err != nil {
+		t.Fatalf("CreateStudioRun: %v", err)
+	}
+	if err := r.UpdateStudioRunLyrics(ctx, "a", "[Verse]\nrewritten", true); err != nil {
+		t.Fatalf("UpdateStudioRunLyrics: %v", err)
+	}
+	got, _ := r.GetStudioRun(ctx, "a")
+	if got.Lyrics != "[Verse]\nrewritten" || got.RefineCount != 1 {
+		t.Fatalf("after refine: lyrics=%q refines=%d", got.Lyrics, got.RefineCount)
+	}
+	if err := r.UpdateStudioRunLyrics(ctx, "a", "[Verse]\nhand", false); err != nil {
+		t.Fatalf("UpdateStudioRunLyrics hand edit: %v", err)
+	}
+	got, _ = r.GetStudioRun(ctx, "a")
+	if got.Lyrics != "[Verse]\nhand" || got.RefineCount != 1 {
+		t.Fatalf("after hand edit: lyrics=%q refines=%d, want refines unchanged", got.Lyrics, got.RefineCount)
+	}
+}
+
+func TestStudioRun_attachCoverArtAndDelete(t *testing.T) {
+	r := newRepo(t)
+	ctx := context.Background()
+	if err := r.CreateStudioRun(ctx, run("a", "ref")); err != nil {
+		t.Fatalf("CreateStudioRun: %v", err)
+	}
+	if err := r.UpdateStudioRunCoverArt(ctx, "a", "img1"); err != nil {
+		t.Fatalf("UpdateStudioRunCoverArt: %v", err)
+	}
+	got, _ := r.GetStudioRun(ctx, "a")
+	if got.CoverArtID != "img1" {
+		t.Fatalf("CoverArtID = %q, want img1", got.CoverArtID)
+	}
+	if err := r.DeleteStudioRun(ctx, "a"); err != nil {
+		t.Fatalf("DeleteStudioRun: %v", err)
+	}
+	got, _ = r.GetStudioRun(ctx, "a")
+	if got != nil {
+		t.Fatalf("run still present after delete")
+	}
+	// Deleting a run that is already gone is a no-op, not an error — the drawer
+	// may fire the same delete twice.
+	if err := r.DeleteStudioRun(ctx, "a"); err != nil {
+		t.Fatalf("second DeleteStudioRun: %v", err)
+	}
+}</code></pre>
+
+  <div class="step"><label><input type="checkbox"> Step 2: Run and watch them fail</label></div>
+<pre><code>cd backend &amp;&amp; go test ./internal/library/ -run TestStudioRun -v</code></pre>
+  <p class="why">Expected: compile failure — <code>undefined: StudioRun</code>.</p>
+
+  <div class="step"><label><input type="checkbox"> Step 3: Implement</label></div>
+<pre><code>package library
+
+import (
+	"context"
+	"database/sql"
+	"encoding/json"
+	"errors"
+)
+
+// StudioRun is one completed Studio generation, kept so it can be reopened
+// read-only later. Every field is serialized to the client except RowID, which
+// is the keyset cursor the drawer pages with and is meaningless outside this
+// process.
+type StudioRun struct {
+	ID              string   `json:"id"`
+	Reference       string   `json:"reference"`
+	ReferenceArtist string   `json:"referenceArtist"`
+	ReferenceTitle  string   `json:"referenceTitle"`
+	StylePrompt     string   `json:"stylePrompt"`
+	Lyrics          string   `json:"lyrics"`
+	CoverArtPrompt  string   `json:"coverArtPrompt"`
+	Genres          []string `json:"genres"`
+	Bands           []string `json:"bands"`
+	Titles          []string `json:"titles"`
+	Albums          []string `json:"albums"`
+	CoverArtID      string   `json:"coverArtId"`
+	RefineCount     int      `json:"refineCount"`
+	CreatedAt       string   `json:"createdAt"`
+	UpdatedAt       string   `json:"updatedAt"`
+
+	RowID int64 `json:"-"`
+}
+
+const studioRunSelect = `SELECT rowid, id, reference, reference_artist, reference_title,
+	style_prompt, lyrics, cover_art_prompt, genres, bands, titles, albums,
+	COALESCE(coverart_id,''), refine_count, created_at, updated_at FROM studio_history`
+
+// jsonList encodes a string slice for a JSON TEXT column. A nil slice must
+// become "[]" rather than "null", or the read side unmarshals to nil and the
+// client sees null where it expects an array.
+func jsonList(v []string) string {
+	if v == nil {
+		v = []string{}
+	}
+	b, err := json.Marshal(v)
+	if err != nil {
+		return "[]"
+	}
+	return string(b)
+}
+
+// decodeList is the inverse. A malformed column yields an empty list rather than
+// failing the whole read: one bad row must not make the drawer unopenable.
+func decodeList(s string) []string {
+	out := []string{}
+	if s == "" {
+		return out
+	}
+	if err := json.Unmarshal([]byte(s), &out); err != nil {
+		return []string{}
+	}
+	return out
+}
+
+func scanStudioRun(s interface{ Scan(...any) error }) (*StudioRun, error) {
+	var r StudioRun
+	var genres, bands, titles, albums string
+	if err := s.Scan(&r.RowID, &r.ID, &r.Reference, &r.ReferenceArtist, &r.ReferenceTitle,
+		&r.StylePrompt, &r.Lyrics, &r.CoverArtPrompt, &genres, &bands, &titles, &albums,
+		&r.CoverArtID, &r.RefineCount, &r.CreatedAt, &r.UpdatedAt); err != nil {
+		return nil, err
+	}
+	r.Genres, r.Bands, r.Titles, r.Albums = decodeList(genres), decodeList(bands), decodeList(titles), decodeList(albums)
+	return &r, nil
+}
+
+// CreateStudioRun records a completed run. Called only after Generate returns,
+// so there is no partial/failed state to represent.
+func (r *Repo) CreateStudioRun(ctx context.Context, run StudioRun) error {
+	_, err := r.db.ExecContext(ctx,
+		`INSERT INTO studio_history(id, reference, reference_artist, reference_title,
+			style_prompt, lyrics, cover_art_prompt, genres, bands, titles, albums)
+		 VALUES(?,?,?,?,?,?,?,?,?,?,?)`,
+		run.ID, run.Reference, run.ReferenceArtist, run.ReferenceTitle,
+		run.StylePrompt, run.Lyrics, run.CoverArtPrompt,
+		jsonList(run.Genres), jsonList(run.Bands), jsonList(run.Titles), jsonList(run.Albums))
+	return err
+}
+
+// ListStudioRuns returns up to limit runs, newest first. beforeRowID is the
+// keyset cursor: pass 0 for the first page, then the RowID of the last row you
+// received. Keyset rather than OFFSET so a run written mid-scroll cannot shift
+// the window and duplicate a row.
+func (r *Repo) ListStudioRuns(ctx context.Context, limit int, beforeRowID int64) ([]StudioRun, error) {
+	if limit <= 0 {
+		limit = 25
+	}
+	q := studioRunSelect + ` ORDER BY rowid DESC LIMIT ?`
+	args := []any{limit}
+	if beforeRowID > 0 {
+		q = studioRunSelect + ` WHERE rowid < ? ORDER BY rowid DESC LIMIT ?`
+		args = []any{beforeRowID, limit}
+	}
+	rows, err := r.db.QueryContext(ctx, q, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := []StudioRun{}
+	for rows.Next() {
+		run, err := scanStudioRun(rows)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, *run)
+	}
+	return out, rows.Err()
+}
+
+// CountStudioRuns is the total the drawer footer shows next to "25 of N".
+func (r *Repo) CountStudioRuns(ctx context.Context) (int, error) {
+	var n int
+	err := r.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM studio_history`).Scan(&n)
+	return n, err
+}
+
+// GetStudioRun returns the run, or (nil, nil) when absent.
+func (r *Repo) GetStudioRun(ctx context.Context, id string) (*StudioRun, error) {
+	run, err := scanStudioRun(r.db.QueryRowContext(ctx, studioRunSelect+` WHERE id=?`, id))
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, nil
+	}
+	return run, err
+}
+
+// UpdateStudioRunLyrics overwrites the saved lyrics. bumpRefine distinguishes a
+// refine (which counts, and is shown in the run details) from a hand edit in the
+// textarea (which does not).
+func (r *Repo) UpdateStudioRunLyrics(ctx context.Context, id, lyrics string, bumpRefine bool) error {
+	q := `UPDATE studio_history SET lyrics=?, updated_at=datetime('now') WHERE id=?`
+	if bumpRefine {
+		q = `UPDATE studio_history SET lyrics=?, refine_count=refine_count+1, updated_at=datetime('now') WHERE id=?`
+	}
+	_, err := r.db.ExecContext(ctx, q, lyrics, id)
+	return err
+}
+
+// UpdateStudioRunCoverArt attaches a generated image to the run. The image row
+// and its PNG are owned by studio_coverart and outlive this run deliberately.
+func (r *Repo) UpdateStudioRunCoverArt(ctx context.Context, id, coverArtID string) error {
+	_, err := r.db.ExecContext(ctx,
+		`UPDATE studio_history SET coverart_id=?, updated_at=datetime('now') WHERE id=?`,
+		nullIfEmpty(coverArtID), id)
+	return err
+}
+
+// DeleteStudioRun removes a run. Idempotent: deleting an absent run is a no-op.
+// The referenced cover art is intentionally left alone — nothing else knows the
+// image is unreferenced, and stranding a broken image elsewhere costs more than
+// a few hundred KB on disk.
+func (r *Repo) DeleteStudioRun(ctx context.Context, id string) error {
+	_, err := r.db.ExecContext(ctx, `DELETE FROM studio_history WHERE id=?`, id)
+	return err
+}</code></pre>
+
+  <div class="step"><label><input type="checkbox"> Step 4: Run the tests — all pass</label></div>
+<pre><code>cd backend &amp;&amp; go test ./internal/library/ -run TestStudioRun -v
+cd backend &amp;&amp; go test ./...</code></pre>
+
+  <div class="step"><label><input type="checkbox"> Step 5: Commit</label></div>
+<pre><code>git add backend/internal/library/studio_history.go backend/internal/library/studio_history_test.go
+git commit -m "feat(studio): add studio history repo methods"</code></pre>
+</div>
+
+<!-- ══════════════ TASK 3 ══════════════ -->
+<h2>Task 3: Ask the model for the real artist and title</h2>
+<div class="task">
+  <p class="files"><b>Modify:</b> <code>backend/internal/studio/studio.go</code> (GenerateResult), <code>backend/internal/studio/prompts.go:66</code> and the turn-1 prompt, <code>backend/internal/studio/mimo.go</code> (turn-1 decode)</p>
+  <p class="files"><b>Test:</b> <code>backend/internal/studio/mimo_test.go</code></p>
+  <p class="files"><b>Produces:</b> <code>GenerateResult.ReferenceArtist</code>, <code>GenerateResult.ReferenceTitle</code> (both <code>string</code>, JSON <code>referenceArtist</code> / <code>referenceTitle</code>).</p>
+
+  <div class="warn">
+    This is decision <b>L3</b>. The rule at <code>prompts.go:66</code> is the only blanket one
+    (<i>"in any output"</i>); the three that actually protect the Suno prompt are field-scoped
+    (<code>:94</code> style prompt, <code>:155</code> titles/albums, <code>:161</code> bands) and must be
+    left <b>exactly</b> as they are. The carve-out has to name the two fields explicitly, or the
+    model reads it as licence to put real names in the style prompt.
+  </div>
+
+  <div class="step"><label><input type="checkbox"> Step 1: Write the failing tests</label></div>
+<pre><code>// Append to backend/internal/studio/mimo_test.go
+
+// L3: turn 1 returns the real artist and title as metadata, so a saved run can be
+// labelled uniformly however the reference was typed.
+func TestGenerate_capturesReferenceArtistAndTitle(t *testing.T) {
+	chat := &turnChat{replies: []string{
+		`{"stylePrompt":"1991,thrash metal","genres":["thrash metal"],` +
+			`"referenceArtist":"Metallica","referenceTitle":"Enter Sandman"}`,
+		`{"lyrics":"[Verse]\nx"}`,
+		`{"coverArtPrompt":"a door","titles":["T"],"albums":["A"],"bands":["B"]}`,
+	}}
+	res, err := New(chat, &fakeTools{}).Generate(context.Background(),
+		GenerateRequest{Reference: "enter sandman metallica"}, nil, nil)
+	if err != nil {
+		t.Fatalf("Generate: %v", err)
+	}
+	if res.ReferenceArtist != "Metallica" || res.ReferenceTitle != "Enter Sandman" {
+		t.Fatalf("reference metadata = %q / %q, want Metallica / Enter Sandman",
+			res.ReferenceArtist, res.ReferenceTitle)
+	}
+}
+
+// The model may decline. Missing metadata must not fail the run — the UI falls
+// back to the reference verbatim (L1).
+func TestGenerate_referenceMetadataIsOptional(t *testing.T) {
+	chat := &turnChat{replies: threeTurnReplies()}
+	res, err := New(chat, &fakeTools{}).Generate(context.Background(),
+		GenerateRequest{Reference: "x"}, nil, nil)
+	if err != nil {
+		t.Fatalf("Generate: %v", err)
+	}
+	if res.ReferenceArtist != "" || res.ReferenceTitle != "" {
+		t.Fatalf("expected empty metadata, got %q / %q", res.ReferenceArtist, res.ReferenceTitle)
+	}
+}
+
+// The carve-out must be narrow: the blanket rule gets an exception naming the two
+// fields, and the three field-scoped rules stay untouched.
+func TestPrompts_referenceMetadataCarveOutIsNarrow(t *testing.T) {
+	if !strings.Contains(generateSystemPrompt, "referenceArtist") {
+		t.Fatalf("system prompt must name the exception fields: %q", generateSystemPrompt)
+	}
+	// The style prompt, naming and band rules must still forbid real names.
+	for name, p := range map[string]string{"turn 1": generateTurn1Prompt, "turn 3": generateTurn3Prompt} {
+		if !strings.Contains(p, "NEVER") {
+			t.Fatalf("%s lost its real-name prohibition: %q", name, p)
+		}
+	}
+	if !strings.Contains(generateTurn1Prompt, "NEVER mention real artist, band, or song names — describe only musical") {
+		t.Fatalf("the style-prompt rule must be unchanged")
+	}
+}</code></pre>
+
+  <div class="step"><label><input type="checkbox"> Step 2: Run and watch them fail</label></div>
+<pre><code>cd backend &amp;&amp; go test ./internal/studio/ -run 'TestGenerate_capturesReference|TestGenerate_referenceMetadata|TestPrompts_referenceMetadata' -v</code></pre>
+  <p class="why">Expected: compile failure — <code>res.ReferenceArtist undefined</code>.</p>
+
+  <div class="step"><label><input type="checkbox"> Step 3: Add the two fields to GenerateResult</label></div>
+  <p class="why">In <code>backend/internal/studio/studio.go</code>, extend the struct and its doc comment.</p>
+<pre><code>// GenerateResult is the output: the three Suno prompt parts, up to three genre
+// labels the model picks for the song, up to three band-name, song-title and
+// album-name ideas (all shown in the Identity card), and — purely as a label for
+// the saved run — the REAL artist and title of the reference song.
+type GenerateResult struct {
+	StylePrompt    string   `json:"stylePrompt"`
+	Lyrics         string   `json:"lyrics"`
+	CoverArtPrompt string   `json:"coverArtPrompt"`
+	Genres         []string `json:"genres"`
+	Bands          []string `json:"bands"`
+	Titles         []string `json:"titles"`
+	Albums         []string `json:"albums"`
+
+	// ReferenceArtist and ReferenceTitle name the real reference song. They are
+	// the ONLY fields here permitted to contain a real name, they are never part
+	// of a Suno prompt, and they are empty when the model declined to identify
+	// the song — callers must fall back to the raw reference string.
+	ReferenceArtist string `json:"referenceArtist"`
+	ReferenceTitle  string `json:"referenceTitle"`
+}</code></pre>
+
+  <div class="step"><label><input type="checkbox"> Step 4: Widen the blanket rule in the system prompt</label></div>
+  <p class="why"><code>prompts.go</code>, the last paragraph of <code>generateSystemPrompt</code>. Replace <b>only</b> that sentence.</p>
+<pre><code>NEVER mention real artist, band, or song names in any output — describe only
+musical characteristics. The single exception is the referenceArtist and
+referenceTitle fields of turn 1, which exist to label the saved run in a list and
+are never pasted into Suno; the prohibition still applies absolutely to the style
+prompt, the lyrics, the titles, the albums, the bands and the cover-art prompt.</code></pre>
+
+  <div class="step"><label><input type="checkbox"> Step 5: Ask for them in turn 1</label></div>
+  <p class="why">Append a third numbered item to <code>generateTurn1Prompt</code> and extend its JSON contract line. Leave items 1 and 2 untouched.</p>
+<pre><code>3. referenceArtist and referenceTitle — the REAL artist and the REAL title of the
+   reference song you just researched, normalized to their canonical spelling
+   (e.g. "Metallica" and "Enter Sandman", however the reference was typed). These
+   two fields label the run in a list and are never used as prompt content, so a
+   real name is expected here and ONLY here. Leave either one an empty string if
+   you cannot identify the song with confidence — a wrong name is worse than none.
+
+Respond with ONLY a single JSON object and nothing else (no prose, no code
+fences):
+{"stylePrompt":"...","genres":["...","...","..."],"referenceArtist":"...","referenceTitle":"..."}</code></pre>
+
+  <div class="step"><label><input type="checkbox"> Step 6: Decode them in mimo.go</label></div>
+  <p class="why">Extend the turn-1 anonymous struct and assign. They are optional, so they are <b>not</b> added to the missing-field check.</p>
+<pre><code>	var turn1 struct {
+		StylePrompt     string   `json:"stylePrompt"`
+		Genres          []string `json:"genres"`
+		ReferenceArtist string   `json:"referenceArtist"`
+		ReferenceTitle  string   `json:"referenceTitle"`
+	}
+	if err := decodeTurn(raw, &turn1); err != nil {
+		return GenerateResult{}, err
+	}
+	if turn1.StylePrompt == "" {
+		return GenerateResult{}, fmt.Errorf("studio: generate result missing a field")
+	}
+	res.StylePrompt = sanitizeStylePrompt(turn1.StylePrompt)
+	res.Genres = sanitizeList(turn1.Genres, 3)
+	// Reference metadata is a label, not prompt content: trim it and let it be
+	// empty. It is deliberately not required — see GenerateResult's doc comment.
+	res.ReferenceArtist = strings.TrimSpace(turn1.ReferenceArtist)
+	res.ReferenceTitle = strings.TrimSpace(turn1.ReferenceTitle)
+	onPartial.emit(GenerateResult{
+		StylePrompt:     res.StylePrompt,
+		Genres:          res.Genres,
+		ReferenceArtist: res.ReferenceArtist,
+		ReferenceTitle:  res.ReferenceTitle,
+	})</code></pre>
+
+  <div class="step"><label><input type="checkbox"> Step 7: Run the studio suite — all green</label></div>
+<pre><code>cd backend &amp;&amp; go test ./internal/studio/... -v</code></pre>
+  <p class="why">Watch for <code>mergePartial</code>-style regressions: the partial emit above now carries two more fields, and <code>TestGenerate_*</code> assertions on the partial payload may need the new keys.</p>
+
+  <div class="step"><label><input type="checkbox"> Step 8: Commit</label></div>
+<pre><code>git add backend/internal/studio/
+git commit -m "feat(studio): capture the reference artist and title as run metadata"</code></pre>
+</div>
+
+<!-- ══════════════ TASK 4 ══════════════ -->
+<h2>Task 4: Persist a completed run</h2>
+<div class="task">
+  <p class="files"><b>Modify:</b> <code>backend/internal/httpapi/studio.go</code> (struct + generate + refine), <code>backend/internal/httpapi/server.go:126</code> (wire the repo)</p>
+  <p class="files"><b>Test:</b> <code>backend/internal/httpapi/studio_history_test.go</code> (new)</p>
+  <p class="files"><b>Consumes:</b> <code>library.StudioRun</code>, <code>(*Repo).CreateStudioRun</code>, <code>UpdateStudioRunLyrics</code> from Task 2; <code>GenerateResult.ReferenceArtist/Title</code> from Task 3.</p>
+  <p class="files"><b>Produces:</b> SSE event <code>saved</code> carrying <code>{"id":"&lt;32-hex&gt;"}</code>, emitted after <code>result</code>. <code>studioHandlers.repo *library.Repo</code> (nil-able).</p>
+
+  <div class="step"><label><input type="checkbox"> Step 1: Write the failing tests</label></div>
+<pre><code>package httpapi
+
+import (
+	"encoding/json"
+	"net/http"
+	"net/http/httptest"
+	"strings"
+	"testing"
+
+	"github.com/trick77/music/internal/config"
+	"github.com/trick77/music/internal/library"
+	"github.com/trick77/music/internal/store"
+	"github.com/trick77/music/internal/studio"
+)
+
+// newStudioHistoryServer builds an authed and an anonymous handler over a shared
+// store, with a fake studio provider. Mirrors newStudioCoverServer.
+type studioHistTS struct {
+	dev  http.Handler
+	anon http.Handler
+	repo *library.Repo
+}
+
+func newStudioHistoryServer(t *testing.T, provider studio.Provider) *studioHistTS {
+	t.Helper()
+	st, err := store.Open(t.TempDir() + "/test.db")
+	if err != nil {
+		t.Fatalf("store.Open: %v", err)
+	}
+	t.Cleanup(func() { st.Close() })
+	mediaDir := t.TempDir()
+	spa := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { w.Write([]byte("SPA")) })
+	mk := func(mode config.AuthMode) http.Handler {
+		cfg := config.Config{
+			AuthMode: mode, DevUser: config.DevUserConfig{Username: "dev"},
+			MediaDir: mediaDir, MaxUploadMB: 50,
+			ChatAPIKey: "chat-key", TavilyAPIKey: "tavily-key",
+		}
+		return NewWithStudioProvider(cfg, st, spa, provider)
+	}
+	return &studioHistTS{dev: mk(config.AuthModeDev), anon: mk(config.AuthModeOIDC), repo: library.NewRepo(st.DB())}
+}
+
+// A completed generate writes exactly one row, carrying every field the run
+// produced, and tells the client its id so a later refine can update it.
+func TestStudioGenerate_persistsTheRun(t *testing.T) {
+	ts := newStudioHistoryServer(t, fakeStudio{result: studio.GenerateResult{
+		StylePrompt: "1991,thrash metal", Lyrics: "[Verse]\nx", CoverArtPrompt: "a door",
+		Genres: []string{"thrash metal"}, Bands: []string{"Hollow Sabbath"},
+		Titles: []string{"Sleep Is a Door"}, Albums: []string{"Nightfall Sessions"},
+		ReferenceArtist: "Metallica", ReferenceTitle: "Enter Sandman",
+	}})
+	rr := httptest.NewRecorder()
+	req := httptest.NewRequest("POST", "/api/studio/generate",
+		strings.NewReader(`{"reference":"Metallica, Enter Sandman"}`))
+	ts.dev.ServeHTTP(rr, req)
+
+	if !strings.Contains(rr.Body.String(), "event: saved") {
+		t.Fatalf("no saved event in stream: %q", rr.Body.String())
+	}
+	runs, err := ts.repo.ListStudioRuns(req.Context(), 25, 0)
+	if err != nil {
+		t.Fatalf("ListStudioRuns: %v", err)
+	}
+	if len(runs) != 1 {
+		t.Fatalf("stored %d runs, want 1", len(runs))
+	}
+	got := runs[0]
+	if got.ReferenceTitle != "Enter Sandman" || got.ReferenceArtist != "Metallica" {
+		t.Fatalf("reference metadata not stored: %#v", got)
+	}
+	if len(got.Bands) != 1 || got.Bands[0] != "Hollow Sabbath" {
+		t.Fatalf("Bands = %#v", got.Bands)
+	}
+	// The saved event must carry the id of the row that was actually written.
+	if !strings.Contains(rr.Body.String(), got.ID) {
+		t.Fatalf("saved event does not carry the row id %q", got.ID)
+	}
+}
+
+// A failed run leaves nothing behind — history holds finished runs only.
+func TestStudioGenerate_failedRunIsNotPersisted(t *testing.T) {
+	ts := newStudioHistoryServer(t, fakeStudio{err: errFake})
+	rr := httptest.NewRecorder()
+	ts.dev.ServeHTTP(rr, httptest.NewRequest("POST", "/api/studio/generate",
+		strings.NewReader(`{"reference":"x"}`)))
+	runs, _ := ts.repo.ListStudioRuns(httptest.NewRequest("GET", "/", nil).Context(), 25, 0)
+	if len(runs) != 0 {
+		t.Fatalf("stored %d runs after a failure, want 0", len(runs))
+	}
+}
+
+// A refine overwrites the run's saved lyrics rather than adding a second entry.
+func TestStudioRefine_overwritesTheSavedRun(t *testing.T) {
+	ts := newStudioHistoryServer(t, fakeStudio{lyrics: "[Verse]\nrewritten"})
+	ctx := httptest.NewRequest("GET", "/", nil).Context()
+	if err := ts.repo.CreateStudioRun(ctx, library.StudioRun{
+		ID: "run1", Reference: "x", StylePrompt: "s", Lyrics: "[Verse]\nold", CoverArtPrompt: "c",
+	}); err != nil {
+		t.Fatalf("CreateStudioRun: %v", err)
+	}
+	rr := httptest.NewRecorder()
+	ts.dev.ServeHTTP(rr, httptest.NewRequest("POST", "/api/studio/refine",
+		strings.NewReader(`{"reference":"x","lyrics":"[Verse]\nold","instruction":"darker","historyId":"run1"}`)))
+
+	got, _ := ts.repo.GetStudioRun(ctx, "run1")
+	if got.Lyrics != "[Verse]\nrewritten" {
+		t.Fatalf("saved lyrics = %q, want the rewritten ones", got.Lyrics)
+	}
+	if got.RefineCount != 1 {
+		t.Fatalf("RefineCount = %d, want 1", got.RefineCount)
+	}
+	runs, _ := ts.repo.ListStudioRuns(ctx, 25, 0)
+	if len(runs) != 1 {
+		t.Fatalf("refine created %d rows, want the original 1", len(runs))
+	}
+}
+
+// Studio must still work with no library configured — the write is simply skipped.
+func TestStudioGenerate_worksWithoutAStore(t *testing.T) {
+	cfg := config.Config{AuthMode: config.AuthModeDev, DevUser: config.DevUserConfig{Username: "dev"},
+		ChatAPIKey: "chat-key", TavilyAPIKey: "tavily-key"}
+	h := NewWithStudioProvider(cfg, nil, studioSPA(), fakeStudio{result: studio.GenerateResult{
+		StylePrompt: "s", Lyrics: "l", CoverArtPrompt: "c"}})
+	rr := httptest.NewRecorder()
+	h.ServeHTTP(rr, httptest.NewRequest("POST", "/api/studio/generate", strings.NewReader(`{"reference":"x"}`)))
+	if !strings.Contains(rr.Body.String(), "event: result") {
+		t.Fatalf("generate broke without a store: %q", rr.Body.String())
+	}
+	if strings.Contains(rr.Body.String(), "event: saved") {
+		t.Fatalf("emitted a saved event with no store to save to")
+	}
+}
+
+var _ = json.Marshal</code></pre>
+  <p class="why">Add <code>var errFake = errors.New("boom")</code> to the test file if <code>studio_test.go</code> does not already define an error the fake returns; check <code>fakeStudio</code> at <code>studio_test.go:14</code> first and reuse whatever it uses.</p>
+
+  <div class="step"><label><input type="checkbox"> Step 2: Run and watch them fail</label></div>
+<pre><code>cd backend &amp;&amp; go test ./internal/httpapi/ -run 'TestStudioGenerate_persists|TestStudioRefine_overwrites|TestStudioGenerate_failedRun|TestStudioGenerate_worksWithout' -v</code></pre>
+
+  <div class="step"><label><input type="checkbox"> Step 3: Give studioHandlers an optional repo</label></div>
+<pre><code>// studioHandlers stays independent of the library store: repo is nil whenever the
+// app runs without one, and every use is guarded. History is the only thing that
+// needs it, and history is optional by design.
+type studioHandlers struct {
+	cfg      config.Config
+	provider studio.Provider
+	repo     *library.Repo
+}</code></pre>
+
+  <div class="step"><label><input type="checkbox"> Step 4: Persist at the end of generate</label></div>
+  <p class="why">Replace the tail of <code>generate</code> after <code>stream("result", res)</code>.</p>
+<pre><code>	stream("result", res)
+	flush()
+
+	// Persist the finished run, then tell the client which row it is so a later
+	// refine or hand edit updates this entry instead of creating a second one.
+	// A storage failure must never fail a generation the user already has on
+	// screen: it is logged and the stream simply carries no `saved` event.
+	if h.repo == nil {
+		return
+	}
+	id := library.NewID()
+	run := library.StudioRun{
+		ID: id, Reference: req.Reference,
+		ReferenceArtist: res.ReferenceArtist, ReferenceTitle: res.ReferenceTitle,
+		StylePrompt: res.StylePrompt, Lyrics: res.Lyrics, CoverArtPrompt: res.CoverArtPrompt,
+		Genres: res.Genres, Bands: res.Bands, Titles: res.Titles, Albums: res.Albums,
+	}
+	// Not r.Context(): the request context is about to be cancelled as the SSE
+	// stream closes, which would abort the insert.
+	if err := h.repo.CreateStudioRun(context.WithoutCancel(r.Context()), run); err != nil {
+		slog.Error("studio: store run", "err", err)
+		return
+	}
+	stream("saved", map[string]string{"id": id})
+	flush()</code></pre>
+
+  <div class="step"><label><input type="checkbox"> Step 5: Update the saved run on refine</label></div>
+  <p class="why">Add <code>HistoryID</code> to the refine request struct, and update after a successful rewrite. The field is optional — a refine of an unsaved run still works.</p>
+<pre><code>	var req struct {
+		Reference   string `json:"reference"`
+		Lyrics      string `json:"lyrics"`
+		Instruction string `json:"instruction"`
+		HistoryID   string `json:"historyId"`
+	}
+
+	// … unchanged validation and Refine call …
+
+	stream("result", map[string]string{"lyrics": lyrics})
+	flush()
+
+	// Refining overwrites the run's saved copy — history keeps the current state
+	// of a run, not a version chain. Best-effort for the same reason as above.
+	if h.repo != nil && req.HistoryID != "" {
+		if err := h.repo.UpdateStudioRunLyrics(context.WithoutCancel(r.Context()), req.HistoryID, lyrics, true); err != nil {
+			slog.Error("studio: update run lyrics", "err", err)
+		}
+	}</code></pre>
+
+  <div class="step"><label><input type="checkbox"> Step 6: Wire the repo in server.go</label></div>
+  <p class="why">At <code>server.go:126</code>. <code>st</code> may be nil, so the repo is built conditionally — this is what keeps "no database → no history" true.</p>
+<pre><code>	sh := &studioHandlers{cfg: cfg, provider: studioProvider}
+	if st != nil {
+		sh.repo = library.NewRepo(st.DB())
+	}
+	mux.HandleFunc("POST /api/studio/generate", sh.generate)
+	mux.HandleFunc("POST /api/studio/refine", sh.refine)</code></pre>
+
+  <div class="step"><label><input type="checkbox"> Step 7: Run the tests, then the whole backend</label></div>
+<pre><code>cd backend &amp;&amp; go test ./internal/httpapi/ -run TestStudio -v
+cd backend &amp;&amp; go vet ./... &amp;&amp; go test ./...</code></pre>
+
+  <div class="step"><label><input type="checkbox"> Step 8: Commit</label></div>
+<pre><code>git add backend/internal/httpapi/
+git commit -m "feat(studio): persist completed runs and update them on refine"</code></pre>
+</div>
+
+<!-- ══════════════ TASK 5 ══════════════ -->
+<h2>Task 5: Read, patch and delete endpoints</h2>
+<div class="task">
+  <p class="files"><b>Create:</b> <code>backend/internal/httpapi/studio_history.go</code></p>
+  <p class="files"><b>Modify:</b> <code>backend/internal/httpapi/server.go</code> (~:224, inside the <code>st != nil &amp;&amp; cfg.MediaDir != ""</code> block, beside the cover-art routes)</p>
+  <p class="files"><b>Test:</b> extend <code>backend/internal/httpapi/studio_history_test.go</code>; add cases to <code>gating_more_test.go</code> and <code>serve_paths_test.go</code></p>
+  <p class="files"><b>Produces:</b>
+    <code>GET /api/studio/history?limit=25&amp;before=&lt;rowid&gt;</code> → <code>{"runs":[…],"total":N,"nextBefore":M}</code>;
+    <code>GET /api/studio/history/{id}</code> → a <code>library.StudioRun</code>;
+    <code>PATCH /api/studio/history/{id}</code> ← <code>{"lyrics"?,"coverArtPrompt"?,"coverArtId"?}</code>;
+    <code>DELETE /api/studio/history/{id}</code> → 204.
+  </p>
+
+  <div class="step"><label><input type="checkbox"> Step 1: Write the failing tests</label></div>
+<pre><code>// Append to backend/internal/httpapi/studio_history_test.go
+
+func seedRuns(t *testing.T, repo *library.Repo, n int) {
+	t.Helper()
+	ctx := httptest.NewRequest("GET", "/", nil).Context()
+	for i := 0; i < n; i++ {
+		id := fmt.Sprintf("run%02d", i)
+		if err := repo.CreateStudioRun(ctx, library.StudioRun{
+			ID: id, Reference: "ref " + id, StylePrompt: "s", Lyrics: "l", CoverArtPrompt: "c",
+		}); err != nil {
+			t.Fatalf("seed %s: %v", id, err)
+		}
+	}
+}
+
+// P1: the list is capped and pages with an explicit cursor, and it reports the
+// total so the drawer can render "25 of N".
+func TestStudioHistoryList_pagesAndReportsTotal(t *testing.T) {
+	ts := newStudioHistoryServer(t, fakeStudio{})
+	seedRuns(t, ts.repo, 30)
+
+	rr := httptest.NewRecorder()
+	ts.dev.ServeHTTP(rr, httptest.NewRequest("GET", "/api/studio/history", nil))
+	if rr.Code != 200 {
+		t.Fatalf("status = %d, want 200", rr.Code)
+	}
+	var page struct {
+		Runs       []library.StudioRun `json:"runs"`
+		Total      int                 `json:"total"`
+		NextBefore int64               `json:"nextBefore"`
+	}
+	if err := json.Unmarshal(rr.Body.Bytes(), &page); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if len(page.Runs) != 25 {
+		t.Fatalf("returned %d runs, want the 25 cap", len(page.Runs))
+	}
+	if page.Total != 30 {
+		t.Fatalf("total = %d, want 30", page.Total)
+	}
+	if page.Runs[0].ID != "run29" {
+		t.Fatalf("first run = %s, want run29 (newest first)", page.Runs[0].ID)
+	}
+	if page.NextBefore == 0 {
+		t.Fatalf("nextBefore must be set while more runs remain")
+	}
+
+	// Page two continues from the cursor and reports no further page.
+	rr2 := httptest.NewRecorder()
+	ts.dev.ServeHTTP(rr2, httptest.NewRequest("GET",
+		fmt.Sprintf("/api/studio/history?before=%d", page.NextBefore), nil))
+	var page2 struct {
+		Runs       []library.StudioRun `json:"runs"`
+		NextBefore int64               `json:"nextBefore"`
+	}
+	json.Unmarshal(rr2.Body.Bytes(), &page2)
+	if len(page2.Runs) != 5 {
+		t.Fatalf("page 2 returned %d runs, want 5", len(page2.Runs))
+	}
+	if page2.NextBefore != 0 {
+		t.Fatalf("nextBefore = %d on the last page, want 0", page2.NextBefore)
+	}
+}
+
+// A limit above the cap is clamped: the drawer must never be able to ask for the
+// whole table.
+func TestStudioHistoryList_clampsLimit(t *testing.T) {
+	ts := newStudioHistoryServer(t, fakeStudio{})
+	seedRuns(t, ts.repo, 60)
+	rr := httptest.NewRecorder()
+	ts.dev.ServeHTTP(rr, httptest.NewRequest("GET", "/api/studio/history?limit=500", nil))
+	var page struct {
+		Runs []library.StudioRun `json:"runs"`
+	}
+	json.Unmarshal(rr.Body.Bytes(), &page)
+	if len(page.Runs) != 50 {
+		t.Fatalf("returned %d runs, want the 50 hard cap", len(page.Runs))
+	}
+}
+
+func TestStudioHistoryGet_returnsEverythingTheRunProduced(t *testing.T) {
+	ts := newStudioHistoryServer(t, fakeStudio{})
+	ctx := httptest.NewRequest("GET", "/", nil).Context()
+	if err := ts.repo.CreateStudioRun(ctx, library.StudioRun{
+		ID: "r1", Reference: "Metallica, Enter Sandman", ReferenceArtist: "Metallica",
+		ReferenceTitle: "Enter Sandman", StylePrompt: "1991,thrash metal",
+		Lyrics: "[Verse]\nx", CoverArtPrompt: "a door",
+		Genres: []string{"thrash metal"},
+		Bands:  []string{"Hollow Sabbath", "Ashen Verdict", "Grey Litany"},
+		Titles: []string{"A", "B", "C"}, Albums: []string{"D", "E", "F"},
+	}); err != nil {
+		t.Fatalf("seed: %v", err)
+	}
+	rr := httptest.NewRecorder()
+	ts.dev.ServeHTTP(rr, httptest.NewRequest("GET", "/api/studio/history/r1", nil))
+	if rr.Code != 200 {
+		t.Fatalf("status = %d, want 200", rr.Code)
+	}
+	var got library.StudioRun
+	json.Unmarshal(rr.Body.Bytes(), &got)
+	// All three of each — the detail view shows every idea, not just the first.
+	if len(got.Bands) != 3 || len(got.Titles) != 3 || len(got.Albums) != 3 {
+		t.Fatalf("idea lists truncated: %#v", got)
+	}
+	if got.ReferenceArtist != "Metallica" {
+		t.Fatalf("ReferenceArtist = %q", got.ReferenceArtist)
+	}
+}
+
+func TestStudioHistoryGet_404WhenMissing(t *testing.T) {
+	ts := newStudioHistoryServer(t, fakeStudio{})
+	rr := httptest.NewRecorder()
+	ts.dev.ServeHTTP(rr, httptest.NewRequest("GET", "/api/studio/history/nope", nil))
+	if rr.Code != 404 {
+		t.Fatalf("status = %d, want 404", rr.Code)
+	}
+}
+
+// A hand edit in the lyrics textarea updates the saved copy without counting as
+// a refine.
+func TestStudioHistoryPatch_updatesLyricsWithoutCountingARefine(t *testing.T) {
+	ts := newStudioHistoryServer(t, fakeStudio{})
+	ctx := httptest.NewRequest("GET", "/", nil).Context()
+	ts.repo.CreateStudioRun(ctx, library.StudioRun{ID: "r1", Reference: "x", StylePrompt: "s", Lyrics: "old", CoverArtPrompt: "c"})
+	rr := httptest.NewRecorder()
+	ts.dev.ServeHTTP(rr, httptest.NewRequest("PATCH", "/api/studio/history/r1",
+		strings.NewReader(`{"lyrics":"hand edited"}`)))
+	if rr.Code != 200 {
+		t.Fatalf("status = %d, want 200", rr.Code)
+	}
+	got, _ := ts.repo.GetStudioRun(ctx, "r1")
+	if got.Lyrics != "hand edited" {
+		t.Fatalf("Lyrics = %q", got.Lyrics)
+	}
+	if got.RefineCount != 0 {
+		t.Fatalf("RefineCount = %d, want 0 — a hand edit is not a refine", got.RefineCount)
+	}
+}
+
+func TestStudioHistoryPatch_attachesCoverArt(t *testing.T) {
+	ts := newStudioHistoryServer(t, fakeStudio{})
+	ctx := httptest.NewRequest("GET", "/", nil).Context()
+	ts.repo.CreateStudioRun(ctx, library.StudioRun{ID: "r1", Reference: "x", StylePrompt: "s", Lyrics: "l", CoverArtPrompt: "c"})
+	rr := httptest.NewRecorder()
+	ts.dev.ServeHTTP(rr, httptest.NewRequest("PATCH", "/api/studio/history/r1",
+		strings.NewReader(`{"coverArtId":"img1"}`)))
+	if rr.Code != 200 {
+		t.Fatalf("status = %d, want 200", rr.Code)
+	}
+	got, _ := ts.repo.GetStudioRun(ctx, "r1")
+	if got.CoverArtID != "img1" {
+		t.Fatalf("CoverArtID = %q, want img1", got.CoverArtID)
+	}
+}
+
+// Deleting a run leaves its cover-art row alone: the image may be referenced
+// elsewhere, and a dangling reference is worse than an unreferenced file.
+func TestStudioHistoryDelete_removesRunButKeepsCoverArt(t *testing.T) {
+	ts := newStudioHistoryServer(t, fakeStudio{})
+	ctx := httptest.NewRequest("GET", "/", nil).Context()
+	if err := ts.repo.CreateStudioCoverArt(ctx, "img1", "coverart/img1.png", "p", "m", nil, 1024, 1024); err != nil {
+		t.Fatalf("CreateStudioCoverArt: %v", err)
+	}
+	ts.repo.CreateStudioRun(ctx, library.StudioRun{ID: "r1", Reference: "x", StylePrompt: "s", Lyrics: "l", CoverArtPrompt: "c"})
+	ts.repo.UpdateStudioRunCoverArt(ctx, "r1", "img1")
+
+	rr := httptest.NewRecorder()
+	ts.dev.ServeHTTP(rr, httptest.NewRequest("DELETE", "/api/studio/history/r1", nil))
+	if rr.Code != 204 {
+		t.Fatalf("status = %d, want 204", rr.Code)
+	}
+	if got, _ := ts.repo.GetStudioRun(ctx, "r1"); got != nil {
+		t.Fatalf("run survived the delete")
+	}
+	img, _ := ts.repo.GetStudioCoverArt(ctx, "img1")
+	if img == nil {
+		t.Fatalf("cover art was deleted with the run")
+	}
+}
+
+// Gating, per endpoint — the house requires this to be exhaustive.
+func TestStudioHistory_403WhenAnonymous(t *testing.T) {
+	ts := newStudioHistoryServer(t, fakeStudio{})
+	for _, tc := range []struct{ method, path string }{
+		{"GET", "/api/studio/history"},
+		{"GET", "/api/studio/history/r1"},
+		{"PATCH", "/api/studio/history/r1"},
+		{"DELETE", "/api/studio/history/r1"},
+	} {
+		rr := httptest.NewRecorder()
+		ts.anon.ServeHTTP(rr, httptest.NewRequest(tc.method, tc.path, strings.NewReader(`{}`)))
+		if rr.Code != 403 {
+			t.Fatalf("%s %s = %d, want 403", tc.method, tc.path, rr.Code)
+		}
+	}
+}</code></pre>
+
+  <div class="step"><label><input type="checkbox"> Step 2: Run and watch them fail</label></div>
+<pre><code>cd backend &amp;&amp; go test ./internal/httpapi/ -run TestStudioHistory -v</code></pre>
+  <p class="why">Expected: 404s everywhere — the routes do not exist yet.</p>
+
+  <div class="step"><label><input type="checkbox"> Step 3: Write the handlers</label></div>
+<pre><code>package httpapi
+
+import (
+	"encoding/json"
+	"net/http"
+	"strconv"
+)
+
+// History page sizes. defaultHistoryLimit is what the drawer asks for; the hard
+// cap stops a hand-written query from pulling the whole table into one response
+// once a long-lived install has hundreds of runs.
+const (
+	defaultHistoryLimit = 25
+	maxHistoryLimit     = 50
+)
+
+// listStudioHistory returns one page of runs, newest first, with the total so the
+// drawer can render "25 of N". Paging is keyset on rowid: a run written while the
+// user is paging cannot shift the window and duplicate a row, which OFFSET would.
+func (h *songHandlers) listStudioHistory(w http.ResponseWriter, r *http.Request) {
+	if !identify(h.cfg, r).Authenticated {
+		httpError(w, http.StatusForbidden, "authentication required")
+		return
+	}
+	limit := defaultHistoryLimit
+	if v, err := strconv.Atoi(r.URL.Query().Get("limit")); err == nil && v > 0 {
+		limit = v
+	}
+	if limit > maxHistoryLimit {
+		limit = maxHistoryLimit
+	}
+	before, _ := strconv.ParseInt(r.URL.Query().Get("before"), 10, 64)
+
+	runs, err := h.repo.ListStudioRuns(r.Context(), limit, before)
+	if err != nil {
+		serverError(w, "list studio history", err)
+		return
+	}
+	total, err := h.repo.CountStudioRuns(r.Context())
+	if err != nil {
+		serverError(w, "count studio history", err)
+		return
+	}
+	// nextBefore is 0 on the last page, which is how the drawer knows to drop its
+	// "Show 25 more" button. A short page is always the last one.
+	var nextBefore int64
+	if len(runs) == limit {
+		nextBefore = runs[len(runs)-1].RowID
+	}
+	writeJSON(w, map[string]any{"runs": runs, "total": total, "nextBefore": nextBefore})
+}
+
+// getStudioHistoryRun returns one saved run in full — every field it produced,
+// which is the whole point of keeping it.
+func (h *songHandlers) getStudioHistoryRun(w http.ResponseWriter, r *http.Request) {
+	if !identify(h.cfg, r).Authenticated {
+		httpError(w, http.StatusForbidden, "authentication required")
+		return
+	}
+	run, err := h.repo.GetStudioRun(r.Context(), r.PathValue("id"))
+	if err != nil {
+		serverError(w, "get studio run", err)
+		return
+	}
+	if run == nil {
+		httpError(w, http.StatusNotFound, "not found")
+		return
+	}
+	writeJSON(w, run)
+}
+
+// patchStudioHistoryRun updates the saved copy of a run in place: a hand edit to
+// the lyrics or cover-art prompt, or the id of a cover image just generated for
+// it. It never counts as a refine — only the refine endpoint does that.
+func (h *songHandlers) patchStudioHistoryRun(w http.ResponseWriter, r *http.Request) {
+	if !identify(h.cfg, r).Authenticated {
+		httpError(w, http.StatusForbidden, "authentication required")
+		return
+	}
+	var req struct {
+		Lyrics     *string `json:"lyrics"`
+		CoverArtID *string `json:"coverArtId"`
+	}
+	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<20)).Decode(&req); err != nil {
+		httpError(w, http.StatusBadRequest, "invalid JSON")
+		return
+	}
+	id := r.PathValue("id")
+	run, err := h.repo.GetStudioRun(r.Context(), id)
+	if err != nil {
+		serverError(w, "get studio run", err)
+		return
+	}
+	if run == nil {
+		httpError(w, http.StatusNotFound, "not found")
+		return
+	}
+	if req.Lyrics != nil {
+		if len(*req.Lyrics) > maxLyricsLen {
+			httpError(w, http.StatusBadRequest, "lyrics are too long")
+			return
+		}
+		if err := h.repo.UpdateStudioRunLyrics(r.Context(), id, *req.Lyrics, false); err != nil {
+			serverError(w, "update studio run lyrics", err)
+			return
+		}
+	}
+	if req.CoverArtID != nil {
+		if err := h.repo.UpdateStudioRunCoverArt(r.Context(), id, *req.CoverArtID); err != nil {
+			serverError(w, "update studio run cover art", err)
+			return
+		}
+	}
+	writeJSON(w, map[string]string{"status": "ok"})
+}
+
+// deleteStudioHistoryRun removes a run. The cover art it referenced is left in
+// place on purpose: studio_coverart owns those rows and their PNGs, nothing
+// tracks whether another surface still serves the image, and a broken image
+// elsewhere costs more than a few hundred unreferenced KB.
+func (h *songHandlers) deleteStudioHistoryRun(w http.ResponseWriter, r *http.Request) {
+	if !identify(h.cfg, r).Authenticated {
+		httpError(w, http.StatusForbidden, "authentication required")
+		return
+	}
+	if err := h.repo.DeleteStudioRun(r.Context(), r.PathValue("id")); err != nil {
+		serverError(w, "delete studio run", err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}</code></pre>
+
+  <div class="step"><label><input type="checkbox"> Step 4: Register the routes</label></div>
+  <p class="why">In <code>server.go</code>, immediately after the two <code>/api/studio/coverart</code> lines (~:225) so they share the same <code>st != nil &amp;&amp; cfg.MediaDir != ""</code> guard — that guard is what makes "no database → no history" true on the server side.</p>
+<pre><code>			mux.HandleFunc("POST /api/studio/coverart", h.postStudioCoverArt)
+			mux.HandleFunc("GET /api/studio/coverart/{id}", h.getStudioCoverArt)
+			mux.HandleFunc("GET /api/studio/history", h.listStudioHistory)
+			mux.HandleFunc("GET /api/studio/history/{id}", h.getStudioHistoryRun)
+			mux.HandleFunc("PATCH /api/studio/history/{id}", h.patchStudioHistoryRun)
+			mux.HandleFunc("DELETE /api/studio/history/{id}", h.deleteStudioHistoryRun)</code></pre>
+
+  <div class="step"><label><input type="checkbox"> Step 5: Add the routes to the cross-cutting suites</label></div>
+  <p class="why">Read <code>gating_more_test.go</code> and <code>serve_paths_test.go</code> and follow their table shape exactly — they enumerate every route, and a new one that is missing from them is a silent coverage hole.</p>
+
+  <div class="step"><label><input type="checkbox"> Step 6: Run everything</label></div>
+<pre><code>cd backend &amp;&amp; go vet ./... &amp;&amp; go test ./...
+make backend-coverage</code></pre>
+
+  <div class="step"><label><input type="checkbox"> Step 7: Commit</label></div>
+<pre><code>git add backend/internal/httpapi/
+git commit -m "feat(studio): add studio history list, detail, patch and delete endpoints"</code></pre>
+</div>
+
+<!-- ══════════════ TASK 6 ══════════════ -->
+<h2>Task 6: The API client</h2>
+<div class="task">
+  <p class="files"><b>Create:</b> <code>ui/src/api/studioHistory.ts</code></p>
+  <p class="files"><b>Modify:</b> <code>ui/src/api/index.ts</code> (barrel export — <b>without this nothing resolves</b>), <code>ui/src/api/studio.ts</code> (the <code>saved</code> event and the <code>historyId</code> refine argument)</p>
+  <p class="files"><b>Test:</b> <code>ui/src/api/studioHistory.test.ts</code></p>
+  <p class="files"><b>Produces:</b> <code>type StudioRun</code>; <code>listStudioHistory(before?: number)</code>; <code>getStudioRun(id)</code>; <code>patchStudioRun(id, patch)</code>; <code>deleteStudioRun(id)</code>; <code>studioGenerate</code> gains an <code>onSaved?: (id: string) =&gt; void</code> callback; <code>studioRefine</code> gains a trailing <code>historyId?: string</code>.</p>
+
+  <div class="step"><label><input type="checkbox"> Step 1: Write the failing tests</label></div>
+  <p class="why">Template: <code>ui/src/api/studio.test.ts</code> (264 lines) — it stubs <code>global.fetch</code> and, for SSE, builds a <code>ReadableStream</code> of encoded chunks.</p>
+<pre><code>import { describe, it, expect, vi, afterEach } from "vitest";
+import {
+  listStudioHistory,
+  getStudioRun,
+  patchStudioRun,
+  deleteStudioRun,
+} from "./studioHistory";
+
+afterEach(() => vi.restoreAllMocks());
+
+function jsonResponse(body: unknown, ok = true, status = 200) {
+  return { ok, status, json: async () => body } as Response;
+}
+
+describe("studio history client", () => {
+  it("requests the first page without a cursor", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      jsonResponse({ runs: [], total: 0, nextBefore: 0 }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    await listStudioHistory();
+    expect(fetchMock).toHaveBeenCalledWith("/api/studio/history");
+  });
+
+  it("passes the keyset cursor when paging", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      jsonResponse({ runs: [], total: 30, nextBefore: 0 }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    await listStudioHistory(41);
+    expect(fetchMock).toHaveBeenCalledWith("/api/studio/history?before=41");
+  });
+
+  it("throws on a failed list rather than returning an empty page", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(jsonResponse(null, false, 500)));
+    await expect(listStudioHistory()).rejects.toThrow(/history/i);
+  });
+
+  it("fetches one run", async () => {
+    const run = { id: "r1", reference: "x", bands: ["a", "b", "c"] };
+    const fetchMock = vi.fn().mockResolvedValue(jsonResponse(run));
+    vi.stubGlobal("fetch", fetchMock);
+    await expect(getStudioRun("r1")).resolves.toMatchObject({ id: "r1" });
+    expect(fetchMock).toHaveBeenCalledWith("/api/studio/history/r1");
+  });
+
+  it("patches only the fields it is given", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(jsonResponse({ status: "ok" }));
+    vi.stubGlobal("fetch", fetchMock);
+    await patchStudioRun("r1", { lyrics: "edited" });
+    expect(fetchMock).toHaveBeenCalledWith("/api/studio/history/r1", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ lyrics: "edited" }),
+    });
+  });
+
+  it("treats a 204 delete as success", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true, status: 204 } as Response));
+    await expect(deleteStudioRun("r1")).resolves.toBeUndefined();
+  });
+});</code></pre>
+
+  <div class="step"><label><input type="checkbox"> Step 2: Run and watch them fail</label></div>
+<pre><code>cd ui &amp;&amp; npm run test -- --run src/api/studioHistory.test.ts</code></pre>
+
+  <div class="step"><label><input type="checkbox"> Step 3: Write the client</label></div>
+<pre><code>// A saved Studio run, as returned by /api/studio/history. Mirrors
+// library.StudioRun on the backend; every field is what the run produced.
+export type StudioRun = {
+  id: string;
+  reference: string;
+  referenceArtist: string;
+  referenceTitle: string;
+  stylePrompt: string;
+  lyrics: string;
+  coverArtPrompt: string;
+  genres: string[];
+  bands: string[];
+  titles: string[];
+  albums: string[];
+  coverArtId: string;
+  refineCount: number;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type StudioHistoryPage = {
+  runs: StudioRun[];
+  total: number;
+  // 0 means this was the last page — the drawer drops its "Show more" button.
+  nextBefore: number;
+};
+
+// listStudioHistory fetches one page, newest first. Pass the previous page's
+// nextBefore to continue; omit it for the first page.
+export async function listStudioHistory(before?: number): Promise<StudioHistoryPage> {
+  const url = before ? `/api/studio/history?before=${before}` : "/api/studio/history";
+  const r = await fetch(url);
+  if (!r.ok) throw new Error(`studio history failed (${r.status})`);
+  return r.json();
+}
+
+export async function getStudioRun(id: string): Promise<StudioRun> {
+  const r = await fetch(`/api/studio/history/${id}`);
+  if (!r.ok) throw new Error(`studio run failed (${r.status})`);
+  return r.json();
+}
+
+// patchStudioRun updates a saved run in place. Only the keys given are touched,
+// so a lyrics edit cannot clear the attached cover art.
+export async function patchStudioRun(
+  id: string,
+  patch: { lyrics?: string; coverArtId?: string },
+): Promise<void> {
+  const r = await fetch(`/api/studio/history/${id}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(patch),
+  });
+  if (!r.ok) throw new Error(`studio run update failed (${r.status})`);
+}
+
+export async function deleteStudioRun(id: string): Promise<void> {
+  const r = await fetch(`/api/studio/history/${id}`, { method: "DELETE" });
+  if (!r.ok) throw new Error(`studio run delete failed (${r.status})`);
+}</code></pre>
+
+  <div class="step"><label><input type="checkbox"> Step 4: Export it from the barrel</label></div>
+<pre><code>// ui/src/api/index.ts — add alongside the existing exports
+export * from "./studioHistory";</code></pre>
+
+  <div class="step"><label><input type="checkbox"> Step 5: Handle the <code>saved</code> event and the refine id</label></div>
+  <p class="why">In <code>ui/src/api/studio.ts</code>: <code>streamStudio</code> already dispatches by event name, so add a branch for <code>saved</code> and thread an optional callback through <code>studioGenerate</code>. Then add a trailing <code>historyId</code> parameter to <code>studioRefine</code> and include it in the POST body. Keep both optional so existing callers compile.</p>
+
+  <div class="step"><label><input type="checkbox"> Step 6: Run the UI suite</label></div>
+<pre><code>cd ui &amp;&amp; npm run test -- --run src/api/</code></pre>
+
+  <div class="step"><label><input type="checkbox"> Step 7: Commit</label></div>
+<pre><code>git add ui/src/api/
+git commit -m "feat(studio): add the studio history api client"</code></pre>
+</div>
+
+<!-- ══════════════ TASK 7 ══════════════ -->
+<h2>Task 7: The drawer</h2>
+<div class="task">
+  <p class="files"><b>Create:</b> <code>ui/src/StudioHistoryDrawer.tsx</code>, <code>ui/src/StudioHistoryDrawer.test.tsx</code></p>
+  <p class="files"><b>Create:</b> <code>ui/src/studioHistoryGroups.ts</code> + <code>.test.ts</code> — the date-bucket helper, extracted so it can be unit-tested without rendering.</p>
+  <p class="files"><b>Consumes:</b> <code>listStudioHistory</code>, <code>deleteStudioRun</code>, <code>StudioRun</code> from Task 6.</p>
+  <p class="files"><b>Produces:</b> <code>&lt;StudioHistoryDrawer onClose currentRunId onOpen /&gt;</code>; <code>groupRuns(runs: StudioRun[], now: Date): {label: string; runs: StudioRun[]}[]</code>; <code>runLabel(run: StudioRun): {title: string; subtitle: string}</code>.</p>
+
+  <div class="warn">
+    <b>Do not copy <code>QueueDrawer</code> wholesale.</b> It has no scrim, no click-outside, and it uses raw
+    <code>✕</code>/<code>⠿</code> glyphs — all three contradict <code>AGENTS.md</code>. Take its panel geometry
+    (<code>position:fixed; right:0; width:340; maxWidth:90vw; zIndex:60; overflowY:auto</code>) and
+    <code>useEscape(true, onClose)</code>; take the scrim from <code>AddToPlaylist.tsx:61-75</code>
+    (<code>inset:0; zIndex:50; rgba(0,0,0,0.5); backdropFilter: blur(2px)</code> + the
+    <code>onClick={(e) =&gt; e.stopPropagation()}</code> inner wrapper); use <code>&lt;Icon /&gt;</code> for every glyph.
+  </div>
+
+  <div class="step"><label><input type="checkbox"> Step 1: Write the failing helper tests</label></div>
+<pre><code>// ui/src/studioHistoryGroups.test.ts
+import { describe, it, expect } from "vitest";
+import { groupRuns, runLabel } from "./studioHistoryGroups";
+import type { StudioRun } from "./api";
+
+function run(over: Partial<StudioRun> = {}): StudioRun {
+  return {
+    id: "r", reference: "Metallica, Enter Sandman", referenceArtist: "", referenceTitle: "",
+    stylePrompt: "", lyrics: "", coverArtPrompt: "", genres: [], bands: [], titles: [], albums: [],
+    coverArtId: "", refineCount: 0, createdAt: "2026-08-01 10:00:00", updatedAt: "2026-08-01 10:00:00",
+    ...over,
+  };
+}
+
+describe("groupRuns", () => {
+  const now = new Date("2026-08-01T12:00:00Z");
+
+  it("buckets into today, this week and earlier", () => {
+    const groups = groupRuns(
+      [
+        run({ id: "a", createdAt: "2026-08-01 09:00:00" }),
+        run({ id: "b", createdAt: "2026-07-29 09:00:00" }),
+        run({ id: "c", createdAt: "2026-06-01 09:00:00" }),
+      ],
+      now,
+    );
+    expect(groups.map((g) => g.label)).toEqual(["Today", "This week", "Earlier"]);
+    expect(groups[0].runs.map((r) => r.id)).toEqual(["a"]);
+  });
+
+  it("omits empty buckets rather than rendering an empty heading", () => {
+    const groups = groupRuns([run({ createdAt: "2026-06-01 09:00:00" })], now);
+    expect(groups.map((g) => g.label)).toEqual(["Earlier"]);
+  });
+
+  it("preserves the server's newest-first order within a bucket", () => {
+    const groups = groupRuns(
+      [run({ id: "a", createdAt: "2026-08-01 11:00:00" }), run({ id: "b", createdAt: "2026-08-01 09:00:00" })],
+      now,
+    );
+    expect(groups[0].runs.map((r) => r.id)).toEqual(["a", "b"]);
+  });
+});
+
+describe("runLabel", () => {
+  it("prefers the model's artist and title", () => {
+    expect(runLabel(run({ referenceArtist: "Metallica", referenceTitle: "Enter Sandman" })))
+      .toEqual({ title: "Enter Sandman", subtitle: "Metallica" });
+  });
+
+  // L3's fallback: the model may decline, and a run must still be identifiable.
+  it("falls back to the reference verbatim when the metadata is empty", () => {
+    expect(runLabel(run({ reference: "blue monday new order" })))
+      .toEqual({ title: "blue monday new order", subtitle: "" });
+  });
+
+  it("uses the title alone when only the artist is missing", () => {
+    expect(runLabel(run({ referenceTitle: "Enter Sandman" })))
+      .toEqual({ title: "Enter Sandman", subtitle: "" });
+  });
+
+  it("appends genres to the subtitle when there are any", () => {
+    expect(runLabel(run({ referenceArtist: "Metallica", referenceTitle: "Enter Sandman", genres: ["thrash metal"] })))
+      .toEqual({ title: "Enter Sandman", subtitle: "Metallica · thrash metal" });
+  });
+});</code></pre>
+
+  <div class="step"><label><input type="checkbox"> Step 2: Run and watch them fail, then implement the helper</label></div>
+<pre><code>cd ui &amp;&amp; npm run test -- --run src/studioHistoryGroups.test.ts</code></pre>
+  <p class="why">Implement <code>groupRuns</code> and <code>runLabel</code> in <code>ui/src/studioHistoryGroups.ts</code>. Note SQLite's <code>datetime('now')</code> emits <code>"2026-08-01 10:00:00"</code> — a space, not a <code>T</code>, and no zone. Safari's <code>Date</code> parser rejects that format, so normalise with <code>new Date(s.replace(" ", "T") + "Z")</code> and unit-test that exact string; do not hand a raw column value to <code>new Date()</code>.</p>
+
+  <div class="step"><label><input type="checkbox"> Step 3: Write the failing drawer tests</label></div>
+<pre><code>// ui/src/StudioHistoryDrawer.test.tsx
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import { render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+
+vi.mock("./api", async () => {
+  const actual = await vi.importActual<typeof import("./api")>("./api");
+  return { ...actual, listStudioHistory: vi.fn(), deleteStudioRun: vi.fn() };
+});
+
+import { StudioHistoryDrawer } from "./StudioHistoryDrawer";
+import * as api from "./api";
+import type { StudioRun } from "./api";
+const mocked = vi.mocked(api);
+
+function run(over: Partial<StudioRun> = {}): StudioRun {
+  return {
+    id: "r1", reference: "Metallica, Enter Sandman",
+    referenceArtist: "Metallica", referenceTitle: "Enter Sandman",
+    stylePrompt: "", lyrics: "", coverArtPrompt: "", genres: ["thrash metal"],
+    bands: [], titles: [], albums: [], coverArtId: "", refineCount: 0,
+    createdAt: "2026-08-01 10:00:00", updatedAt: "2026-08-01 10:00:00",
+    ...over,
+  };
+}
+
+beforeEach(() => vi.clearAllMocks());
+
+describe("StudioHistoryDrawer", () => {
+  it("shows the total in the header", async () => {
+    mocked.listStudioHistory.mockResolvedValue({ runs: [run()], total: 243, nextBefore: 12 });
+    render(<StudioHistoryDrawer onClose={() => {}} onOpen={() => {}} />);
+    expect(await screen.findByText(/243 runs/)).toBeInTheDocument();
+  });
+
+  // Decision 3: the run on screen is never in the list.
+  it("excludes the run currently on screen", async () => {
+    mocked.listStudioHistory.mockResolvedValue({
+      runs: [run({ id: "current", referenceTitle: "On Screen" }), run({ id: "old", referenceTitle: "Older" })],
+      total: 2, nextBefore: 0,
+    });
+    render(<StudioHistoryDrawer onClose={() => {}} onOpen={() => {}} currentRunId="current" />);
+    expect(await screen.findByText("Older")).toBeInTheDocument();
+    expect(screen.queryByText("On Screen")).not.toBeInTheDocument();
+  });
+
+  // P1: an explicit button, and it disappears on the last page.
+  it("pages with Show more and passes the cursor", async () => {
+    mocked.listStudioHistory
+      .mockResolvedValueOnce({ runs: [run({ id: "a", referenceTitle: "First" })], total: 2, nextBefore: 41 })
+      .mockResolvedValueOnce({ runs: [run({ id: "b", referenceTitle: "Second" })], total: 2, nextBefore: 0 });
+    render(<StudioHistoryDrawer onClose={() => {}} onOpen={() => {}} />);
+    await userEvent.click(await screen.findByRole("button", { name: /show 25 more/i }));
+    await waitFor(() => expect(mocked.listStudioHistory).toHaveBeenCalledWith(41));
+    expect(await screen.findByText("Second")).toBeInTheDocument();
+    expect(screen.getByText("First")).toBeInTheDocument();
+    await waitFor(() =>
+      expect(screen.queryByRole("button", { name: /show 25 more/i })).not.toBeInTheDocument(),
+    );
+  });
+
+  it("opens a run when its row is clicked", async () => {
+    mocked.listStudioHistory.mockResolvedValue({ runs: [run({ id: "r7" })], total: 1, nextBefore: 0 });
+    const onOpen = vi.fn();
+    render(<StudioHistoryDrawer onClose={() => {}} onOpen={onOpen} />);
+    await userEvent.click(await screen.findByRole("button", { name: /Enter Sandman/ }));
+    expect(onOpen).toHaveBeenCalledWith("r7");
+  });
+
+  it("shows an empty state on a first visit", async () => {
+    mocked.listStudioHistory.mockResolvedValue({ runs: [], total: 0, nextBefore: 0 });
+    render(<StudioHistoryDrawer onClose={() => {}} onOpen={() => {}} />);
+    expect(await screen.findByText(/nothing here yet/i)).toBeInTheDocument();
+  });
+
+  it("closes on Escape", async () => {
+    mocked.listStudioHistory.mockResolvedValue({ runs: [], total: 0, nextBefore: 0 });
+    const onClose = vi.fn();
+    render(<StudioHistoryDrawer onClose={onClose} onOpen={() => {}} />);
+    await screen.findByText(/nothing here yet/i);
+    await userEvent.keyboard("{Escape}");
+    expect(onClose).toHaveBeenCalled();
+  });
+
+  it("surfaces a load failure instead of an empty list", async () => {
+    mocked.listStudioHistory.mockRejectedValue(new Error("nope"));
+    render(<StudioHistoryDrawer onClose={() => {}} onOpen={() => {}} />);
+    expect(await screen.findByRole("alert")).toBeInTheDocument();
+  });
+});</code></pre>
+
+  <div class="step"><label><input type="checkbox"> Step 4: Run, watch fail, implement the drawer</label></div>
+  <p class="why">Structure: <code>useState</code> for <code>runs</code>, <code>total</code>, <code>nextBefore</code>, <code>loading</code>, <code>error</code>; a <code>useEffect</code> that loads page one on mount; <code>useEscape(true, onClose)</code>; the scrim wrapper; the header with the count and an <code>&lt;Icon name="close" /&gt;</code> button; grouped rows via <code>groupRuns</code>; each row a <code>&lt;button&gt;</code> (so the accessible name is the run title and keyboard users can reach it) calling <code>onOpen(run.id)</code>; a per-row delete that raises the existing <code>ConfirmDialog</code>; the footer showing <code>{shown} of {total}</code> plus the Show-more button when <code>nextBefore !== 0</code>. Filter <code>currentRunId</code> out of <code>runs</code> at render time, not at fetch time, so the count stays honest.</p>
+
+  <div class="step"><label><input type="checkbox"> Step 5: Run the suite and commit</label></div>
+<pre><code>cd ui &amp;&amp; npm run test -- --run src/StudioHistoryDrawer.test.tsx src/studioHistoryGroups.test.ts
+git add ui/src/StudioHistoryDrawer.tsx ui/src/StudioHistoryDrawer.test.tsx \
+        ui/src/studioHistoryGroups.ts ui/src/studioHistoryGroups.test.ts
+git commit -m "feat(studio): add the studio history drawer"</code></pre>
+</div>
+
+<!-- ══════════════ TASK 8 ══════════════ -->
+<h2>Task 8: The read-only run view</h2>
+<div class="task">
+  <p class="files"><b>Create:</b> <code>ui/src/StudioHistoryRun.tsx</code>, <code>ui/src/StudioHistoryRun.test.tsx</code></p>
+  <p class="files"><b>Consumes:</b> <code>getStudioRun</code>, <code>StudioRun</code>; <code>ResultCard</code> (exported from <code>StudioPage.tsx:92</code>), <code>studioCoverArtUrl</code>, <code>genreLabel</code>.</p>
+  <p class="files"><b>Produces:</b> <code>&lt;StudioHistoryRun id onClose onRegenerate /&gt;</code>.</p>
+
+  <div class="step"><label><input type="checkbox"> Step 1: Write the failing tests</label></div>
+<pre><code>// ui/src/StudioHistoryRun.test.tsx — abridged: write all of these out in full.
+
+// Everything the run produced comes back — this is the point of keeping it.
+it("shows all three band, title and album ideas", async () => {
+  mocked.getStudioRun.mockResolvedValue(run({
+    bands: ["Hollow Sabbath", "Ashen Verdict", "Grey Litany"],
+    titles: ["Sleep Is a Door", "Hallway Light", "Four In The Morning"],
+    albums: ["Nightfall Sessions", "The Long Dark", "Teeth Of The Year"],
+  }));
+  render(<StudioHistoryRun id="r1" onClose={() => {}} onRegenerate={() => {}} />);
+  for (const name of ["Hollow Sabbath", "Ashen Verdict", "Grey Litany",
+                      "Sleep Is a Door", "Hallway Light", "Four In The Morning",
+                      "Nightfall Sessions", "The Long Dark", "Teeth Of The Year"]) {
+    expect(await screen.findByText(name)).toBeInTheDocument();
+  }
+});
+
+// A saved run is read-only: nothing on it can start a write.
+it("offers no refine field and no editable boxes", async () => {
+  mocked.getStudioRun.mockResolvedValue(run({ lyrics: "[Verse]\nx" }));
+  render(<StudioHistoryRun id="r1" onClose={() => {}} onRegenerate={() => {}} />);
+  await screen.findByText(/\[Verse\]/);
+  expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: /refine/i })).not.toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: /generate cover art/i })).not.toBeInTheDocument();
+});
+
+it("shows the cover image when the run has one", async () => {
+  mocked.getStudioRun.mockResolvedValue(run({ coverArtId: "img1" }));
+  render(<StudioHistoryRun id="r1" onClose={() => {}} onRegenerate={() => {}} />);
+  const img = await screen.findByRole("img", { name: /cover art/i });
+  expect(img).toHaveAttribute("src", "/api/studio/coverart/img1");
+});
+
+it("omits the cover block entirely when the run has no image", async () => {
+  mocked.getStudioRun.mockResolvedValue(run({ coverArtId: "" }));
+  render(<StudioHistoryRun id="r1" onClose={() => {}} onRegenerate={() => {}} />);
+  await screen.findByText(/\[Verse\]/);
+  expect(screen.queryByRole("img", { name: /cover art/i })).not.toBeInTheDocument();
+});
+
+it("keeps copy buttons — that is what the run is kept for", async () => { /* … */ });
+it("reports the refine count in the run details", async () => { /* … */ });
+it("closes on Escape", async () => { /* … */ });
+it("starts a fresh run without touching this one", async () => {
+  // onRegenerate is called with the reference; the component never mutates.
+});</code></pre>
+
+  <div class="step"><label><input type="checkbox"> Step 2: Implement</label></div>
+  <p class="why">Reuse <code>ResultCard</code> <b>without</b> its <code>onChange</code> prop — omitting it is exactly what makes the box read-only, so no new component is needed for the text cards. The Identity block renders three <code>IdeaColumn</code>-shaped lists; lift <code>IdeaColumn</code> out of <code>StudioPage.tsx</code> into <code>StudioShared.tsx</code> and import it in both places rather than duplicating it. Layout follows the mock's "Opening a saved run" panel: header with title/artist and date, a read-only banner, lyrics, style prompt with its character count, identity, cover-art prompt, cover image, run details, then "Generate this song again".</p>
+
+  <div class="step"><label><input type="checkbox"> Step 3: Run the suite and commit</label></div>
+<pre><code>cd ui &amp;&amp; npm run test -- --run src/StudioHistoryRun.test.tsx
+git add ui/src/StudioHistoryRun.tsx ui/src/StudioHistoryRun.test.tsx ui/src/StudioShared.tsx ui/src/StudioPage.tsx
+git commit -m "feat(studio): add the read-only saved run view"</code></pre>
+</div>
+
+<!-- ══════════════ TASK 9 ══════════════ -->
+<h2>Task 9: Wire it into the Studio page</h2>
+<div class="task">
+  <p class="files"><b>Modify:</b> <code>ui/src/StudioPage.tsx</code></p>
+  <p class="files"><b>Test:</b> <code>ui/src/StudioPage.test.tsx</code></p>
+  <p class="files"><b>Consumes:</b> everything from Tasks 6–8.</p>
+
+  <div class="step"><label><input type="checkbox"> Step 1: Write the failing tests</label></div>
+<pre><code>// Append to ui/src/StudioPage.test.tsx
+
+// A1: an icon, no label, no badge — and only in Suno mode.
+it("offers a history icon beside Generate", async () => {
+  render(<StudioPage historyEnabled />);
+  const btn = screen.getByRole("button", { name: "History" });
+  expect(btn).toBeInTheDocument();
+  expect(btn).not.toHaveTextContent(/\d/);
+});
+
+it("hides the history icon when there is no library configured", () => {
+  render(<StudioPage historyEnabled={false} />);
+  expect(screen.queryByRole("button", { name: "History" })).not.toBeInTheDocument();
+});
+
+it("opens and closes the drawer", async () => {
+  mocked.listStudioHistory.mockResolvedValue({ runs: [], total: 0, nextBefore: 0 });
+  render(<StudioPage historyEnabled />);
+  await userEvent.click(screen.getByRole("button", { name: "History" }));
+  expect(await screen.findByText(/nothing here yet/i)).toBeInTheDocument();
+  await userEvent.keyboard("{Escape}");
+  await waitFor(() => expect(screen.queryByText(/nothing here yet/i)).not.toBeInTheDocument());
+});
+
+// The id the server hands back must reach refine, or a refine creates a second
+// entry instead of overwriting the first.
+it("passes the saved run id to refine", async () => {
+  mocked.studioGenerate.mockImplementation(async (_ref, _onP, _onPart, onSaved) => {
+    onSaved?.("run42");
+    return result({ lyrics: "[Verse]\nx" });
+  });
+  mocked.studioRefine.mockResolvedValue("[Verse]\nrewritten");
+  render(<StudioPage historyEnabled />);
+  await userEvent.type(screen.getByLabelText("Song reference"), "Metallica, Enter Sandman{Enter}");
+  await screen.findByDisplayValue(/\[Verse\]/);
+  await userEvent.type(screen.getByLabelText("Refine lyrics instruction"), "darker{Enter}");
+  await waitFor(() =>
+    expect(mocked.studioRefine).toHaveBeenCalledWith(
+      "Metallica, Enter Sandman", "[Verse]\nx", "darker", expect.any(Function), "run42",
+    ),
+  );
+});
+
+// A hand edit is saved too, so what you see is what is stored.
+it("patches the saved run when the lyrics are hand-edited", async () => { /* … debounce with vi.useFakeTimers */ });
+
+// Decision 3: the live run must not appear in its own history list.
+it("tells the drawer which run is on screen", async () => { /* … assert currentRunId reaches the drawer */ });</code></pre>
+
+  <div class="step"><label><input type="checkbox"> Step 2: Implement</label></div>
+  <p class="why">
+    Add <code>historyEnabled?: boolean</code> to <code>StudioPage</code>'s props and pass it down from
+    <code>App.tsx</code> off the session payload (it is true when the library is configured — add a
+    <code>historyEnabled</code> key to the session JSON in <code>server.go:91-108</code> alongside
+    <code>studioEnabled</code>, gated on the same <code>st != nil &amp;&amp; cfg.MediaDir != ""</code> condition
+    the routes use).
+    Add three pieces of state: <code>showHistory</code>, <code>savedRunId</code>, <code>openRunId</code>.
+    The icon button goes in the existing form row after Generate, <code>aria-label="History"</code>,
+    rendered only when <code>historyEnabled &amp;&amp; mode === "suno"</code>.
+    Reset <code>savedRunId</code> to <code>""</code> at the top of <code>generate</code>, exactly where
+    <code>setSteps([])</code> already lives, or a second generation refines the first one's row.
+    Debounce the hand-edit patch by ~800ms and cancel it on unmount.
+  </p>
+
+  <div class="step"><label><input type="checkbox"> Step 3: Run everything and commit</label></div>
+<pre><code>cd ui &amp;&amp; npm run test -- --run
+make fe-coverage
+git add ui/src backend/internal/httpapi/server.go
+git commit -m "feat(studio): wire history into the studio page"</code></pre>
+</div>
+
+<!-- ══════════════ TASK 10 ══════════════ -->
+<h2>Task 10: Verify in the real app</h2>
+<div class="task">
+  <p class="files"><b>No code.</b> Green tests are not evidence the feature works — <code>AGENTS.md:12-13</code> requires a Playwright pass against the running app.</p>
+
+  <div class="warn">
+    <b>Rebuild the Go binary, not just the UI.</b> The backend embeds <code>web/dist</code>; a
+    <code>npm run build</code> alone is not what gets served. Also remember to commit
+    <code>backend/web/dist/index.html</code> with the PR.
+  </div>
+
+  <div class="step"><label><input type="checkbox"> Step 1: Build and run</label></div>
+<pre><code>cd ui &amp;&amp; npm run build
+cd .. &amp;&amp; make dev        # or: go build ./... &amp;&amp; ./backend/… as the Makefile defines</code></pre>
+
+  <div class="step"><label><input type="checkbox"> Step 2: Drive it with Playwright</label></div>
+  <p class="why">Check, in order: the history icon renders beside Generate and carries no badge; a full generate lands and the drawer <b>does not</b> list the run just produced; reloading the page and reopening the drawer <b>does</b> list it; the header count matches; date headers group correctly; "Show 25 more" appears only with more than 25 runs and pages without repeating a row; opening a saved run shows all three bands/titles/albums, the cover image if one exists, and offers no textarea or refine field; Escape closes the run view and then the drawer, topmost first; delete asks for confirmation and removes the row.</p>
+
+  <div class="step"><label><input type="checkbox"> Step 3: Check the whole suite and the coverage gate</label></div>
+<pre><code>make test &amp;&amp; make fe-test
+make backend-coverage &amp;&amp; make fe-coverage</code></pre>
+
+  <div class="step"><label><input type="checkbox"> Step 4: Open the PR</label></div>
+<pre><code>git add backend/web/dist/index.html
+git commit -m "chore: rebuild dist"
+git push -u origin studio-history
+gh pr create --title "Keep every Studio run, and let you reopen it" --body "…"</code></pre>
+  <p class="why">Then run a code-review agent pass before merging, and confirm <code>gh pr checks</code> is fully green — never merge a red PR.</p>
+</div>
+
+<h2>Self-review notes</h2>
+<ul>
+  <li><b>Spec coverage.</b> Every decision in the table at the top maps to a task: A/A1 → 9, 3 → 7 + 9, P1 → 5 + 7, L3 → 3, read-only detail → 8, storage → 1 + 2 + 4 + 5.</li>
+  <li><b>Type consistency.</b> <code>library.StudioRun</code> (Go) and <code>StudioRun</code> (TS) carry the same field names via JSON tags; <code>RowID</code> is <code>json:"-"</code> and surfaces only as <code>nextBefore</code>. <code>UpdateStudioRunLyrics(ctx, id, lyrics, bumpRefine)</code> is called with <code>true</code> from refine (Task 4) and <code>false</code> from PATCH (Task 5) — do not let those diverge.</li>
+  <li><b>Known gap, deliberate.</b> A cover image generated <i>before</i> the run is saved would have nothing to attach to. In practice the <code>saved</code> event lands within milliseconds of <code>result</code>, long before anyone clicks Generate cover art — but if <code>savedRunId</code> is empty when the cover lands, skip the PATCH rather than queueing it.</li>
+  <li><b>Not built.</b> The P3 search field, per-run export, and history for the Fanart / Album Cover modes. All additive.</li>
+</ul>
+
+</div>
+</body>
+</html>

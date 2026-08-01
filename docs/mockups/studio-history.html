@@ -628,7 +628,9 @@
       lyrics, cover-art prompt, genres, and the <i>invented</i> band/title/album ideas —
       never the real ones. The prompt forbids them twice: <i>“NEVER mention real
       artist, band, or song names in any output.”</i> The only place the real song
-      lives is the reference string you typed. Three ways to label a row:
+      lives is the reference string you typed. Note the rules govern what the model
+      <b>emits</b>, not what it knows — it identified the artist and title during turn 1
+      research either way. Three ways to label a row:
     </p>
     <div class="cols">
 
@@ -671,11 +673,15 @@
       </div>
 
       <div>
-        <h2 class="tri-h"><span class="tag q">catch</span> &nbsp;What L3 costs</h2>
+        <h2 class="tri-h"><span class="tag q">catch</span> &nbsp;What L3 costs — one sentence</h2>
         <p class="caption">
-          It needs a deliberate hole in a rule that currently has none. The carve-out has
-          to be narrow and explicit, or the model starts reading it as permission to put
-          real names in the style prompt — which is the thing the rule exists to stop.
+          Less than it first looks. Nothing forbids the model from <i>identifying</i> the
+          song — it researched the artist and title in turn 1 to write the style prompt at
+          all. The rules govern what it <i>emits</i>, and three of the four are already
+          scoped to a single field: the style prompt (<code>:94</code>), titles and albums
+          (<code>:155</code>), bands (<code>:161</code>). Those keep doing the protective
+          work untouched. Only the blanket sentence in the system prompt
+          (<code>:66</code>, “in any output”) overlaps, and it needs one clause added.
         </p>
         <div class="frame"><div class="studio" style="padding:var(--space-4)">
           <div class="card mono" style="font-size:var(--text-micro);line-height:1.7">

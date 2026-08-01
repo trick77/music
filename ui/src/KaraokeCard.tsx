@@ -1,6 +1,8 @@
 // KaraokeCard renders the non-playing karaoke states over the plain lyrics: a
-// needs-sync CTA or a failed+retry card. Copy mirrors the locked mock
-// (docs/mockups/karaoke). onGenerate re-POSTs /align. The plain lyrics stay visible
+// needs-sync CTA or a failed+retry card. Copy mirrors the locked mock that used
+// to live in docs/mockups/karaoke (removed; see git history if you need it —
+// this component is now the source of truth). onGenerate re-POSTs /align.
+// The plain lyrics stay visible
 // (dimmed) behind the card so an unaligned song still shows its words.
 export function KaraokeCard({
   state,

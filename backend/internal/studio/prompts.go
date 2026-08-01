@@ -91,11 +91,15 @@ must not call any tools. Answer every turn with ONLY the single JSON object that
 turn asks for: no prose, no commentary, no code fences.
 
 NEVER mention real artist, band, or song names in any output — describe only
-musical characteristics.`
+musical characteristics. The single exception is the referenceArtist and
+referenceTitle fields of turn 1, which exist to label the saved run in a list and
+are never pasted into Suno; the prohibition still applies absolutely to the style
+prompt, the lyrics, the titles, the albums, the bands and the cover-art prompt.`
 
-// generateTurn1Prompt asks for the research-derived half: the style prompt and
-// the genre labels. It is the only turn that may call tools.
-const generateTurn1Prompt = `Research the reference song now, then produce TWO things:
+// generateTurn1Prompt asks for the research-derived half: the style prompt, the
+// genre labels, and the reference song's real artist and title (a label for the
+// saved run, never prompt content). It is the only turn that may call tools.
+const generateTurn1Prompt = `Research the reference song now, then produce THREE things:
 
 1. stylePrompt — a comma-separated list of style/genre descriptors for Suno's
    "Style" box. Rules: NO spaces after commas; lowercase except proper nouns;
@@ -129,9 +133,16 @@ const generateTurn1Prompt = `Research the reference song now, then produce TWO t
    from the fuller comma-separated stylePrompt above. Return fewer than 3 if the
    song does not warrant three; never more than 3.
 
+3. referenceArtist and referenceTitle — the REAL artist and the REAL title of the
+   reference song you just researched, normalized to their canonical spelling
+   (e.g. "Metallica" and "Enter Sandman", however the reference was typed). These
+   two fields label the run in a list and are never used as prompt content, so a
+   real name is expected here and ONLY here. Leave either one an empty string if
+   you cannot identify the song with confidence — a wrong name is worse than none.
+
 Respond with ONLY a single JSON object and nothing else (no prose, no code
 fences):
-{"stylePrompt":"...","genres":["...","...","..."]}`
+{"stylePrompt":"...","genres":["...","...","..."],"referenceArtist":"...","referenceTitle":"..."}`
 
 // generateTurn2Prompt asks for the lyrics alone, with the craft rules sitting
 // right next to the request rather than at the top of a long system prompt. It

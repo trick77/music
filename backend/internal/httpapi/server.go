@@ -121,7 +121,13 @@ func build(cfg config.Config, st *store.Store, spa http.Handler, gen imagegen.Pr
 			mcp.NewService(servers, nil),
 		)
 	}
+	// The repo is wired in only when there is a store: it is what lets a finished
+	// run be persisted, and "no database → no history" stays true because st is
+	// nil in that case.
 	sh := &studioHandlers{cfg: cfg, provider: studioProvider}
+	if st != nil {
+		sh.repo = library.NewRepo(st.DB())
+	}
 	mux.HandleFunc("POST /api/studio/generate", sh.generate)
 	mux.HandleFunc("POST /api/studio/refine", sh.refine)
 

@@ -4,10 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"time"
 
 	"github.com/trick77/music/internal/config"
+	"github.com/trick77/music/internal/library"
 	"github.com/trick77/music/internal/studio"
 )
 
@@ -22,9 +24,13 @@ const (
 	maxLyricsLen      = 20000
 )
 
+// studioHandlers stays independent of the library store: repo is nil whenever the
+// app runs without one, and every use is guarded. History is the only thing that
+// needs it, and history is optional by design.
 type studioHandlers struct {
 	cfg      config.Config
 	provider studio.Provider
+	repo     *library.Repo
 }
 
 // generate streams a Suno prompt for a named song as Server-Sent Events:
@@ -68,6 +74,30 @@ func (h *studioHandlers) generate(w http.ResponseWriter, r *http.Request) {
 	}
 	stream("result", res)
 	flush()
+
+	// Persist the finished run, then tell the client which row it is so a later
+	// refine or hand edit updates this entry instead of creating a second one.
+	// A storage failure must never fail a generation the user already has on
+	// screen: it is logged and the stream simply carries no `saved` event.
+	if h.repo == nil {
+		return
+	}
+	id := library.NewID()
+	run := library.StudioRun{
+		ID: id, Reference: req.Reference,
+		ReferenceArtist: res.ReferenceArtist, ReferenceTitle: res.ReferenceTitle,
+		StylePrompt: res.StylePrompt, Lyrics: res.Lyrics, CoverArtPrompt: res.CoverArtPrompt,
+		Genres: res.Genres, Bands: res.Bands, Titles: res.Titles, Albums: res.Albums,
+	}
+	// Not r.Context() and not ctx: the request context is about to be cancelled
+	// as the SSE stream closes (and ctx is bound to the request timeout above),
+	// which would abort the insert.
+	if err := h.repo.CreateStudioRun(context.WithoutCancel(r.Context()), run); err != nil {
+		slog.Error("studio: store run", "err", err)
+		return
+	}
+	stream("saved", map[string]string{"id": id})
+	flush()
 }
 
 // refine streams a lyrics rewrite for a named song as SSE, keeping style and
@@ -80,6 +110,9 @@ func (h *studioHandlers) refine(w http.ResponseWriter, r *http.Request) {
 		Reference   string `json:"reference"`
 		Lyrics      string `json:"lyrics"`
 		Instruction string `json:"instruction"`
+		// HistoryID names the saved run these lyrics belong to, when there is
+		// one. Optional: refining a run that was never saved still works.
+		HistoryID string `json:"historyId"`
 	}
 	if !decodeStudioBody(w, r, &req) {
 		return
@@ -110,6 +143,15 @@ func (h *studioHandlers) refine(w http.ResponseWriter, r *http.Request) {
 	}
 	stream("result", map[string]string{"lyrics": lyrics})
 	flush()
+
+	// Refining overwrites the run's saved copy — history keeps the current state
+	// of a run, not a version chain. Best-effort for the same reason as above,
+	// and on a cancellation-free context for the same reason too.
+	if h.repo != nil && req.HistoryID != "" {
+		if err := h.repo.UpdateStudioRunLyrics(context.WithoutCancel(r.Context()), req.HistoryID, lyrics, true); err != nil {
+			slog.Error("studio: update run lyrics", "err", err)
+		}
+	}
 }
 
 // guard enforces the shared gate: authenticated (403) and configured (404).

@@ -22,7 +22,8 @@ type LineRt = {
 // across rows. A single requestAnimationFrame loop reads the live <audio>
 // currentTime and writes per-word fill, per-line dim/blur, and the eased
 // auto-scroll straight to the DOM — never through React state (which can't keep
-// 60fps). Motion/CSS is lifted from docs/mockups/karaoke/player_integration.py.
+// 60fps). Motion/CSS was lifted from docs/mockups/karaoke/player_integration.py,
+// since removed — KV_CSS below is now the source of truth for both.
 export function KaraokeView({ lines }: { lines: AlignedLine[] }) {
   const stageRef = useRef<HTMLDivElement>(null);
   const innerRef = useRef<HTMLDivElement>(null);
@@ -225,7 +226,8 @@ function LineRow({
   );
 }
 
-// Ported from docs/mockups/karaoke/player_integration.py, themed to loom tokens
+// Originally ported from docs/mockups/karaoke/player_integration.py (since
+// removed; recoverable from git history), themed to loom tokens
 // (var(--color-*) / var(--font-serif)).
 const KV_CSS = `
 .kv-stage { position:relative; z-index:2; height:100%; overflow:hidden;

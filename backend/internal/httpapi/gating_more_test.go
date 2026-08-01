@@ -429,3 +429,38 @@ func TestLogging_healthIsPassedThrough(t *testing.T) {
 		t.Fatalf("body = %q, want pong", rr.Body.String())
 	}
 }
+
+// --- /api/studio/history ---
+
+// History lives on the library store, not on the studio provider: with no store
+// the routes are never registered, so an authenticated caller gets a 404. This
+// is the "feature not configured" tier of the two-tier gate.
+func TestStudioHistory_notConfiguredIs404(t *testing.T) {
+	ts := studioServer(config.AuthModeDev, fakeStudio{lyrics: "x"})
+	for _, tc := range []struct{ method, path string }{
+		{"GET", "/api/studio/history"},
+		{"GET", "/api/studio/history/r1"},
+		{"PATCH", "/api/studio/history/r1"},
+		{"DELETE", "/api/studio/history/r1"},
+	} {
+		req := httptest.NewRequest(tc.method, tc.path, strings.NewReader(`{}`))
+		rr := httptest.NewRecorder()
+		ts.ServeHTTP(rr, req)
+		if rr.Code != http.StatusNotFound {
+			t.Fatalf("%s %s = %d, want 404 with no store", tc.method, tc.path, rr.Code)
+		}
+	}
+}
+
+// A generate on an unconfigured install must not try to save: there is no store,
+// so no saved event and no crash.
+func TestStudioGenerate_noSavedEventWithoutAStore(t *testing.T) {
+	ts := studioServer(config.AuthModeDev, fakeStudio{result: studio.GenerateResult{
+		StylePrompt: "s", Lyrics: "l", CoverArtPrompt: "c"}})
+	rr := httptest.NewRecorder()
+	ts.ServeHTTP(rr, httptest.NewRequest("POST", "/api/studio/generate",
+		strings.NewReader(`{"reference":"x"}`)))
+	if strings.Contains(rr.Body.String(), "event: saved") {
+		t.Fatalf("saved event with no store: %s", rr.Body)
+	}
+}

@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/trick77/music/internal/config"
@@ -301,5 +302,58 @@ func TestGetCover_sizedVariantsAreServedAndCached(t *testing.T) {
 	orig := getRec(t, ts.dev, "/api/cover/"+song.CoverArtID+"?size=gigantic")
 	if orig.Code != http.StatusOK || orig.Body.Len() == 0 {
 		t.Fatalf("unknown size = %d, %d bytes", orig.Code, orig.Body.Len())
+	}
+}
+
+// --- /api/studio/history: reachable through the assembled server ---
+
+// The history routes hang off songHandlers, so they answer on a plain library
+// install even when Studio itself is unconfigured (no chat key, hence no
+// generate). Anonymous callers are still shut out on every one of them.
+func TestStudioHistoryRoutes_servedWithoutStudioConfigured(t *testing.T) {
+	ts := newServeServer(t, 50)
+
+	rr := getRec(t, ts.dev, "/api/studio/history")
+	if rr.Code != http.StatusOK {
+		t.Fatalf("GET history = %d, want 200 (body %s)", rr.Code, rr.Body)
+	}
+	var page struct {
+		Runs       []library.StudioRun `json:"runs"`
+		Total      int                 `json:"total"`
+		NextBefore int64               `json:"nextBefore"`
+	}
+	if err := json.Unmarshal(rr.Body.Bytes(), &page); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if page.Total != 0 || len(page.Runs) != 0 || page.NextBefore != 0 {
+		t.Fatalf("empty history = %+v, want a zeroed page", page)
+	}
+
+	// Seeding through the repo makes the row visible on the very next read —
+	// there is no cache in front of these routes.
+	if err := ts.repo.CreateStudioRun(httptest.NewRequest("GET", "/", nil).Context(),
+		library.StudioRun{ID: "r1", Reference: "Metallica, Enter Sandman",
+			StylePrompt: "s", Lyrics: "l", CoverArtPrompt: "c"}); err != nil {
+		t.Fatalf("seed: %v", err)
+	}
+	if got := getRec(t, ts.dev, "/api/studio/history/r1"); got.Code != http.StatusOK {
+		t.Fatalf("GET run = %d, want 200 (body %s)", got.Code, got.Body)
+	}
+
+	for _, tc := range []struct{ method, path string }{
+		{"GET", "/api/studio/history"},
+		{"GET", "/api/studio/history/r1"},
+		{"PATCH", "/api/studio/history/r1"},
+		{"DELETE", "/api/studio/history/r1"},
+	} {
+		rr := httptest.NewRecorder()
+		ts.anon.ServeHTTP(rr, httptest.NewRequest(tc.method, tc.path, strings.NewReader(`{}`)))
+		if rr.Code != http.StatusForbidden {
+			t.Fatalf("anonymous %s %s = %d, want 403", tc.method, tc.path, rr.Code)
+		}
+	}
+	// The anonymous DELETE must not have taken effect.
+	if got := getRec(t, ts.dev, "/api/studio/history/r1"); got.Code != http.StatusOK {
+		t.Fatalf("run gone after a rejected anonymous delete: %d", got.Code)
 	}
 }

@@ -82,7 +82,7 @@ describe("StudioHistoryDrawer", () => {
   // honest total rather than dropping by one whenever a run is on screen.
   it("keeps the header count honest while hiding the live run", async () => {
     mocked.listStudioHistory.mockResolvedValue({
-      runs: [run({ id: "current" })],
+      runs: [run({ id: "current" }), run({ id: "older" })],
       total: 9,
       nextBefore: 0,
     });
@@ -300,3 +300,63 @@ describe("StudioHistoryDrawer", () => {
 function nowStamp(): string {
   return new Date().toISOString().slice(0, 19).replace("T", " ");
 }
+
+describe("StudioHistoryDrawer layering and counts", () => {
+  // The header must not read "1 run" directly above "Nothing here yet." — which
+  // is exactly the state of a user's very first generate, whose only run is the
+  // one on screen.
+  it("drops the count when the only run is the one on screen", async () => {
+    mocked.listStudioHistory.mockResolvedValue({
+      runs: [run({ id: "current" })],
+      total: 1,
+      nextBefore: 0,
+    });
+    render(
+      <StudioHistoryDrawer
+        onClose={() => {}}
+        onOpen={() => {}}
+        currentRunId="current"
+      />,
+    );
+    expect(await screen.findByText(/nothing here yet/i)).toBeInTheDocument();
+    expect(screen.queryByText(/\d+ runs?\b/)).not.toBeInTheDocument();
+  });
+
+  // ConfirmDialog's backdrop does not stop propagation, so a dialog nested
+  // inside the drawer's scrim would close the drawer too — and would do it even
+  // mid-delete, when the dialog is deliberately swallowing the cancel.
+  it("does not close the drawer when the confirm backdrop is clicked", async () => {
+    mocked.listStudioHistory.mockResolvedValue({
+      runs: [run({ id: "r7", referenceTitle: "Doomed" })],
+      total: 1,
+      nextBefore: 0,
+    });
+    const onClose = vi.fn();
+    render(<StudioHistoryDrawer onClose={onClose} onOpen={() => {}} />);
+    await userEvent.click(
+      await screen.findByRole("button", { name: /delete Doomed/i }),
+    );
+    const dialog = screen.getByRole("dialog", { name: "Delete this run?" });
+    await userEvent.click(dialog.parentElement as Element);
+    expect(
+      screen.queryByRole("dialog", { name: "Delete this run?" }),
+    ).not.toBeInTheDocument();
+    expect(onClose).not.toHaveBeenCalled();
+    expect(screen.getByText("Doomed")).toBeInTheDocument();
+  });
+
+  // The player dock is zIndex 60 and renders after the page, so a scrim below
+  // that would bury the drawer's footer under it.
+  it("sits above the player dock", async () => {
+    mocked.listStudioHistory.mockResolvedValue({
+      runs: [],
+      total: 0,
+      nextBefore: 0,
+    });
+    const { container } = render(
+      <StudioHistoryDrawer onClose={() => {}} onOpen={() => {}} />,
+    );
+    const scrim = container.firstElementChild as HTMLElement;
+    expect(Number(scrim.style.zIndex)).toBeGreaterThan(60);
+  });
+});

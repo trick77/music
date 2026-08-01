@@ -157,10 +157,14 @@ export function CoverArtCard({
   prompt,
   models = [],
   defaultModel = "",
+  onGenerated,
 }: {
   prompt: string;
   models?: string[];
   defaultModel?: string;
+  // Called with the new image's id once one exists, so the caller can attach it
+  // to the saved run. Regenerating calls it again and the latest image wins.
+  onGenerated?: (id: string) => void;
 }) {
   const options = imageModelOptions(models);
   const [model, setModel] = useState(defaultModel || options[0]?.id || "");
@@ -176,6 +180,7 @@ export function CoverArtCard({
     try {
       const res = await generateStudioCoverArt(p, model);
       setImage({ id: res.id });
+      onGenerated?.(res.id);
     } catch (e) {
       setError((e as Error).message || "Cover art generation failed");
     } finally {
@@ -319,12 +324,29 @@ export function StudioPage({
   // what makes a refine or a hand edit overwrite this entry instead of leaving a
   // stale copy behind; it is "" whenever nothing was saved.
   const [savedRunId, setSavedRunId] = useState("");
-  // Pending hand-edit write. Held in a ref so a re-render cannot lose the handle
+  // Pending hand-edit write. Held in refs so a re-render cannot lose the handle
   // and leave a timer running past unmount.
   const patchTimer = useRef<number | undefined>(undefined);
+  const pendingPatch = useRef<{ id: string; lyrics: string } | null>(null);
 
+  // flushLyrics writes a pending hand edit immediately and forgets it. Called on
+  // unmount, so an edit typed in the last few hundred milliseconds before
+  // leaving Studio is saved rather than dropped: cancelling the timer alone
+  // would silently discard exactly the words the user just typed. The request
+  // outlives the component — fetch is not tied to the React tree.
+  const flushLyrics = () => {
+    window.clearTimeout(patchTimer.current);
+    const p = pendingPatch.current;
+    pendingPatch.current = null;
+    if (p) patchStudioRun(p.id, { lyrics: p.lyrics }).catch(() => {});
+  };
+
+  // Held in a ref so the unmount cleanup below can stay a mount-only effect and
+  // still flush the latest edit rather than one captured on first render.
+  const flushRef = useRef(flushLyrics);
+  flushRef.current = flushLyrics;
   useEffect(() => {
-    return () => window.clearTimeout(patchTimer.current);
+    return () => flushRef.current();
   }, []);
 
   // saveLyricsSoon debounces the write behind a hand edit, so a sentence typed
@@ -333,9 +355,12 @@ export function StudioPage({
   // — queueing it would mean guessing which row it belongs to.
   const saveLyricsSoon = (lyrics: string) => {
     window.clearTimeout(patchTimer.current);
+    pendingPatch.current = null;
     if (!savedRunId) return;
     const id = savedRunId;
+    pendingPatch.current = { id, lyrics };
     patchTimer.current = window.setTimeout(() => {
+      pendingPatch.current = null;
       // Best effort: a failed background save must not interrupt the editing the
       // user is in the middle of.
       patchStudioRun(id, { lyrics }).catch(() => {});
@@ -364,7 +389,11 @@ export function StudioPage({
     // Drop the previous run's id here, or this generation's first refine would
     // overwrite the last run's saved entry instead of its own.
     setSavedRunId("");
+    // Abandon any pending hand edit outright: it belongs to the run being
+    // replaced, and flushing it later would write those words to whichever run
+    // is current then.
     window.clearTimeout(patchTimer.current);
+    pendingPatch.current = null;
     try {
       const res = await studioGenerate(
         ref,
@@ -396,6 +425,7 @@ export function StudioPage({
     // A rewrite lands in a moment and replaces these lyrics wholesale; a pending
     // hand-edit save would write the words being replaced.
     window.clearTimeout(patchTimer.current);
+    pendingPatch.current = null;
     try {
       const lyrics = await studioRefine(
         generatedRef,
@@ -778,6 +808,16 @@ export function StudioPage({
                     prompt={result.coverArtPrompt}
                     models={imageModels}
                     defaultModel={defaultImageModel}
+                    // Attach the image to this run's saved row so reopening it
+                    // later shows the cover. With no saved run the PATCH is
+                    // skipped rather than queued — there is no row to attach to,
+                    // and guessing one later would attach it to the wrong run.
+                    onGenerated={(coverArtId) => {
+                      if (!savedRunId) return;
+                      patchStudioRun(savedRunId, { coverArtId }).catch(
+                        () => {},
+                      );
+                    }}
                   />
                 )}
             </div>

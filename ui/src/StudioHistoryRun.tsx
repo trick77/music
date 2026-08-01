@@ -49,7 +49,9 @@ export function StudioHistoryRun({ id, onClose, onRegenerate }: Props) {
       style={{
         position: "fixed",
         inset: 0,
-        zIndex: 70,
+        // Above the drawer that opened it (70), which is itself above the
+        // player dock (60). Below ConfirmDialog's 100.
+        zIndex: 80,
         background: "rgba(0,0,0,0.5)",
         backdropFilter: "blur(2px)",
         WebkitBackdropFilter: "blur(2px)",

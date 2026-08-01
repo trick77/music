@@ -79,170 +79,185 @@ export function StudioHistoryDrawer({ onClose, onOpen, currentRunId }: Props) {
   const groups = groupRuns(visible, new Date());
 
   return (
-    <div
-      onClick={onClose}
-      style={{
-        position: "fixed",
-        inset: 0,
-        zIndex: 50,
-        background: "rgba(0,0,0,0.5)",
-        backdropFilter: "blur(2px)",
-        WebkitBackdropFilter: "blur(2px)",
-      }}
-    >
+    <>
       <div
-        onClick={(e) => e.stopPropagation()}
-        role="dialog"
-        aria-label="Studio history"
+        onClick={onClose}
         style={{
           position: "fixed",
-          top: 0,
-          right: 0,
-          bottom: 0,
-          width: 340,
-          maxWidth: "90vw",
-          zIndex: 60,
-          background: "var(--color-panel)",
-          borderLeft: "1px solid var(--color-border)",
-          padding: "1rem",
-          overflowY: "auto",
-          display: "flex",
-          flexDirection: "column",
-          boxSizing: "border-box",
+          inset: 0,
+          // Above the player dock (PlayerBar is zIndex 60), not below it. A
+          // fixed, z-indexed scrim starts its own stacking context, so the
+          // panel's z-index would be measured inside this one — taking
+          // QueueDrawer's 60 for the panel and AddToPlaylist's 50 for the scrim
+          // would put the whole drawer under the dock and hide its footer.
+          zIndex: 70,
+          background: "rgba(0,0,0,0.5)",
+          backdropFilter: "blur(2px)",
+          WebkitBackdropFilter: "blur(2px)",
         }}
       >
         <div
+          onClick={(e) => e.stopPropagation()}
+          role="dialog"
+          aria-label="Studio history"
           style={{
+            position: "fixed",
+            top: 0,
+            right: 0,
+            bottom: 0,
+            width: 340,
+            maxWidth: "90vw",
+            background: "var(--color-panel)",
+            borderLeft: "1px solid var(--color-border)",
+            padding: "1rem",
+            overflowY: "auto",
             display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            marginBottom: "0.75rem",
-            gap: "0.5rem",
+            flexDirection: "column",
+            boxSizing: "border-box",
           }}
         >
-          <h3 style={{ margin: 0, ...t.title }}>
-            History
-            {total > 0 && (
-              <span
-                style={{
-                  ...t.label,
-                  fontFamily: "var(--font-sans)",
-                  marginLeft: "0.5rem",
-                }}
-              >
-                {total} {total === 1 ? "run" : "runs"}
-              </span>
-            )}
-          </h3>
-          <button
-            aria-label="Close"
-            onClick={onClose}
-            style={{
-              background: "none",
-              border: "none",
-              color: "var(--color-muted)",
-              cursor: "pointer",
-              display: "grid",
-              placeItems: "center",
-            }}
-          >
-            <Icon name="close" size="24px" />
-          </button>
-        </div>
-
-        {error !== "" && (
-          <p
-            role="alert"
-            style={{
-              color: "var(--color-accent-strong)",
-              fontSize: "var(--text-label)",
-              margin: "0.5rem 0",
-            }}
-          >
-            {error}
-          </p>
-        )}
-
-        {loading && runs.length === 0 && (
-          <div
-            aria-busy="true"
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "var(--space-2)",
-              ...t.label,
-            }}
-          >
-            <Spinner size="16px" />
-            <span>Loading</span>
-          </div>
-        )}
-
-        {!loading && error === "" && visible.length === 0 && (
-          <p style={{ ...t.label, lineHeight: 1.6, margin: 0 }}>
-            Nothing here yet. Generate a song and it will be kept so you can
-            come back to it.
-          </p>
-        )}
-
-        <div style={{ flex: 1 }}>
-          {groups.map((group) => (
-            <div key={group.label} style={{ marginBottom: "0.75rem" }}>
-              <div style={{ ...t.micro, margin: "0.6rem 0 0.35rem" }}>
-                {group.label}
-              </div>
-              {group.runs.map((run) => (
-                <HistoryRow
-                  key={run.id}
-                  run={run}
-                  onOpen={onOpen}
-                  onDelete={() => {
-                    setDeleteError("");
-                    setPendingDelete(run);
-                  }}
-                />
-              ))}
-            </div>
-          ))}
-        </div>
-
-        {visible.length > 0 && (
           <div
             style={{
-              borderTop: "1px solid var(--color-border)",
-              paddingTop: "0.7rem",
-              marginTop: "0.3rem",
               display: "flex",
-              alignItems: "center",
               justifyContent: "space-between",
+              alignItems: "center",
+              marginBottom: "0.75rem",
               gap: "0.5rem",
             }}
           >
-            <span style={{ ...t.label, fontVariantNumeric: "tabular-nums" }}>
-              {visible.length} of {total}
-            </span>
-            {nextBefore !== 0 && (
-              <button
-                onClick={() => load(nextBefore)}
-                disabled={loading}
-                style={{
-                  background: "none",
-                  border: "none",
-                  padding: 0,
-                  color: "var(--color-accent-text)",
-                  fontFamily: "var(--font-sans)",
-                  fontSize: "var(--text-label)",
-                  fontWeight: 500,
-                  cursor: loading ? "default" : "pointer",
-                }}
-              >
-                {loading ? "Loading" : `Show ${PAGE_SIZE} more`}
-              </button>
-            )}
+            <h3 style={{ margin: 0, ...t.title }}>
+              History
+              {/* The count is what the server holds, so it stays honest while
+                  the live run is filtered out of the rows below. It is dropped
+                  entirely when there is nothing to show, or the header would
+                  read "1 run" directly above "Nothing here yet." */}
+              {total > 0 && visible.length > 0 && (
+                <span
+                  style={{
+                    ...t.label,
+                    fontFamily: "var(--font-sans)",
+                    marginLeft: "0.5rem",
+                  }}
+                >
+                  {total} {total === 1 ? "run" : "runs"}
+                </span>
+              )}
+            </h3>
+            <button
+              aria-label="Close"
+              onClick={onClose}
+              style={{
+                background: "none",
+                border: "none",
+                color: "var(--color-muted)",
+                cursor: "pointer",
+                display: "grid",
+                placeItems: "center",
+              }}
+            >
+              <Icon name="close" size="24px" />
+            </button>
           </div>
-        )}
+
+          {error !== "" && (
+            <p
+              role="alert"
+              style={{
+                color: "var(--color-accent-strong)",
+                fontSize: "var(--text-label)",
+                margin: "0.5rem 0",
+              }}
+            >
+              {error}
+            </p>
+          )}
+
+          {loading && runs.length === 0 && (
+            <div
+              aria-busy="true"
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "var(--space-2)",
+                ...t.label,
+              }}
+            >
+              <Spinner size="16px" />
+              <span>Loading</span>
+            </div>
+          )}
+
+          {!loading && error === "" && visible.length === 0 && (
+            <p style={{ ...t.label, lineHeight: 1.6, margin: 0 }}>
+              Nothing here yet. Generate a song and it will be kept so you can
+              come back to it.
+            </p>
+          )}
+
+          <div style={{ flex: 1 }}>
+            {groups.map((group) => (
+              <div key={group.label} style={{ marginBottom: "0.75rem" }}>
+                <div style={{ ...t.micro, margin: "0.6rem 0 0.35rem" }}>
+                  {group.label}
+                </div>
+                {group.runs.map((run) => (
+                  <HistoryRow
+                    key={run.id}
+                    run={run}
+                    onOpen={onOpen}
+                    onDelete={() => {
+                      setDeleteError("");
+                      setPendingDelete(run);
+                    }}
+                  />
+                ))}
+              </div>
+            ))}
+          </div>
+
+          {visible.length > 0 && (
+            <div
+              style={{
+                borderTop: "1px solid var(--color-border)",
+                paddingTop: "0.7rem",
+                marginTop: "0.3rem",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: "0.5rem",
+              }}
+            >
+              <span style={{ ...t.label, fontVariantNumeric: "tabular-nums" }}>
+                {visible.length} of {total}
+              </span>
+              {nextBefore !== 0 && (
+                <button
+                  onClick={() => load(nextBefore)}
+                  disabled={loading}
+                  style={{
+                    background: "none",
+                    border: "none",
+                    padding: 0,
+                    color: "var(--color-accent-text)",
+                    fontFamily: "var(--font-sans)",
+                    fontSize: "var(--text-label)",
+                    fontWeight: 500,
+                    cursor: loading ? "default" : "pointer",
+                  }}
+                >
+                  {loading ? "Loading" : `Show ${PAGE_SIZE} more`}
+                </button>
+              )}
+            </div>
+          )}
+        </div>
       </div>
 
+      {/* Deliberately a sibling of the scrim, not a child of it: ConfirmDialog's
+          own backdrop does not stop propagation, so nested inside the scrim a
+          backdrop click would cancel the confirm AND bubble into onClose —
+          closing the drawer, and doing it even mid-delete, when the dialog is
+          specifically swallowing the cancel. */}
       {pendingDelete && (
         <ConfirmDialog
           title="Delete this run?"
@@ -260,7 +275,7 @@ export function StudioHistoryDrawer({ onClose, onOpen, currentRunId }: Props) {
           onCancel={() => setPendingDelete(null)}
         />
       )}
-    </div>
+    </>
   );
 }
 

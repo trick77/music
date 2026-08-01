@@ -1025,6 +1025,105 @@ describe("StudioPage history", () => {
     expect(await screen.findByText("Older")).toBeInTheDocument();
     expect(screen.queryByText("On Screen")).not.toBeInTheDocument();
   });
+
+  // Without this the cover image is generated, shown, and then lost: reopening
+  // the saved run would show no cover, and the whole coverArtId column would be
+  // dead weight.
+  it("attaches generated cover art to the saved run", async () => {
+    const user = userEvent.setup();
+    mocked.studioGenerate.mockImplementation(
+      async (_ref, _onP, _onPart, onSaved) => {
+        onSaved?.("run42");
+        return result({ coverArtPrompt: "a door" });
+      },
+    );
+    mocked.generateStudioCoverArt.mockResolvedValue({
+      id: "img1",
+      status: "ready",
+      width: 1024,
+      height: 1024,
+    });
+    mocked.patchStudioRun.mockResolvedValue(undefined);
+    render(<StudioPage historyEnabled imageGenEnabled />);
+    await generate(user, "Metallica, Enter Sandman");
+    await user.click(
+      await screen.findByRole("button", { name: /generate cover art/i }),
+    );
+    await waitFor(() =>
+      expect(mocked.patchStudioRun).toHaveBeenCalledWith("run42", {
+        coverArtId: "img1",
+      }),
+    );
+  });
+
+  // Nothing to attach it to, so the call is skipped rather than aimed at a
+  // guessed row.
+  it("does not attach cover art when the run was never saved", async () => {
+    const user = userEvent.setup();
+    mocked.studioGenerate.mockResolvedValue(
+      result({ coverArtPrompt: "a door" }),
+    );
+    mocked.generateStudioCoverArt.mockResolvedValue({
+      id: "img1",
+      status: "ready",
+      width: 1024,
+      height: 1024,
+    });
+    render(<StudioPage historyEnabled imageGenEnabled />);
+    await generate(user, "Metallica, Enter Sandman");
+    await user.click(
+      await screen.findByRole("button", { name: /generate cover art/i }),
+    );
+    await screen.findByRole("img", { name: /generated cover art/i });
+    expect(mocked.patchStudioRun).not.toHaveBeenCalled();
+  });
+
+  // Leaving Studio within the debounce window must not silently discard the
+  // words the user just typed.
+  it("flushes a pending hand edit when the page unmounts", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    mocked.studioGenerate.mockImplementation(
+      async (_ref, _onP, _onPart, onSaved) => {
+        onSaved?.("run42");
+        return result({ lyrics: "[Verse]\nx" });
+      },
+    );
+    mocked.patchStudioRun.mockResolvedValue(undefined);
+    const { unmount } = render(<StudioPage historyEnabled />);
+    await generate(user, "Metallica, Enter Sandman");
+    const box = await screen.findByDisplayValue(/\[Verse\]/);
+    fireEvent.change(box, { target: { value: "[Verse]\nedited then left" } });
+    expect(mocked.patchStudioRun).not.toHaveBeenCalled();
+
+    unmount();
+    expect(mocked.patchStudioRun).toHaveBeenCalledWith("run42", {
+      lyrics: "[Verse]\nedited then left",
+    });
+  });
+
+  // A new generation abandons the previous run's pending edit outright — it
+  // belongs to a row that is no longer on screen.
+  it("drops a pending hand edit when a new generation starts", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    mocked.studioGenerate.mockImplementation(
+      async (_ref, _onP, _onPart, onSaved) => {
+        onSaved?.("run42");
+        return result({ lyrics: "[Verse]\nx" });
+      },
+    );
+    const { unmount } = render(<StudioPage historyEnabled />);
+    await generate(user, "First Song");
+    const box = await screen.findByDisplayValue(/\[Verse\]/);
+    fireEvent.change(box, { target: { value: "[Verse]\nabandoned" } });
+
+    await user.clear(screen.getByLabelText("Song reference"));
+    await generate(user, "Second Song");
+    await screen.findByDisplayValue(/\[Verse\]/);
+    unmount();
+    expect(mocked.patchStudioRun).not.toHaveBeenCalled();
+  });
 });
 
 // savedRun is a stored run as the history endpoints return it.

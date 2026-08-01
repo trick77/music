@@ -178,6 +178,30 @@ describe("StudioHistoryDrawer", () => {
     expect(await screen.findByText(/nothing here yet/i)).toBeInTheDocument();
   });
 
+  // Emptying the page on screen is not the same as an empty history: the paging
+  // button has to survive it, or the rest of the runs are unreachable and the
+  // drawer claims there is "nothing here yet" while the server holds dozens.
+  it("keeps paging offered after every loaded row is deleted", async () => {
+    mocked.listStudioHistory.mockResolvedValue({
+      runs: [run({ id: "r7", referenceTitle: "Doomed" })],
+      total: 26,
+      nextBefore: 12,
+    });
+    mocked.deleteStudioRun.mockResolvedValue(undefined);
+    render(<StudioHistoryDrawer onClose={() => {}} onOpen={() => {}} />);
+    await userEvent.click(
+      await screen.findByRole("button", { name: "Delete Doomed" }),
+    );
+    await userEvent.click(screen.getByRole("button", { name: "Delete" }));
+    await waitFor(() =>
+      expect(screen.queryByText("Doomed")).not.toBeInTheDocument(),
+    );
+    expect(screen.queryByText(/nothing here yet/i)).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /Show 25 more/ }),
+    ).toBeInTheDocument();
+  });
+
   it("closes on Escape", async () => {
     mocked.listStudioHistory.mockResolvedValue({
       runs: [],

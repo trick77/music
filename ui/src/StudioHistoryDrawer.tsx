@@ -187,12 +187,18 @@ export function StudioHistoryDrawer({ onClose, onOpen, currentRunId }: Props) {
             </div>
           )}
 
-          {!loading && error === "" && visible.length === 0 && (
-            <p style={{ ...t.label, lineHeight: 1.6, margin: 0 }}>
-              Nothing here yet. Generate a song and it will be kept so you can
-              come back to it.
-            </p>
-          )}
+          {/* "Nothing here yet" only when there is genuinely nothing left to
+              fetch: deleting every row of the page on screen empties `visible`
+              while the server still holds later pages. */}
+          {!loading &&
+            error === "" &&
+            visible.length === 0 &&
+            nextBefore === 0 && (
+              <p style={{ ...t.label, lineHeight: 1.6, margin: 0 }}>
+                Nothing here yet. Generate a song and it will be kept so you can
+                come back to it.
+              </p>
+            )}
 
           <div style={{ flex: 1 }}>
             {groups.map((group) => (
@@ -215,7 +221,10 @@ export function StudioHistoryDrawer({ onClose, onOpen, currentRunId }: Props) {
             ))}
           </div>
 
-          {visible.length > 0 && (
+          {/* The footer also stays up when the page on screen has been emptied
+              but a cursor remains, or "Show 25 more" would vanish and the rest
+              of the history would be unreachable until the drawer is reopened. */}
+          {(visible.length > 0 || nextBefore !== 0) && (
             <div
               style={{
                 borderTop: "1px solid var(--color-border)",

@@ -10,7 +10,6 @@ import {
   type StudioPartial,
   type StudioResult,
 } from "./api";
-import { copyText } from "./share";
 import { Icon } from "./Icon";
 import { GenreFanartMode } from "./StudioGenreFanart";
 import { AlbumCoverMode } from "./StudioAlbumCover";

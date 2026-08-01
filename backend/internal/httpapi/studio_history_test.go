@@ -177,6 +177,45 @@ func TestStudioGenerate_worksWithoutAStore(t *testing.T) {
 	}
 }
 
+// A store alone is not enough: the history routes hang off the song handlers,
+// which need a usable media dir too. Where they are not registered nothing may
+// be written either, or the rows pile up behind four routes that answer 404 and
+// no one can list, open or delete them.
+func TestStudioGenerate_doesNotPersistWhereHistoryIsNotServed(t *testing.T) {
+	st, err := store.Open(t.TempDir() + "/test.db")
+	if err != nil {
+		t.Fatalf("store.Open: %v", err)
+	}
+	t.Cleanup(func() { st.Close() })
+	cfg := config.Config{AuthMode: config.AuthModeDev, DevUser: config.DevUserConfig{Username: "dev"},
+		ChatAPIKey: "chat-key", TavilyAPIKey: "tavily-key"} // no MediaDir
+	h := NewWithStudioProvider(cfg, st, studioSPA(), fakeStudio{result: studio.GenerateResult{
+		StylePrompt: "s", Lyrics: "l", CoverArtPrompt: "c"}})
+	rr := httptest.NewRecorder()
+	h.ServeHTTP(rr, httptest.NewRequest("POST", "/api/studio/generate", strings.NewReader(`{"reference":"x"}`)))
+	if !strings.Contains(rr.Body.String(), "event: result") {
+		t.Fatalf("generate broke: %q", rr.Body.String())
+	}
+	if strings.Contains(rr.Body.String(), "event: saved") {
+		t.Fatalf("saved a run the history routes cannot serve back: %q", rr.Body.String())
+	}
+	runs, _ := library.NewRepo(st.DB()).ListStudioRuns(
+		httptest.NewRequest("GET", "/", nil).Context(), 25, 0)
+	if len(runs) != 0 {
+		t.Fatalf("wrote %d unreachable rows, want 0", len(runs))
+	}
+	// And the session flag agrees with both.
+	sess := httptest.NewRecorder()
+	h.ServeHTTP(sess, httptest.NewRequest("GET", "/api/auth/session", nil))
+	var got map[string]any
+	if err := json.Unmarshal(sess.Body.Bytes(), &got); err != nil {
+		t.Fatalf("decode session: %v", err)
+	}
+	if got["historyEnabled"] != false {
+		t.Fatalf("historyEnabled = %v, want false", got["historyEnabled"])
+	}
+}
+
 func seedRuns(t *testing.T, repo *library.Repo, n int) {
 	t.Helper()
 	ctx := httptest.NewRequest("GET", "/", nil).Context()

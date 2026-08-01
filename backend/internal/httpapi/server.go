@@ -130,13 +130,12 @@ func build(cfg config.Config, st *store.Store, spa http.Handler, gen imagegen.Pr
 			mcp.NewService(servers, nil),
 		)
 	}
-	// The repo is wired in only when there is a store: it is what lets a finished
-	// run be persisted, and "no database → no history" stays true because st is
-	// nil in that case.
+	// The repo is wired in below, from inside the same block that registers the
+	// history routes — a run must only be written when it can also be listed,
+	// opened and deleted. Wiring it from `st != nil` alone would let an install
+	// with a database but no usable media dir accumulate rows behind routes that
+	// answer 404.
 	sh := &studioHandlers{cfg: cfg, provider: studioProvider}
-	if st != nil {
-		sh.repo = library.NewRepo(st.DB())
-	}
 	mux.HandleFunc("POST /api/studio/generate", sh.generate)
 	mux.HandleFunc("POST /api/studio/refine", sh.refine)
 
@@ -246,6 +245,9 @@ func build(cfg config.Config, st *store.Store, spa http.Handler, gen imagegen.Pr
 			mux.HandleFunc("POST /api/studio/coverart", h.postStudioCoverArt)
 			mux.HandleFunc("GET /api/studio/coverart/{id}", h.getStudioCoverArt)
 			historyEnabled = true
+			// Same condition, same block: generate only persists a run where the
+			// history routes exist to serve it back.
+			sh.repo = h.repo
 			mux.HandleFunc("GET /api/studio/history", h.listStudioHistory)
 			mux.HandleFunc("GET /api/studio/history/{id}", h.getStudioHistoryRun)
 			mux.HandleFunc("PATCH /api/studio/history/{id}", h.patchStudioHistoryRun)

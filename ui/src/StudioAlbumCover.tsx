@@ -38,9 +38,14 @@ export function AlbumCoverMode({
   const [saved, setSaved] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
+  // Only albums that still need artwork. This mode exists to fill gaps, and a
+  // full library buries the handful of coverless albums among hundreds that are
+  // already done. Filtering happens once, on load: an album covered during this
+  // session keeps its place in the list (its "needs artwork" suffix simply drops
+  // away) rather than vanishing from under the result the user is looking at.
   useEffect(() => {
     listAlbums()
-      .then(setAlbums)
+      .then((all) => setAlbums(all.filter((a) => !a.hasCover)))
       .catch(() => setErr("Could not load albums"));
   }, []);
 
@@ -133,7 +138,9 @@ export function AlbumCoverMode({
         disabled={busy}
         style={{ marginBottom: "var(--space-5)", maxWidth: "100%" }}
       >
-        {albums.length === 0 && <option value={0}>No albums found</option>}
+        {albums.length === 0 && (
+          <option value={0}>No albums are missing artwork</option>
+        )}
         {albums.map((a, i) => (
           <option key={`${a.artistId}-${a.album}`} value={i}>
             {a.artistName} — {a.album}

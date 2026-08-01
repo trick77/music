@@ -571,6 +571,18 @@ describe("StudioPage modes", () => {
     ).toBeInTheDocument();
   });
 
+  // Song → Suno is the Studio's primary mode and its default, so it leads the
+  // row rather than trailing it — the selected tab should not be the last one.
+  it("when the mode switch is shown, then Song → Suno is the first tab", () => {
+    render(<StudioPage imageGenEnabled />);
+
+    const names = screen
+      .getAllByRole("tab")
+      .map((el) => el.textContent?.trim());
+
+    expect(names).toEqual(["Song → Suno", "Genre → Fanart", "Album Cover"]);
+  });
+
   it("when image generation is on, then the fanart mode can be switched to", async () => {
     const user = userEvent.setup();
     render(<StudioPage imageGenEnabled />);

@@ -1,22 +1,34 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   studioGenerate,
   studioRefine,
   generateStudioCoverArt,
   studioCoverArtUrl,
   imageModelOptions,
+  patchStudioRun,
   type StudioProgress,
   type StudioPartial,
   type StudioResult,
 } from "./api";
-import { copyText } from "./share";
 import { Icon } from "./Icon";
 import { GenreFanartMode } from "./StudioGenreFanart";
 import { AlbumCoverMode } from "./StudioAlbumCover";
+import { StudioHistoryDrawer } from "./StudioHistoryDrawer";
+import { StudioHistoryRun } from "./StudioHistoryRun";
 import { Button, Spinner, buttonStyle, controlClass, t } from "./ui";
-import { genreLabel } from "./titleCase";
+import { IdentityCard, ResultCard } from "./StudioShared";
+
+// ResultCard is re-exported for the Studio suite, which has always reached for it
+// here; it now lives in StudioShared so the read-only history sheet can use the
+// very same card.
+export { ResultCard } from "./StudioShared";
 
 const STYLE_LIMIT = 500;
+
+// HAND_EDIT_DEBOUNCE_MS is how long typing in the lyrics box settles before the
+// saved copy is updated. Long enough that a sentence is one write, short enough
+// that closing the page straight after typing still saves.
+const HAND_EDIT_DEBOUNCE_MS = 800;
 
 // EMPTY_RESULT seeds the result the moment generation starts, so every card has
 // a slot to sit in while its turn is still running.
@@ -59,133 +71,6 @@ export function mergePartial(
   if (partial.titles?.length) next.titles = partial.titles;
   if (partial.albums?.length) next.albums = partial.albums;
   return next;
-}
-
-// CopyButton copies text and briefly confirms, mirroring the app's share flow.
-function CopyButton({
-  text,
-  label = "Copy",
-}: {
-  text: string;
-  label?: string;
-}) {
-  const [copied, setCopied] = useState(false);
-  const onCopy = async () => {
-    const ok = await copyText(text);
-    if (!ok) {
-      window.prompt("Copy this text", text);
-      return;
-    }
-    setCopied(true);
-    window.setTimeout(() => setCopied(false), 1500);
-  };
-  return (
-    <Button variant="secondary" small onClick={onCopy} aria-label={label}>
-      {copied ? "Copied" : label}
-    </Button>
-  );
-}
-
-// ResultCard is one output block with a header, optional right-side count, and a
-// copy button. When onChange is provided the body is an editable text area (the
-// lyrics), so the user can hand-tweak before copying or refining.
-export function ResultCard({
-  name,
-  note,
-  count,
-  text,
-  monospace = false,
-  onChange,
-}: {
-  name: string;
-  note?: string;
-  count?: string;
-  text: string;
-  monospace?: boolean;
-  onChange?: (value: string) => void;
-}) {
-  const boxStyle = {
-    background: "color-mix(in srgb, var(--color-bg) 70%, #000)",
-    border: "1px solid var(--color-border)",
-    borderRadius: "var(--radius-ui)",
-    padding: "12px 14px",
-    fontFamily: monospace
-      ? "ui-monospace, SFMono-Regular, Menlo, monospace"
-      : "var(--font-sans)",
-    fontSize: monospace ? "var(--text-label)" : "var(--text-ui)",
-    lineHeight: monospace ? 1.55 : 1.7,
-    color: "color-mix(in srgb, var(--color-ink) 88%, transparent)",
-    whiteSpace: "pre-wrap" as const,
-    wordBreak: "break-word" as const,
-  };
-  return (
-    <div style={{ marginBottom: "1.4rem" }}>
-      <div
-        style={{
-          display: "flex",
-          alignItems: "baseline",
-          justifyContent: "space-between",
-          marginBottom: "0.4rem",
-          gap: "0.75rem",
-        }}
-      >
-        <span style={{ fontWeight: 600, fontSize: "var(--text-ui)" }}>
-          {name}
-          {note && (
-            <span
-              style={{
-                fontWeight: 400,
-                color: "var(--color-muted)",
-                fontSize: "var(--text-label)",
-                marginLeft: "0.4rem",
-              }}
-            >
-              {note}
-            </span>
-          )}
-        </span>
-        <span style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
-          {count && (
-            <span
-              style={{
-                color: "var(--color-muted)",
-                fontSize: "var(--text-label)",
-                fontVariantNumeric: "tabular-nums",
-              }}
-            >
-              {count}
-            </span>
-          )}
-          <CopyButton text={text} />
-        </span>
-      </div>
-      {onChange ? (
-        // fontSize overrides boxStyle's: an editable field must follow
-        // --text-input, or iOS zooms the page in the moment it takes focus (see
-        // index.css). It can't move into boxStyle — that object is also spread
-        // onto the read-only box below, which is display text and belongs on the
-        // type scale. A monospace card that ever became editable would need the
-        // same treatment.
-        <textarea
-          value={text}
-          onChange={(e) => onChange(e.target.value)}
-          aria-label={`${name} (editable)`}
-          spellCheck={false}
-          style={{
-            ...boxStyle,
-            fontSize: "var(--text-input)",
-            width: "100%",
-            boxSizing: "border-box",
-            minHeight: 260,
-            resize: "vertical",
-            outline: "none",
-          }}
-        />
-      ) : (
-        <div style={boxStyle}>{text}</div>
-      )}
-    </div>
-  );
 }
 
 // PendingCard holds a card's place while the turn that fills it is still
@@ -263,186 +148,6 @@ function PendingCard({
   );
 }
 
-// IdentityCard groups everything that names and classifies the track: up to
-// three band-name, song-title and album-name ideas (each varying from an
-// obvious pick to a more oblique one, with a copy button), plus the model-picked
-// genres as a footer row. Columns wrap responsively (band first, then title,
-// then album). Any empty list is omitted; the whole card is hidden when the
-// model returned nothing to name or classify.
-// PendingColumn is an idea column whose turn has not answered yet: the label is
-// already correct, the rows are placeholders. It keeps the card from opening as
-// a gap between the description and the genre row.
-function PendingColumn({ label }: { label: string }) {
-  return (
-    <div aria-busy="true">
-      <div style={{ ...t.label, marginBottom: "0.5rem" }}>{label}</div>
-      <div style={{ display: "flex", flexDirection: "column", gap: "0.35rem" }}>
-        {[0, 1, 2].map((i) => (
-          <span
-            key={i}
-            style={{
-              display: "block",
-              height: 34,
-              borderRadius: "var(--radius-ui)",
-              background: "color-mix(in srgb, var(--color-bg) 70%, #000)",
-              border: "1px solid var(--color-border)",
-            }}
-          />
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function IdeaColumn({ label, options }: { label: string; options: string[] }) {
-  return (
-    <div>
-      <div style={{ ...t.label, marginBottom: "0.5rem" }}>{label}</div>
-      <ul
-        style={{
-          listStyle: "none",
-          margin: 0,
-          padding: 0,
-          display: "flex",
-          flexDirection: "column",
-          gap: "0.35rem",
-        }}
-      >
-        {options.map((text) => (
-          <li
-            key={text}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              gap: "0.6rem",
-              background: "color-mix(in srgb, var(--color-bg) 70%, #000)",
-              border: "1px solid var(--color-border)",
-              borderRadius: "var(--radius-ui)",
-              padding: "6px 6px 6px 12px",
-            }}
-          >
-            <span style={{ fontSize: "var(--text-ui)" }}>{text}</span>
-            <CopyButton text={text} />
-          </li>
-        ))}
-      </ul>
-    </div>
-  );
-}
-
-function IdentityCard({
-  bands,
-  titles,
-  albums,
-  genres,
-  namingPending = false,
-}: {
-  bands: string[];
-  titles: string[];
-  albums: string[];
-  genres: string[];
-  // The genres land a turn before the names do, so the card can already be up
-  // with its name columns still being written.
-  namingPending?: boolean;
-}) {
-  if (!bands?.length && !titles?.length && !albums?.length && !genres?.length)
-    return null;
-  return (
-    <div
-      style={{
-        marginBottom: "1.6rem",
-        padding: "16px 16px 4px",
-        background: "color-mix(in srgb, var(--color-panel) 60%, transparent)",
-        border: "1px solid var(--color-border)",
-        borderRadius: "var(--radius-ui)",
-      }}
-    >
-      <div
-        style={{
-          fontWeight: 600,
-          fontSize: "var(--text-ui)",
-          marginBottom: "0.25rem",
-        }}
-      >
-        Identity
-        <span
-          style={{
-            fontWeight: 400,
-            color: "var(--color-muted)",
-            fontSize: "var(--text-label)",
-            marginLeft: "0.4rem",
-          }}
-        >
-          → name it &amp; classify it · pick one, copy
-        </span>
-      </div>
-      <p
-        style={{
-          color: "var(--color-muted)",
-          fontSize: "var(--text-label)",
-          margin: "0 0 0.9rem",
-        }}
-      >
-        Band, title and album ideas run from the obvious pick to a more oblique
-        one — never a lyric line verbatim.
-      </p>
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
-          gap: "1.2rem 1.6rem",
-        }}
-      >
-        {bands?.length > 0 ? (
-          <IdeaColumn label="Band name" options={bands} />
-        ) : (
-          namingPending && <PendingColumn label="Band name" />
-        )}
-        {titles?.length > 0 ? (
-          <IdeaColumn label="Song title" options={titles} />
-        ) : (
-          namingPending && <PendingColumn label="Song title" />
-        )}
-        {albums?.length > 0 ? (
-          <IdeaColumn label="Album name" options={albums} />
-        ) : (
-          namingPending && <PendingColumn label="Album name" />
-        )}
-      </div>
-      {genres?.length > 0 && (
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            flexWrap: "wrap",
-            gap: "0.4rem",
-            marginTop: "0.9rem",
-            paddingTop: "0.9rem",
-            borderTop: "1px solid var(--color-border)",
-          }}
-        >
-          <span style={{ ...t.label, marginRight: "0.15rem" }}>Genres</span>
-          {genres.map((g) => (
-            <span
-              key={g}
-              style={{
-                background: "var(--color-active)",
-                borderRadius: 999,
-                padding: "3px 10px",
-                fontSize: "var(--text-label)",
-                color: "var(--color-ink)",
-              }}
-            >
-              {genreLabel(g)}
-            </span>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
 // CoverArtCard generates a real album cover from the (editable) cover-art prompt
 // using the configured image generator. It picks a model, shows the image inline,
 // and offers a download. Ephemeral in the UI: state resets when a new song is
@@ -451,10 +156,14 @@ export function CoverArtCard({
   prompt,
   models = [],
   defaultModel = "",
+  onGenerated,
 }: {
   prompt: string;
   models?: string[];
   defaultModel?: string;
+  // Called with the new image's id once one exists, so the caller can attach it
+  // to the saved run. Regenerating calls it again and the latest image wins.
+  onGenerated?: (id: string) => void;
 }) {
   const options = imageModelOptions(models);
   const [model, setModel] = useState(defaultModel || options[0]?.id || "");
@@ -470,6 +179,7 @@ export function CoverArtCard({
     try {
       const res = await generateStudioCoverArt(p, model);
       setImage({ id: res.id });
+      onGenerated?.(res.id);
     } catch (e) {
       setError((e as Error).message || "Cover art generation failed");
     } finally {
@@ -577,12 +287,16 @@ export function CoverArtCard({
 export function StudioPage({
   imageGenEnabled = false,
   chatEnabled = false,
+  historyEnabled = false,
   imageModels = [],
   defaultImageModel = "",
   initialGenreId,
 }: {
   imageGenEnabled?: boolean;
   chatEnabled?: boolean;
+  // True when the server has a library to keep runs in. False hides the history
+  // icon outright — there is nothing behind it.
+  historyEnabled?: boolean;
   imageModels?: string[];
   defaultImageModel?: string;
   initialGenreId?: string;
@@ -603,6 +317,54 @@ export function StudioPage({
   const [error, setError] = useState("");
   const [refineInstruction, setRefineInstruction] = useState("");
   const [refining, setRefining] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
+  const [openRunId, setOpenRunId] = useState("");
+  // The id of this run's row, handed back by the server's `saved` event. It is
+  // what makes a refine or a hand edit overwrite this entry instead of leaving a
+  // stale copy behind; it is "" whenever nothing was saved.
+  const [savedRunId, setSavedRunId] = useState("");
+  // Pending hand-edit write. Held in refs so a re-render cannot lose the handle
+  // and leave a timer running past unmount.
+  const patchTimer = useRef<number | undefined>(undefined);
+  const pendingPatch = useRef<{ id: string; lyrics: string } | null>(null);
+
+  // flushLyrics writes a pending hand edit immediately and forgets it. Called on
+  // unmount, so an edit typed in the last few hundred milliseconds before
+  // leaving Studio is saved rather than dropped: cancelling the timer alone
+  // would silently discard exactly the words the user just typed. The request
+  // outlives the component — fetch is not tied to the React tree.
+  const flushLyrics = () => {
+    window.clearTimeout(patchTimer.current);
+    const p = pendingPatch.current;
+    pendingPatch.current = null;
+    if (p) patchStudioRun(p.id, { lyrics: p.lyrics }).catch(() => {});
+  };
+
+  // Held in a ref so the unmount cleanup below can stay a mount-only effect and
+  // still flush the latest edit rather than one captured on first render.
+  const flushRef = useRef(flushLyrics);
+  flushRef.current = flushLyrics;
+  useEffect(() => {
+    return () => flushRef.current();
+  }, []);
+
+  // saveLyricsSoon debounces the write behind a hand edit, so a sentence typed
+  // into the lyrics box is one request rather than one per keystroke. With no
+  // saved run there is nothing to write to, and the edit is simply not persisted
+  // — queueing it would mean guessing which row it belongs to.
+  const saveLyricsSoon = (lyrics: string) => {
+    window.clearTimeout(patchTimer.current);
+    pendingPatch.current = null;
+    if (!savedRunId) return;
+    const id = savedRunId;
+    pendingPatch.current = { id, lyrics };
+    patchTimer.current = window.setTimeout(() => {
+      pendingPatch.current = null;
+      // Best effort: a failed background save must not interrupt the editing the
+      // user is in the middle of.
+      patchStudioRun(id, { lyrics }).catch(() => {});
+    }, HAND_EDIT_DEBOUNCE_MS);
+  };
 
   const busy = status === "loading" || refining;
   const stale =
@@ -623,12 +385,21 @@ export function StudioPage({
     setSteps([]);
     setError("");
     setRefineInstruction("");
+    // Drop the previous run's id here, or this generation's first refine would
+    // overwrite the last run's saved entry instead of its own.
+    setSavedRunId("");
+    // Abandon any pending hand edit outright: it belongs to the run being
+    // replaced, and flushing it later would write those words to whichever run
+    // is current then.
+    window.clearTimeout(patchTimer.current);
+    pendingPatch.current = null;
     try {
       const res = await studioGenerate(
         ref,
         (p) => setSteps((s) => [...s, p]),
         (partial) =>
           setResult((prev) => mergePartial(prev ?? EMPTY_RESULT, partial)),
+        (id) => setSavedRunId(id),
       );
       // The closing result is authoritative — it overwrites whatever the
       // partials built up, so a merge slip can't survive into the final state.
@@ -650,12 +421,17 @@ export function StudioPage({
     setRefining(true);
     setSteps([]);
     setError("");
+    // A rewrite lands in a moment and replaces these lyrics wholesale; a pending
+    // hand-edit save would write the words being replaced.
+    window.clearTimeout(patchTimer.current);
+    pendingPatch.current = null;
     try {
       const lyrics = await studioRefine(
         generatedRef,
         result.lyrics,
         instr,
         (p) => setSteps((s) => [...s, p]),
+        savedRunId,
       );
       setResult({ ...result, lyrics });
       setRefineInstruction("");
@@ -786,6 +562,30 @@ export function StudioPage({
             >
               {status === "loading" ? "Working" : "Generate"}
             </Button>
+            {/* A1: an icon, no label and no count — the run total lives in the
+                drawer header, where it is information rather than a nag. */}
+            {historyEnabled && (
+              <button
+                type="button"
+                aria-label="History"
+                title="History"
+                onClick={() => setShowHistory(true)}
+                style={{
+                  display: "grid",
+                  placeItems: "center",
+                  width: 40,
+                  height: 40,
+                  flexShrink: 0,
+                  background: "none",
+                  border: "1px solid var(--color-border)",
+                  borderRadius: "var(--radius-ui)",
+                  color: "var(--color-muted)",
+                  cursor: "pointer",
+                }}
+              >
+                <Icon name="history" size="18px" />
+              </button>
+            )}
           </form>
           <p
             style={{
@@ -796,8 +596,14 @@ export function StudioPage({
           >
             Studio researches the song on the web, captures its style, writes
             fresh original lyrics on the same theme (never the original words),
-            suggests band, title and album names, and sketches cover art.
-            Results are shown once and not stored.
+            suggests band, title and album names, and sketches cover art.{" "}
+            {/* The closing sentence has to follow the truth: with a library
+                configured a finished run is kept and can be reopened, so the
+                old "shown once and not stored" would be a lie. Without one,
+                nothing is stored and the original sentence still holds. */}
+            {historyEnabled
+              ? "Runs are kept so you can look them up later. Only the run on screen can be refined."
+              : "Results are shown once and not stored."}
           </p>
           {stale && (
             <p
@@ -887,9 +693,10 @@ export function StudioPage({
                     name="Lyrics"
                     note="→ Suno “Lyrics” · original, editable"
                     text={result.lyrics}
-                    onChange={(value) =>
-                      setResult({ ...result, lyrics: value })
-                    }
+                    onChange={(value) => {
+                      setResult({ ...result, lyrics: value });
+                      saveLyricsSoon(value);
+                    }}
                   />
                 )
               )}
@@ -926,6 +733,19 @@ export function StudioPage({
                   Refine
                 </Button>
               </form>
+              {/* The overwrite happens here, so the rule is stated here — nobody
+                  should have to open history to learn it. */}
+              {historyEnabled && savedRunId !== "" && (
+                <p
+                  style={{
+                    ...t.label,
+                    margin: "-1.2rem 0 1.6rem",
+                  }}
+                >
+                  Refining rewrites these lyrics and updates this run’s saved
+                  copy. The previous wording is not kept.
+                </p>
+              )}
 
               {stylePending ? (
                 <PendingCard
@@ -987,11 +807,47 @@ export function StudioPage({
                     prompt={result.coverArtPrompt}
                     models={imageModels}
                     defaultModel={defaultImageModel}
+                    // Attach the image to this run's saved row so reopening it
+                    // later shows the cover. With no saved run the PATCH is
+                    // skipped rather than queued — there is no row to attach to,
+                    // and guessing one later would attach it to the wrong run.
+                    onGenerated={(coverArtId) => {
+                      if (!savedRunId) return;
+                      patchStudioRun(savedRunId, { coverArtId }).catch(
+                        () => {},
+                      );
+                    }}
                   />
                 )}
             </div>
           )}
         </>
+      )}
+
+      {/* Both surfaces are unmounted when closed, so Escape unwinds them one at a
+          time (the run sheet opens last and therefore closes first). The drawer
+          is never told about a run it cannot see: currentRunId is only set once
+          the server has confirmed this run's row. */}
+      {showHistory && (
+        <StudioHistoryDrawer
+          onClose={() => setShowHistory(false)}
+          onOpen={(id) => setOpenRunId(id)}
+          currentRunId={savedRunId || undefined}
+        />
+      )}
+      {openRunId !== "" && (
+        <StudioHistoryRun
+          id={openRunId}
+          onClose={() => setOpenRunId("")}
+          onRegenerate={(ref) => {
+            // Hand the reference back to the form and get out of the way; the
+            // user presses Generate, which starts a new entry. Nothing about the
+            // saved run is touched.
+            setReference(ref);
+            setOpenRunId("");
+            setShowHistory(false);
+          }}
+        />
       )}
     </div>
   );

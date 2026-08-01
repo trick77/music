@@ -88,14 +88,23 @@ func build(cfg config.Config, st *store.Store, spa http.Handler, gen imagegen.Pr
 		writeJSON(w, map[string]string{"status": "ok", "version": buildinfo.Version})
 	})
 
+	// historyEnabled is set from inside the song-route block below, so the flag
+	// the SPA reads is the same condition that actually registered the history
+	// routes — including the media.New() that can fail. The closure below reads
+	// it per request, long after build() has finished wiring.
+	historyEnabled := false
+
 	mux.HandleFunc("GET /api/auth/session", func(w http.ResponseWriter, r *http.Request) {
 		id := identify(cfg, r)
 		writeJSON(w, map[string]any{
-			"authenticated":    id.Authenticated,
-			"username":         id.Username,
-			"imageGenEnabled":  cfg.ImageGenEnabled() && id.Authenticated,
-			"studioEnabled":    cfg.StudioEnabled() && id.Authenticated,
-			"chatEnabled":      cfg.ChatEnabled() && id.Authenticated,
+			"authenticated":   id.Authenticated,
+			"username":        id.Username,
+			"imageGenEnabled": cfg.ImageGenEnabled() && id.Authenticated,
+			"studioEnabled":   cfg.StudioEnabled() && id.Authenticated,
+			"chatEnabled":     cfg.ChatEnabled() && id.Authenticated,
+			// Studio history needs the library store, not the studio provider: an
+			// install with no database has no history and the icon stays hidden.
+			"historyEnabled":   historyEnabled && id.Authenticated,
 			"alignmentEnabled": cfg.AlignmentEnabled() && id.Authenticated,
 			// Image models the picker may offer, with the env default (cfg.BFLModel)
 			// guaranteed present and preselected. Sent regardless of auth so the shape
@@ -121,6 +130,11 @@ func build(cfg config.Config, st *store.Store, spa http.Handler, gen imagegen.Pr
 			mcp.NewService(servers, nil),
 		)
 	}
+	// The repo is wired in below, from inside the same block that registers the
+	// history routes — a run must only be written when it can also be listed,
+	// opened and deleted. Wiring it from `st != nil` alone would let an install
+	// with a database but no usable media dir accumulate rows behind routes that
+	// answer 404.
 	sh := &studioHandlers{cfg: cfg, provider: studioProvider}
 	mux.HandleFunc("POST /api/studio/generate", sh.generate)
 	mux.HandleFunc("POST /api/studio/refine", sh.refine)
@@ -230,6 +244,14 @@ func build(cfg config.Config, st *store.Store, spa http.Handler, gen imagegen.Pr
 			mux.HandleFunc("POST /api/fanart/generate", h.postFanartGenerate)
 			mux.HandleFunc("POST /api/studio/coverart", h.postStudioCoverArt)
 			mux.HandleFunc("GET /api/studio/coverart/{id}", h.getStudioCoverArt)
+			historyEnabled = true
+			// Same condition, same block: generate only persists a run where the
+			// history routes exist to serve it back.
+			sh.repo = h.repo
+			mux.HandleFunc("GET /api/studio/history", h.listStudioHistory)
+			mux.HandleFunc("GET /api/studio/history/{id}", h.getStudioHistoryRun)
+			mux.HandleFunc("PATCH /api/studio/history/{id}", h.patchStudioHistoryRun)
+			mux.HandleFunc("DELETE /api/studio/history/{id}", h.deleteStudioHistoryRun)
 			mux.HandleFunc("GET /api/albums", h.listAlbums)
 			mux.HandleFunc("POST /api/albums/suggest-prompt", h.postAlbumSuggestPrompt)
 			mux.HandleFunc("POST /api/albums/refine-prompt", h.postAlbumRefinePrompt)

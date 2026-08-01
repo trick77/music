@@ -321,3 +321,86 @@ func TestRefine_doesNotResearch(t *testing.T) {
 		t.Fatalf("refine must not dispatch any tool call, got %v", tools.called)
 	}
 }
+
+// L3: turn 1 returns the real artist and title as metadata, so a saved run can be
+// labelled uniformly however the reference was typed.
+func TestGenerate_capturesReferenceArtistAndTitle(t *testing.T) {
+	chat := &turnChat{replies: []string{
+		`{"stylePrompt":"1991,thrash metal","genres":["thrash metal"],` +
+			`"referenceArtist":"  Metallica  ","referenceTitle":"Enter Sandman"}`,
+		`{"lyrics":"[Verse]\nx"}`,
+		`{"coverArtPrompt":"a door","titles":["T"],"albums":["A"],"bands":["B"]}`,
+	}}
+	res, err := New(chat, &fakeTools{}).Generate(context.Background(),
+		GenerateRequest{Reference: "enter sandman metallica"}, nil, nil)
+	if err != nil {
+		t.Fatalf("Generate: %v", err)
+	}
+	// Trimmed, but otherwise passed through verbatim — this is a label, not
+	// prompt content, so nothing else is normalized.
+	if res.ReferenceArtist != "Metallica" || res.ReferenceTitle != "Enter Sandman" {
+		t.Fatalf("reference metadata = %q / %q, want Metallica / Enter Sandman",
+			res.ReferenceArtist, res.ReferenceTitle)
+	}
+}
+
+// The label reaches the UI with the first partial, not only with the closing
+// result: the drawer header and the run row are labelled from it.
+func TestGenerate_referenceMetadataRidesTheFirstPartial(t *testing.T) {
+	chat := &turnChat{replies: []string{
+		`{"stylePrompt":"1991,thrash metal","genres":["thrash metal"],` +
+			`"referenceArtist":"Metallica","referenceTitle":"Enter Sandman"}`,
+		`{"lyrics":"[Verse]\nx"}`,
+		`{"coverArtPrompt":"a door","titles":["T"],"albums":["A"],"bands":["B"]}`,
+	}}
+	var first GenerateResult
+	seen := 0
+	onPartial := func(r GenerateResult) {
+		if seen == 0 {
+			first = r
+		}
+		seen++
+	}
+	if _, err := New(chat, &fakeTools{}).Generate(context.Background(),
+		GenerateRequest{Reference: "x"}, nil, onPartial); err != nil {
+		t.Fatalf("Generate: %v", err)
+	}
+	if first.ReferenceArtist != "Metallica" || first.ReferenceTitle != "Enter Sandman" {
+		t.Fatalf("first partial = %+v, want the reference metadata", first)
+	}
+}
+
+// The model may decline. Missing metadata must not fail the run — the UI falls
+// back to the reference verbatim (L3).
+func TestGenerate_referenceMetadataIsOptional(t *testing.T) {
+	chat := &turnChat{replies: threeTurnReplies()}
+	res, err := New(chat, &fakeTools{}).Generate(context.Background(),
+		GenerateRequest{Reference: "x"}, nil, nil)
+	if err != nil {
+		t.Fatalf("Generate: %v", err)
+	}
+	if res.ReferenceArtist != "" || res.ReferenceTitle != "" {
+		t.Fatalf("expected empty metadata, got %q / %q", res.ReferenceArtist, res.ReferenceTitle)
+	}
+}
+
+// The carve-out must be narrow: the blanket rule gets an exception naming the two
+// fields, and the three field-scoped rules stay untouched.
+func TestPrompts_referenceMetadataCarveOutIsNarrow(t *testing.T) {
+	if !strings.Contains(generateSystemPrompt, "referenceArtist") {
+		t.Fatalf("system prompt must name the exception fields: %q", generateSystemPrompt)
+	}
+	// The style prompt, naming and band rules must still forbid real names.
+	for name, p := range map[string]string{"turn 1": generateTurn1Prompt, "turn 3": generateTurn3Prompt} {
+		if !strings.Contains(p, "NEVER") {
+			t.Fatalf("%s lost its real-name prohibition: %q", name, p)
+		}
+	}
+	if !strings.Contains(generateTurn1Prompt, "NEVER mention real artist, band, or song names — describe only musical") {
+		t.Fatalf("the style-prompt rule must be unchanged")
+	}
+	// Turn 1 must actually ask for the two fields, or the carve-out is dead copy.
+	if !strings.Contains(generateTurn1Prompt, "referenceArtist") || !strings.Contains(generateTurn1Prompt, "referenceTitle") {
+		t.Fatalf("turn 1 must request the reference metadata: %q", generateTurn1Prompt)
+	}
+}

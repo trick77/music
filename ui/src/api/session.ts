@@ -6,6 +6,9 @@ export type Session = {
   imageGenEnabled: boolean;
   studioEnabled: boolean;
   chatEnabled: boolean;
+  // Studio history needs the library store, not the studio provider — an install
+  // with no database can generate but keeps nothing.
+  historyEnabled: boolean;
   alignmentEnabled: boolean;
   imageModels: string[];
   defaultImageModel: string;

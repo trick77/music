@@ -37,6 +37,7 @@ import {
   Eye,
   Globe,
   Clock,
+  History,
   EllipsisVertical,
   Plus,
   Upload,
@@ -109,6 +110,7 @@ const COMPONENTS = {
   eye: Eye,
   globe: Globe,
   clock: Clock,
+  history: History, // the clock-arrow: "what happened before", not "what time is it"
   moreVertical: EllipsisVertical,
   moreHorizontal: Ellipsis,
   plus: Plus,

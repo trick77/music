@@ -11,4 +11,5 @@ export * from "./artists";
 export * from "./home";
 export * from "./favorites";
 export * from "./studio";
+export * from "./studioHistory";
 export * from "./albums";

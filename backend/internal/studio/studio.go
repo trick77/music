@@ -1,7 +1,9 @@
 // Package studio implements the Phase 9 Studio feature: it drives MiMo 2.5 Pro
 // through a bounded web-research loop (Tavily search + fetch) to turn a named
 // song into a Suno prompt — a style prompt, original theme-matched lyrics, and
-// an epoch-correct cover-art prompt. Results are ephemeral; nothing is stored.
+// an epoch-correct cover-art prompt. This package itself stores nothing; the
+// HTTP layer records a completed run in studio_history so it can be reopened
+// read-only later (see httpapi/studio_history.go).
 package studio
 
 import "context"
@@ -11,11 +13,12 @@ type GenerateRequest struct {
 	Reference string
 }
 
-// GenerateResult is the ephemeral output: the three Suno prompt parts, up to
-// three genre labels the model picks for the song, and up to three band-name,
-// song-title and album-name ideas (all shown in the Identity card in the
-// dialog). Bands, titles and albums vary in directness, from an obvious pick to
-// a more oblique one.
+// GenerateResult is the output: the three Suno prompt parts, up to three genre
+// labels the model picks for the song, up to three band-name, song-title and
+// album-name ideas (all shown in the Identity card in the dialog), and — purely
+// as a label for the saved run — the REAL artist and title of the reference
+// song. Bands, titles and albums vary in directness, from an obvious pick to a
+// more oblique one.
 type GenerateResult struct {
 	StylePrompt    string   `json:"stylePrompt"`
 	Lyrics         string   `json:"lyrics"`
@@ -24,6 +27,13 @@ type GenerateResult struct {
 	Bands          []string `json:"bands"`
 	Titles         []string `json:"titles"`
 	Albums         []string `json:"albums"`
+
+	// ReferenceArtist and ReferenceTitle name the real reference song. They are
+	// the ONLY fields here permitted to contain a real name, they are never part
+	// of a Suno prompt, and they are empty when the model declined to identify
+	// the song — callers must fall back to the raw reference string.
+	ReferenceArtist string `json:"referenceArtist"`
+	ReferenceTitle  string `json:"referenceTitle"`
 }
 
 // RefineRequest asks for a lyrics rewrite guided by Instruction (e.g. "do not

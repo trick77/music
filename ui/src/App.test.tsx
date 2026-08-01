@@ -123,6 +123,7 @@ function session(overrides: Partial<Session> = {}): Session {
     imageGenEnabled: false,
     studioEnabled: false,
     chatEnabled: false,
+    historyEnabled: false,
     alignmentEnabled: false,
     imageModels: [],
     defaultImageModel: "",

@@ -34,8 +34,10 @@ func (p *mimoProvider) Generate(ctx context.Context, req GenerateRequest, onProg
 		return GenerateResult{}, err
 	}
 	var turn1 struct {
-		StylePrompt string   `json:"stylePrompt"`
-		Genres      []string `json:"genres"`
+		StylePrompt     string   `json:"stylePrompt"`
+		Genres          []string `json:"genres"`
+		ReferenceArtist string   `json:"referenceArtist"`
+		ReferenceTitle  string   `json:"referenceTitle"`
 	}
 	if err := decodeTurn(raw, &turn1); err != nil {
 		return GenerateResult{}, err
@@ -52,7 +54,16 @@ func (p *mimoProvider) Generate(ctx context.Context, req GenerateRequest, onProg
 	// than trusting the reply. Any of them missing entirely is tolerated — the
 	// Identity card just shows fewer options — so they are not required fields.
 	res.Genres = sanitizeList(turn1.Genres, 3)
-	onPartial.emit(GenerateResult{StylePrompt: res.StylePrompt, Genres: res.Genres})
+	// Reference metadata is a label, not prompt content: trim it and let it be
+	// empty. It is deliberately not required — see GenerateResult's doc comment.
+	res.ReferenceArtist = strings.TrimSpace(turn1.ReferenceArtist)
+	res.ReferenceTitle = strings.TrimSpace(turn1.ReferenceTitle)
+	onPartial.emit(GenerateResult{
+		StylePrompt:     res.StylePrompt,
+		Genres:          res.Genres,
+		ReferenceArtist: res.ReferenceArtist,
+		ReferenceTitle:  res.ReferenceTitle,
+	})
 
 	onProgress.emit(Progress{Phase: "composing", Detail: "Writing the lyrics"})
 	raw, history, err = runTurn(ctx, p.chat, history, generateTurn2Prompt)

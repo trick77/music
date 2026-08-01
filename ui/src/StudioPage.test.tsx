@@ -8,7 +8,7 @@ import {
   within,
 } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import type { StudioProgress, StudioResult } from "./api";
+import type { StudioProgress, StudioResult, StudioRun } from "./api";
 
 // Studio's three network calls stream Server-Sent Events. Mocking them at the api
 // boundary lets a test hold a generation open and push progress into it, which is
@@ -20,6 +20,13 @@ vi.mock("./api", async () => {
     studioGenerate: vi.fn(),
     studioRefine: vi.fn(),
     generateStudioCoverArt: vi.fn(),
+    // History lives behind the same api barrel; the drawer and the saved-run
+    // sheet resolve their calls through this mock too, so they must be stubbed
+    // here or they reach real fetch in jsdom.
+    listStudioHistory: vi.fn(),
+    getStudioRun: vi.fn(),
+    deleteStudioRun: vi.fn(),
+    patchStudioRun: vi.fn(),
   };
 });
 
@@ -149,6 +156,7 @@ describe("StudioPage reference form", () => {
       "Enter Sandman",
       expect.any(Function), // progress
       expect.any(Function), // partial results
+      expect.any(Function), // the saved run's id
     );
   });
 });
@@ -445,6 +453,8 @@ describe("StudioPage lyric refinement", () => {
       "[Verse]\nthe river takes it back",
       "darker chorus",
       expect.any(Function),
+      // No history id: this run was never saved, so there is nothing to update.
+      "",
     );
   });
 
@@ -779,3 +789,361 @@ describe("StudioPage cover art", () => {
     ).toBeDisabled();
   });
 });
+
+describe("StudioPage history", () => {
+  // A1: an icon, no label, no badge.
+  it("offers a history icon beside Generate", () => {
+    render(<StudioPage historyEnabled />);
+    const btn = screen.getByRole("button", { name: "History" });
+    expect(btn).toBeInTheDocument();
+    expect(btn).not.toHaveTextContent(/\d/);
+  });
+
+  it("hides the history icon when there is no library configured", () => {
+    render(<StudioPage historyEnabled={false} />);
+    expect(
+      screen.queryByRole("button", { name: "History" }),
+    ).not.toBeInTheDocument();
+  });
+
+  // History is Suno-mode only for now; the image modes have their own surfaces.
+  it("hides the history icon outside Suno mode", async () => {
+    const user = userEvent.setup();
+    render(<StudioPage historyEnabled imageGenEnabled />);
+    await user.click(screen.getByRole("tab", { name: "Genre → Fanart" }));
+    expect(
+      screen.queryByRole("button", { name: "History" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("opens and closes the drawer", async () => {
+    const user = userEvent.setup();
+    mocked.listStudioHistory.mockResolvedValue({
+      runs: [],
+      total: 0,
+      nextBefore: 0,
+    });
+    render(<StudioPage historyEnabled />);
+    await user.click(screen.getByRole("button", { name: "History" }));
+    expect(await screen.findByText(/nothing here yet/i)).toBeInTheDocument();
+    await user.keyboard("{Escape}");
+    await waitFor(() =>
+      expect(screen.queryByText(/nothing here yet/i)).not.toBeInTheDocument(),
+    );
+  });
+
+  // Escape unwinds one surface at a time, topmost first.
+  it("closes the saved run before the drawer", async () => {
+    const user = userEvent.setup();
+    mocked.listStudioHistory.mockResolvedValue({
+      runs: [savedRun()],
+      total: 1,
+      nextBefore: 0,
+    });
+    mocked.getStudioRun.mockResolvedValue(savedRun());
+    render(<StudioPage historyEnabled />);
+    await user.click(screen.getByRole("button", { name: "History" }));
+    await user.click(
+      await screen.findByRole("button", { name: /^Enter Sandman/ }),
+    );
+    await screen.findByRole("dialog", { name: "Saved Studio run" });
+
+    await user.keyboard("{Escape}");
+    await waitFor(() =>
+      expect(
+        screen.queryByRole("dialog", { name: "Saved Studio run" }),
+      ).not.toBeInTheDocument(),
+    );
+    // The drawer is still up behind it.
+    expect(
+      screen.getByRole("dialog", { name: "Studio history" }),
+    ).toBeInTheDocument();
+
+    await user.keyboard("{Escape}");
+    await waitFor(() =>
+      expect(
+        screen.queryByRole("dialog", { name: "Studio history" }),
+      ).not.toBeInTheDocument(),
+    );
+  });
+
+  // Reopening a run puts its reference in the field so a fresh run can be
+  // started from it — a new entry, never a mutation of the saved one.
+  it("loads the reference back into the form when regenerating", async () => {
+    const user = userEvent.setup();
+    mocked.listStudioHistory.mockResolvedValue({
+      runs: [savedRun()],
+      total: 1,
+      nextBefore: 0,
+    });
+    mocked.getStudioRun.mockResolvedValue(savedRun());
+    render(<StudioPage historyEnabled />);
+    await user.click(screen.getByRole("button", { name: "History" }));
+    await user.click(
+      await screen.findByRole("button", { name: /^Enter Sandman/ }),
+    );
+    await user.click(
+      await screen.findByRole("button", { name: /generate this song again/i }),
+    );
+    await waitFor(() =>
+      expect(screen.getByLabelText("Song reference")).toHaveValue(
+        "Metallica, Enter Sandman",
+      ),
+    );
+    // Both surfaces get out of the way so the form is actually reachable.
+    expect(
+      screen.queryByRole("dialog", { name: "Studio history" }),
+    ).not.toBeInTheDocument();
+  });
+
+  // The id the server hands back must reach refine, or a refine creates a second
+  // entry instead of overwriting the first.
+  it("passes the saved run id to refine", async () => {
+    const user = userEvent.setup();
+    mocked.studioGenerate.mockImplementation(
+      async (_ref, _onP, _onPart, onSaved) => {
+        onSaved?.("run42");
+        return result({ lyrics: "[Verse]\nx" });
+      },
+    );
+    mocked.studioRefine.mockResolvedValue("[Verse]\nrewritten");
+    render(<StudioPage historyEnabled />);
+    await generate(user, "Metallica, Enter Sandman");
+    await screen.findByDisplayValue(/\[Verse\]/);
+    await user.type(
+      screen.getByLabelText("Refine lyrics instruction"),
+      "darker{Enter}",
+    );
+    await waitFor(() =>
+      expect(mocked.studioRefine).toHaveBeenCalledWith(
+        "Metallica, Enter Sandman",
+        "[Verse]\nx",
+        "darker",
+        expect.any(Function),
+        "run42",
+      ),
+    );
+  });
+
+  // A second generation must not refine the first one's row.
+  it("forgets the previous run id when a new generation starts", async () => {
+    const user = userEvent.setup();
+    let saved = "run42";
+    mocked.studioGenerate.mockImplementation(
+      async (_ref, _onP, _onPart, onSaved) => {
+        if (saved) onSaved?.(saved);
+        return result({ lyrics: "[Verse]\nx" });
+      },
+    );
+    mocked.studioRefine.mockResolvedValue("[Verse]\nrewritten");
+    render(<StudioPage historyEnabled />);
+    await generate(user, "First Song");
+    await screen.findByDisplayValue(/\[Verse\]/);
+
+    // The second run's server never sends a saved event (no store, say).
+    saved = "";
+    await user.clear(screen.getByLabelText("Song reference"));
+    await generate(user, "Second Song");
+    await screen.findByDisplayValue(/\[Verse\]/);
+    await user.type(
+      screen.getByLabelText("Refine lyrics instruction"),
+      "darker{Enter}",
+    );
+    await waitFor(() =>
+      expect(mocked.studioRefine).toHaveBeenCalledWith(
+        "Second Song",
+        "[Verse]\nx",
+        "darker",
+        expect.any(Function),
+        "",
+      ),
+    );
+  });
+
+  // A hand edit is saved too, so what you see is what is stored.
+  it("patches the saved run when the lyrics are hand-edited", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    mocked.studioGenerate.mockImplementation(
+      async (_ref, _onP, _onPart, onSaved) => {
+        onSaved?.("run42");
+        return result({ lyrics: "[Verse]\nx" });
+      },
+    );
+    mocked.patchStudioRun.mockResolvedValue(undefined);
+    render(<StudioPage historyEnabled />);
+    await generate(user, "Metallica, Enter Sandman");
+    const box = await screen.findByDisplayValue(/\[Verse\]/);
+
+    fireEvent.change(box, { target: { value: "[Verse]\nhand edited" } });
+    // Debounced: nothing goes out on the keystroke itself.
+    expect(mocked.patchStudioRun).not.toHaveBeenCalled();
+    await act(async () => {
+      vi.advanceTimersByTime(1000);
+    });
+    expect(mocked.patchStudioRun).toHaveBeenCalledWith("run42", {
+      lyrics: "[Verse]\nhand edited",
+    });
+  });
+
+  // Nothing to patch without a saved run — the call is skipped, not queued.
+  it("does not patch a run that was never saved", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    mocked.studioGenerate.mockResolvedValue(result({ lyrics: "[Verse]\nx" }));
+    render(<StudioPage historyEnabled />);
+    await generate(user, "Metallica, Enter Sandman");
+    const box = await screen.findByDisplayValue(/\[Verse\]/);
+    fireEvent.change(box, { target: { value: "[Verse]\nhand edited" } });
+    await act(async () => {
+      vi.advanceTimersByTime(1000);
+    });
+    expect(mocked.patchStudioRun).not.toHaveBeenCalled();
+  });
+
+  // Decision 3: the live run must not appear in its own history list.
+  it("tells the drawer which run is on screen", async () => {
+    const user = userEvent.setup();
+    mocked.studioGenerate.mockImplementation(
+      async (_ref, _onP, _onPart, onSaved) => {
+        onSaved?.("run42");
+        return result({ lyrics: "[Verse]\nx" });
+      },
+    );
+    mocked.listStudioHistory.mockResolvedValue({
+      runs: [
+        savedRun({ id: "run42", referenceTitle: "On Screen" }),
+        savedRun({ id: "older", referenceTitle: "Older" }),
+      ],
+      total: 2,
+      nextBefore: 0,
+    });
+    render(<StudioPage historyEnabled />);
+    await generate(user, "Metallica, Enter Sandman");
+    await screen.findByDisplayValue(/\[Verse\]/);
+    await user.click(screen.getByRole("button", { name: "History" }));
+    expect(await screen.findByText("Older")).toBeInTheDocument();
+    expect(screen.queryByText("On Screen")).not.toBeInTheDocument();
+  });
+
+  // Without this the cover image is generated, shown, and then lost: reopening
+  // the saved run would show no cover, and the whole coverArtId column would be
+  // dead weight.
+  it("attaches generated cover art to the saved run", async () => {
+    const user = userEvent.setup();
+    mocked.studioGenerate.mockImplementation(
+      async (_ref, _onP, _onPart, onSaved) => {
+        onSaved?.("run42");
+        return result({ coverArtPrompt: "a door" });
+      },
+    );
+    mocked.generateStudioCoverArt.mockResolvedValue({
+      id: "img1",
+      status: "ready",
+      width: 1024,
+      height: 1024,
+    });
+    mocked.patchStudioRun.mockResolvedValue(undefined);
+    render(<StudioPage historyEnabled imageGenEnabled />);
+    await generate(user, "Metallica, Enter Sandman");
+    await user.click(
+      await screen.findByRole("button", { name: /generate cover art/i }),
+    );
+    await waitFor(() =>
+      expect(mocked.patchStudioRun).toHaveBeenCalledWith("run42", {
+        coverArtId: "img1",
+      }),
+    );
+  });
+
+  // Nothing to attach it to, so the call is skipped rather than aimed at a
+  // guessed row.
+  it("does not attach cover art when the run was never saved", async () => {
+    const user = userEvent.setup();
+    mocked.studioGenerate.mockResolvedValue(
+      result({ coverArtPrompt: "a door" }),
+    );
+    mocked.generateStudioCoverArt.mockResolvedValue({
+      id: "img1",
+      status: "ready",
+      width: 1024,
+      height: 1024,
+    });
+    render(<StudioPage historyEnabled imageGenEnabled />);
+    await generate(user, "Metallica, Enter Sandman");
+    await user.click(
+      await screen.findByRole("button", { name: /generate cover art/i }),
+    );
+    await screen.findByRole("img", { name: /generated cover art/i });
+    expect(mocked.patchStudioRun).not.toHaveBeenCalled();
+  });
+
+  // Leaving Studio within the debounce window must not silently discard the
+  // words the user just typed.
+  it("flushes a pending hand edit when the page unmounts", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    mocked.studioGenerate.mockImplementation(
+      async (_ref, _onP, _onPart, onSaved) => {
+        onSaved?.("run42");
+        return result({ lyrics: "[Verse]\nx" });
+      },
+    );
+    mocked.patchStudioRun.mockResolvedValue(undefined);
+    const { unmount } = render(<StudioPage historyEnabled />);
+    await generate(user, "Metallica, Enter Sandman");
+    const box = await screen.findByDisplayValue(/\[Verse\]/);
+    fireEvent.change(box, { target: { value: "[Verse]\nedited then left" } });
+    expect(mocked.patchStudioRun).not.toHaveBeenCalled();
+
+    unmount();
+    expect(mocked.patchStudioRun).toHaveBeenCalledWith("run42", {
+      lyrics: "[Verse]\nedited then left",
+    });
+  });
+
+  // A new generation abandons the previous run's pending edit outright — it
+  // belongs to a row that is no longer on screen.
+  it("drops a pending hand edit when a new generation starts", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    mocked.studioGenerate.mockImplementation(
+      async (_ref, _onP, _onPart, onSaved) => {
+        onSaved?.("run42");
+        return result({ lyrics: "[Verse]\nx" });
+      },
+    );
+    const { unmount } = render(<StudioPage historyEnabled />);
+    await generate(user, "First Song");
+    const box = await screen.findByDisplayValue(/\[Verse\]/);
+    fireEvent.change(box, { target: { value: "[Verse]\nabandoned" } });
+
+    await user.clear(screen.getByLabelText("Song reference"));
+    await generate(user, "Second Song");
+    await screen.findByDisplayValue(/\[Verse\]/);
+    unmount();
+    expect(mocked.patchStudioRun).not.toHaveBeenCalled();
+  });
+});
+
+// savedRun is a stored run as the history endpoints return it.
+function savedRun(over: Partial<StudioRun> = {}): StudioRun {
+  return {
+    id: "r1",
+    reference: "Metallica, Enter Sandman",
+    referenceArtist: "Metallica",
+    referenceTitle: "Enter Sandman",
+    stylePrompt: "1991,thrash metal",
+    lyrics: "[Verse]\nsaved",
+    coverArtPrompt: "a door",
+    genres: ["thrash metal"],
+    bands: ["Hollow Sabbath"],
+    titles: ["Sleep Is a Door"],
+    albums: ["Nightfall Sessions"],
+    coverArtId: "",
+    refineCount: 0,
+    createdAt: "2026-08-01 10:00:00",
+    updatedAt: "2026-08-01 10:00:00",
+    ...over,
+  };
+}

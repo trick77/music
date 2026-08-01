@@ -297,6 +297,58 @@ func TestPrompts_sunoTagsAreStaticNotResearched(t *testing.T) {
 	}
 }
 
+// flattenWS collapses every run of whitespace to a single space, so a prompt
+// assertion can quote a whole sentence without depending on where the const
+// happens to wrap.
+func flattenWS(s string) string { return strings.Join(strings.Fields(s), " ") }
+
+// The lyric killer is not a rare-word problem: "there is signal in the noise" is
+// built from common words, so the thesaurus rule never caught it. The craft rules
+// must name the aphorism failure mode outright and carry the say-it-to-a-person
+// test — and because refine rewrites lyrics from the same rules, both lyric
+// prompts have to embed them or the first revision hands the clichés back.
+func TestPrompts_lyricRulesBanMachineAphorisms(t *testing.T) {
+	// Assert against the whitespace-flattened prompt: these consts are hand-wrapped
+	// at ~80 columns, so a raw Contains on a full sentence breaks the moment someone
+	// reflows a paragraph — a failure that says nothing about the rule being gone.
+	rules := flattenWS(lyricCraftRules)
+	for _, want := range []string{
+		"NO MACHINE APHORISMS",
+		"WOULD ONE PERSON SAY THIS SENTENCE OUT LOUD TO ANOTHER PERSON?",
+		"there is signal in the noise",
+		"What is banned is the FRAME",
+	} {
+		if !strings.Contains(rules, want) {
+			t.Fatalf("craft rules lost the anti-cliché rule, missing %q: %q", want, lyricCraftRules)
+		}
+	}
+	for name, p := range map[string]string{"generate turn 2": generateTurn2Prompt, "refine": refineSystemPrompt} {
+		if !strings.Contains(p, lyricCraftRules) {
+			t.Fatalf("%s prompt is missing the shared craft rules: %q", name, p)
+		}
+	}
+}
+
+// "clean vocals" on every song is a non-description. Turn 1 must ask for the
+// lead vocal's register — while still refusing to name the singer's sex, which
+// stays a literal-wording ban rather than a ban on describing the voice at all.
+func TestPrompts_styleAsksForVocalRegister(t *testing.T) {
+	turn1 := flattenWS(generateTurn1Prompt)
+	for _, want := range []string{
+		"DESCRIBE THE VOICE, starting with its REGISTER",
+		`"baritone lead vocal"`,
+		`NEVER write "male vocals", "female vocals"`,
+	} {
+		if !strings.Contains(turn1, want) {
+			t.Fatalf("turn 1 lost the vocal-register rule, missing %q: %q", want, generateTurn1Prompt)
+		}
+	}
+	// The old blanket ban must be gone, or the register requirement contradicts it.
+	if strings.Contains(turn1, "Do NOT describe vocal character") {
+		t.Fatalf("turn 1 still carries the blanket vocal ban: %q", generateTurn1Prompt)
+	}
+}
+
 // Refine must NOT re-run the web-research/discovery loop: it should be a single
 // tool-less completion, so the model is handed no tools and no tool is dispatched.
 func TestRefine_doesNotResearch(t *testing.T) {

@@ -170,7 +170,6 @@ export function StudioHistoryDrawer({ onClose, onOpen, currentRunId }: Props) {
               display: "flex",
               alignItems: "center",
               gap: "var(--space-2)",
-              color: "var(--color-muted)",
               ...t.label,
             }}
           >

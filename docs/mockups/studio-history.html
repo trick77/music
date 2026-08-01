@@ -218,6 +218,34 @@
   }
   .banner.warn { border-left-color: var(--color-accent); color: color-mix(in srgb, var(--color-ink) 80%, transparent); }
 
+  /* ── A trigger variants ───────────────────────────────────── */
+  .tri-h { font-size: var(--text-ui); margin-bottom: var(--space-2); }
+  .btn.icon { display: inline-grid; place-items: center; padding: 8px 10px; color: var(--color-muted); }
+  .btn.icon:hover { color: var(--color-ink); }
+  .link { color: var(--color-accent-strong); cursor: pointer; }
+  .link:hover { text-decoration: underline; }
+  .edge-tab {
+    position: absolute; right: 0; top: 46%; transform: translateY(-50%);
+    display: flex; align-items: center; gap: 7px;
+    background: var(--color-panel); border: 1px solid var(--color-border); border-right: 0;
+    border-radius: var(--radius-ui) 0 0 var(--radius-ui);
+    padding: 10px 12px; color: var(--color-muted);
+    font-size: var(--text-label); cursor: pointer;
+    box-shadow: -6px 0 18px rgba(0,0,0,.3);
+  }
+  .edge-tab:hover { color: var(--color-ink); background: var(--color-active); }
+  .menu {
+    margin: 8px 0 0 auto; width: 200px;
+    background: var(--color-elevated); border: 1px solid var(--color-elevated-border);
+    border-radius: var(--radius-ui); padding: 5px;
+    box-shadow: 0 12px 28px rgba(0,0,0,.45);
+  }
+  .mi {
+    display: flex; align-items: center; gap: 9px; padding: 7px 10px;
+    border-radius: 7px; font-size: var(--text-ui); cursor: pointer;
+  }
+  .mi:hover { background: var(--color-elevated-hover, #3f3f3a); }
+
   /* full read-only run */
   .ideas { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 16px 20px; }
   .col-lbl {
@@ -280,12 +308,15 @@
 
   <!-- A -->
   <div class="opt">
-    <div class="opt-head"><span class="tag">A</span><h2>Side drawer</h2></div>
+    <div class="opt-head"><span class="tag">A · picked</span><h2>Side drawer</h2></div>
     <p class="note">
-      A “History” button next to Generate slides a panel in from the right. The
+      A control next to Generate slides a panel in from the right. The
       work area never moves; the drawer is closed by default so the page opens
       exactly as it does today. On a phone it becomes a full-height sheet.
-      <span class="verdict"><b>Cost:</b> history is invisible until you go looking for it.</span>
+      Matches <code>QueueDrawer</code>, which the app already has: fixed to the right,
+      340px, closed with Escape.
+      <span class="verdict"><b>Cost:</b> history is invisible until you go looking for it —
+      which is what makes the trigger worth getting right (<span class="link"><a href="#triggers" style="color:inherit">five options below</a></span>).</span>
     </p>
     <div class="frame">
       <div class="frame-bar"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="frame-title">Studio — drawer open</span></div>
@@ -299,7 +330,9 @@
           <div class="row">
             <div class="input filled">Talking Heads, This Must Be the Place</div>
             <button class="btn">Generate</button>
-            <button class="btn sec">History <span style="opacity:.6">12</span></button>
+            <button class="btn sec icon" title="History" aria-label="History">
+              <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l4 2"/></svg>
+            </button>
           </div>
           <p class="hint">Runs are kept so you can look them up later. Only the run on screen can be refined.</p>
           <div style="margin-top:var(--space-6)">
@@ -330,6 +363,121 @@
           </ul>
         </aside>
       </div>
+    </div>
+  </div>
+
+  <!-- A trigger options -->
+  <div class="opt" id="triggers">
+    <div class="opt-head"><span class="tag">A · picked</span><h2>What opens the drawer?</h2></div>
+    <p class="note">
+      The panel is settled. The trigger is not — a second filled button sitting next
+      to Generate competes with the one action that matters on this page, and a
+      count badge makes a quiet feature look like an inbox. Five quieter ways in.
+      All open the same drawer; all close on Escape, like the queue drawer already does.
+    </p>
+
+    <div class="cols">
+
+      <div>
+        <h2 class="tri-h"><span class="tag">A1</span> &nbsp;Icon only, no count</h2>
+        <p class="caption">Same position, but stripped to a clock-arrow glyph with a tooltip. Reads as a utility rather than a second call to action. The count moves inside the drawer header, where it is information instead of a nag.</p>
+        <div class="frame"><div class="studio" style="padding:var(--space-4)">
+          <div class="row">
+            <div class="input filled">Talking Heads, This Must Be the Place</div>
+            <button class="btn">Generate</button>
+            <button class="btn sec icon" title="History" aria-label="History">
+              <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l4 2"/></svg>
+            </button>
+          </div>
+          <p class="hint">Runs are kept so you can look them up later.</p>
+        </div></div>
+      </div>
+
+      <div>
+        <h2 class="tri-h"><span class="tag">A2</span> &nbsp;A link in the hint line</h2>
+        <p class="caption">No button at all. The explanatory line under the input already tells you runs are kept — so the words “12 earlier runs” in that same sentence become the way in. Zero new chrome; the action row stays a single button.</p>
+        <div class="frame"><div class="studio" style="padding:var(--space-4)">
+          <div class="row">
+            <div class="input filled">Talking Heads, This Must Be the Place</div>
+            <button class="btn">Generate</button>
+          </div>
+          <p class="hint">Runs are kept so you can look them up later — <span class="link">12 earlier runs</span>.</p>
+        </div></div>
+      </div>
+
+      <div>
+        <h2 class="tri-h"><span class="tag">A3</span> &nbsp;Beside the page title</h2>
+        <p class="caption">Out of the action row entirely: a quiet text button on the title line, top-right. Nothing near Generate changes, and it stays put while the mode tabs and the form below shift around.</p>
+        <div class="frame"><div class="studio" style="padding:var(--space-4)">
+          <div style="display:flex;justify-content:space-between;align-items:baseline;gap:var(--space-3)">
+            <h3 class="studio-h" style="font-size:var(--text-title)">Studio</h3>
+            <span class="link" style="display:inline-flex;align-items:center;gap:6px">
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l4 2"/></svg>
+              History
+            </span>
+          </div>
+          <p class="sub" style="margin-bottom:var(--space-4)">Turn a song into a Suno prompt.</p>
+          <div class="row">
+            <div class="input filled">Talking Heads, This Must Be the Place</div>
+            <button class="btn">Generate</button>
+          </div>
+        </div></div>
+      </div>
+
+      <div>
+        <h2 class="tri-h"><span class="tag">A4</span> &nbsp;Edge tab</h2>
+        <p class="caption">A slim tab pinned to the right edge of the viewport — always visible, never in the layout, and it reads as “there is a panel behind this”. Costs a floating element that has to dodge the player bar on a phone.</p>
+        <div class="frame" style="position:relative;overflow:hidden">
+          <div class="studio" style="padding:var(--space-4)">
+            <div class="row">
+              <div class="input filled">Talking Heads, This Must Be the Place</div>
+              <button class="btn">Generate</button>
+            </div>
+            <p class="hint">Runs are kept so you can look them up later.</p>
+            <div style="margin-top:var(--space-4)">
+              <div class="card" style="color:var(--color-muted)">[Verse]<br />I found the road by the water tower…</div>
+            </div>
+          </div>
+          <div class="edge-tab">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l4 2"/></svg>
+            <span>History</span>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <h2 class="tri-h"><span class="tag">A5</span> &nbsp;Overflow menu</h2>
+        <p class="caption">A “⋯” beside Generate holding History — and room for whatever comes next (Clear history, Export). The app already has a Menu component. Costs a click and hides the feature one level down.</p>
+        <div class="frame"><div class="studio" style="padding:var(--space-4);padding-bottom:var(--space-6)">
+          <div class="row">
+            <div class="input filled">Talking Heads, This Must Be the Place</div>
+            <button class="btn">Generate</button>
+            <button class="btn sec icon" aria-label="More">⋯</button>
+          </div>
+          <div class="menu">
+            <div class="mi">
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l4 2"/></svg>
+              History <span style="color:var(--color-muted);margin-left:auto">12</span>
+            </div>
+            <div class="mi" style="color:var(--color-muted)">Clear history…</div>
+          </div>
+        </div></div>
+      </div>
+
+      <div>
+        <h2 class="tri-h"><span class="tag q">note</span> &nbsp;Where the count goes</h2>
+        <p class="caption">If the trigger loses its badge, the drawer header carries the number instead — plus an empty state for the first-ever visit, which the badge versions have no answer for.</p>
+        <div class="frame"><div class="stage"><aside class="drawer" style="width:100%;border-left:0;padding:var(--space-4)">
+          <h4 style="margin-bottom:var(--space-3)">History <span style="color:var(--color-muted);font-weight:400">12 runs</span> <span class="x">✕</span></h4>
+          <ul class="hist">
+            <li class="entry live"><span class="live-dot"></span><span class="who"><span class="ref">This Must Be the Place</span><br /><span class="meta">Talking Heads</span></span><span class="pill now">On screen</span></li>
+            <li class="entry"><span class="who"><span class="ref">Enter Sandman</span><br /><span class="meta">Metallica</span></span><span class="when">2h</span><span class="lock">🔒</span></li>
+          </ul>
+          <div class="divider" style="margin-top:var(--space-5)">or, first visit</div>
+          <p class="hint" style="margin:0">Nothing here yet. Generate a song and it will be kept so you can come back to it.</p>
+        </aside></div></div>
+      </div>
+
     </div>
   </div>
 

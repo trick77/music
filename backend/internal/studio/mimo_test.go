@@ -123,6 +123,9 @@ func TestGenerate_parsesThreeFieldsFromFencedJSON(t *testing.T) {
 	if !strings.Contains(chat.users[1], "[Verse]") {
 		t.Fatalf("lyrics turn should mention Suno tags: %q", chat.users[1])
 	}
+	if !strings.Contains(chat.users[1], "SUNO TAG VOCABULARY") {
+		t.Fatalf("lyrics turn should carry the static tag vocabulary: %q", chat.users[1])
+	}
 	if !strings.Contains(chat.users[1], "SENSE BEFORE RHYME") {
 		t.Fatalf("lyrics turn should carry the craft rules: %q", chat.users[1])
 	}
@@ -267,6 +270,30 @@ func TestRefine_returnsUpdatedLyricsAndPassesInstruction(t *testing.T) {
 	}
 	if !strings.Contains(chat.lastUser, "old words") {
 		t.Fatalf("current lyrics missing from refine prompt: %q", chat.lastUser)
+	}
+}
+
+// The Suno tag vocabulary is static data in the repo, NOT something to look up:
+// researching it cost a web round-trip (and user wait) on every generation to
+// rediscover the same bracket tags. The system prompt must therefore ship the
+// standing "don't search for Suno tags" instruction, and both lyric-writing
+// prompts must carry the vocabulary themselves so the model never needs to.
+func TestPrompts_sunoTagsAreStaticNotResearched(t *testing.T) {
+	if strings.Contains(generateSystemPrompt, "CURRENT set of Suno") {
+		t.Fatalf("system prompt still tells the model to research Suno tags: %q", generateSystemPrompt)
+	}
+	if !strings.Contains(generateSystemPrompt, "never spend a search") {
+		t.Fatalf("system prompt should forbid searching for Suno tags: %q", generateSystemPrompt)
+	}
+	// Both prompts that emit lyrics must carry the same vocabulary — a refine pass
+	// missing it would drift away from the tags generate was told to use.
+	for name, p := range map[string]string{"generate turn 2": generateTurn2Prompt, "refine": refineSystemPrompt} {
+		if !strings.Contains(p, sunoTagReference) {
+			t.Fatalf("%s prompt is missing the static Suno tag vocabulary: %q", name, p)
+		}
+		if strings.Contains(p, "confirmed are current") {
+			t.Fatalf("%s prompt still defers to researched tags: %q", name, p)
+		}
 	}
 }
 

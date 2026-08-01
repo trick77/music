@@ -11,8 +11,11 @@ import (
 )
 
 // maxToolRounds bounds the research loop: after this many tool-calling rounds, a
-// tool-free final turn forces the model to answer.
-const maxToolRounds = 6
+// tool-free final turn forces the model to answer. It is deliberately tight —
+// the only thing left to research is what THIS song sounds like (the Suno tag
+// vocabulary is static, see sunoTagReference), which is a search and a fetch or
+// two. Every extra round the model takes is wait time the user watches.
+const maxToolRounds = 4
 
 // toolProvider is the subset of mcp.Service the loop needs (fakeable in tests).
 type toolProvider interface {

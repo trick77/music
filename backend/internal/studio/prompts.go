@@ -45,6 +45,31 @@ Worked example of the trap to avoid:
         — nothing forced, plain words, an actual picture; the rhyme is dropped
         rather than faked.`
 
+// sunoTagReference is the Suno meta/structure tag vocabulary, kept STATIC ON
+// PURPOSE. It used to be researched: the system prompt told the model to search
+// for "the CURRENT set of Suno tags" on every single generation, which cost a
+// web round-trip and the user's wait time to rediscover the same handful of
+// bracket tags every time. Suno's tag set moves slowly and these are the stable
+// core, so we pay that cost once here in the repo instead of once per song.
+// Captured 2026-08-01 — if Suno's vocabulary shifts, EDIT THIS LIST; do not put
+// the search back.
+//
+// It is one const because every prompt that emits lyrics (generate turn 2 and
+// refine) must offer the same vocabulary — the same reason lyricCraftRules is
+// shared.
+const sunoTagReference = `SUNO TAG VOCABULARY — bracket tags go on their own line, immediately before the
+lines they govern, and are directions rather than words to be sung:
+- Structure: [Intro], [Verse], [Verse 1], [Verse 2], [Pre-Chorus], [Chorus],
+  [Final Chorus], [Post-Chorus], [Bridge], [Hook], [Refrain], [Break],
+  [Interlude], [Build], [Drop], [Breakdown], [Outro], [Fade Out], [End]
+- Instrumental: [Instrumental], [Instrumental Break], [Guitar Solo], [Bass Solo],
+  [Drum Solo], [Piano Solo], [Sax Solo], [Percussion Break], [A Cappella]
+- Delivery: [Whispered], [Spoken Word], [Belted], [Falsetto], [Harmonies],
+  [Layered Vocals], [Call and Response], [Chant], [Ad Libs], [Big Finish]
+Prefer this core vocabulary: these are the tags Suno honors most reliably, and
+short plain-English tags beat invented ones. Tags are hints, not commands — Suno
+follows them most of the time and may ignore one.`
+
 // generateSystemPrompt frames the whole generate conversation. The deliverables
 // are split across three turns of one message history (see generateTurn*Prompt)
 // rather than crammed into a single reply: each turn has one job, the craft
@@ -53,9 +78,9 @@ Worked example of the trap to avoid:
 const generateSystemPrompt = `You are a music producer's assistant that turns a named reference song into a
 Suno AI prompt. You do NOT have reliable knowledge of any specific song's exact
 details or lyrics, so you MUST research the song on the web first using the
-available tools (web search, and page fetch when available). Also search for the
-CURRENT set of Suno prompt/meta tags — Suno's supported tags change over time —
-and prefer tags you can confirm are current.
+available tools (web search, and page fetch when available). Research THE SONG
+ONLY — the Suno tag vocabulary is supplied to you later, so never spend a search
+on Suno's tags, prompt format, or documentation.
 
 The work comes in THREE turns, each asking for one part: first the style prompt
 and genres, then the lyrics, then the naming and cover art. Do ALL your web
@@ -118,13 +143,11 @@ it. Write them to be natural and singable; do not paraphrase the original line f
 line or swap out single words, which produces awkward, unusable phrasing. For
 copyright, what matters is that you do NOT reproduce the reference song's
 distinctive lines, its hook, or its chorus verbatim — ordinary words, common
-images, and the shared theme are free to use. Structure them with Suno meta/structure tags such as
-[Intro], [Verse], [Pre-Chorus], [Chorus], [Post-Chorus], [Bridge], [Hook],
-[Instrumental], [Guitar Solo], [Break], [Build], [Drop], [Outro], [Fade Out],
-and performance cues like [Whispered], [Spoken Word], [Belted], [Big Finish].
-Use tags you confirmed are current; the list above is a floor, not a ceiling.
-They must fit the style prompt you just wrote, and they must obey the CRAFT
-RULES below — those matter as much as the theme.
+images, and the shared theme are free to use. Structure them with the Suno
+meta/structure tags listed below. They must fit the style prompt you just wrote,
+and they must obey the CRAFT RULES below — those matter as much as the theme.
+
+` + sunoTagReference + `
 
 ` + lyricCraftRules + `
 
@@ -177,11 +200,13 @@ fences):
 const refineSystemPrompt = `You revise Suno lyrics. You are given a reference song, the current ORIGINAL
 lyrics, and a refinement instruction. Rewrite the lyrics to satisfy the
 instruction while keeping them natural, singable, on-theme, and structured with
-Suno meta/structure tags ([Verse], [Chorus], [Bridge], etc.). Keep them original:
+the Suno meta/structure tags listed below. Keep them original:
 do not reproduce the reference song's distinctive lines, hook, or chorus verbatim,
 but do not word-swap or paraphrase the original into awkward phrasing either —
 ordinary words and the shared theme are fine. Do not research; rewrite only the
 lyrics you are given.
+
+` + sunoTagReference + `
 
 ` + lyricCraftRules + `
 

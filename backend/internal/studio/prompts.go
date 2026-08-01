@@ -67,8 +67,10 @@ lines they govern, and are directions rather than words to be sung:
 - Delivery: [Whispered], [Spoken Word], [Belted], [Falsetto], [Harmonies],
   [Layered Vocals], [Call and Response], [Chant], [Ad Libs], [Big Finish]
 Prefer this core vocabulary: these are the tags Suno honors most reliably, and
-short plain-English tags beat invented ones. Tags are hints, not commands — Suno
-follows them most of the time and may ignore one.`
+short plain-English tags beat invented ones. It is still a floor, not a ceiling —
+if the song genuinely calls for another well-known tag, use it (just do not
+research one). Tags are hints, not commands — Suno follows them most of the time
+and may ignore one.`
 
 // generateSystemPrompt frames the whole generate conversation. The deliverables
 // are split across three turns of one message history (see generateTurn*Prompt)

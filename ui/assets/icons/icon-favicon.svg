@@ -37,9 +37,15 @@
   completely, at the price of being a square tile in every tab. The chip was
   chosen with both rendered in real Safari tabs side by side.
 
-  Coverage stays at tile.svg's 96% rather than dropping to the tiles' 60%: the
-  tiled sources inset because the OS crops them, which a tab does not, and
-  YouTube's own rect runs near edge to edge for the same reason.
+  Coverage stays at tile.svg's — now 89.75% — rather than dropping to the tiles'
+  inset: the tiled sources inset because the OS crops them, which a tab does
+  not, and YouTube's own rect runs near edge to edge for the same reason. It was
+  96%, and came in by one pixel at 16px (15.36px of frame to 14.36px) because
+  the chip read as sitting hard against the tab's own padding rather than inside
+  it. That pixel is not free on the favourites bar: the plate below shows
+  through about half a pixel more on each side than it did, on top of the corner
+  leak already described above. Both surfaces were rendered side by side and the
+  smaller chip is the one that was chosen.
 
   #33322f, NOT the #1f1f1e the two OS tiles use. Those sit large against a home
   screen; this sits at 16px against a white tab, where #1f1f1e (L* 11.7) reads
@@ -60,7 +66,7 @@
     <stop offset="0" stop-color="#e08a68"/>
     <stop offset="1" stop-color="#c25f34"/>
   </linearGradient>
-  <g transform="translate(-4.8640 -4.8640) scale(3.07200)" fill="none" stroke="url(#og)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <g transform="translate(-2.4640 -2.4640) scale(2.87200)" fill="none" stroke="url(#og)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
     <rect x="3" y="3" width="18" height="18" rx="2" fill="#33322f"/>
     <g transform="translate(5.8537 5.8537) scale(0.51220)">
       <path d="M3 14h3a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-7a9 9 0 0 1 18 0v7a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3"/>

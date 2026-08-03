@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Regenerate every favicon / PWA / share-card raster from the three SVG sources
+# Regenerate every favicon / PWA / share-card raster from the four SVG sources
 # in assets/icons/. Run it by hand after editing any of them and commit what it
 # writes.
 #

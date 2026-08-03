@@ -59,6 +59,46 @@ func TestShareMeta_songEmitsOGTags(t *testing.T) {
 	}
 }
 
+// TestShareMeta_songBlockIsExact pins the whole injected block, not just that
+// individual tags are present. The tags are interdependent — twitter:card has to
+// agree with og:image:width/height, and a square card declared as
+// summary_large_image is what made Slack unfurl song links with no cover art —
+// so asserting them one at a time lets the combination drift while every
+// individual assertion still passes.
+func TestShareMeta_songBlockIsExact(t *testing.T) {
+	h := testServer(t, config.AuthModeDev)
+	sid := uploadSongID(t, h)
+	doJSON(t, h, "POST", "/api/songs/"+sid+"/publish", "")
+
+	rr := httptest.NewRecorder()
+	req := httptest.NewRequest("GET", "/song/"+sid, nil)
+	req.Host = "music.example.com"
+	req.Header.Set("X-Forwarded-Proto", "https")
+	h.ServeHTTP(rr, req)
+
+	base := "https://music.example.com"
+	card := base + "/api/share/song/" + sid + "/card.jpg"
+	want := strings.Join([]string{
+		`<meta property="og:site_name" content="Music">`,
+		`<meta property="og:type" content="music.song">`,
+		`<meta property="og:title" content="Test Song">`,
+		`<meta property="og:description" content="Test Artist">`,
+		`<meta property="og:url" content="` + base + `/song/` + sid + `">`,
+		`<meta name="twitter:card" content="summary">`,
+		`<meta name="twitter:title" content="Test Song">`,
+		`<meta name="twitter:description" content="Test Artist">`,
+		`<meta property="og:image" content="` + card + `">`,
+		`<meta name="twitter:image" content="` + card + `">`,
+		`<meta property="og:image:width" content="1200">`,
+		`<meta property="og:image:height" content="1200">`,
+		"",
+	}, "\n")
+
+	if body := rr.Body.String(); !strings.Contains(body, want) {
+		t.Fatalf("injected block does not match.\nwant:\n%s\ngot:\n%s", want, body)
+	}
+}
+
 func TestShareMeta_escapesHostileTitle(t *testing.T) {
 	h := testServer(t, config.AuthModeDev)
 	sid := uploadSongID(t, h)

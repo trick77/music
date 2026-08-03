@@ -53,10 +53,27 @@ vi.mock("./Detail", () => ({
 vi.mock("./VisualizerView", () => ({
   VisualizerView: () => <div data-testid="visualizer" />,
 }));
+// onSaved is exposed as a button so a test can play the part of a completed tag
+// save without driving the real editor's form, which has its own suite.
 vi.mock("./TagEditor", () => ({
-  TagEditor: ({ onClose }: { onClose: () => void }) => (
+  TagEditor: ({
+    song,
+    onClose,
+    onSaved,
+  }: {
+    song: Song;
+    onClose: () => void;
+    onSaved: (s: Song) => void;
+  }) => (
     <div data-testid="tageditor">
       <button onClick={onClose}>close-editor</button>
+      <button
+        onClick={() =>
+          onSaved({ ...song, artistName: "Singers", coverArtId: "cov-new" })
+        }
+      >
+        save-editor
+      </button>
     </div>
   ),
 }));
@@ -78,10 +95,28 @@ vi.mock("./AddToPlaylist", () => ({
 // Library renders the App-level song list, so it is exercised for real rather
 // than stubbed — the list contents are part of what App is responsible for.
 vi.mock("./Library", () => ({
-  Library: ({ songs, initialTab }: { songs: Song[]; initialTab: string }) => (
+  Library: ({
+    songs,
+    initialTab,
+    renderRowActions,
+  }: {
+    songs: Song[];
+    initialTab: string;
+    renderRowActions: (s: Song) => React.ReactNode;
+  }) => (
     <div data-testid="library" data-tab={initialTab}>
       {songs.map((s) => (
-        <div key={s.id}>{s.title}</div>
+        // artist/cover are surfaced as attributes rather than text so the rows
+        // stay queryable by title alone, the way the other tests expect.
+        <div
+          key={s.id}
+          data-testid={`row-${s.id}`}
+          data-artist={s.artistName}
+          data-cover={s.coverArtId}
+        >
+          {s.title}
+          {renderRowActions(s)}
+        </div>
       ))}
     </div>
   ),
@@ -375,8 +410,11 @@ describe("App upload", () => {
 
     expect(mocked.uploadSong).toHaveBeenCalledWith(file, expect.any(Function));
     // New uploads land unpublished, and the toast has to say so or the user has
-    // no idea why the track is not on the public surface.
-    expect(await screen.findByText(/unpublished/i)).toBeInTheDocument();
+    // no idea why the track is not on the public surface. Matched on the whole
+    // message: the row's own "Unpublished" badge also says the word.
+    expect(
+      await screen.findByText(/uploaded .*— unpublished/i),
+    ).toBeInTheDocument();
     await waitFor(() => expect(window.location.pathname).toBe("/unpublished"));
   });
 
@@ -532,5 +570,93 @@ describe("App stray file drops", () => {
     window.dispatchEvent(ev);
 
     expect(ev.defaultPrevented).toBe(false);
+  });
+});
+
+// artists.name_key is UNIQUE on the backend, so a case fix to one song's artist
+// renames the artist for every song by them. The cached list has to reflect that
+// straight away, or the siblings sit on the old spelling until a reload.
+describe("App tag-save propagation", () => {
+  async function saveEditFor(id: string) {
+    const user = userEvent.setup();
+    go("/library");
+    const view = await renderApp();
+    await user.click(
+      screen.getByTestId(`row-${id}`).querySelector("[aria-label=more]")!,
+    );
+    await user.click(screen.getByText("Edit…"));
+    await user.click(screen.getByText("save-editor"));
+    return view;
+  }
+
+  it("when an artist is renamed, then same-artist siblings pick up the new spelling", async () => {
+    mocked.listSongs.mockResolvedValue([
+      song({ id: "s1", artistName: "SIngers", album: "Choir" }),
+      song({
+        id: "s2",
+        title: "Second",
+        artistName: "SIngers",
+        album: "Choir",
+      }),
+      song({ id: "s3", title: "Third", artistName: "Other", album: "Choir" }),
+    ]);
+
+    await saveEditFor("s1");
+
+    await waitFor(() =>
+      expect(screen.getByTestId("row-s1")).toHaveAttribute(
+        "data-artist",
+        "Singers",
+      ),
+    );
+    // The sibling was never edited, but it is the same artist row on the server.
+    expect(screen.getByTestId("row-s2")).toHaveAttribute(
+      "data-artist",
+      "Singers",
+    );
+    // A different artist must not be swept up in the rename.
+    expect(screen.getByTestId("row-s3")).toHaveAttribute(
+      "data-artist",
+      "Other",
+    );
+  });
+
+  it("when a renamed song also carries a cover, then only same-album siblings adopt it", async () => {
+    mocked.listSongs.mockResolvedValue([
+      song({ id: "s1", artistName: "SIngers", album: "Choir" }),
+      song({
+        id: "s2",
+        title: "Second",
+        artistName: "SIngers",
+        album: "Choir",
+      }),
+      song({
+        id: "s3",
+        title: "Third",
+        artistName: "SIngers",
+        album: "Other Album",
+      }),
+    ]);
+
+    await saveEditFor("s1");
+
+    // Same artist + same album: takes both the new name and the shared cover.
+    await waitFor(() =>
+      expect(screen.getByTestId("row-s2")).toHaveAttribute(
+        "data-cover",
+        "cov-new",
+      ),
+    );
+    expect(screen.getByTestId("row-s2")).toHaveAttribute(
+      "data-artist",
+      "Singers",
+    );
+    // Same artist, different album: renamed, but keeps its own cover. The two
+    // mirrors have different reach, so neither may swallow the other.
+    expect(screen.getByTestId("row-s3")).toHaveAttribute(
+      "data-artist",
+      "Singers",
+    );
+    expect(screen.getByTestId("row-s3")).toHaveAttribute("data-cover", "");
   });
 });

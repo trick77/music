@@ -476,6 +476,9 @@ export function App() {
   // to every song of the artist+album). So when the updated song carries a cover
   // for a non-empty album, mirror it onto its cached siblings too — otherwise
   // setting a cover on one track would leave the others stale until a reload.
+  // Likewise, an artist is one row keyed on the case-folded name (backend invariant:
+  // artists.name_key is UNIQUE), so renaming one song's artist renames it for all of
+  // them — mirror the new spelling onto the cached siblings for the same reason.
   // Mirror the backend's albumKey/artist name_key: trim + lower-case.
   const norm = (s: string) => s.trim().toLowerCase();
   const propagateSong = (updated: Song) => {
@@ -490,16 +493,21 @@ export function App() {
     setSongs((prev) =>
       prev.map((s) => {
         if (s.id === updated.id) return updated;
+        // Two mirrors with different reach, so they accumulate rather than return
+        // early: the name applies to every song by the artist, the cover only to
+        // the ones sharing the album.
+        const sameArtist = norm(s.artistName) === norm(updated.artistName);
+        let next = s;
+        if (sameArtist && s.artistName !== updated.artistName)
+          next = { ...next, artistName: updated.artistName };
         if (
           shareCover &&
-          norm(s.artistName) === norm(updated.artistName) &&
-          norm(s.album) === key
-        ) {
-          return s.coverArtId === updated.coverArtId
-            ? s
-            : { ...s, coverArtId: updated.coverArtId };
-        }
-        return s;
+          sameArtist &&
+          norm(s.album) === key &&
+          s.coverArtId !== updated.coverArtId
+        )
+          next = { ...next, coverArtId: updated.coverArtId };
+        return next;
       }),
     );
     setFeedVersion((v) => v + 1);

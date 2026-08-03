@@ -90,7 +90,6 @@ func build(cfg config.Config, st *store.Store, spa http.Handler, gen imagegen.Pr
 		writeJSON(w, map[string]string{"status": "ok", "version": buildinfo.Version})
 	})
 
-
 	// historyEnabled is set from inside the song-route block below, so the flag
 	// the SPA reads is the same condition that actually registered the history
 	// routes — including the media.New() that can fail. The closure below reads

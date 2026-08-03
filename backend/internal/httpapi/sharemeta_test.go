@@ -168,6 +168,69 @@ func TestShareCard_rendersWithoutCover(t *testing.T) {
 	assertCard(t, h, "/api/share/song/"+sid+"/card.jpg")
 }
 
+func TestShareCard_rangeRequestGetsWholeImage(t *testing.T) {
+	// Slack range-requests the first 32kB when unfurling a link. Honouring that
+	// on a ~117kB card returns a 206 carrying an intact JPEG header over
+	// truncated scan data: undecodable, and it still looks fine to anything that
+	// only checks the status or the header. Answer with the whole image instead.
+	h := testServer(t, config.AuthModeDev)
+	sid := uploadSongID(t, h)
+	doJSON(t, h, "POST", "/api/songs/"+sid+"/publish", "")
+
+	rr := httptest.NewRecorder()
+	req := httptest.NewRequest("GET", "/api/share/song/"+sid+"/card.jpg", nil)
+	req.Header.Set("Range", "bytes=0-32767")
+	h.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("ranged card = %d, want 200 (never 206)", rr.Code)
+	}
+	if cr := rr.Header().Get("Content-Range"); cr != "" {
+		t.Fatalf("ranged card returned Content-Range %q; body is partial", cr)
+	}
+	cfg, err := jpeg.DecodeConfig(bytes.NewReader(rr.Body.Bytes()))
+	if err != nil {
+		t.Fatalf("ranged card is not a decodable JPEG: %v", err)
+	}
+	if cfg.Width != 1200 || cfg.Height != 1200 {
+		t.Fatalf("ranged card dims = %dx%d, want 1200x1200", cfg.Width, cfg.Height)
+	}
+	// DecodeConfig only reads the header, so decode the whole image: that is what
+	// actually distinguishes a full card from a truncated one.
+	if _, err := jpeg.Decode(bytes.NewReader(rr.Body.Bytes())); err != nil {
+		t.Fatalf("ranged card body is truncated (%d bytes): %v", rr.Body.Len(), err)
+	}
+}
+
+func TestShareCard_headAdvertisesFullLengthWithNoBody(t *testing.T) {
+	// Now that the card is written by hand rather than by ServeContent, HEAD has
+	// to be handled explicitly: the length must still describe the whole image so
+	// a client can size the og:image, but no body may be written.
+	h := testServer(t, config.AuthModeDev)
+	sid := uploadSongID(t, h)
+	doJSON(t, h, "POST", "/api/songs/"+sid+"/publish", "")
+	path := "/api/share/song/" + sid + "/card.jpg"
+
+	get := httptest.NewRecorder()
+	h.ServeHTTP(get, httptest.NewRequest("GET", path, nil))
+
+	head := httptest.NewRecorder()
+	h.ServeHTTP(head, httptest.NewRequest("HEAD", path, nil))
+
+	if head.Code != http.StatusOK {
+		t.Fatalf("HEAD card = %d, want 200", head.Code)
+	}
+	if head.Body.Len() != 0 {
+		t.Fatalf("HEAD card wrote %d bytes of body, want none", head.Body.Len())
+	}
+	if got, want := head.Header().Get("Content-Length"), strconv.Itoa(get.Body.Len()); got != want {
+		t.Fatalf("HEAD content-length = %q, want %q (the full image)", got, want)
+	}
+	if ct := head.Header().Get("Content-Type"); ct != "image/jpeg" {
+		t.Fatalf("HEAD content-type = %q, want image/jpeg", ct)
+	}
+}
+
 func TestShareCard_unpublishedOrUnknown404(t *testing.T) {
 	// The card endpoint is public and not auth-aware, so it must 404 for an
 	// unpublished or unknown song rather than leak/render its metadata.
@@ -423,13 +486,14 @@ func assertCard(t *testing.T, h http.Handler, path string) {
 	if ct := rr.Header().Get("Content-Type"); ct != "image/jpeg" {
 		t.Fatalf("card content-type = %q, want image/jpeg", ct)
 	}
-	// Slack's image proxy drops an og:image it cannot size, which unfurls the
-	// link with title and artist but no cover art.
+	// An image proxy that cannot size the og:image may skip it, so the length is
+	// always advertised.
 	if cl := rr.Header().Get("Content-Length"); cl != strconv.Itoa(rr.Body.Len()) {
 		t.Fatalf("card content-length = %q, want %d", cl, rr.Body.Len())
 	}
-	if ar := rr.Header().Get("Accept-Ranges"); ar != "bytes" {
-		t.Fatalf("card accept-ranges = %q, want bytes", ar)
+	// And ranged access is deliberately NOT offered — see writeCard.
+	if ar := rr.Header().Get("Accept-Ranges"); ar != "" {
+		t.Fatalf("card accept-ranges = %q, want it absent", ar)
 	}
 	cfg, err := jpeg.DecodeConfig(bytes.NewReader(rr.Body.Bytes()))
 	if err != nil {

@@ -12,7 +12,7 @@ import (
 	_ "image/png"
 	"io"
 	"net/http"
-	"time"
+	"strconv"
 
 	"github.com/trick77/music/internal/sharecard"
 	_ "golang.org/x/image/webp" // register WebP decoder (decode-only)
@@ -62,11 +62,16 @@ func (h *songHandlers) getPlaylistCard(w http.ResponseWriter, r *http.Request) {
 // writeCard renders and serves a card as JPEG. Cacheable: link unfurlers refetch,
 // and the content-free 404/500 paths are handled by the callers.
 //
-// Served via ServeContent rather than a plain Write so the response carries an
-// explicit Content-Length and Accept-Ranges. A card is ~120KB, which overflows
-// net/http's sniff buffer, so a bare Write falls back to chunked encoding with
-// no length — and Slack's image proxy drops an og:image it can't size, which
-// unfurls the link with title and artist but no cover art.
+// Content-Length is set explicitly: a card is ~120KB, which overflows net/http's
+// sniff buffer, so without it the response falls back to chunked encoding with
+// no length and an image proxy cannot size the og:image before fetching it.
+//
+// Deliberately NOT http.ServeContent, and deliberately no Accept-Ranges. Slack
+// range-requests the first 32kB when unfurling a link; served through
+// ServeContent that returns a 206 carrying 32768 of 116876 bytes, which is an
+// intact JPEG header over truncated scan data — undecodable, and indisting-
+// uishable from a working card in a HEAD or a status check. Nothing needs ranged
+// access to a generated card, so answer every request with the whole image.
 func (h *songHandlers) writeCard(w http.ResponseWriter, r *http.Request, cover image.Image, title, subtitle string) {
 	jpg, err := sharecard.Render(cover, title, subtitle)
 	if err != nil {
@@ -75,9 +80,11 @@ func (h *songHandlers) writeCard(w http.ResponseWriter, r *http.Request, cover i
 	}
 	w.Header().Set("Content-Type", "image/jpeg")
 	w.Header().Set("Cache-Control", "public, max-age=3600")
-	// Zero modtime: cards are derived, so there is no meaningful Last-Modified
-	// to hand out and ServeContent skips the conditional-request handling.
-	http.ServeContent(w, r, "card.jpg", time.Time{}, bytes.NewReader(jpg))
+	w.Header().Set("Content-Length", strconv.Itoa(len(jpg)))
+	if r.Method == http.MethodHead {
+		return // headers only; Content-Length above still advertises the full size
+	}
+	w.Write(jpg)
 }
 
 // loadCover decodes a cover into an image, or returns nil (no art / unreadable /

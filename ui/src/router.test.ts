@@ -18,8 +18,9 @@ describe("parsePath", () => {
   it("maps root to home", () => {
     expect(parsePath("/")).toEqual({ name: "home" });
   });
-  it("maps /library, /favorites, /unpublished and /playlists", () => {
+  it("maps /library, /recent, /favorites, /unpublished and /playlists", () => {
     expect(parsePath("/library")).toEqual({ name: "library" });
+    expect(parsePath("/recent")).toEqual({ name: "recent" });
     expect(parsePath("/favorites")).toEqual({ name: "favorites" });
     expect(parsePath("/unpublished")).toEqual({ name: "unpublished" });
     expect(parsePath("/playlists")).toEqual({ name: "playlists" });

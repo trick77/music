@@ -1,16 +1,52 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { listGenres, type GenreSummary, type Song } from "./api";
 import { coverUrl, coverInitial } from "./cover";
 import { fanartUrl } from "./fanart";
-import { formatDuration } from "./format";
+import { daysSinceAdded, formatDayGroup, formatDuration } from "./format";
 import { navigate } from "./router";
 import { Glyph } from "./Glyph";
+import { HScrollRail } from "./HScrollRail";
+import { Icon } from "./Icon";
 import { t, UnpublishedBadge } from "./ui";
 import { genreLabel } from "./titleCase";
 import { usePlayer } from "./player";
 import { SongCover } from "./SongCover";
 
-type Tab = "all" | "favorites" | "unpublished" | "genres";
+type Tab = "all" | "recent" | "favorites" | "unpublished" | "genres";
+
+/** How far back "Recently added" reaches, in calendar days. */
+const RECENT_DAYS = 30;
+
+const TAB_LABELS: Record<Tab, string> = {
+  all: "All songs",
+  recent: "Recently added",
+  favorites: "Favorites",
+  unpublished: "Unpublished",
+  genres: "Genres",
+};
+
+/**
+ * The filter field matches title and artist — the two things a row shows, so a
+ * match is always visible in the result rather than hiding in a tag the list
+ * doesn't render. Same fields as the playlist page's filter.
+ */
+function matchesQuery(song: Song, needle: string): boolean {
+  if (!needle) return true;
+  return `${song.title} ${song.artistName}`.toLowerCase().includes(needle);
+}
+
+/**
+ * What the row above the pills calls the things it is counting. "3 of 24
+ * favorites" reads better than "3 of 24 songs" when Favorites is the tab you are
+ * looking at — the count should name the category, not the table it came from.
+ */
+function countNoun(tab: Tab, n: number): string {
+  if (tab === "genres") return n === 1 ? "genre" : "genres";
+  if (tab === "favorites") return n === 1 ? "favorite" : "favorites";
+  if (tab === "unpublished")
+    return n === 1 ? "unpublished song" : "unpublished songs";
+  return n === 1 ? "song" : "songs";
+}
 
 type Props = {
   songs: Song[];
@@ -69,76 +105,391 @@ export function Library({
         .catch(() => setGenres([]));
   }, [tab]);
 
-  const shown =
-    tab === "favorites"
-      ? songs.filter((s) => favoriteIds.includes(s.id))
-      : tab === "unpublished"
-        ? songs.filter((s) => !s.published)
-        : songs;
+  // The filter text deliberately OUTLIVES a pill change: having typed "nova",
+  // switching to Favorites to ask "is it one of mine?" is the whole point of
+  // putting counts on the pills. It dies with the component on navigating away.
+  const [query, setQuery] = useState("");
+  const needle = query.trim().toLowerCase();
+
+  // One `now` per mount, so the "Recently added" window and its day headers can't
+  // disagree between two renders of the same list.
+  const now = useMemo(() => new Date(), []);
 
   // The Unpublished pill only makes sense for logged-in users — anonymous
   // viewers never receive unpublished songs.
   const tabs: Tab[] = [
     "all",
+    "recent",
     "favorites",
     ...(authenticated ? (["unpublished"] as Tab[]) : []),
     "genres",
   ];
 
+  // Which categories a song belongs to, and the text a query is matched against,
+  // worked out ONCE per song rather than per keystroke. Membership doesn't depend
+  // on the query, so typing a character only re-runs the substring test — without
+  // this, every keystroke re-scanned favoriteIds linearly and re-parsed a date for
+  // every song, four times over (once per pill plus once for the list).
+  const catalog = useMemo(() => {
+    const favorites = new Set(favoriteIds);
+    return songs.map((song) => {
+      const days = daysSinceAdded(song.createdAt, now);
+      return {
+        song,
+        haystack: `${song.title} ${song.artistName}`.toLowerCase(),
+        all: true,
+        favorites: favorites.has(song.id),
+        unpublished: !song.published,
+        // A null timestamp is "we don't know when", which is not "recently"; a
+        // negative one is a clock skew into the future, which certainly is.
+        recent: days !== null && days < RECENT_DAYS,
+      };
+    });
+  }, [songs, favoriteIds, now]);
+
+  type Entry = (typeof catalog)[number];
+  const inCategory = (entry: Entry, which: Tab): boolean =>
+    which === "genres" ? false : entry[which];
+
+  // Every number on the page comes from this one pass, so a pill and the row
+  // above it can never disagree. `matching` is the count under the current
+  // query — what a pill shows. `total` ignores the query — the row's denominator.
+  const counts = useMemo(() => {
+    const out = {} as Record<Tab, { matching: number; total: number }>;
+    for (const which of tabs) {
+      if (which === "genres") continue;
+      let matching = 0;
+      let total = 0;
+      for (const entry of catalog) {
+        if (!inCategory(entry, which)) continue;
+        total++;
+        if (!needle || entry.haystack.includes(needle)) matching++;
+      }
+      out[which] = { matching, total };
+    }
+    return out;
+    // `tabs` and `inCategory` are rebuilt every render but derive only from
+    // `authenticated` and `catalog`, both listed.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [catalog, authenticated, needle]);
+
+  const shown = useMemo(() => {
+    if (tab === "genres") return [];
+    const list = catalog
+      .filter(
+        (e) => inCategory(e, tab) && (!needle || e.haystack.includes(needle)),
+      )
+      .map((e) => e.song);
+    // Newest first is the only ordering that makes "Recently added" readable —
+    // and it is what the day-group headers below assume.
+    if (tab === "recent")
+      list.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+    return list;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [catalog, tab, needle]);
+
+  // "Recently added" breaks into calendar days; every other tab is one flat run.
+  const dayGroups = useMemo(() => {
+    if (tab !== "recent") return null;
+    const groups: { label: string; songs: Song[] }[] = [];
+    for (const song of shown) {
+      const label = formatDayGroup(song.createdAt, now);
+      const last = groups[groups.length - 1];
+      if (last && last.label === label) last.songs.push(song);
+      else groups.push({ label, songs: [song] });
+    }
+    return groups;
+  }, [shown, tab, now]);
+
+  const genreMatches = (g: GenreSummary) =>
+    !needle || genreLabel(g.name).toLowerCase().includes(needle);
+
+  // What the Genres tab is counting and showing: the artwork toggle narrows the
+  // pool, the query then narrows that. Both the row's numbers and the grid read
+  // from this, so they cannot describe different sets.
+  const genrePool = needsArtworkOnly
+    ? genres.filter((g) => !g.hasBackground)
+    : genres;
+
+  const clearQuery = () => setQuery("");
+
+  // One row, rendered either straight into a flat <ul> or into one of the
+  // "Recently added" day groups.
+  const renderRow = (song: Song) => {
+    const isPlaying = current?.id === song.id && playing;
+    return (
+      <li
+        key={song.id}
+        onClick={() => onPlay(song)}
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: "0.85rem",
+          padding: "0.6rem 0.85rem",
+          borderRadius: "var(--radius-ui, 10px)",
+          cursor: "pointer",
+        }}
+      >
+        <SongCover
+          song={song}
+          size={44}
+          radius={8}
+          border="1px solid var(--color-border)"
+          fallbackText={coverInitial(song.artistName)}
+        />
+
+        <span style={{ minWidth: 0, flex: 1 }}>
+          <span
+            style={{
+              display: "block",
+              color: isPlaying
+                ? "var(--color-accent-strong)"
+                : "var(--color-ink)",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+            }}
+          >
+            {song.title}
+          </span>
+          <span
+            className="row-meta"
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "0.6rem",
+              ...t.label,
+            }}
+          >
+            <span
+              style={{
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
+              }}
+            >
+              {song.artistName}
+            </span>
+            <UnpublishedBadge
+              show={authenticated && !song.published}
+              placement="meta"
+            />
+          </span>
+        </span>
+        <span
+          style={{
+            color: "var(--color-muted)",
+            fontVariantNumeric: "tabular-nums",
+            flexShrink: 0,
+          }}
+        >
+          {formatDuration(song.durationMs)}
+        </span>
+        <span
+          style={{
+            position: "relative",
+            display: "flex",
+            alignItems: "center",
+            gap: "0.9rem",
+            flexShrink: 0,
+          }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          {renderRowActions(song)}
+        </span>
+      </li>
+    );
+  };
+
+  const genreTotal = genrePool.length;
+  const genreMatching = genrePool.filter(genreMatches).length;
+  const active = counts[tab] ?? { matching: 0, total: 0 };
+  const rowTotal = tab === "genres" ? genreTotal : active.total;
+  const rowMatching = tab === "genres" ? genreMatching : active.matching;
+
   return (
     <div>
-      {/* The pills scroll rather than wrap: four of them are ~387px, so on a phone
-          the last one ("Genres") hung off the right edge — half of it tappable,
-          the rest unreachable, and the whole page scrolled sideways to reach it.
-          `.hscroll` is the same idiom the cover rails use (no visible scrollbar,
-          momentum on touch), and the strip keeps the overflow to itself.
+      {/* Search leads the page, above the pills: it acts on the whole library and
+          the pills partition what it leaves, so their counts move as you type. A
+          field UNDER the numbers it changes reads backwards. The row is the same
+          skeleton as the Genres tab's own row below — count prose left, control
+          right, wrapping to a second line on a phone. */}
+      {(rowTotal > 0 || needle) && (
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: 12,
+            flexWrap: "wrap",
+            marginBottom: "1rem",
+          }}
+        >
+          {/* The list re-filters silently on every keystroke; without a live
+              region a screen-reader user gets no confirmation that anything
+              happened. "polite" so it waits for a pause in typing. */}
+          <span style={t.label} aria-live="polite">
+            {needle ? (
+              rowMatching > 0 ? (
+                <>
+                  <b style={{ color: "var(--color-accent-strong)" }}>
+                    {rowMatching} of {rowTotal}
+                  </b>{" "}
+                  {countNoun(tab, rowTotal)} match “{query.trim()}”
+                </>
+              ) : (
+                <>
+                  No {countNoun(tab, 0)} match “{query.trim()}”
+                </>
+              )
+            ) : tab === "recent" ? (
+              <>
+                <b style={{ color: "var(--color-accent-strong)" }}>
+                  {rowTotal} {rowTotal === 1 ? "song" : "songs"}
+                </b>{" "}
+                added in the last {RECENT_DAYS} days
+              </>
+            ) : (
+              <>
+                {rowTotal} {countNoun(tab, rowTotal)}
+              </>
+            )}
+          </span>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "0.6rem",
+              background: "var(--color-panel)",
+              border: "1px solid var(--color-border)",
+              borderRadius: 999,
+              padding: "0.5rem 1rem",
+              // Shrink before the row wraps, then take a full line of its own.
+              flex: "1 1 240px",
+              minWidth: 0,
+              maxWidth: 320,
+            }}
+          >
+            <Glyph
+              name="search"
+              size={18}
+              style={{ color: "var(--color-muted)", flexShrink: 0 }}
+            />
+            <input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              // A placeholder is not an accessible name, so the field carries one
+              // of its own. Enter has nothing to submit — the list already filtered
+              // on every keystroke — so it means "done typing" and drops the
+              // phone keyboard off the results.
+              aria-label={tab === "genres" ? "Filter genres" : "Filter songs"}
+              placeholder={
+                tab === "genres" ? "Filter genres…" : "Filter songs…"
+              }
+              onKeyDown={(e) => {
+                if (e.key === "Enter") e.currentTarget.blur();
+              }}
+              style={{
+                flex: 1,
+                background: "none",
+                border: "none",
+                color: "var(--color-ink)",
+                fontSize: "var(--text-input)",
+                outline: "none",
+                minWidth: 0,
+              }}
+            />
+            {query && (
+              <button
+                onClick={() => setQuery("")}
+                aria-label="Clear the filter"
+                style={{
+                  display: "flex",
+                  border: "none",
+                  background: "none",
+                  padding: 0,
+                  cursor: "pointer",
+                  color: "var(--color-muted)",
+                  flexShrink: 0,
+                }}
+              >
+                <Icon name="close" size="16px" />
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* The pills scroll rather than wrap: four of them were already ~387px on a
+          ~350px phone content box, and the fifth takes the strip past 500px. The
+          rail is the same component the cover rails use — it fades whichever edge
+          has more beyond it and grows a ‹/› nudge button there, on pointer devices
+          only, since a touch screen just swipes.
           The 3px of vertical padding is room for a focused pill's ring: a scroll
           container clips at its padding box, and without it the ring's top and
           bottom arcs are cut off. The margin gives that 3px back. */}
-      <div
-        className="hscroll"
-        style={{
-          display: "flex",
-          gap: "0.4rem",
-          padding: "3px 0",
-          marginBottom: "calc(1.25rem - 3px)",
-        }}
-      >
-        {tabs.map((t) => (
-          <button
-            key={t}
-            ref={t === tab ? activeTabRef : undefined}
-            onClick={() => setTab(t)}
-            style={{
-              padding: "7px 14px",
-              borderRadius: 999,
-              cursor: "pointer",
-              fontSize: "var(--text-ui)",
-              border: "1px solid transparent",
-              flexShrink: 0,
-              whiteSpace: "nowrap",
-              background:
-                tab === t ? "var(--color-accent-fill)" : "transparent",
-              color: tab === t ? "var(--color-ink)" : "var(--color-muted)",
-            }}
-          >
-            {t === "all"
-              ? "All songs"
-              : t === "favorites"
-                ? "Favorites"
-                : t === "unpublished"
-                  ? "Unpublished"
-                  : "Genres"}
-          </button>
-        ))}
+      <div style={{ marginBottom: "calc(1.25rem - 3px)" }}>
+        <HScrollRail innerStyle={{ gap: "0.4rem", padding: "3px 0" }}>
+          {tabs.map((k) => (
+            <button
+              key={k}
+              ref={k === tab ? activeTabRef : undefined}
+              onClick={() => setTab(k)}
+              // Which pill is selected was carried by colour alone, which says
+              // nothing to a screen reader.
+              aria-pressed={k === tab}
+              style={{
+                padding: "7px 14px",
+                borderRadius: 999,
+                cursor: "pointer",
+                fontSize: "var(--text-ui)",
+                border: "1px solid transparent",
+                flexShrink: 0,
+                whiteSpace: "nowrap",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 7,
+                background:
+                  tab === k ? "var(--color-accent-fill)" : "transparent",
+                color: tab === k ? "var(--color-ink)" : "var(--color-muted)",
+              }}
+            >
+              {TAB_LABELS[k]}
+              {/* Genres counts tiles, not songs, so it has no comparable number.
+                  Everywhere else the count is "how many under the current query",
+                  which is what makes a pill answer "is it hiding under there?".
+                  The explicit space is not decoration: `gap` separates the two
+                  visually but not textually, so without it the button's
+                  accessible name reads "All songs2". */}
+              {k !== "genres" && (
+                <>
+                  {" "}
+                  <span
+                    style={{
+                      fontSize: "var(--text-label)",
+                      fontVariantNumeric: "tabular-nums",
+                      opacity: 0.75,
+                    }}
+                  >
+                    {counts[k]?.matching ?? 0}
+                  </span>
+                </>
+              )}
+            </button>
+          ))}
+        </HScrollRail>
       </div>
 
       {tab === "genres" ? (
         (() => {
           const missing = genres.filter((g) => !g.hasBackground).length;
-          const shownGenres = needsArtworkOnly
-            ? genres.filter((g) => !g.hasBackground)
-            : genres;
+          // The filter field above the pills narrows the tiles too — it is the
+          // page's one search box, so it must not go dead on this tab. The
+          // artwork toggle is applied FIRST, so it defines the pool the count row
+          // above describes (see genrePool): with the toggle on, "6 of 10 genres
+          // match" beside a single rendered tile was the same numbers-disagree
+          // bug the song tabs take care to avoid.
+          const shownGenres = genrePool.filter(genreMatches);
           return (
             <div>
               {genres.length > 0 && (
@@ -346,113 +697,75 @@ export function Library({
                 {genres.length === 0 && (
                   <p style={{ color: "var(--color-muted)" }}>No genres yet.</p>
                 )}
-                {genres.length > 0 && shownGenres.length === 0 && (
-                  <p style={{ color: "var(--color-muted)" }}>
-                    Every genre has artwork.
-                  </p>
-                )}
+                {/* A query that matches nothing is a different fact from a
+                    library that holds nothing, and it has a way out. */}
+                {genres.length > 0 &&
+                  shownGenres.length === 0 &&
+                  (needle && genreMatching === 0 ? (
+                    <NoMatches query={query.trim()} onClear={clearQuery} />
+                  ) : (
+                    <p style={{ color: "var(--color-muted)" }}>
+                      Every genre has artwork.
+                    </p>
+                  ))}
               </div>
             </div>
           );
         })()
+      ) : shown.length === 0 ? (
+        // Two different facts, two different messages: a query that found nothing
+        // is not an empty category, and only one of them has a way out.
+        needle ? (
+          <NoMatches query={query.trim()} onClear={clearQuery} />
+        ) : (
+          <p style={{ color: "var(--color-muted)" }}>
+            {tab === "favorites"
+              ? "No favorites yet — tap the star on a song."
+              : tab === "unpublished"
+                ? "Nothing unpublished — every song is live."
+                : tab === "recent"
+                  ? `Nothing added in the last ${RECENT_DAYS} days.`
+                  : "Nothing here yet."}
+          </p>
+        )
+      ) : dayGroups ? (
+        dayGroups.map((group) => (
+          <section key={group.label}>
+            <h2 style={{ ...t.label, margin: "0.6rem 0.85rem 0.25rem" }}>
+              {group.label}
+            </h2>
+            <ul style={{ listStyle: "none", margin: 0, padding: 0 }}>
+              {group.songs.map(renderRow)}
+            </ul>
+          </section>
+        ))
       ) : (
         <ul style={{ listStyle: "none", margin: 0, padding: 0 }}>
-          {shown.length === 0 && (
-            <p style={{ color: "var(--color-muted)" }}>
-              {tab === "favorites"
-                ? "No favorites yet — tap the star on a song."
-                : tab === "unpublished"
-                  ? "Nothing unpublished — every song is live."
-                  : "Nothing here yet."}
-            </p>
-          )}
-          {shown.map((song) => {
-            const isPlaying = current?.id === song.id && playing;
-            return (
-              <li
-                key={song.id}
-                onClick={() => onPlay(song)}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "0.85rem",
-                  padding: "0.6rem 0.85rem",
-                  borderRadius: "var(--radius-ui, 10px)",
-                  cursor: "pointer",
-                }}
-              >
-                <SongCover
-                  song={song}
-                  size={44}
-                  radius={8}
-                  border="1px solid var(--color-border)"
-                  fallbackText={coverInitial(song.artistName)}
-                />
-
-                <span style={{ minWidth: 0, flex: 1 }}>
-                  <span
-                    style={{
-                      display: "block",
-                      color: isPlaying
-                        ? "var(--color-accent-strong)"
-                        : "var(--color-ink)",
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
-                      whiteSpace: "nowrap",
-                    }}
-                  >
-                    {song.title}
-                  </span>
-                  <span
-                    className="row-meta"
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: "0.6rem",
-                      ...t.label,
-                    }}
-                  >
-                    <span
-                      style={{
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                        whiteSpace: "nowrap",
-                      }}
-                    >
-                      {song.artistName}
-                    </span>
-                    <UnpublishedBadge
-                      show={authenticated && !song.published}
-                      placement="meta"
-                    />
-                  </span>
-                </span>
-                <span
-                  style={{
-                    color: "var(--color-muted)",
-                    fontVariantNumeric: "tabular-nums",
-                    flexShrink: 0,
-                  }}
-                >
-                  {formatDuration(song.durationMs)}
-                </span>
-                <span
-                  style={{
-                    position: "relative",
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "0.9rem",
-                    flexShrink: 0,
-                  }}
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  {renderRowActions(song)}
-                </span>
-              </li>
-            );
-          })}
+          {shown.map(renderRow)}
         </ul>
       )}
     </div>
+  );
+}
+
+/** The search-miss empty state, shared by the song list and the genre grid. */
+function NoMatches({ query, onClear }: { query: string; onClear: () => void }) {
+  return (
+    <p style={{ color: "var(--color-muted)" }}>
+      Nothing matches “{query}”.{" "}
+      <button
+        onClick={onClear}
+        style={{
+          border: "none",
+          background: "none",
+          padding: 0,
+          cursor: "pointer",
+          color: "var(--color-accent-strong)",
+          font: "inherit",
+        }}
+      >
+        Clear the filter
+      </button>
+    </p>
   );
 }

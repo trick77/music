@@ -12,6 +12,7 @@ import (
 	_ "image/png"
 	"io"
 	"net/http"
+	"time"
 
 	"github.com/trick77/music/internal/sharecard"
 	_ "golang.org/x/image/webp" // register WebP decoder (decode-only)
@@ -30,7 +31,7 @@ func (h *songHandlers) getSongCard(w http.ResponseWriter, r *http.Request) {
 		httpError(w, http.StatusNotFound, "not found")
 		return
 	}
-	h.writeCard(w, h.loadCover(r.Context(), song.CoverArtID), song.Title, song.ArtistName)
+	h.writeCard(w, r, h.loadCover(r.Context(), song.CoverArtID), song.Title, song.ArtistName)
 }
 
 // getPlaylistCard renders the share card for a playlist link, mirroring
@@ -55,12 +56,18 @@ func (h *songHandlers) getPlaylistCard(w http.ResponseWriter, r *http.Request) {
 	if coverID == "" && n > 0 {
 		coverID = pl.Songs[0].CoverArtID
 	}
-	h.writeCard(w, h.loadCover(r.Context(), coverID), pl.Name, fmt.Sprintf("Playlist · %d %s", n, noun))
+	h.writeCard(w, r, h.loadCover(r.Context(), coverID), pl.Name, fmt.Sprintf("Playlist · %d %s", n, noun))
 }
 
 // writeCard renders and serves a card as JPEG. Cacheable: link unfurlers refetch,
 // and the content-free 404/500 paths are handled by the callers.
-func (h *songHandlers) writeCard(w http.ResponseWriter, cover image.Image, title, subtitle string) {
+//
+// Served via ServeContent rather than a plain Write so the response carries an
+// explicit Content-Length and Accept-Ranges. A card is ~120KB, which overflows
+// net/http's sniff buffer, so a bare Write falls back to chunked encoding with
+// no length — and Slack's image proxy drops an og:image it can't size, which
+// unfurls the link with title and artist but no cover art.
+func (h *songHandlers) writeCard(w http.ResponseWriter, r *http.Request, cover image.Image, title, subtitle string) {
 	jpg, err := sharecard.Render(cover, title, subtitle)
 	if err != nil {
 		serverError(w, "render share card", err)
@@ -68,7 +75,9 @@ func (h *songHandlers) writeCard(w http.ResponseWriter, cover image.Image, title
 	}
 	w.Header().Set("Content-Type", "image/jpeg")
 	w.Header().Set("Cache-Control", "public, max-age=3600")
-	w.Write(jpg)
+	// Zero modtime: cards are derived, so there is no meaningful Last-Modified
+	// to hand out and ServeContent skips the conditional-request handling.
+	http.ServeContent(w, r, "card.jpg", time.Time{}, bytes.NewReader(jpg))
 }
 
 // loadCover decodes a cover into an image, or returns nil (no art / unreadable /

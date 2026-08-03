@@ -6,6 +6,7 @@ import (
 	"image/jpeg"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -337,6 +338,14 @@ func assertCard(t *testing.T, h http.Handler, path string) {
 	}
 	if ct := rr.Header().Get("Content-Type"); ct != "image/jpeg" {
 		t.Fatalf("card content-type = %q, want image/jpeg", ct)
+	}
+	// Slack's image proxy drops an og:image it cannot size, which unfurls the
+	// link with title and artist but no cover art.
+	if cl := rr.Header().Get("Content-Length"); cl != strconv.Itoa(rr.Body.Len()) {
+		t.Fatalf("card content-length = %q, want %d", cl, rr.Body.Len())
+	}
+	if ar := rr.Header().Get("Accept-Ranges"); ar != "bytes" {
+		t.Fatalf("card accept-ranges = %q, want bytes", ar)
 	}
 	cfg, err := jpeg.DecodeConfig(bytes.NewReader(rr.Body.Bytes()))
 	if err != nil {

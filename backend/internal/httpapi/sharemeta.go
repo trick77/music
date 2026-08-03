@@ -90,7 +90,12 @@ func songMeta(ctx context.Context, repo *library.Repo, r *http.Request, id strin
 		return "", false
 	}
 	img := baseURL(r) + "/api/share/song/" + id + "/card.jpg"
-	return buildMeta("music.song", song.Title, song.ArtistName, img, baseURL(r)+r.URL.Path, 1200, 1200), true
+	// "website", not "music.song": Slack picks its unfurl template off og:type,
+	// and the music.* types are the rich-player layout, which wants an og:audio
+	// stream URL. There is no public stream endpoint to point one at, so Slack
+	// fell back to a compact card that drops og:image — the link previewed with
+	// the title and artist but no cover art.
+	return buildMeta("website", song.Title, song.ArtistName, img, baseURL(r)+r.URL.Path, 1200, 1200), true
 }
 
 func playlistMeta(ctx context.Context, repo *library.Repo, r *http.Request, id string) (string, bool) {
@@ -108,7 +113,9 @@ func playlistMeta(ctx context.Context, repo *library.Repo, r *http.Request, id s
 	}
 	desc := fmt.Sprintf("Playlist · %d %s", n, noun)
 	img := baseURL(r) + "/api/share/playlist/" + id + "/card.jpg"
-	return buildMeta("music.playlist", pl.Name, desc, img, baseURL(r)+r.URL.Path, 1200, 1200), true
+	// "website" for the same reason as songMeta: music.playlist is a rich-player
+	// type and costs the cover art in Slack.
+	return buildMeta("website", pl.Name, desc, img, baseURL(r)+r.URL.Path, 1200, 1200), true
 }
 
 // buildMeta renders the OG/Twitter block. All dynamic strings are HTML-escaped

@@ -135,7 +135,12 @@ func buildMeta(ogType, title, desc, img, url string, imgW, imgH int) string {
 	meta("property", "og:title", title)
 	meta("property", "og:description", desc)
 	meta("property", "og:url", url)
-	meta("name", "twitter:card", cardType(img, imgW, imgH))
+	// summary_large_image whenever there is an image, regardless of its shape.
+	// A square image does render as a large preview: ffm.to serves a 1108x1108
+	// og:image under summary_large_image and unfurls large. An earlier revision
+	// derived the kind from the aspect ratio on the theory that square art had
+	// to be "summary"; that was wrong and cost the song cards their large layout.
+	meta("name", "twitter:card", pick(img, "summary_large_image", "summary"))
 	meta("name", "twitter:title", title)
 	meta("name", "twitter:description", desc)
 	if img != "" {
@@ -145,22 +150,6 @@ func buildMeta(ogType, title, desc, img, url string, imgW, imgH int) string {
 		meta("property", "og:image:height", fmt.Sprintf("%d", imgH))
 	}
 	return b.String()
-}
-
-// cardType picks the Twitter card kind from the image's actual shape. The
-// landscape "summary_large_image" promises a wide hero image; declaring it for
-// the square 1200x1200 song/playlist cards made Slack drop the image entirely
-// and unfurl with the title and artist only. Square art belongs to "summary",
-// which is the small-thumbnail layout Spotify's track links use (their cover is
-// 640x640 and unfurls the same way). The 1.91:1 og-card.png stays large.
-func cardType(img string, w, h int) string {
-	if img == "" {
-		return "summary"
-	}
-	if h > 0 && w*10 >= h*15 { // >= 1.5:1, i.e. genuinely landscape
-		return "summary_large_image"
-	}
-	return "summary"
 }
 
 func pick(cond, a, b string) string {

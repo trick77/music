@@ -175,3 +175,42 @@ func TestSuggest_authOnly(t *testing.T) {
 		t.Fatalf("anonymous suggest = %d, want 403", ar.Code)
 	}
 }
+
+// A case-only artist fix ("Test Artist" -> "TEST ARTIST") folds to the same
+// artists.name_key, which used to make the upsert return the existing row early and
+// echo the old spelling straight back. Asserting on the PATCH response is the point:
+// the reported symptom was the corrected name reverting the moment the editor closed.
+func TestPatchSong_caseOnlyArtistFix_returnsNewSpelling(t *testing.T) {
+	h := testServer(t, config.AuthModeDev)
+	up := uploadFixture(t, h)
+	var song struct {
+		ID string `json:"id"`
+	}
+	json.Unmarshal(up.Body.Bytes(), &song)
+
+	rr := patch(t, h, song.ID, `{"title":"Test Song","artistName":"TEST ARTIST","album":"Test Album","genres":["Ambient"]}`)
+	if rr.Code != http.StatusOK {
+		t.Fatalf("PATCH status = %d, body=%s", rr.Code, rr.Body.String())
+	}
+	var saved struct {
+		ArtistName string `json:"artistName"`
+	}
+	json.Unmarshal(rr.Body.Bytes(), &saved)
+	if saved.ArtistName != "TEST ARTIST" {
+		t.Fatalf("PATCH response artistName = %q, want %q", saved.ArtistName, "TEST ARTIST")
+	}
+
+	// And it must survive a re-read, not just live in the response body.
+	get := httptest.NewRecorder()
+	h.ServeHTTP(get, httptest.NewRequest("GET", "/api/songs/"+song.ID, nil))
+	if get.Code != http.StatusOK {
+		t.Fatalf("GET status = %d", get.Code)
+	}
+	var reread struct {
+		ArtistName string `json:"artistName"`
+	}
+	json.Unmarshal(get.Body.Bytes(), &reread)
+	if reread.ArtistName != "TEST ARTIST" {
+		t.Fatalf("re-read artistName = %q, want %q", reread.ArtistName, "TEST ARTIST")
+	}
+}

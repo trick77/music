@@ -71,7 +71,9 @@ func (r *Repo) Create(ctx context.Context, id string, p CreateSongParams) (*Song
 	}
 	defer tx.Rollback()
 
-	artistID, err := upsertArtist(ctx, tx, p.ArtistName)
+	// An upload reports whatever its ID3 tag says; it must not restyle an artist
+	// the library already knows under a different capitalisation.
+	artistID, err := upsertArtist(ctx, tx, p.ArtistName, false)
 	if err != nil {
 		return nil, err
 	}
@@ -318,15 +320,31 @@ func (r *Repo) genresFor(ctx context.Context, songID string) ([]string, error) {
 	return genres, rows.Err()
 }
 
-func upsertArtist(ctx context.Context, tx *sql.Tx, name string) (string, error) {
+// upsertArtist resolves a display name to an artist id, creating the artist if the
+// case-folded name_key is new.
+//
+// rename decides what happens when the key already exists but the display spelling
+// differs ("SIngers" -> "Singers"). name_key is UNIQUE, so the two spellings cannot
+// coexist: the incoming one either wins for every song by that artist or is dropped.
+// An explicit tag edit is the user typing the name, so it wins (rename=true); an
+// upload is only reporting what an ID3 tag happens to say, so it must not restyle a
+// curated artist (rename=false). A rename touches the display column alone — id,
+// name_key and every song's artist_id stay put, so nothing keyed on artist identity
+// (album covers, suggest, fanart) is affected.
+func upsertArtist(ctx context.Context, tx *sql.Tx, name string, rename bool) (string, error) {
 	name = strings.TrimSpace(name)
 	if name == "" {
 		name = "Unknown artist"
 	}
 	key := strings.ToLower(name)
-	var id string
-	err := tx.QueryRowContext(ctx, `SELECT id FROM artists WHERE name_key = ?`, key).Scan(&id)
+	var id, stored string
+	err := tx.QueryRowContext(ctx, `SELECT id, name FROM artists WHERE name_key = ?`, key).Scan(&id, &stored)
 	if err == nil {
+		if rename && stored != name {
+			if _, err := tx.ExecContext(ctx, `UPDATE artists SET name = ? WHERE id = ?`, name, id); err != nil {
+				return "", err
+			}
+		}
 		return id, nil
 	}
 	if !errors.Is(err, sql.ErrNoRows) {

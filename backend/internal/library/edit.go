@@ -32,7 +32,10 @@ func (r *Repo) Update(ctx context.Context, id string, p UpdateSongParams) (*Song
 	}
 	defer tx.Rollback()
 
-	artistID, err := upsertArtist(ctx, tx, p.ArtistName)
+	// A tag edit is the user typing the name, so a spelling fix that folds to the
+	// same name_key ("SIngers" -> "Singers") updates the artist rather than being
+	// silently dropped. artists.name is shared, so the fix lands library-wide.
+	artistID, err := upsertArtist(ctx, tx, p.ArtistName, true)
 	if err != nil {
 		return nil, err
 	}

@@ -3,8 +3,12 @@
   publicDir, so nothing here is copied into the bundle.
 
   It differs from tile.svg in two ways, both because iOS crops it. The glyph is
-  smaller — 60% instead of 96% — since the tile now has edges of its own to
-  breathe against rather than being the whole picture. And the canvas carries an
+  smaller — 56% instead of 89.75% — since the tile now has edges of its own to
+  breathe against rather than being the whole picture. Those were 60% and 96%
+  until the tab icon's frame came in by a pixel; this file was scaled by the
+  same 0.9349 so the four marks stay one family rather than drifting apart.
+  56% is 0.5609 rounded, which is inside the rounding error of a coverage the
+  eye reads as an inset. And the canvas carries an
   opaque ground, because iOS composites an apple-touch icon onto PURE BLACK
   before masking it, so a transparent one ships as a black square. #1f1f1e is
   the app's own surface colour, which is what that flattening should have
@@ -19,7 +23,7 @@
   Same lucide headphones in the same lucide frame, same gradient ink, same 2
   stroke and the same true-bbox centring — see tile.svg for all of it. The
   stroke is in glyph units, so shrinking the glyph thins it in step and the
-  weight stays proportional; the transform below is scale = 64*0.60/(18+2) and
+  weight stays proportional; the transform below is scale = 64*0.56/(18+2) and
   translate = 32 - 12*scale, per tile.svg.
 -->
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
@@ -28,7 +32,7 @@
     <stop offset="1" stop-color="#c25f34"/>
   </linearGradient>
   <rect width="64" height="64" fill="#1f1f1e"/>
-  <g transform="translate(8.9600 8.9600) scale(1.92000)" fill="none" stroke="url(#og)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <g transform="translate(10.4600 10.4600) scale(1.79500)" fill="none" stroke="url(#og)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
     <rect x="3" y="3" width="18" height="18" rx="2"/>
     <g transform="translate(5.8537 5.8537) scale(0.51220)">
       <path d="M3 14h3a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-7a9 9 0 0 1 18 0v7a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3"/>

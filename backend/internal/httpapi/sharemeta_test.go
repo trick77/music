@@ -202,6 +202,35 @@ func TestShareCard_rangeRequestGetsWholeImage(t *testing.T) {
 	}
 }
 
+func TestShareCard_headAdvertisesFullLengthWithNoBody(t *testing.T) {
+	// Now that the card is written by hand rather than by ServeContent, HEAD has
+	// to be handled explicitly: the length must still describe the whole image so
+	// a client can size the og:image, but no body may be written.
+	h := testServer(t, config.AuthModeDev)
+	sid := uploadSongID(t, h)
+	doJSON(t, h, "POST", "/api/songs/"+sid+"/publish", "")
+	path := "/api/share/song/" + sid + "/card.jpg"
+
+	get := httptest.NewRecorder()
+	h.ServeHTTP(get, httptest.NewRequest("GET", path, nil))
+
+	head := httptest.NewRecorder()
+	h.ServeHTTP(head, httptest.NewRequest("HEAD", path, nil))
+
+	if head.Code != http.StatusOK {
+		t.Fatalf("HEAD card = %d, want 200", head.Code)
+	}
+	if head.Body.Len() != 0 {
+		t.Fatalf("HEAD card wrote %d bytes of body, want none", head.Body.Len())
+	}
+	if got, want := head.Header().Get("Content-Length"), strconv.Itoa(get.Body.Len()); got != want {
+		t.Fatalf("HEAD content-length = %q, want %q (the full image)", got, want)
+	}
+	if ct := head.Header().Get("Content-Type"); ct != "image/jpeg" {
+		t.Fatalf("HEAD content-type = %q, want image/jpeg", ct)
+	}
+}
+
 func TestShareCard_unpublishedOrUnknown404(t *testing.T) {
 	// The card endpoint is public and not auth-aware, so it must 404 for an
 	// unpublished or unknown song rather than leak/render its metadata.

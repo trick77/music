@@ -259,6 +259,47 @@ func TestShareMeta_retiredIconPathsAre404NotTheShell(t *testing.T) {
 	}
 }
 
+func TestRobotsTxt_isPlainTextNotTheShell(t *testing.T) {
+	// Real web.SPAHandler for the same reason as the icon test above: the stub
+	// would answer /robots.txt itself and hide the fallthrough under test.
+	//
+	// A robots.txt served as text/html is unparseable per the spec, and crawlers
+	// disagree on whether an unparseable 200 is allow-all or deny-all. Slack
+	// consults robots.txt before unfurling a link; WhatsApp and iMessage do not.
+	st, err := store.Open(t.TempDir() + "/test.db")
+	if err != nil {
+		t.Fatalf("store.Open: %v", err)
+	}
+	t.Cleanup(func() { st.Close() })
+	cfg := config.Config{
+		AuthMode:    config.AuthModeDev,
+		DevUser:     config.DevUserConfig{Username: "dev"},
+		MediaDir:    t.TempDir(),
+		MaxUploadMB: 50,
+	}
+	h := New(cfg, st, web.SPAHandler())
+	if s, ok := h.(*server); ok {
+		t.Cleanup(s.Wait)
+	}
+
+	rr := httptest.NewRecorder()
+	h.ServeHTTP(rr, httptest.NewRequest("GET", "/robots.txt", nil))
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200; body:\n%s", rr.Code, rr.Body.String())
+	}
+	if ct := rr.Header().Get("Content-Type"); !strings.HasPrefix(ct, "text/plain") {
+		t.Fatalf("content-type = %q, want text/plain", ct)
+	}
+	body := rr.Body.String()
+	if strings.Contains(body, "<div id=\"root\">") || strings.Contains(body, "og:image") {
+		t.Fatalf("/robots.txt was answered with the SPA shell:\n%s", body)
+	}
+	if !strings.Contains(body, "User-agent: *") {
+		t.Fatalf("robots.txt missing a User-agent group:\n%s", body)
+	}
+}
+
 func TestShareMeta_staticFileNotWrapped(t *testing.T) {
 	// A request that resolves to a real embedded asset (icon, manifest, hashed
 	// bundle) must be served untouched by the static/SPA handler — never wrapped in

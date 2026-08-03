@@ -4,7 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
+	"strings"
 	"sync"
+	"time"
 
 	"github.com/trick77/music/internal/align"
 	"github.com/trick77/music/internal/auth"
@@ -87,6 +89,7 @@ func build(cfg config.Config, st *store.Store, spa http.Handler, gen imagegen.Pr
 	mux.HandleFunc("GET /api/health", func(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, map[string]string{"status": "ok", "version": buildinfo.Version})
 	})
+
 
 	// historyEnabled is set from inside the song-route block below, so the flag
 	// the SPA reads is the same condition that actually registered the history
@@ -297,6 +300,18 @@ func build(cfg config.Config, st *store.Store, spa http.Handler, gen imagegen.Pr
 			spaHandler = withShareMeta(shareRepo, shell, spa, web.HasFile, web.IsDeliberate404)
 		}
 	}
+	// PUBLIC, and on root rather than mux because only /api/ reaches mux. Left
+	// unrouted it falls through to spaHandler and returns index.html as
+	// text/html with a 200 — a robots file that is not text/plain is
+	// unparseable per the spec, and crawlers disagree on whether an unparseable
+	// 200 means allow-all or deny-all. Slack consults robots.txt before
+	// unfurling a link; WhatsApp and iMessage do not. Registered unconditionally
+	// so a run without a store or media dir still answers it.
+	root.HandleFunc("GET /robots.txt", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+		w.Header().Set("Cache-Control", "public, max-age=3600")
+		http.ServeContent(w, r, "robots.txt", time.Time{}, strings.NewReader("User-agent: *\nAllow: /\n"))
+	})
 	root.Handle("/", spaHandler)
 	return &server{Handler: logging(recovery(root)), bg: &bg}
 }

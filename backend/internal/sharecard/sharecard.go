@@ -1,8 +1,20 @@
-// Package sharecard renders the 1200x1200 social preview card used as og:image
-// for a shared song or playlist link (album cover + title + artist on the dark
-// app surface). Square is Apple's safe format — iOS 17+ crops link images toward
-// a square, so a 1200x1200 card survives every iMessage context without clipping,
-// and the same card renders identically in WhatsApp, Slack, and Twitter.
+// Package sharecard renders the square social preview image used as og:image for
+// a shared song or playlist link. Square is Apple's safe format — iOS 17+ crops
+// link images toward a square, so a square image survives every iMessage context
+// without clipping, and the same image renders identically in WhatsApp, Slack
+// and Twitter.
+//
+// When the item has cover art, the image IS the cover, full bleed and nothing
+// else. It used to be a composed card: the cover inset at 620px inside a 1200px
+// canvas (27% of the area) with the title and artist drawn beneath it. Every
+// client scales that whole canvas down to a card or a thumbnail, so the art
+// arrived tiny and adrift in padding — and the baked-in text was drawn a second
+// time by the client itself, right next to the image, from og:title and
+// og:description. Full bleed spends the entire frame on the one thing the client
+// cannot supply, which is what keeps a cover legible at WhatsApp thumbnail size.
+//
+// The composed text layout remains for items with no cover, where the title is
+// the only content there is.
 package sharecard
 
 import (
@@ -21,19 +33,37 @@ import (
 	"golang.org/x/image/math/fixed"
 )
 
+// Size is the pixel width and height of the rendered square preview image.
+// Exported so the Open Graph layer advertises og:image:width/height that match
+// what Render actually produces, rather than repeating the number.
+//
+// 640, not the old 1200: every client renders this into a card or a thumbnail a
+// few hundred pixels wide, so the extra pixels bought no visible detail. Now
+// that the frame is all cover art rather than mostly flat background they cost
+// real bytes — measured on a real cover, 800@q88 encodes to 112KB against
+// 640@q85's 70KB, itself down from the old card's 117KB. 640 is also what
+// Spotify ships as its og:image.
+const Size = 640
+
 const (
-	canvas     = 1200
-	coverSize  = 620
-	titlePx    = 68
-	subtitlePx = 44
-	titleLead  = 82 // line height for wrapped title lines
-	jpegQ      = 88
+	canvas = Size
+	// The text metrics below apply only to the no-cover fallback. Scaled from
+	// the 1200px canvas they were designed on, i.e. by 640/1200.
+	margin     = 43
+	titlePx    = 36
+	subtitlePx = 24
+	titleLead  = 44 // line height for wrapped title lines
+	jpegQ      = 85
 )
 
 var (
-	colBG    = color.RGBA{0x1f, 0x1f, 0x1e, 0xff} // --color-bg
-	colInk   = color.RGBA{0xfa, 0xf9, 0xf5, 0xff} // --color-ink
-	colMuted = color.RGBA{0x9c, 0x9a, 0x92, 0xff} // --color-muted
+	colBG  = color.RGBA{0x1f, 0x1f, 0x1e, 0xff} // --color-bg
+	colInk = color.RGBA{0xfa, 0xf9, 0xf5, 0xff} // --color-ink
+	// Deliberately lighter than --color-muted (#9c9a92). That token is tuned for
+	// UI text viewed at full size; on a preview image the client scales the whole
+	// frame down to a card or thumbnail, and the subtitle went illegible. This
+	// sits between --color-muted and --color-ink to survive that downscale.
+	colSubtle = color.RGBA{0xc9, 0xc6, 0xbd, 0xff}
 
 	titleFace = mustFace(gobold.TTF, titlePx)
 	subFace   = mustFace(goregular.TTF, subtitlePx)
@@ -45,39 +75,43 @@ func mustFace(ttf []byte, px float64) font.Face {
 		panic(err) // bundled font bytes are constant — a parse failure is a build bug
 	}
 	// DPI 72 makes 1 point == 1 pixel, so px is the on-screen size.
-	face, err := opentype.NewFace(f, &opentype.FaceOptions{Size: px, DPI: 72, Hinting: font.HintingFull})
+	//
+	// HintingNone, not HintingFull: full hinting snaps stems to the pixel grid,
+	// which is what you want for small UI text but distorts glyph shapes at
+	// display sizes and reads as jagged edges. These glyphs are 30-46px and are
+	// then resampled again by the client, so unhinted antialiased outlines are
+	// the smoother choice.
+	face, err := opentype.NewFace(f, &opentype.FaceOptions{Size: px, DPI: 72, Hinting: font.HintingNone})
 	if err != nil {
 		panic(err)
 	}
 	return face
 }
 
-// Render composes the card and returns JPEG bytes. cover may be nil (no art),
-// in which case the text block is centered on the empty canvas.
+// Render returns the JPEG bytes of the preview image. With a cover, that is the
+// cover itself, center-cropped square and scaled to fill the frame. cover may be
+// nil (no art), in which case the title and artist are drawn centered on the app
+// surface instead — the only case where this package draws text at all.
 func Render(cover image.Image, title, subtitle string) ([]byte, error) {
 	img := image.NewRGBA(image.Rect(0, 0, canvas, canvas))
+
+	if cover != nil {
+		// Src, not Over: the cover is opaque and covers every pixel, so there is
+		// nothing to blend against and no need to paint the background first.
+		xdraw.CatmullRom.Scale(img, img.Bounds(), cover, squareCrop(cover.Bounds()), xdraw.Src, nil)
+		return encode(img)
+	}
+
 	draw.Draw(img, img.Bounds(), image.NewUniform(colBG), image.Point{}, draw.Src)
+	titleLines := wrap(titleFace, strings.TrimSpace(title), canvas-2*margin, 2)
+	subLines := wrap(subFace, strings.TrimSpace(subtitle), canvas-2*margin, 1)
 
-	titleLines := wrap(titleFace, strings.TrimSpace(title), canvas-2*80, 2)
-	subLines := wrap(subFace, strings.TrimSpace(subtitle), canvas-2*80, 1)
-
-	// Lay the cover + text out as one block, vertically centered.
-	const gapCoverText = 74
-	const gapTitleSub = 30
+	const gapTitleSub = 20
 	blockH := len(titleLines) * titleLead
 	if len(subLines) > 0 {
 		blockH += gapTitleSub + subtitlePx
 	}
-	if cover != nil {
-		blockH += coverSize + gapCoverText
-	}
 	y := (canvas - blockH) / 2
-
-	if cover != nil {
-		dst := image.Rect((canvas-coverSize)/2, y, (canvas+coverSize)/2, y+coverSize)
-		xdraw.CatmullRom.Scale(img, dst, cover, squareCrop(cover.Bounds()), xdraw.Over, nil)
-		y += coverSize + gapCoverText
-	}
 
 	for _, line := range titleLines {
 		y += titlePx // advance to this line's baseline
@@ -86,9 +120,12 @@ func Render(cover image.Image, title, subtitle string) ([]byte, error) {
 	}
 	if len(subLines) > 0 {
 		y += gapTitleSub + subtitlePx - (titleLead - titlePx)
-		drawCentered(img, subFace, colMuted, subLines[0], y)
+		drawCentered(img, subFace, colSubtle, subLines[0], y)
 	}
+	return encode(img)
+}
 
+func encode(img image.Image) ([]byte, error) {
 	var buf bytes.Buffer
 	if err := jpeg.Encode(&buf, img, &jpeg.Options{Quality: jpegQ}); err != nil {
 		return nil, err

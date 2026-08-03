@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/trick77/music/internal/library"
+	"github.com/trick77/music/internal/sharecard"
 )
 
 // withShareMeta serves crawler-friendly Open Graph/Twitter meta by injecting
@@ -65,7 +66,7 @@ func withShareMeta(repo *library.Repo, shell []byte, spa http.Handler, hasFile, 
 func defaultMeta(r *http.Request) string {
 	base := baseURL(r)
 	// The default card is the static 1.91:1 og-card.png (unchanged); song/playlist
-	// cards are the 1200x1200 rendered cards.
+	// cards are the square sharecard.Size images.
 	return buildMeta("website", "Music", "Stream your music library.", base+"/og-card.png", base+r.URL.Path, 1200, 630)
 }
 
@@ -97,7 +98,7 @@ func songMeta(ctx context.Context, repo *library.Repo, r *http.Request, id strin
 	// there is no public stream endpoint to point og:audio at. An og:type whose
 	// object is absent got the compact no-image card. "website" claims only what
 	// is actually here, which is a title, a description and an image.
-	return buildMeta("website", song.Title, song.ArtistName, img, baseURL(r)+r.URL.Path, 1200, 1200), true
+	return buildMeta("website", song.Title, song.ArtistName, img, baseURL(r)+r.URL.Path, sharecard.Size, sharecard.Size), true
 }
 
 func playlistMeta(ctx context.Context, repo *library.Repo, r *http.Request, id string) (string, bool) {
@@ -117,7 +118,7 @@ func playlistMeta(ctx context.Context, repo *library.Repo, r *http.Request, id s
 	img := baseURL(r) + "/api/share/playlist/" + id + "/card.jpg"
 	// "website" for the same reason as songMeta: music.playlist promises a track
 	// list (music:song, music:song:track) that we do not emit.
-	return buildMeta("website", pl.Name, desc, img, baseURL(r)+r.URL.Path, 1200, 1200), true
+	return buildMeta("website", pl.Name, desc, img, baseURL(r)+r.URL.Path, sharecard.Size, sharecard.Size), true
 }
 
 // buildMeta renders the OG/Twitter block. All dynamic strings are HTML-escaped

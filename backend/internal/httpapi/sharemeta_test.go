@@ -12,6 +12,7 @@ import (
 
 	"github.com/trick77/music/internal/config"
 	"github.com/trick77/music/internal/library"
+	"github.com/trick77/music/internal/sharecard"
 	"github.com/trick77/music/internal/store"
 	"github.com/trick77/music/web"
 )
@@ -87,8 +88,8 @@ func TestShareMeta_songBlockIsExact(t *testing.T) {
 		`<meta name="twitter:description" content="Test Artist">`,
 		`<meta property="og:image" content="` + card + `">`,
 		`<meta name="twitter:image" content="` + card + `">`,
-		`<meta property="og:image:width" content="1200">`,
-		`<meta property="og:image:height" content="1200">`,
+		`<meta property="og:image:width" content="` + strconv.Itoa(sharecard.Size) + `">`,
+		`<meta property="og:image:height" content="` + strconv.Itoa(sharecard.Size) + `">`,
 		"",
 	}, "\n")
 
@@ -119,7 +120,7 @@ func TestShareMeta_escapesHostileTitle(t *testing.T) {
 }
 
 func TestShareCard_songMetaPointsAtCard(t *testing.T) {
-	// A published song's og:image is the rendered 1200x1200 card (absolute URL),
+	// A published song's og:image is the rendered square card (absolute URL),
 	// with advertised square dimensions — the Apple-safe shape that renders a
 	// titled card in iMessage instead of an oversized cover.
 	//
@@ -153,10 +154,10 @@ func TestShareCard_songMetaPointsAtCard(t *testing.T) {
 	if !strings.Contains(b, `name="twitter:card" content="summary_large_image"`) {
 		t.Fatalf("song card should be summary_large_image:\n%s", b)
 	}
-	if !strings.Contains(b, `property="og:image:width" content="1200"`) || !strings.Contains(b, `property="og:image:height" content="1200"`) {
-		t.Fatalf("song card should advertise 1200x1200:\n%s", b)
+	if !strings.Contains(b, `property="og:image:width" content="`+strconv.Itoa(sharecard.Size)+`"`) || !strings.Contains(b, `property="og:image:height" content="`+strconv.Itoa(sharecard.Size)+`"`) {
+		t.Fatalf("song card should advertise %dx%d:\n%s", sharecard.Size, sharecard.Size, b)
 	}
-	// And the card renders as a real 1200x1200 JPEG.
+	// And the card renders as a real square JPEG.
 	assertCard(t, h, "/api/share/song/"+sid+"/card.jpg")
 }
 
@@ -192,8 +193,8 @@ func TestShareCard_rangeRequestGetsWholeImage(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ranged card is not a decodable JPEG: %v", err)
 	}
-	if cfg.Width != 1200 || cfg.Height != 1200 {
-		t.Fatalf("ranged card dims = %dx%d, want 1200x1200", cfg.Width, cfg.Height)
+	if cfg.Width != sharecard.Size || cfg.Height != sharecard.Size {
+		t.Fatalf("ranged card dims = %dx%d, want %dx%d", cfg.Width, cfg.Height, sharecard.Size, sharecard.Size)
 	}
 	// DecodeConfig only reads the header, so decode the whole image: that is what
 	// actually distinguishes a full card from a truncated one.
@@ -457,25 +458,25 @@ func TestShareMeta_playlistFallsBackToFirstSongCover(t *testing.T) {
 	if !strings.Contains(b, `property="og:title"`) || !strings.Contains(b, "Late Night Drive") {
 		t.Fatalf("playlist meta missing title:\n%s", b)
 	}
-	// og:image points at the rendered 1200x1200 share card (absolute URL), not the
+	// og:image points at the rendered square share card (absolute URL), not the
 	// raw cover. The first-song cover fallback now happens inside the card handler.
 	cardURL := "https://music.example.com/api/share/playlist/" + pid + "/card.jpg"
 	if !strings.Contains(b, `property="og:image" content="`+cardURL+`"`) {
 		t.Fatalf("playlist og:image should be the card URL %q:\n%s", cardURL, b)
 	}
-	if !strings.Contains(b, `property="og:image:width" content="1200"`) || !strings.Contains(b, `property="og:image:height" content="1200"`) {
-		t.Fatalf("playlist card should advertise 1200x1200:\n%s", b)
+	if !strings.Contains(b, `property="og:image:width" content="`+strconv.Itoa(sharecard.Size)+`"`) || !strings.Contains(b, `property="og:image:height" content="`+strconv.Itoa(sharecard.Size)+`"`) {
+		t.Fatalf("playlist card should advertise %dx%d:\n%s", sharecard.Size, sharecard.Size, b)
 	}
 	// The subtitle is the track count (one published track), not a description.
 	if !strings.Contains(b, "Playlist · 1 song") {
 		t.Fatalf("playlist meta should show track count:\n%s", b)
 	}
 	// Fetch the card itself: it must render (falling back to the first song's cover)
-	// as a 1200x1200 JPEG.
+	// as a square JPEG.
 	assertCard(t, h, "/api/share/playlist/"+pid+"/card.jpg")
 }
 
-// assertCard fetches a share-card URL and asserts it is a 1200x1200 JPEG.
+// assertCard fetches a share-card URL and asserts it is a square JPEG.
 func assertCard(t *testing.T, h http.Handler, path string) {
 	t.Helper()
 	rr := httptest.NewRecorder()
@@ -499,8 +500,8 @@ func assertCard(t *testing.T, h http.Handler, path string) {
 	if err != nil {
 		t.Fatalf("card is not a decodable JPEG: %v", err)
 	}
-	if cfg.Width != 1200 || cfg.Height != 1200 {
-		t.Fatalf("card dims = %dx%d, want 1200x1200", cfg.Width, cfg.Height)
+	if cfg.Width != sharecard.Size || cfg.Height != sharecard.Size {
+		t.Fatalf("card dims = %dx%d, want %dx%d", cfg.Width, cfg.Height, sharecard.Size, sharecard.Size)
 	}
 }
 

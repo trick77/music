@@ -90,7 +90,14 @@ func songMeta(ctx context.Context, repo *library.Repo, r *http.Request, id strin
 		return "", false
 	}
 	img := baseURL(r) + "/api/share/song/" + id + "/card.jpg"
-	return buildMeta("music.song", song.Title, song.ArtistName, img, baseURL(r)+r.URL.Path, 1200, 1200), true
+	// "website", not "music.song". Declaring music.song promises the rest of the
+	// music object, and Spotify's track pages — which do unfurl their cover art
+	// in Slack — back it with og:audio, og:audio:type and music:duration /
+	// music:musician / music:album / music:release_date. We have none of those:
+	// there is no public stream endpoint to point og:audio at. An og:type whose
+	// object is absent got the compact no-image card. "website" claims only what
+	// is actually here, which is a title, a description and an image.
+	return buildMeta("website", song.Title, song.ArtistName, img, baseURL(r)+r.URL.Path, 1200, 1200), true
 }
 
 func playlistMeta(ctx context.Context, repo *library.Repo, r *http.Request, id string) (string, bool) {
@@ -108,7 +115,9 @@ func playlistMeta(ctx context.Context, repo *library.Repo, r *http.Request, id s
 	}
 	desc := fmt.Sprintf("Playlist · %d %s", n, noun)
 	img := baseURL(r) + "/api/share/playlist/" + id + "/card.jpg"
-	return buildMeta("music.playlist", pl.Name, desc, img, baseURL(r)+r.URL.Path, 1200, 1200), true
+	// "website" for the same reason as songMeta: music.playlist promises a track
+	// list (music:song, music:song:track) that we do not emit.
+	return buildMeta("website", pl.Name, desc, img, baseURL(r)+r.URL.Path, 1200, 1200), true
 }
 
 // buildMeta renders the OG/Twitter block. All dynamic strings are HTML-escaped

@@ -80,7 +80,7 @@ func TestShareMeta_songBlockIsExact(t *testing.T) {
 	card := base + "/api/share/song/" + sid + "/card.jpg"
 	want := strings.Join([]string{
 		`<meta property="og:site_name" content="Music">`,
-		`<meta property="og:type" content="music.song">`,
+		`<meta property="og:type" content="website">`,
 		`<meta property="og:title" content="Test Song">`,
 		`<meta property="og:description" content="Test Artist">`,
 		`<meta property="og:url" content="` + base + `/song/` + sid + `">`,

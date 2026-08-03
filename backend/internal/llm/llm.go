@@ -124,6 +124,16 @@ func (c *Client) chat(ctx context.Context, model string, messages []Message, too
 		return Message{}, "", tokenUsage{}, err
 	}
 	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Accept", "*/*")
+	req.Header.Set("User-Agent", chatUserAgent)
+	// Session headers pin a conversation to one upstream node. Both names carry
+	// the same value; the upstream sends the pair too. Accept-Encoding is left
+	// unset on purpose so net/http keeps negotiating and decompressing gzip
+	// transparently — setting it by hand would hand us a compressed body to
+	// decode ourselves.
+	sessionID := sessionIDFrom(ctx)
+	req.Header.Set("X-Session-Id", sessionID)
+	req.Header.Set("X-Session-Affinity", sessionID)
 	req.Header.Set("Authorization", "Bearer "+c.APIKey)
 
 	httpClient := c.HTTP

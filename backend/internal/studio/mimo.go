@@ -29,6 +29,10 @@ func New(chat llm.Chat, tools toolProvider) Provider {
 func (p *mimoProvider) Generate(ctx context.Context, req GenerateRequest, onProgress ProgressFunc, onPartial PartialFunc) (GenerateResult, error) {
 	var res GenerateResult
 
+	// All three turns are one conversation, so they share one upstream session:
+	// the session/affinity headers pin them to a single node.
+	ctx = llm.WithSession(ctx)
+
 	raw, history, err := runResearch(ctx, p.chat, p.tools, generateSystemPrompt, generateUserPrompt(req.Reference), onProgress)
 	if err != nil {
 		return GenerateResult{}, err

@@ -82,12 +82,18 @@ function startOfLocalDay(d: Date): number {
 }
 
 /**
+ * How many CALENDAR days in the viewer's zone lie between d and now — not elapsed
+ * 24h windows. "Yesterday" is a claim about the calendar, so a timestamp at 22:00
+ * last night must not count as 0 merely because it was under 24 hours ago. Rounding
+ * absorbs DST's 23/25-hour days. Negative for a future date.
+ */
+function calendarDaysAgo(d: Date, now: Date): number {
+  return Math.round((startOfLocalDay(now) - startOfLocalDay(d)) / DAY_MS);
+}
+
+/**
  * formatLastPlayed renders when a song was last played, relative while that's the
  * more useful reading and absolute once it isn't. `now` is injectable for tests.
- *
- * Days are CALENDAR days in the viewer's zone, not elapsed 24h windows: "Yesterday"
- * is a claim about the calendar, so a play at 22:00 last night must not read "Today"
- * merely because it was under 24 hours ago. Rounding absorbs DST's 23/25-hour days.
  */
 export function formatLastPlayed(
   lastPlayedAt: string,
@@ -95,9 +101,41 @@ export function formatLastPlayed(
 ): string {
   const d = parseSqlite(lastPlayedAt);
   if (!d) return "Never"; // the server sends "" for a song nobody has played
-  const days = Math.round((startOfLocalDay(now) - startOfLocalDay(d)) / DAY_MS);
+  const days = calendarDaysAgo(d, now);
   if (days <= 0) return "Today";
   if (days === 1) return "Yesterday";
   if (days < 30) return `${days} days ago`;
+  return dayMonthYear.format(d);
+}
+
+/**
+ * daysSinceAdded is how many calendar days ago a song was added, or null when the
+ * row carries no usable timestamp. The Library's "Recently added" tab windows on
+ * this rather than on a date string comparison, which would be wrong across zones.
+ */
+export function daysSinceAdded(
+  createdAt: string,
+  now: Date = new Date(),
+): number | null {
+  const d = parseSqlite(createdAt);
+  return d ? calendarDaysAgo(d, now) : null;
+}
+
+/**
+ * formatDayGroup names the day a song was added, for the headers that break the
+ * "Recently added" list into calendar days. Unlike formatLastPlayed it never says
+ * "6 days ago": a group header is a place on the calendar, and two headers reading
+ * "5 days ago" and "6 days ago" are harder to scan than two dates. A song with no
+ * usable timestamp groups under EMPTY rather than being dropped.
+ */
+export function formatDayGroup(
+  createdAt: string,
+  now: Date = new Date(),
+): string {
+  const d = parseSqlite(createdAt);
+  if (!d) return EMPTY;
+  const days = calendarDaysAgo(d, now);
+  if (days <= 0) return "Today";
+  if (days === 1) return "Yesterday";
   return dayMonthYear.format(d);
 }

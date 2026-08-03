@@ -3,7 +3,9 @@ import {
   formatDuration,
   formatFileSize,
   formatDateAdded,
+  formatDayGroup,
   formatLastPlayed,
+  daysSinceAdded,
   formatSampleRate,
   formatChannels,
   formatBitrate,
@@ -116,5 +118,46 @@ describe("formatLastPlayed", () => {
   });
   it("falls back to a date once it's old news", () => {
     expect(formatLastPlayed("2026-01-02 12:00:00", now)).toBe("2 Jan 2026");
+  });
+});
+
+describe("formatDayGroup", () => {
+  const now = new Date(Date.UTC(2026, 6, 15, 12, 0, 0));
+
+  it("names today and yesterday", () => {
+    expect(formatDayGroup("2026-07-15 09:00:00", now)).toBe("Today");
+    expect(formatDayGroup("2026-07-14 09:00:00", now)).toBe("Yesterday");
+  });
+  // Same calendar-day rule as formatLastPlayed: 22:00 local last night is
+  // Yesterday even though it is under 24 hours ago.
+  it("says Yesterday for last night, even though it's under 24 hours ago", () => {
+    expect(formatDayGroup("2026-07-14 20:00:00", now)).toBe("Yesterday");
+  });
+  // A group header is a place on the calendar. "5 days ago" next to "6 days ago"
+  // is harder to scan than two dates, so it goes absolute from day two.
+  it("uses a date rather than a day count from two days back", () => {
+    expect(formatDayGroup("2026-07-13 13:00:00", now)).toBe("13 Jul 2026");
+    expect(formatDayGroup("2026-07-10 12:00:00", now)).toBe("10 Jul 2026");
+  });
+  it("groups a row with no usable timestamp rather than dropping it", () => {
+    expect(formatDayGroup("", now)).toBe("—");
+  });
+});
+
+describe("daysSinceAdded", () => {
+  const now = new Date(Date.UTC(2026, 6, 15, 12, 0, 0));
+
+  it("counts calendar days back", () => {
+    expect(daysSinceAdded("2026-07-15 09:00:00", now)).toBe(0);
+    expect(daysSinceAdded("2026-07-14 20:00:00", now)).toBe(1);
+    expect(daysSinceAdded("2026-06-15 12:00:00", now)).toBe(30);
+  });
+  it("returns null when there is no usable timestamp", () => {
+    expect(daysSinceAdded("", now)).toBeNull();
+  });
+  // Clock skew on the server can stamp a row slightly ahead of the viewer. That
+  // is emphatically "recent", so the count goes negative rather than clamping.
+  it("goes negative for a future timestamp", () => {
+    expect(daysSinceAdded("2026-07-16 09:00:00", now)).toBe(-1);
   });
 });

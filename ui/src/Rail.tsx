@@ -38,6 +38,7 @@ const ITEMS: Item[] = [
     path: "/library",
     match: (r) =>
       r.name === "library" ||
+      r.name === "recent" ||
       r.name === "favorites" ||
       r.name === "unpublished",
   },

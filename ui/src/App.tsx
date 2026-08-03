@@ -764,13 +764,15 @@ export function App() {
             initialTab={
               route.name === "favorites"
                 ? "favorites"
-                : route.name === "unpublished"
-                  ? authed
-                    ? "unpublished"
-                    : "all"
-                  : route.name === "genres"
-                    ? "genres"
-                    : "all"
+                : route.name === "recent"
+                  ? "recent"
+                  : route.name === "unpublished"
+                    ? authed
+                      ? "unpublished"
+                      : "all"
+                    : route.name === "genres"
+                      ? "genres"
+                      : "all"
             }
             tabResetKey={tabResetKey}
             onPlay={(s) => onPlay(s)}

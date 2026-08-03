@@ -186,6 +186,31 @@ describe("Library counts", () => {
     expect(screen.getByRole("button", { name: "Favorites 1" })).toBeTruthy();
   });
 
+  it("when the category is smaller than the library, then the denominator is the category, not the library", async () => {
+    // Given Favorites, which holds 1 of the library's 3 songs
+    renderLibrary({ initialTab: "favorites" });
+    // When a query matches that one favorite
+    await userEvent.type(screen.getByLabelText("Filter songs"), "blue");
+    // Then the denominator is the category total (1), not the library total (3)
+    // and not the match count — the pool the numbers describe must be one pool
+    expect(screen.getByText("1 of 1")).toBeTruthy();
+    expect(screen.queryByText("1 of 3")).toBeNull();
+  });
+
+  it("when the field's own clear button is used, then the whole list returns", async () => {
+    // Given a query typed into the field
+    renderLibrary();
+    const field = screen.getByLabelText("Filter songs");
+    await userEvent.type(field, "blue");
+    // When the ✕ inside the field is clicked
+    await userEvent.click(
+      screen.getByRole("button", { name: "Clear the filter" }),
+    );
+    // Then the field is empty and every song is back
+    expect(field).toHaveValue("");
+    expect(titles()).toHaveLength(3);
+  });
+
   it("when the category is named, then the count uses that noun", async () => {
     // Given the Favorites tab
     renderLibrary({ initialTab: "favorites" });
@@ -283,6 +308,40 @@ describe("Library Genres tab", () => {
     // Then the copy names the query rather than claiming every genre has artwork
     expect(screen.getByText(/Nothing matches/)).toBeTruthy();
     expect(screen.queryByText("Every genre has artwork.")).toBeNull();
+  });
+
+  it("when the artwork toggle and a query are both on, then the count describes the tiles actually shown", async () => {
+    // Given four genres, of which only one lacks artwork
+    vi.mocked(listGenres).mockResolvedValue([
+      ...GENRES,
+      {
+        id: "g3",
+        name: "shoal ambient",
+        songCount: 1,
+        hasBackground: false,
+        backgroundFanartId: "",
+        accentColor: "",
+      },
+      {
+        id: "g4",
+        name: "dream pop",
+        songCount: 3,
+        hasBackground: true,
+        backgroundFanartId: "f4",
+        accentColor: "",
+      },
+    ]);
+    renderLibrary({ initialTab: "genres" });
+    // When the artwork filter is on and a query matches two genres, only one of
+    // which lacks artwork
+    await userEvent.click(
+      await screen.findByRole("button", { name: /Needs artwork only/ }),
+    );
+    await userEvent.type(await screen.findByLabelText("Filter genres"), "sho");
+    // Then the row counts the same pool the grid renders — one tile, one match
+    expect(screen.getByText("Shoal Ambient")).toBeTruthy();
+    expect(screen.getByText("1 of 1")).toBeTruthy();
+    expect(screen.queryByText("Shoegaze")).toBeNull(); // matches, but has artwork
   });
 
   it("when the Genres tab is open, then its pill carries no count", async () => {

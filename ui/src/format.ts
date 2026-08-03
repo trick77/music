@@ -68,6 +68,22 @@ const dayMonthYear = new Intl.DateTimeFormat("en-GB", {
   timeZone: "UTC",
 });
 
+/**
+ * The same date, named in the VIEWER's zone rather than UTC.
+ *
+ * Needed wherever the date is a grouping key rather than decoration: the
+ * calendar-day maths below is local, so pairing it with the UTC formatter above
+ * would put two songs added on the same local evening under two different
+ * headings — and head the earlier one with yesterday's date. (dayMonthYear stays
+ * UTC: formatDateAdded and formatLastPlayed already ship that way, and shifting
+ * them is a separate decision.)
+ */
+const dayMonthYearLocal = new Intl.DateTimeFormat("en-GB", {
+  day: "numeric",
+  month: "short",
+  year: "numeric",
+});
+
 /** formatDateAdded renders a song's upload date — "12 Mar 2026". */
 export function formatDateAdded(createdAt: string): string {
   const d = parseSqlite(createdAt);
@@ -137,5 +153,5 @@ export function formatDayGroup(
   const days = calendarDaysAgo(d, now);
   if (days <= 0) return "Today";
   if (days === 1) return "Yesterday";
-  return dayMonthYear.format(d);
+  return dayMonthYearLocal.format(d);
 }

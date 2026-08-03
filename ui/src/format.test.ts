@@ -139,6 +139,14 @@ describe("formatDayGroup", () => {
     expect(formatDayGroup("2026-07-13 13:00:00", now)).toBe("13 Jul 2026");
     expect(formatDayGroup("2026-07-10 12:00:00", now)).toBe("10 Jul 2026");
   });
+  // The heading is a GROUPING KEY, so it has to be named in the same zone the
+  // day maths uses. 23:00 UTC on the 12th is 01:00 local on the 13th (TZ is
+  // pinned to Europe/Zurich); naming it "12 Jul" would split one local day
+  // across two headings and date the earlier one wrong.
+  it("names the day in the viewer's zone, not UTC", () => {
+    expect(formatDayGroup("2026-07-12 23:00:00", now)).toBe("13 Jul 2026");
+    expect(formatDayGroup("2026-07-13 10:00:00", now)).toBe("13 Jul 2026");
+  });
   it("groups a row with no usable timestamp rather than dropping it", () => {
     expect(formatDayGroup("", now)).toBe("—");
   });

@@ -125,17 +125,31 @@ export function Library({
     "genres",
   ];
 
-  const inCategory = (song: Song, which: Tab): boolean => {
-    if (which === "favorites") return favoriteIds.includes(song.id);
-    if (which === "unpublished") return !song.published;
-    if (which === "recent") {
+  // Which categories a song belongs to, and the text a query is matched against,
+  // worked out ONCE per song rather than per keystroke. Membership doesn't depend
+  // on the query, so typing a character only re-runs the substring test — without
+  // this, every keystroke re-scanned favoriteIds linearly and re-parsed a date for
+  // every song, four times over (once per pill plus once for the list).
+  const catalog = useMemo(() => {
+    const favorites = new Set(favoriteIds);
+    return songs.map((song) => {
       const days = daysSinceAdded(song.createdAt, now);
-      // A null timestamp is "we don't know when", which is not "recently"; a
-      // negative one is a clock skew into the future, which certainly is.
-      return days !== null && days < RECENT_DAYS;
-    }
-    return true;
-  };
+      return {
+        song,
+        haystack: `${song.title} ${song.artistName}`.toLowerCase(),
+        all: true,
+        favorites: favorites.has(song.id),
+        unpublished: !song.published,
+        // A null timestamp is "we don't know when", which is not "recently"; a
+        // negative one is a clock skew into the future, which certainly is.
+        recent: days !== null && days < RECENT_DAYS,
+      };
+    });
+  }, [songs, favoriteIds, now]);
+
+  type Entry = (typeof catalog)[number];
+  const inCategory = (entry: Entry, which: Tab): boolean =>
+    which === "genres" ? false : entry[which];
 
   // Every number on the page comes from this one pass, so a pill and the row
   // above it can never disagree. `matching` is the count under the current
@@ -146,29 +160,33 @@ export function Library({
       if (which === "genres") continue;
       let matching = 0;
       let total = 0;
-      for (const song of songs) {
-        if (!inCategory(song, which)) continue;
+      for (const entry of catalog) {
+        if (!inCategory(entry, which)) continue;
         total++;
-        if (matchesQuery(song, needle)) matching++;
+        if (!needle || entry.haystack.includes(needle)) matching++;
       }
       out[which] = { matching, total };
     }
     return out;
+    // `tabs` and `inCategory` are rebuilt every render but derive only from
+    // `authenticated` and `catalog`, both listed.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [songs, favoriteIds, authenticated, needle, now]);
+  }, [catalog, authenticated, needle]);
 
   const shown = useMemo(() => {
     if (tab === "genres") return [];
-    const list = songs.filter(
-      (s) => inCategory(s, tab) && matchesQuery(s, needle),
-    );
+    const list = catalog
+      .filter(
+        (e) => inCategory(e, tab) && (!needle || e.haystack.includes(needle)),
+      )
+      .map((e) => e.song);
     // Newest first is the only ordering that makes "Recently added" readable —
     // and it is what the day-group headers below assume.
     if (tab === "recent")
       list.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
     return list;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [songs, favoriteIds, tab, needle, now]);
+  }, [catalog, tab, needle]);
 
   // "Recently added" breaks into calendar days; every other tab is one flat run.
   const dayGroups = useMemo(() => {
@@ -185,6 +203,13 @@ export function Library({
 
   const genreMatches = (g: GenreSummary) =>
     !needle || genreLabel(g.name).toLowerCase().includes(needle);
+
+  // What the Genres tab is counting and showing: the artwork toggle narrows the
+  // pool, the query then narrows that. Both the row's numbers and the grid read
+  // from this, so they cannot describe different sets.
+  const genrePool = needsArtworkOnly
+    ? genres.filter((g) => !g.hasBackground)
+    : genres;
 
   const clearQuery = () => setQuery("");
 
@@ -276,8 +301,8 @@ export function Library({
     );
   };
 
-  const genreTotal = genres.length;
-  const genreMatching = genres.filter(genreMatches).length;
+  const genreTotal = genrePool.length;
+  const genreMatching = genrePool.filter(genreMatches).length;
   const active = counts[tab] ?? { matching: 0, total: 0 };
   const rowTotal = tab === "genres" ? genreTotal : active.total;
   const rowMatching = tab === "genres" ? genreMatching : active.matching;
@@ -300,7 +325,10 @@ export function Library({
             marginBottom: "1rem",
           }}
         >
-          <span style={t.label}>
+          {/* The list re-filters silently on every keystroke; without a live
+              region a screen-reader user gets no confirmation that anything
+              happened. "polite" so it waits for a pause in typing. */}
+          <span style={t.label} aria-live="polite">
             {needle ? (
               rowMatching > 0 ? (
                 <>
@@ -407,6 +435,9 @@ export function Library({
               key={k}
               ref={k === tab ? activeTabRef : undefined}
               onClick={() => setTab(k)}
+              // Which pill is selected was carried by colour alone, which says
+              // nothing to a screen reader.
+              aria-pressed={k === tab}
               style={{
                 padding: "7px 14px",
                 borderRadius: 999,
@@ -453,10 +484,12 @@ export function Library({
         (() => {
           const missing = genres.filter((g) => !g.hasBackground).length;
           // The filter field above the pills narrows the tiles too — it is the
-          // page's one search box, so it must not go dead on this tab.
-          const shownGenres = genres
-            .filter(genreMatches)
-            .filter((g) => !needsArtworkOnly || !g.hasBackground);
+          // page's one search box, so it must not go dead on this tab. The
+          // artwork toggle is applied FIRST, so it defines the pool the count row
+          // above describes (see genrePool): with the toggle on, "6 of 10 genres
+          // match" beside a single rendered tile was the same numbers-disagree
+          // bug the song tabs take care to avoid.
+          const shownGenres = genrePool.filter(genreMatches);
           return (
             <div>
               {genres.length > 0 && (

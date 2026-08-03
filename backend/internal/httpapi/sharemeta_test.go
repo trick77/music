@@ -60,11 +60,9 @@ func TestShareMeta_songEmitsOGTags(t *testing.T) {
 }
 
 // TestShareMeta_songBlockIsExact pins the whole injected block, not just that
-// individual tags are present. The tags are interdependent — twitter:card has to
-// agree with og:image:width/height, and a square card declared as
-// summary_large_image is what made Slack unfurl song links with no cover art —
-// so asserting them one at a time lets the combination drift while every
-// individual assertion still passes.
+// individual tags are present. Asserting tags one at a time lets the combination
+// drift while every individual assertion still passes, which is how this block
+// went through four wrong og:type/twitter:card pairings without a test noticing.
 func TestShareMeta_songBlockIsExact(t *testing.T) {
 	h := testServer(t, config.AuthModeDev)
 	sid := uploadSongID(t, h)
@@ -84,7 +82,7 @@ func TestShareMeta_songBlockIsExact(t *testing.T) {
 		`<meta property="og:title" content="Test Song">`,
 		`<meta property="og:description" content="Test Artist">`,
 		`<meta property="og:url" content="` + base + `/song/` + sid + `">`,
-		`<meta name="twitter:card" content="summary">`,
+		`<meta name="twitter:card" content="summary_large_image">`,
 		`<meta name="twitter:title" content="Test Song">`,
 		`<meta name="twitter:description" content="Test Artist">`,
 		`<meta property="og:image" content="` + card + `">`,
@@ -125,10 +123,10 @@ func TestShareCard_songMetaPointsAtCard(t *testing.T) {
 	// with advertised square dimensions — the Apple-safe shape that renders a
 	// titled card in iMessage instead of an oversized cover.
 	//
-	// The card kind is "summary", not "summary_large_image": the latter promises
-	// a wide hero image, and against a square card Slack dropped the image and
-	// unfurled with the title and artist only. "summary" is the small-thumbnail
-	// layout Spotify's track links use with their 640x640 cover.
+	// The card kind is summary_large_image even though the card is square: a
+	// square og:image does render as a large preview (ffm.to serves 1108x1108
+	// this way). An earlier revision downgraded square cards to "summary" on the
+	// opposite assumption and only cost them the large layout.
 	h := testServer(t, config.AuthModeDev)
 	sid := uploadSongID(t, h)
 	body, ct := pngMultipart(t)
@@ -152,8 +150,8 @@ func TestShareCard_songMetaPointsAtCard(t *testing.T) {
 	if !strings.Contains(b, `property="og:image" content="`+cardURL+`"`) {
 		t.Fatalf("song og:image should be the card URL %q:\n%s", cardURL, b)
 	}
-	if !strings.Contains(b, `name="twitter:card" content="summary"`) {
-		t.Fatalf("square song card should be summary, not summary_large_image:\n%s", b)
+	if !strings.Contains(b, `name="twitter:card" content="summary_large_image"`) {
+		t.Fatalf("song card should be summary_large_image:\n%s", b)
 	}
 	if !strings.Contains(b, `property="og:image:width" content="1200"`) || !strings.Contains(b, `property="og:image:height" content="1200"`) {
 		t.Fatalf("song card should advertise 1200x1200:\n%s", b)

@@ -90,12 +90,7 @@ func songMeta(ctx context.Context, repo *library.Repo, r *http.Request, id strin
 		return "", false
 	}
 	img := baseURL(r) + "/api/share/song/" + id + "/card.jpg"
-	// "website", not "music.song": Slack picks its unfurl template off og:type,
-	// and the music.* types are the rich-player layout, which wants an og:audio
-	// stream URL. There is no public stream endpoint to point one at, so Slack
-	// fell back to a compact card that drops og:image — the link previewed with
-	// the title and artist but no cover art.
-	return buildMeta("website", song.Title, song.ArtistName, img, baseURL(r)+r.URL.Path, 1200, 1200), true
+	return buildMeta("music.song", song.Title, song.ArtistName, img, baseURL(r)+r.URL.Path, 1200, 1200), true
 }
 
 func playlistMeta(ctx context.Context, repo *library.Repo, r *http.Request, id string) (string, bool) {
@@ -113,9 +108,7 @@ func playlistMeta(ctx context.Context, repo *library.Repo, r *http.Request, id s
 	}
 	desc := fmt.Sprintf("Playlist · %d %s", n, noun)
 	img := baseURL(r) + "/api/share/playlist/" + id + "/card.jpg"
-	// "website" for the same reason as songMeta: music.playlist is a rich-player
-	// type and costs the cover art in Slack.
-	return buildMeta("website", pl.Name, desc, img, baseURL(r)+r.URL.Path, 1200, 1200), true
+	return buildMeta("music.playlist", pl.Name, desc, img, baseURL(r)+r.URL.Path, 1200, 1200), true
 }
 
 // buildMeta renders the OG/Twitter block. All dynamic strings are HTML-escaped
@@ -133,7 +126,7 @@ func buildMeta(ogType, title, desc, img, url string, imgW, imgH int) string {
 	meta("property", "og:title", title)
 	meta("property", "og:description", desc)
 	meta("property", "og:url", url)
-	meta("name", "twitter:card", pick(img, "summary_large_image", "summary"))
+	meta("name", "twitter:card", cardType(img, imgW, imgH))
 	meta("name", "twitter:title", title)
 	meta("name", "twitter:description", desc)
 	if img != "" {
@@ -143,6 +136,22 @@ func buildMeta(ogType, title, desc, img, url string, imgW, imgH int) string {
 		meta("property", "og:image:height", fmt.Sprintf("%d", imgH))
 	}
 	return b.String()
+}
+
+// cardType picks the Twitter card kind from the image's actual shape. The
+// landscape "summary_large_image" promises a wide hero image; declaring it for
+// the square 1200x1200 song/playlist cards made Slack drop the image entirely
+// and unfurl with the title and artist only. Square art belongs to "summary",
+// which is the small-thumbnail layout Spotify's track links use (their cover is
+// 640x640 and unfurls the same way). The 1.91:1 og-card.png stays large.
+func cardType(img string, w, h int) string {
+	if img == "" {
+		return "summary"
+	}
+	if h > 0 && w*10 >= h*15 { // >= 1.5:1, i.e. genuinely landscape
+		return "summary_large_image"
+	}
+	return "summary"
 }
 
 func pick(cond, a, b string) string {

@@ -82,8 +82,13 @@ func TestShareMeta_escapesHostileTitle(t *testing.T) {
 
 func TestShareCard_songMetaPointsAtCard(t *testing.T) {
 	// A published song's og:image is the rendered 1200x1200 card (absolute URL),
-	// with summary_large_image and advertised square dimensions — the Apple-safe
-	// shape that renders a titled card in iMessage instead of an oversized cover.
+	// with advertised square dimensions — the Apple-safe shape that renders a
+	// titled card in iMessage instead of an oversized cover.
+	//
+	// The card kind is "summary", not "summary_large_image": the latter promises
+	// a wide hero image, and against a square card Slack dropped the image and
+	// unfurled with the title and artist only. "summary" is the small-thumbnail
+	// layout Spotify's track links use with their 640x640 cover.
 	h := testServer(t, config.AuthModeDev)
 	sid := uploadSongID(t, h)
 	body, ct := pngMultipart(t)
@@ -107,8 +112,8 @@ func TestShareCard_songMetaPointsAtCard(t *testing.T) {
 	if !strings.Contains(b, `property="og:image" content="`+cardURL+`"`) {
 		t.Fatalf("song og:image should be the card URL %q:\n%s", cardURL, b)
 	}
-	if !strings.Contains(b, `name="twitter:card" content="summary_large_image"`) {
-		t.Fatalf("song card should be summary_large_image:\n%s", b)
+	if !strings.Contains(b, `name="twitter:card" content="summary"`) {
+		t.Fatalf("square song card should be summary, not summary_large_image:\n%s", b)
 	}
 	if !strings.Contains(b, `property="og:image:width" content="1200"`) || !strings.Contains(b, `property="og:image:height" content="1200"`) {
 		t.Fatalf("song card should advertise 1200x1200:\n%s", b)

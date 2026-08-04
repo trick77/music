@@ -24,7 +24,11 @@ type descriptionWriter struct{ chat llm.Chat }
 
 func NewDescriptionWriter(chat llm.Chat) DescriptionWriter { return &descriptionWriter{chat: chat} }
 
+// Low effort: three one-sentence lines with hard word caps, written from a song
+// list the prompt already carries. There is nothing here to work out, and the
+// request blocks a user while the model works it out anyway.
 func (d *descriptionWriter) PlaylistDescriptions(ctx context.Context, name string, songs []library.PlaylistTrackBrief) (PlaylistTones, error) {
+	ctx = llm.WithReasoningEffort(ctx, llm.EffortLow)
 	msgs := []llm.Message{
 		{Role: "system", Content: playlistDescSystemPrompt},
 		{Role: "user", Content: playlistDescUserPrompt(name, songs)},

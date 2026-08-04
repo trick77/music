@@ -108,7 +108,10 @@ func (c *Client) Chat(ctx context.Context, messages []Message, tools []Tool) (Me
 }
 
 func (c *Client) chat(ctx context.Context, model string, messages []Message, tools []Tool) (Message, string, tokenUsage, error) {
-	effort := c.ReasoningEffort
+	effort := ReasoningEffortFrom(ctx)
+	if effort == "" {
+		effort = c.ReasoningEffort
+	}
 	if effort == "" {
 		effort = defaultReasoningEffort
 	}

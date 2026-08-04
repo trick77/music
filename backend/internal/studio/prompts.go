@@ -121,7 +121,10 @@ prompt, the lyrics, the titles, the albums, the bands and the cover-art prompt.`
 // generateTurn1Prompt asks for the research-derived half: the style prompt, the
 // genre labels, and the reference song's real artist and title (a label for the
 // saved run, never prompt content). It is the only turn that may call tools.
-const generateTurn1Prompt = `Research the reference song now, then produce THREE things:
+//
+// The song it works on is named at the END of the user message rather than the
+// start — see generateUserPrompt for why.
+const generateTurn1Prompt = `Research the reference song named at the end of this message, then produce THREE things:
 
 1. stylePrompt — a comma-separated list of style/genre descriptors for Suno's
    "Style" box. Rules: NO spaces after commas; lowercase except proper nouns;
@@ -334,11 +337,19 @@ the instruction does not change.
 Respond with ONLY a single JSON object and nothing else (no prose, no code fences):
 {"prompt":"..."}`
 
-// generateUserPrompt opens the generate conversation: the reference plus the
-// turn-1 request. The turn instructions ride in the user message, not the system
+// generateUserPrompt opens the generate conversation: the turn-1 request plus
+// the reference. The turn instructions ride in the user message, not the system
 // prompt, so turn 1 is asked for its two fields the same way turns 2 and 3 are.
+//
+// The reference goes LAST, after the instructions, and that order is the whole
+// point of the function. Everything before the first byte that varies between
+// runs can be served from the upstream prompt cache; with the song name in
+// front, the cacheable prefix ended at the system prompt (~300 tokens) and the
+// ~900 tokens of turn-1 rules behind it were re-read on every run. Moving one
+// short line to the end puts them inside the prefix instead. Turns 2 and 3
+// replay this message verbatim, so the saving lands three times per run.
 func generateUserPrompt(reference string) string {
-	return fmt.Sprintf("Reference song: %s\n\n%s", reference, generateTurn1Prompt)
+	return fmt.Sprintf("%s\n\nReference song: %s", generateTurn1Prompt, reference)
 }
 
 func genrePromptUserPrompt(genre string) string {

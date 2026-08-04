@@ -40,7 +40,13 @@ func (p *genrePrompter) AlbumCoverPrompt(ctx context.Context, artist, album stri
 	return p.completePrompt(ctx, albumCoverPromptSystemPrompt, albumCoverPromptUserPrompt(artist, album, genres, lyrics), "album cover prompt")
 }
 
+// Refining runs at low effort, unlike the two authoring flows above. It is not a
+// creative act: the prompt already exists, the instruction says what to change,
+// and the system prompt's own rule is to keep whatever the instruction does not
+// touch. The user is sitting in front of the panel waiting for it, and it is the
+// call they make repeatedly while tuning one image.
 func (p *genrePrompter) RefinePrompt(ctx context.Context, current, instruction, context string) (string, error) {
+	ctx = llm.WithReasoningEffort(ctx, llm.EffortLow)
 	return p.completePrompt(ctx, refinePromptSystemPrompt, refinePromptUserPrompt(current, instruction, context), "refined prompt")
 }
 

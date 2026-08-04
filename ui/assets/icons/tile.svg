@@ -2,7 +2,7 @@
   Music's icon: lucide's "headphones" held inside lucide's "square-play" frame.
   This is the master: the shape every other source here is a copy of, and what
   every raster except the two OS tiles is rendered from. It does not itself
-  ship — favicon.svg beside it is the file that reaches a browser.
+  ship — icon-favicon.svg beside it is the file that reaches a browser.
 
   The paths are lucide's (ISC), copied rather than imported — nothing loads
   lucide-react to draw a static asset. Nothing is filled: lucide draws every
@@ -37,14 +37,21 @@
   Sized off the frame's TRUE bbox — x[3,21] y[3,21] grown by half the stroke to
   20 square, exactly centred on (12,12) — not the nominal 24x24 box the paths
   only partly fill. Scaling by the box is what makes a glyph read as a dot at
-  favicon sizes. Here it spans 89.75% of the canvas, which is 96% pulled in by
-  exactly one pixel at the 16px the tab draws it at: 15.36px of frame became
-  14.36px. The old 96% was near enough edge to edge on the reasoning that a tab
-  already sets the icon in padding of its own — true, but the chip was sitting
-  hard against that padding rather than inside it. A pixel is the whole of the
-  change; the mark still reads as the frame, not as a dot. The two tiled sources
-  inset much further, because there the tile itself is visible, and they were
-  scaled by the same 0.9349 so the four stay one family.
+  favicon sizes. Here it spans the canvas exactly: coverage 1.0, the frame's
+  outer stroke edge landing on 0 and 64.
+
+  That number went 96% -> 89.75% -> 100% across #236, #260 and #265, and the
+  last move is the one to trust: the first two were judged from renders, the
+  third from the shipped icon in a real Safari tab. #260's reading was that the
+  frame sat hard against the tab's own padding; at 100% it instead reads as an
+  edge, which is what mimostats does — same lucide frame, same stroke 2, same
+  derived transform. The two apps are deliberately identical here. The full
+  argument, including the full-bleed square that #264 tried in between, is in
+  icon-favicon.svg.
+
+  The two tiled sources do NOT follow this one. They inset much further because
+  the OS crops them, which is a different constraint from a tab's, and their
+  coverages (0.56, 0.486) already match mimostats' to three digits.
 
   The headphones sit at 10.5 units inside the frame's 15.5-unit interior. Note
   what that scale does to the stroke: the inner group is scaled 0.5122, so the
@@ -61,7 +68,10 @@
 
   TRANSPARENT — for what is still rendered from it, which is now the two PWA
   rasters and nothing else. That transparency is UNTESTED rather than reasoned
-  safe. The argument for it was that icon-192 and icon-512 go to a launcher that
+  safe, and since #265 those rasters also run edge to edge with rx corners,
+  which is a second untested thing about the same two files. mimostats ships its
+  PWA rasters exactly this way, so it is not novel, but nobody has looked at
+  either app on a real launcher. The argument for it was that icon-192 and icon-512 go to a launcher that
   composites them itself; Android does composite a purpose:"any" icon onto its
   own background, and that background is often light, so the argument is the
   same shape as the one that just failed below. Nobody has looked at these on a
@@ -71,7 +81,7 @@
   The tab icon used to be rendered from this too, on that same reasoning, and it
   was wrong: Safari draws favicons on a light plate in its favourites bar, which
   turns a bare orange outline into a scribble on a white card. It moved to
-  favicon.svg, which is this file with the frame's rect filled. See that file —
+  icon-favicon.svg, which is this file with the frame's rect filled. See that file —
   it carries the measurements, including which Safari surfaces do this and which
   do not.
 
@@ -95,7 +105,7 @@
     <stop offset="0" stop-color="#e08a68"/>
     <stop offset="1" stop-color="#c25f34"/>
   </linearGradient>
-  <g transform="translate(-2.4640 -2.4640) scale(2.87200)" fill="none" stroke="url(#og)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <g transform="translate(-6.4000 -6.4000) scale(3.20000)" fill="none" stroke="url(#og)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
     <rect x="3" y="3" width="18" height="18" rx="2"/>
     <g transform="translate(5.8537 5.8537) scale(0.51220)">
       <path d="M3 14h3a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-7a9 9 0 0 1 18 0v7a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3"/>

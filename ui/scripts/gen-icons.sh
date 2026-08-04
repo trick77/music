@@ -93,10 +93,9 @@ magick -size 1200x630 xc:"$DARK" \
 # MUST stay transparent: a launcher composites them itself. The two OS tiles MUST
 # stay opaque: iOS flattens alpha onto black and Android fills it with the
 # launcher's own colour, so a transparent one ships as a black square on an
-# iPhone. And icon.svg must be opaque $TAB EDGE TO EDGE — it was a chip inside
-# transparent corners until 2026-08-04, and if the tile reads as heavy in a real
-# Safari tab that is the assertion to move back. None of these is a formality;
-# do not "fix" a failure by relaxing the check.
+# iPhone. And icon.svg must be BOTH — a filled frame inside transparent
+# corners. None of these is a formality; do not "fix" a failure by relaxing the
+# check.
 fail=0
 check_alpha() { # <file> <expected true|false>
 	local got
@@ -115,25 +114,27 @@ check_alpha "$OUT/icon-maskable-512.png" true
 check_alpha "$OUT/og-card.png" true
 
 # icon.svg ships as SVG, so there is no raster to read — render one here just
-# to assert it. Two samples, both required to be opaque $TAB: the canvas corner,
-# which is what makes it a full-bleed tile rather than the chip it used to be,
-# and a point inside the frame but clear of the headphones (they start around
-# y=170 at this size). Losing a fill is the regression that put this check here,
-# and it is invisible until someone opens a tab in Safari.
+# to assert it. Two samples, because it has to be a chip and not a tile: the
+# canvas corner transparent, and a point inside the frame but clear of the
+# headphones filled with $TAB. Losing the fill is the regression that put this
+# check here, and it is invisible until someone opens a tab in Safari.
 #
-# The corner is read as a hex, not as alpha alone. It used to assert alpha 0 —
-# the chip's transparent corner — and inverting that to "alpha 1" would have
-# been the weaker check, since it would pass on a corner filled with any colour
-# at all. Reading the hex asserts opacity AND $TAB in one go.
+# The corner asserts alpha 0 again. #264 briefly made this a full-bleed tile and
+# read the corner as a hex instead; #265 put the chip back at 100% coverage, so
+# the transparent corner is the property again and the hex read would now assert
+# the frame interior twice. p{256,96} still works at C=1.0, but the margin
+# either side of it shrank: in 64-space that point is y=12, the frame's band now
+# ends at y=6.4 and the headphones start at y=18.9. Re-derive it if the coverage
+# or the stroke moves again — it is 4 units clear at the tighter end.
 rsvg-convert -b none -w 512 -h 512 "$OUT/icon.svg" -o "$TMP/icon-favicon.png"
 # -alpha on before both reads. Without it an image that happens to be fully
 # opaque carries no alpha channel, and then %[hex:...] returns six digits
 # instead of eight and %[fx:...a] does not report 1 — the comparisons below
 # would be measuring ImageMagick's channel bookkeeping rather than the icon.
-fav_corner="$(magick "$TMP/icon-favicon.png" -alpha on -format '%[hex:p{0,0}]' info: | tr '[:upper:]' '[:lower:]')"
+fav_corner="$(magick "$TMP/icon-favicon.png" -alpha on -format '%[fx:p{0,0}.a]' info:)"
 fav_ground="$(magick "$TMP/icon-favicon.png" -alpha on -format '%[hex:p{256,96}]' info: | tr '[:upper:]' '[:lower:]')"
-if [[ "$fav_corner" != "${TAB#\#}ff" ]]; then
-	echo "gen-icons: icon.svg's canvas corner is #$fav_corner, expected ${TAB}ff" >&2
+if [[ "$fav_corner" != "0" ]]; then
+	echo "gen-icons: icon.svg's canvas corner has alpha $fav_corner, expected 0" >&2
 	fail=1
 fi
 if [[ "$fav_ground" != "${TAB#\#}ff" ]]; then

@@ -2,10 +2,9 @@
   Source for public/icon.svg — the browser tab icon, and nothing else.
   gen-icons.sh ships it as-is; no raster is rendered from it.
 
-  It is a copy of tile.svg with TWO changes: a full-bleed ground rect behind
-  everything, and a fill on the frame's own rect. Everything else — the paths,
-  the gradient ink, the 2 stroke, the true-bbox centring, the 89.75% frame
-  coverage — is tile.svg's and is documented there.
+  It is a copy of tile.svg with ONE change: the frame's rect carries a fill.
+  Everything else — the paths, the gradient ink, the 2 stroke, the true-bbox
+  centring, the 100% coverage — is tile.svg's and is documented there.
 
   WHY THIS EXISTS AS ITS OWN SOURCE. tile.svg is the master for the PWA rasters
   (icon-192, icon-512), and those must stay transparent: a launcher composites
@@ -26,60 +25,65 @@
   which surface is being looked at. Both readings are in the PR that added the
   ground.
 
-  THE GROUND IS FULL BLEED, as of 2026-08-04. This is a REVERSAL, and the
-  reasoning it reverses is kept below because it may well turn out to be the
-  better answer.
+  THE FRAME RUNS EDGE TO EDGE — coverage 1.0, matching mimostats. This is the
+  third answer to the same question in three days, and the previous two are
+  recorded below because the reasoning is the useful part.
 
-  Until now only the frame's interior was filled and the canvas corners stayed
-  transparent, so what landed in a tab was a rounded chip rather than a square
-  tile. That is how the icons which solve this well are built: YouTube's
-  favicon, measured, is a fully transparent canvas around an opaque rounded
-  rect. Music's frame is already a rect with rx 2, so it only had to be filled,
-  not drawn. The stated cost of the chip was that on the favourites bar the
-  light plate still shows through the four rounded corners, about a pixel each
-  at 16px.
+  96% (#236) -> 89.75% (#260) -> full-bleed square (#264) -> 100% chip (#265).
 
-  Filling the whole canvas buys exactly one thing: that corner leak goes away,
-  on every surface, unconditionally. It pays for it by being a square tile in
-  every tab rather than a chip sitting in one. The chip had previously been
-  chosen with both rendered side by side in real Safari; this version exists
-  because that call is being re-examined against the shipped article instead of
-  against a render. If the tile reads as heavy in the tab bar, the revert is
-  small and mechanical: drop the full-bleed rect below, and put gen-icons.sh's
-  corner assertion back to alpha 0.
+  #260 pulled the frame in by a pixel at 16px because the chip read as sitting
+  hard against the tab's own padding. #264 then filled the whole canvas to kill
+  the plate leak in the favourites bar, and made it worse in the tab bar: the
+  ground put a dark margin OUTSIDE the orange band, so the band was bounded on
+  both sides and read as a heavy double border. Note the stroke had actually got
+  THINNER by then, 5.744 units of 64 against mimostats' 6.4 — what reads as
+  thick is the margin, not the line.
 
-  Note what this does NOT change: the frame's 89.75% coverage. That is a
-  separate decision, made one day earlier, which pulled the frame in by a pixel
-  at 16px (15.36px of frame to 14.36px) because the chip read as sitting hard
-  against the tab's own padding rather than inside it. Ground and coverage are
-  independent — do not move both at once and lose which one did the work.
+  At coverage 1.0 the stroke's outer edge IS the canvas edge, so the orange
+  reads as an edge rather than as a band, and there is no margin left to bound
+  it. Removing the ground and enlarging the frame are therefore ONE fix, not
+  two. This is exactly mimostats' construction — same lucide square-play frame,
+  same stroke 2, same derived transform to the digit — and matching a sibling
+  app is the point, so do not drift one of them without the other.
+
+  The first two calls were made against renders viewed side by side; this one
+  was made against the shipped article in a real Safari. When those disagree the
+  shipped article wins, which is what the paragraph below has always asked for.
+
+  ONLY THE FRAME'S INTERIOR IS FILLED — the canvas corners are transparent
+  again, so what lands in a tab is a rounded chip rather than a square tile.
+  YouTube's favicon, measured, is built the same way: a fully transparent canvas
+  around an opaque rounded rect. Music's frame is already a rect with rx 2, so
+  it only had to be filled, not drawn.
+
+  The cost, stated because it is real and was accepted rather than overlooked:
+  on the favourites bar the light plate shows through the four rounded corners.
+  At coverage 1.0 the corner radius is 6.4 units where the old chip's was 5.744,
+  so that leak is slightly WORSE than the chip this file started with. It was
+  chosen anyway, with the leak fully described, because the tab bar is the
+  surface these are actually looked at in.
 
   #33322f, NOT the #1f1f1e the two OS tiles use. Those sit large against a home
   screen; this sits at 16px against a white tab, where #1f1f1e (L* 11.7) reads
-  as a black square — the exact look this change is here to avoid, and the
-  argument only gets stronger now that the fill runs edge to edge. #33322f
+  as a black square — the exact look this ground is here to avoid. #33322f
   (L* 20.8) still reads as the app's own dark and leaves the gradient stroke
   (#e08a68 -> #c25f34) plenty of contrast. Change it and gen-icons.sh's ground
-  assertions have to move with it.
+  assertion has to move with it.
 
   The gradient's dark end is the one to watch here, not its light end: #c25f34
   is what the frame's bottom-right corner paints, and that corner is where the
   stroke meets the #33322f ground at the sharpest angle. Rendered at 16px on
   both surfaces it holds. The gradient does not touch the ground, so
-  gen-icons.sh's p{0,0} and p{256,96} samples are unaffected by it — one is a
-  canvas corner, the other is inside the frame and clear of the headphones.
-
-  The frame's own rect keeps its fill even though the full-bleed rect behind it
-  paints the same colour. It is redundant by exactly one attribute, and that is
-  deliberate: it keeps the chip one line away.
+  gen-icons.sh's p{256,96} sample is unaffected by it — that point is inside the
+  frame and clear of the headphones, though with less room either side than it
+  had; the numbers are in gen-icons.sh.
 -->
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
   <linearGradient id="og" x1="0" y1="0" x2="0.72" y2="1">
     <stop offset="0" stop-color="#e08a68"/>
     <stop offset="1" stop-color="#c25f34"/>
   </linearGradient>
-  <rect width="64" height="64" fill="#33322f"/>
-  <g transform="translate(-2.4640 -2.4640) scale(2.87200)" fill="none" stroke="url(#og)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <g transform="translate(-6.4000 -6.4000) scale(3.20000)" fill="none" stroke="url(#og)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
     <rect x="3" y="3" width="18" height="18" rx="2" fill="#33322f"/>
     <g transform="translate(5.8537 5.8537) scale(0.51220)">
       <path d="M3 14h3a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-7a9 9 0 0 1 18 0v7a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3"/>

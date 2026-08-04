@@ -16,6 +16,16 @@ import "context"
 // The effort is a property of the FLOW, not of the client, which is why this is
 // a context option and not a fourth client in server.go: the same GenrePrompter
 // authors an album cover (creative, high) and refines one (mechanical, low).
+//
+// Depth is the only dial music turns. The siblings also route their short calls
+// to MiMo's non-Pro deployment, which queues less — loom for its title and
+// classification gates, peeq for the one that picks a video's category. Nothing
+// here qualifies: every flow in this backend emits something a person reads and
+// keeps (a style prompt, lyrics, an image brief, a description they pick from a
+// list of three), and the bar for that swap is "no reasoning needed", not "this
+// call is short". If a genuine gate ever appears — a router, a label, a yes/no —
+// it belongs on the non-Pro model, and that is the time to add a Model field
+// here rather than now.
 const (
 	EffortLow    = "low"
 	EffortMedium = "medium"

@@ -19,13 +19,16 @@ import "context"
 //
 // Depth is the only dial music turns. The siblings also route their short calls
 // to MiMo's non-Pro deployment, which queues less — loom for its title and
-// classification gates, peeq for the one that picks a video's category. Nothing
-// here qualifies: every flow in this backend emits something a person reads and
-// keeps (a style prompt, lyrics, an image brief, a description they pick from a
-// list of three), and the bar for that swap is "no reasoning needed", not "this
+// classification gates, peeq for the one that picks a video's category. That
+// deployment is not a non-reasoning model; it is the same reasoning family as
+// Pro, which is why the siblings turn this dial down as well rather than letting
+// the swap do it for them. Nothing here qualifies for the swap anyway: every
+// flow in this backend emits something a person reads and keeps (a style prompt,
+// lyrics, an image brief, a description they pick from a list of three), and the
+// bar is what the call produces — a label or an id no reader sees — not "this
 // call is short". If a genuine gate ever appears — a router, a label, a yes/no —
-// it belongs on the non-Pro model, and that is the time to add a Model field
-// here rather than now.
+// it belongs on the non-Pro deployment, and that is the time to add a Model
+// field here rather than now.
 const (
 	EffortLow    = "low"
 	EffortMedium = "medium"

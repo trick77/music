@@ -9,15 +9,29 @@ import (
 	"github.com/trick77/music/internal/llm"
 )
 
-// effortChat records the reasoning effort each flow asked for.
+// effortChat records the reasoning effort each flow asked for. It answers with
+// reply, or — when replies is set — with the next canned reply, so a multi-turn
+// flow can be driven and EVERY turn's effort recorded.
 type effortChat struct {
-	reply  string
-	effort string
+	reply   string
+	replies []string
+	effort  string
+	efforts []string
+	calls   int
 }
 
 func (e *effortChat) Chat(ctx context.Context, _ []llm.Message, _ []llm.Tool) (llm.Message, error) {
 	e.effort = llm.ReasoningEffortFrom(ctx)
-	return llm.Message{Role: "assistant", Content: e.reply}, nil
+	e.efforts = append(e.efforts, e.effort)
+	reply := e.reply
+	if len(e.replies) > 0 {
+		reply = ""
+		if e.calls < len(e.replies) {
+			reply = e.replies[e.calls]
+		}
+	}
+	e.calls++
+	return llm.Message{Role: "assistant", Content: reply}, nil
 }
 
 // The two mechanical flows ask for low effort; the two authoring flows ask for
@@ -66,12 +80,42 @@ func TestReasoningEffort_lowOnTheMechanicalFlowsOnly(t *testing.T) {
 			t.Fatalf("effort = %q, want the client's own setting", chat.effort)
 		}
 	})
+
+	// The flows that most need to stay deep: the research run and the lyrics
+	// rewrite. Nothing in them opts in today, and this pins that — a stray
+	// WithReasoningEffort further up would otherwise reach them silently.
+	t.Run("generating a run", func(t *testing.T) {
+		chat := &effortChat{replies: threeTurnReplies()}
+		if _, err := New(chat, &fakeTools{}).Generate(context.Background(),
+			GenerateRequest{Reference: "Metallica, Enter Sandman"}, nil, nil); err != nil {
+			t.Fatal(err)
+		}
+		if len(chat.efforts) != 3 {
+			t.Fatalf("efforts = %q, want one per turn", chat.efforts)
+		}
+		for i, e := range chat.efforts {
+			if e != "" {
+				t.Fatalf("turn %d effort = %q, want the client's own setting", i+1, e)
+			}
+		}
+	})
+
+	t.Run("refining the lyrics", func(t *testing.T) {
+		chat := &effortChat{reply: `{"lyrics":"[Verse]\nfresh words"}`}
+		if _, err := New(chat, &fakeTools{}).Refine(context.Background(),
+			RefineRequest{Reference: "x", Lyrics: "[Verse]\nold words", Instruction: "darker"}, nil); err != nil {
+			t.Fatal(err)
+		}
+		if chat.effort != "" {
+			t.Fatalf("effort = %q, want the client's own setting", chat.effort)
+		}
+	})
 }
 
 // The reference song is the only part of turn 1 that varies between runs, so it
 // goes last: everything ahead of it is a prefix the upstream can serve from
-// cache. A change that puts it back in front costs ~900 tokens of that prefix on
-// every run, three times over once turns 2 and 3 replay the message.
+// cache. A change that puts it back in front shortens that prefix by the ~900
+// tokens of turn-1 rules on every run — see generateUserPrompt.
 func TestGenerateUserPrompt_putsTheVaryingReferenceLast(t *testing.T) {
 	got := generateUserPrompt("Metallica — Enter Sandman")
 	if !strings.HasPrefix(got, generateTurn1Prompt) {

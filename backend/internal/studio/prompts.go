@@ -346,8 +346,13 @@ Respond with ONLY a single JSON object and nothing else (no prose, no code fence
 // runs can be served from the upstream prompt cache; with the song name in
 // front, the cacheable prefix ended at the system prompt (~300 tokens) and the
 // ~900 tokens of turn-1 rules behind it were re-read on every run. Moving one
-// short line to the end puts them inside the prefix instead. Turns 2 and 3
-// replay this message verbatim, so the saving lands three times per run.
+// short line to the end puts them inside the prefix instead.
+//
+// The saving is a CROSS-RUN one: the run-invariant prefix grows from the
+// ~300-token system prompt to that plus the ~900 tokens of turn-1 rules. How
+// many of a run's three requests collect it depends on the upstream's cache
+// granularity — turn 1 sends the tool list and turns 2 and 3 send none — so this
+// is written for the prefix length, not for a token count saved.
 func generateUserPrompt(reference string) string {
 	return fmt.Sprintf("%s\n\nReference song: %s", generateTurn1Prompt, reference)
 }

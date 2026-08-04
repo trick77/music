@@ -3,7 +3,7 @@ package llm
 import "context"
 
 // Reasoning effort is MiMo's depth dial. It rides on the context rather than on
-// Chat's signature, the same as the session id above: the Chat interface stays
+// Chat's signature, the same as the session id in session.go: the Chat interface stays
 // one method wide, so every fake the studio tests inject keeps compiling.
 //
 // The client-wide default is high, which is right for the flows that deserve it

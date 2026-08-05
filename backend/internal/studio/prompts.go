@@ -131,6 +131,15 @@ Worked example of the trap to avoid:
 // Captured 2026-08-01 — if Suno's vocabulary shifts, EDIT THIS LIST; do not put
 // the search back.
 //
+// Two entries were corrected 2026-08-05 against observed Suno output, and the
+// reason generalizes past them. A tag that reads as perfectly good English is not
+// therefore a tag Suno knows: [Big Finish] was never standard vocabulary, so it
+// came back either ignored or SUNG as a lyric — the worst outcome available.
+// [Layered Harmonies] under [Final Chorus] buys the same lift reliably, so the
+// list now names the arrangement instead of the effect. [Build] was likewise
+// replaced by the safer standard form [Building Intensity]. The prompt therefore
+// says short-is-not-enough: a tag has to be standard, not merely brief.
+//
 // It is one const because every prompt that emits lyrics (generate turn 2 and
 // refine) must offer the same vocabulary — the same reason lyricCraftRules is
 // shared.
@@ -138,32 +147,47 @@ const sunoTagReference = `SUNO TAG VOCABULARY — bracket tags go on their own l
 lines they govern, and are directions rather than words to be sung:
 - Structure: [Intro], [Verse], [Verse 1], [Verse 2], [Pre-Chorus], [Chorus],
   [Final Chorus], [Post-Chorus], [Bridge], [Hook], [Refrain], [Break],
-  [Interlude], [Build], [Drop], [Breakdown], [Outro], [Fade Out], [End]
+  [Interlude], [Building Intensity], [Drop], [Breakdown], [Outro], [Fade Out],
+  [End]
 - Instrumental: [Instrumental], [Instrumental Break], [Guitar Solo], [Bass Solo],
   [Drum Solo], [Piano Solo], [Sax Solo], [Percussion Break], [A Cappella]
 - Delivery: [Whispered], [Spoken Word], [Belted], [Falsetto], [Harmonies],
-  [Layered Vocals], [Call and Response], [Chant], [Ad Libs], [Big Finish]
-Prefer this core vocabulary: these are the tags Suno honors most reliably, and
-short plain-English tags beat invented ones. It is still a floor, not a ceiling —
-if the song genuinely calls for another well-known tag, use it (just do not
-research one). Tags are hints, not commands — Suno follows them most of the time
-and may ignore one.
+  [Layered Harmonies], [Layered Vocals], [Call and Response], [Chant], [Ad Libs]
+Prefer this core vocabulary: these are the tags Suno honors most reliably. SHORT
+IS NOT ENOUGH — a tag also has to be STANDARD. A coined one that reads perfectly
+well in English (a "big finish", a "final push", a "huge ending") is either
+ignored or sung aloud as lyrics, which is the worst outcome available. So when
+you want an ending to lift, do NOT name the lift: put [Layered Harmonies] under
+[Final Chorus] and let the arrangement do it. Same for a rise into a chorus —
+[Building Intensity], never an invented word for the feeling.
+
+The list is a floor, not a ceiling, but a narrow one: reach past it only for a
+tag you are confident Suno actually knows, never for one you have just coined
+(and do not research one). Tags are hints, not commands — Suno follows them most
+of the time and may ignore one.
 
 HOW TO PLACE THEM:
 - Every section opens with ONE structure tag on its own line.
 - Under that header you may stack AT MOST ONE OR TWO short delivery/production
   cues, each on its own line, before the first sung line — e.g. [Whispered],
-  [Layered Vocals], [Harmonies], [Build]. Hard ceiling of FOUR tags per section.
-- Keep tags SHORT. A long tag gets sung instead of obeyed, so write [Whispered],
-  never [Whispered, close-mic'd and full of regret].
+  [Layered Harmonies], [Layered Vocals], [Building Intensity]. Hard ceiling of
+  FOUR tags per section.
+- Keep tags SHORT and take them FROM THE LIST ABOVE. A long tag gets sung instead
+  of obeyed, so write [Whispered], never [Whispered, close-mic'd and full of
+  regret] — but brevity alone does not make a tag safe, only membership of the
+  vocabulary does.
 - No grand or mood-loaded words in a tag (epic, soaring, massive, hypnotic,
   brooding): name what HAPPENS, not how it should feel.
 - No genre or style description in a tag — that belongs in the style prompt.
 
-Example of the shape:
+Examples of the shape:
 [Verse 1]
 [Whispered]
-you left your sweater by the door`
+you left your sweater by the door
+
+[Final Chorus]
+[Layered Harmonies]
+still reaching out`
 
 // imagePromptFormat is the part of the image-prompt standard that holds for EVERY
 // image the studio generates, cover or background: write a comma-separated list

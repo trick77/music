@@ -302,6 +302,29 @@ func TestPrompts_sunoTagsAreStaticNotResearched(t *testing.T) {
 // happens to wrap.
 func flattenWS(s string) string { return strings.Join(strings.Fields(s), " ") }
 
+// A tag reading as good English does not make it a tag Suno knows. [Big Finish]
+// was never standard vocabulary, so it came back ignored or SUNG as a lyric;
+// [Layered Harmonies] under [Final Chorus] buys the same lift reliably. [Build]
+// was replaced by the safer standard [Building Intensity]. Both are easy to
+// reintroduce by eye, since both look entirely reasonable — hence this guard.
+func TestPrompts_sunoTagsAreStandardNotMerelyShort(t *testing.T) {
+	for _, banned := range []string{"[Big Finish]", "[Build]"} {
+		if strings.Contains(sunoTagReference, banned) {
+			t.Fatalf("%s is not standard Suno vocabulary and gets ignored or sung: %q", banned, sunoTagReference)
+		}
+	}
+	for _, want := range []string{"[Layered Harmonies]", "[Building Intensity]"} {
+		if !strings.Contains(sunoTagReference, want) {
+			t.Fatalf("tag vocabulary lost the standard form %s: %q", want, sunoTagReference)
+		}
+	}
+	// Brevity was the whole rule before, and brevity is exactly what made
+	// [Big Finish] look safe. The prompt has to say membership is what counts.
+	if !strings.Contains(flattenWS(sunoTagReference), "SHORT IS NOT ENOUGH") {
+		t.Fatalf("tag rules must say a short tag still has to be standard: %q", sunoTagReference)
+	}
+}
+
 // The lyric killer is not a rare-word problem: "there is signal in the noise" is
 // built from common words, so the thesaurus rule never caught it. The craft rules
 // must name the aphorism failure mode outright and carry the say-it-to-a-person

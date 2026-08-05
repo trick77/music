@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"net/http"
 	"strings"
+
+	"github.com/trick77/music/internal/studio"
 )
 
 // refineRequest carries the current image prompt and a natural-language
@@ -16,7 +18,7 @@ type refineRequest struct {
 
 // refinePrompt runs one LLM refine completion and writes {"prompt": ...}. context
 // is optional grounding (genre name, or "Artist — Album") passed to the model.
-func (h *songHandlers) refinePrompt(w http.ResponseWriter, r *http.Request, req refineRequest, groundingContext string) {
+func (h *songHandlers) refinePrompt(w http.ResponseWriter, r *http.Request, req refineRequest, groundingContext string, shape studio.PromptShape) {
 	if strings.TrimSpace(req.Prompt) == "" {
 		httpError(w, http.StatusBadRequest, "prompt is required")
 		return
@@ -27,7 +29,7 @@ func (h *songHandlers) refinePrompt(w http.ResponseWriter, r *http.Request, req 
 	}
 	ctx, cancel := context.WithTimeout(r.Context(), suggestPromptTimeout)
 	defer cancel()
-	prompt, err := h.genrePrompter.RefinePrompt(ctx, req.Prompt, req.Instruction, groundingContext)
+	prompt, err := h.genrePrompter.RefinePrompt(ctx, req.Prompt, req.Instruction, groundingContext, shape)
 	if err != nil {
 		serverError(w, "refine prompt", err)
 		return
@@ -60,7 +62,7 @@ func (h *songHandlers) postGenreRefinePrompt(w http.ResponseWriter, r *http.Requ
 		httpError(w, http.StatusBadRequest, "invalid JSON")
 		return
 	}
-	h.refinePrompt(w, r, req, "Genre: "+g.Name)
+	h.refinePrompt(w, r, req, "Genre: "+g.Name, studio.ShapeBackground)
 }
 
 // postAlbumRefinePrompt rewrites the current album-cover prompt per an
@@ -89,5 +91,5 @@ func (h *songHandlers) postAlbumRefinePrompt(w http.ResponseWriter, r *http.Requ
 			grounding += " (" + strings.Join(actx.Genres, ", ") + ")"
 		}
 	}
-	h.refinePrompt(w, r, req.refineRequest, grounding)
+	h.refinePrompt(w, r, req.refineRequest, grounding, studio.ShapeCover)
 }

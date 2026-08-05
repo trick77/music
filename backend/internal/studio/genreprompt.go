@@ -22,8 +22,24 @@ type GenrePrompter interface {
 	AlbumCoverPrompt(ctx context.Context, artist, album string, genres []string, lyrics []library.SongLyric) (string, error)
 	// RefinePrompt rewrites an existing image prompt per an instruction. context is
 	// optional extra grounding (e.g. the genre name or "Artist — Album").
-	RefinePrompt(ctx context.Context, current, instruction, context string) (string, error)
+	//
+	// shape says what is being refined, and it is not cosmetic: a cover must hold
+	// to one subject and one action, while a genre background depicts a whole
+	// scene and must NOT. Every caller knows which it has, so it is passed rather
+	// than left for the model to infer from the prompt text.
+	RefinePrompt(ctx context.Context, current, instruction, context string, shape PromptShape) (string, error)
 }
+
+// PromptShape distinguishes the two kinds of image prompt the refine flow is
+// handed. They take opposite rules on how many subjects the image may hold.
+type PromptShape int
+
+const (
+	// ShapeCover is a square tile — album, playlist or song cover.
+	ShapeCover PromptShape = iota
+	// ShapeBackground is a wide landscape genre-page background.
+	ShapeBackground
+)
 
 type genrePrompter struct {
 	chat llm.Chat
@@ -45,9 +61,9 @@ func (p *genrePrompter) AlbumCoverPrompt(ctx context.Context, artist, album stri
 // and the system prompt's own rule is to keep whatever the instruction does not
 // touch. The user is sitting in front of the panel waiting for it, and it is the
 // call they make repeatedly while tuning one image.
-func (p *genrePrompter) RefinePrompt(ctx context.Context, current, instruction, context string) (string, error) {
+func (p *genrePrompter) RefinePrompt(ctx context.Context, current, instruction, context string, shape PromptShape) (string, error) {
 	ctx = llm.WithReasoningEffort(ctx, llm.EffortLow)
-	return p.completePrompt(ctx, refinePromptSystemPrompt, refinePromptUserPrompt(current, instruction, context), "refined prompt")
+	return p.completePrompt(ctx, refinePromptSystemPrompt, refinePromptUserPrompt(current, instruction, context, shape), "refined prompt")
 }
 
 // completePrompt runs one no-tool completion and parses the shared {"prompt":...}

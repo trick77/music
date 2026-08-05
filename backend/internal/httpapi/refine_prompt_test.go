@@ -12,6 +12,7 @@ import (
 	"github.com/trick77/music/internal/config"
 	"github.com/trick77/music/internal/library"
 	"github.com/trick77/music/internal/store"
+	"github.com/trick77/music/internal/studio"
 )
 
 type promptTS struct {
@@ -131,6 +132,36 @@ func TestGenreRefinePrompt_happyPath(t *testing.T) {
 	}
 	if !strings.Contains(out.Prompt, "neon") {
 		t.Fatalf("prompt = %q, want the refined text", out.Prompt)
+	}
+}
+
+// The two refine routes share one handler and one system prompt, which takes
+// OPPOSITE positions on how many subjects the image may hold: a cover is one
+// subject doing one thing, a genre background is a whole scene. The route is the
+// only thing that knows which, so each must pass its own shape — a genre refine
+// told it is refining a cover strips the scene to a single figure on the first
+// "make it warmer".
+func TestRefinePrompt_routesPassTheirOwnShape(t *testing.T) {
+	for _, tc := range []struct {
+		name, path string
+		want       studio.PromptShape
+	}{
+		{"genre background", "/api/genres/g-jazz/refine-prompt", studio.ShapeBackground},
+		{"album cover", "/api/albums/refine-prompt", studio.ShapeCover},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			var got studio.PromptShape = -1
+			ts := newPromptServer(t, &fakeGenrePrompter{prompt: "refined", gotShape: &got})
+			rr := postJSON(t, ts.dev, tc.path, map[string]any{
+				"prompt": "a smoky jazz club", "instruction": "make it warmer",
+			})
+			if rr.Code != http.StatusOK {
+				t.Fatalf("code = %d, body %s", rr.Code, rr.Body)
+			}
+			if got != tc.want {
+				t.Fatalf("shape = %d, want %d", got, tc.want)
+			}
+		})
 	}
 }
 

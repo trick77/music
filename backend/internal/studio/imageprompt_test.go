@@ -76,7 +76,7 @@ func TestRefinePrompt_passesCurrentPromptInstructionAndContext(t *testing.T) {
 	chat := &cannedChat{reply: `{"prompt":"A rain-slick harbour at night, no boats, no text."}`}
 	got, err := NewGenrePrompter(chat).RefinePrompt(context.Background(),
 		"A rain-slick harbour at dusk, no text.", "make it night and remove the boats",
-		"The Ninth Wave — Harbour Lights")
+		"The Ninth Wave — Harbour Lights", ShapeCover)
 	if err != nil {
 		t.Fatalf("RefinePrompt: %v", err)
 	}
@@ -95,7 +95,7 @@ func TestRefinePrompt_passesCurrentPromptInstructionAndContext(t *testing.T) {
 func TestRefinePrompt_omitsEmptyContextHeader(t *testing.T) {
 	chat := &cannedChat{reply: `{"prompt":"Brighter, no text."}`}
 	if _, err := NewGenrePrompter(chat).RefinePrompt(context.Background(),
-		"A dim room, no text.", "brighter", "   "); err != nil {
+		"A dim room, no text.", "brighter", "   ", ShapeCover); err != nil {
 		t.Fatalf("RefinePrompt: %v", err)
 	}
 	if strings.Contains(chat.lastUser, "Context:") {
@@ -103,6 +103,38 @@ func TestRefinePrompt_omitsEmptyContextHeader(t *testing.T) {
 	}
 	if !strings.Contains(chat.lastUser, "brighter") {
 		t.Errorf("instruction missing:\n%s", chat.lastUser)
+	}
+}
+
+// A cover holds one subject; a genre background holds a whole scene. The refine
+// system prompt takes opposite positions on the two, so the user message must say
+// which it is — otherwise the model infers it from prompt text an earlier refine
+// may have muddled, and "make it warmer" strips a juke joint down to one figure.
+func TestRefinePrompt_tellsTheModelWhichShapeItIsRefining(t *testing.T) {
+	for name, tc := range map[string]struct {
+		shape       PromptShape
+		want, avoid string
+	}{
+		"background waives the cover rules": {ShapeBackground, "DO NOT apply", "SQUARE COVER"},
+		"cover keeps them":                  {ShapeCover, "SQUARE COVER", "DO NOT apply"},
+	} {
+		t.Run(name, func(t *testing.T) {
+			chat := &cannedChat{reply: `{"prompt":"ok"}`}
+			if _, err := NewGenrePrompter(chat).RefinePrompt(
+				context.Background(), "cur", "make it warmer", "", tc.shape); err != nil {
+				t.Fatalf("RefinePrompt: %v", err)
+			}
+			if !strings.Contains(chat.lastUser, tc.want) {
+				t.Errorf("user prompt missing %q:\n%s", tc.want, chat.lastUser)
+			}
+			if strings.Contains(chat.lastUser, tc.avoid) {
+				t.Errorf("user prompt must not claim %q:\n%s", tc.avoid, chat.lastUser)
+			}
+			// The shape marker leads, so it is read before the prompt text.
+			if !strings.HasPrefix(chat.lastUser, "This is a") {
+				t.Errorf("shape marker must open the message:\n%s", chat.lastUser)
+			}
+		})
 	}
 }
 
@@ -121,7 +153,7 @@ func TestImagePrompts_rejectEmptyAndUnparseableReplies(t *testing.T) {
 			if _, err := p.AlbumCoverPrompt(context.Background(), "a", "b", nil, nil); err == nil {
 				t.Error("AlbumCoverPrompt: expected an error")
 			}
-			if _, err := p.RefinePrompt(context.Background(), "cur", "instr", ""); err == nil {
+			if _, err := p.RefinePrompt(context.Background(), "cur", "instr", "", ShapeCover); err == nil {
 				t.Error("RefinePrompt: expected an error")
 			}
 		})
@@ -135,7 +167,7 @@ func TestImagePrompts_propagateChatError(t *testing.T) {
 	if _, err := p.AlbumCoverPrompt(context.Background(), "a", "b", nil, nil); !errors.Is(err, boom) {
 		t.Errorf("AlbumCoverPrompt error = %v, want %v", err, boom)
 	}
-	if _, err := p.RefinePrompt(context.Background(), "cur", "instr", ""); !errors.Is(err, boom) {
+	if _, err := p.RefinePrompt(context.Background(), "cur", "instr", "", ShapeCover); !errors.Is(err, boom) {
 		t.Errorf("RefinePrompt error = %v, want %v", err, boom)
 	}
 	if _, err := p.GenrePrompt(context.Background(), "jazz"); !errors.Is(err, boom) {

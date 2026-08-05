@@ -483,7 +483,9 @@ Respond with ONLY a single JSON object and nothing else:
 const genrePromptSystemPrompt = `You write ONE image-generation prompt that visually captures a MUSIC GENRE, to be
 used as a wide background image for that genre's page. You are given only a genre
 name. This is NOT an album cover and NOT a logo — depict the genre's own culture,
-and never write the words "album cover" or "poster" into the prompt.
+and never write the words "album cover" or "movie poster" into the prompt. (A
+period-correct printed medium such as "screenprinted gig poster" is still a fine
+MEDIUM choice below; what is banned is framing the image as cover or poster art.)
 
 DERIVE BEFORE YOU WRITE. Work these out silently first, then write the prompt;
 never show your reasoning:
@@ -552,6 +554,12 @@ Respond with ONLY a single JSON object and nothing else (no prose, no code fence
 // per a user instruction, keeping it concise and text-free. Reused by both the
 // genre-background and album-cover refine flows; the caller passes any relevant
 // context (e.g. the genre name or artist/album) in the user message.
+//
+// It therefore takes imagePromptFormat, NOT imagePromptCraft: this one prompt also
+// refines wide genre backgrounds, and the cover-only single-subject rules would
+// collapse a juke joint or a Kingston street into one object on the first edit —
+// exactly what genrePromptSystemPrompt is written to prevent. The cover-only rules
+// are restated below as a CONDITIONAL that fires on square covers alone.
 const refinePromptSystemPrompt = `You revise image-generation prompts. You are given the CURRENT prompt, optional
 context, and a refinement instruction. Rewrite the prompt to satisfy the
 instruction, and keep whatever the instruction does not change — including the
@@ -563,7 +571,18 @@ does not. If the current prompt is written as prose, or names no medium, or
 describes a camera move instead of naming it, fix that while you are in there:
 the rewritten prompt is the one that gets rendered.
 
-` + imagePromptCraft + `
+The message opens by telling you WHICH KIND of image this is. Take it from there —
+do not re-decide it from the prompt text, which an earlier refine may have
+muddled:
+- A SQUARE COVER additionally has to hold to the cover discipline: ONE SUBJECT,
+  NO CLUTTER — every extra prop is one more thing to render wrong — and ONE
+  ACTION OR POSE, never two at once.
+- A WIDE LANDSCAPE genre-page background takes NEITHER of those. It depicts a
+  whole scene — a juke joint, a street, a crowd — so leave its several subjects
+  and their several actions in place. Stripping it to one figure destroys the
+  thing being refined.
+
+` + imagePromptFormat + `
 
 Respond with ONLY a single JSON object and nothing else (no prose, no code fences):
 {"prompt":"..."}`
@@ -619,12 +638,23 @@ func albumCoverPromptUserPrompt(artist, album string, genres []string, lyrics []
 	return b.String()
 }
 
-func refinePromptUserPrompt(current, instruction, context string) string {
-	if strings.TrimSpace(context) != "" {
-		return fmt.Sprintf("Context: %s\n\nCurrent prompt:\n%s\n\nRefinement instruction: %s",
-			context, current, instruction)
+// refinePromptUserPrompt states the shape FIRST, before the prompt text. The
+// system prompt takes opposite positions on how many subjects an image may hold
+// depending on it, so the model is told which it has rather than left to guess
+// from wording that a previous refine may already have muddled.
+func refinePromptUserPrompt(current, instruction, context string, shape PromptShape) string {
+	var b strings.Builder
+	if shape == ShapeBackground {
+		b.WriteString("This is a WIDE LANDSCAPE genre-page background: it depicts a whole scene, " +
+			"so the cover-only one-subject and one-action rules DO NOT apply.\n\n")
+	} else {
+		b.WriteString("This is a SQUARE COVER: the cover discipline applies in full.\n\n")
 	}
-	return fmt.Sprintf("Current prompt:\n%s\n\nRefinement instruction: %s", current, instruction)
+	if strings.TrimSpace(context) != "" {
+		fmt.Fprintf(&b, "Context: %s\n\n", context)
+	}
+	fmt.Fprintf(&b, "Current prompt:\n%s\n\nRefinement instruction: %s", current, instruction)
+	return b.String()
 }
 
 func refineUserPrompt(reference, lyrics, instruction string) string {

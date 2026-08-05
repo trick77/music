@@ -368,6 +368,25 @@ func TestPrompts_imagePromptsShareTheCraftRules(t *testing.T) {
 	if strings.Contains(genrePromptSystemPrompt, "ONE SUBJECT, NO CLUTTER") {
 		t.Fatal("genre background must not carry the cover-only single-subject rules: its subject is a scene")
 	}
+	// The refine path rewrites BOTH square covers and wide genre backgrounds, so it
+	// must not assert the cover rules unconditionally — that would collapse a juke
+	// joint into one object on the first edit.
+	if strings.Contains(refinePromptSystemPrompt, "BECAUSE THIS IS A COVER") {
+		t.Fatal("refine prompt must not declare every prompt a cover: it also refines wide genre backgrounds")
+	}
+	// Which one it is arrives in the USER message from the route that knows (see
+	// refinePromptUserPrompt), so the system prompt must defer to that marker
+	// rather than re-deriving it from prompt text an earlier refine may have
+	// muddled.
+	for _, want := range []string{
+		"telling you WHICH KIND",
+		"do not re-decide it from the prompt text",
+		"WIDE LANDSCAPE genre-page background takes NEITHER",
+	} {
+		if !strings.Contains(flattenWS(refinePromptSystemPrompt), want) {
+			t.Fatalf("refine prompt lost the cover-vs-scene conditional, missing %q", want)
+		}
+	}
 	for name, p := range map[string]string{
 		"generate turn 3": generateTurn3Prompt,
 		"album cover":     albumCoverPromptSystemPrompt,

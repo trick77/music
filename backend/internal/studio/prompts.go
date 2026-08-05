@@ -165,10 +165,14 @@ Example of the shape:
 [Whispered]
 you left your sweater by the door`
 
-// imagePromptCraft is the shared standard for every image prompt the studio
-// writes — song cover art, album covers, genre backgrounds, and the refine pass
-// over any of them. It lives in one const for the same reason lyricCraftRules
-// does: a refine without these rules would undo them on the first revision.
+// imagePromptCraft is the shared standard for the COVER-ART prompts — song cover
+// art, album covers, and the refine pass over an image prompt. It lives in one
+// const for the same reason lyricCraftRules does: a refine without these rules
+// would undo them on the first revision.
+//
+// genrePromptSystemPrompt deliberately does NOT carry it yet. That prompt writes
+// a wide page background depicting a whole scene rather than a cover's single
+// subject, so it needs its own pass — see the note on that const.
 //
 // The rules come from a measured before/after. Asking for "one or two vivid
 // sentences" produced narrative prose that read as generic AI illustration; the
@@ -452,6 +456,14 @@ Respond with ONLY a single JSON object and nothing else:
 // central decision it must make is live-vs-aesthetic: genres that live on a
 // stage get a photorealistic gig photo; studio/electronic genres get their
 // signature visual world instead.
+//
+// It is the one image prompt still written to the old "one or two vivid
+// sentences" instruction: the cover-art prompts moved to imagePromptCraft's
+// ordered tag list, and this one is held back for its own pass because its
+// subject is a whole scene (a band on a stage) rather than a cover's single
+// object, so the one-subject and one-action rules do not transfer as written.
+// NOTE: refinePromptSystemPrompt is shared with this flow and DOES carry
+// imagePromptCraft, so refining a genre background rewrites it as a tag list.
 const genrePromptSystemPrompt = `You write ONE image-generation prompt that visually captures a MUSIC GENRE, to be
 used as a wide background image for that genre's page. You are given only a genre
 name.
@@ -464,24 +476,22 @@ Decide the approach from the genre:
 - If the genre is one typically PERFORMED LIVE by musicians on a stage (e.g. thrash
   metal, rock, punk, jazz, blues, funk, reggae, hip-hop, folk), render it as a
   PHOTOREALISTIC STILL FRAME GRABBED FROM A LIVE CONCERT VIDEO: a band
-  mid-performance under hard stage lighting. Its medium fragment is that video
-  still, and it must read like one — tack-sharp crisp focus, high contrast, DEEP
-  TRUE BLACK blacks with crushed inky shadows (never washed-out or grey), colored
-  stage lights and spotlight beams cutting through the darkness, high dynamic
-  range.
+  mid-performance under hard stage lighting. It must
+  read like a sharp video still — tack-sharp crisp focus, high contrast, and DEEP
+  TRUE BLACK blacks with crushed inky shadows (never washed-out or grey), where
+  colored stage lights and spotlight beams cut through the darkness. Gritty,
+  energetic, high-dynamic-range concert-video realism.
 - If the genre is NOT typically a live-band genre (e.g. synthwave, vaporwave,
   ambient, lo-fi, IDM, downtempo, chillwave), instead render its CHARACTERISTIC
   VISUAL AESTHETIC / SCENE (e.g. synthwave -> a neon-drenched 1980s cityscape with
   chrome and a sunset grid; ambient -> a vast calm minimal landscape).
 
-Either way, WIDE LANDSCAPE composition — this is a page background, not a square
-tile — and let the chosen MEDIUM carry the genre's era rather than naming it.
-
-This is the one prompt whose subject is a SCENE rather than a single object, so
-the one-subject rule below relaxes to: one scene, one focal point in it. Every
-other rule applies unchanged.
-
-` + imagePromptCraft + `
+Rules for the prompt itself:
+- One or two vivid sentences, at most ~60 words. Image models degrade on long
+  rambling descriptions, so favor a single strong subject plus palette and mood.
+- Bake in the era/epoch that fits the genre's SONIC aesthetic so it is
+  period-correct.
+- WIDE LANDSCAPE composition (this is a page background, not a square tile).
 
 Respond with ONLY a single JSON object and nothing else (no prose, no code fences):
 {"prompt":"..."}`

@@ -350,14 +350,19 @@ func TestPrompts_imagePromptsShareTheCraftRules(t *testing.T) {
 		}
 	}
 	for name, p := range map[string]string{
-		"generate turn 3":  generateTurn3Prompt,
-		"album cover":      albumCoverPromptSystemPrompt,
-		"genre background": genrePromptSystemPrompt,
-		"refine prompt":    refinePromptSystemPrompt,
+		"generate turn 3": generateTurn3Prompt,
+		"album cover":     albumCoverPromptSystemPrompt,
+		"refine prompt":   refinePromptSystemPrompt,
 	} {
 		if !strings.Contains(p, imagePromptCraft) {
 			t.Fatalf("%s prompt is missing the shared image-prompt rules: %q", name, p)
 		}
+	}
+	// The genre background is deliberately excluded until it gets its own pass:
+	// its subject is a whole scene, not a cover's single object. Pinned so the
+	// exclusion reads as a decision rather than an oversight.
+	if strings.Contains(genrePromptSystemPrompt, imagePromptCraft) {
+		t.Fatal("genre background now carries the cover-art rules — if that is intended, move it into the map above")
 	}
 }
 

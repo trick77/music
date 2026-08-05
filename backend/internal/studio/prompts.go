@@ -11,13 +11,39 @@ import (
 // produces. It lives in one const because generateSystemPrompt and
 // refineSystemPrompt must never drift apart: a refine pass without these rules
 // would quietly undo them on the first revision.
-const lyricCraftRules = `CRAFT RULES for the lyrics — these decide whether a singer can actually sing them:
+const lyricCraftRules = `CRAFT RULES for the lyrics — these decide whether a singer can actually sing them.
+The lyrics are meant to be SUNG, NOT READ: sing every line in your head before you
+commit it, and if a word fights the melody, replace it.
+
+WRITE FOR THE VOICE
+- SINGABLE LINE ENDINGS. The last word of a line is the note the singer holds, so
+  favor open vowels and soft consonants (-ay, -ee, -oh, -ow, -ine, -ound, -ong,
+  -er, -m, -n, -l). Avoid ending on a hard plosive (-ck, -k) or a clustered
+  consonant that has to be swallowed (-acked, -ashed, -isped, -ilked), and be
+  careful with clipped -p and -t — EXCEPT where the style calls for that
+  percussive bite: hip-hop, punk, hardcore, thrash and other rhythm-forward
+  genres land hard consonants on purpose, so let the style prompt decide.
+- NO CROWDED MOUTHS. Skip dense consonant clusters (faults, strengths, texts).
+  One open syllable beats a technically better word that cannot be sung cleanly.
+- STRESS ON THE BEAT. Keep each line's natural spoken stress on the strong beats,
+  and keep rhymed lines close in syllable count so the phrasing repeats. Never
+  end a line on an unstressed syllable the singer has to rush past. A multi-
+  syllable word that forces the singer to rush or stretch has to go.
+- SAY IT ALOUD IN YOUR HEAD before you commit a couplet. If it would feel
+  embarrassing to sing, rewrite it.
+
+RHYME AND METER
 - SENSE BEFORE RHYME. Write each line for what it has to say, THEN look for a
   rhyme. Never bend a sentence, invert word order, or reach for an odd word just
   to land a rhyme — that is the single clearest tell of machine-written lyrics.
 - SLANT RHYME IS GOOD. Near rhymes (home/alone, again/end, fire/quiet) sound more
   natural than perfect ones, and an unrhymed line is better than a forced rhyme.
   Perfect rhyme on every single line reads as amateur greeting-card verse.
+- KEEP THE PATTERN. Not every line has to rhyme, but hold the scheme steady across
+  verses: if lines 2 and 4 rhyme in verse one, do the same in verse two, and match
+  the syllable counts of matching lines so one melody fits both.
+
+WORDS AND IMAGES
 - NO THESAURUS WORDS. Only words people say out loud. Reject lacked, yearn,
   forlorn, cascade, ethereal, myriad, behold, asunder. Plain concrete nouns and
   verbs beat abstract or literary ones every time.
@@ -35,23 +61,47 @@ const lyricCraftRules = `CRAFT RULES for the lyrics — these decide whether a s
   cannot: WOULD ONE PERSON SAY THIS SENTENCE OUT LOUD TO ANOTHER PERSON? If it only
   works as a caption, a poster, or a fortune cookie, cut it and write what actually
   happened instead.
-- SINGABLE LINE ENDINGS. The last word of a line is the note the singer holds, so
-  favor open vowels and soft consonants (-ay, -ow, -ine, -on, -ing, -ove). Avoid
-  ending on a clustered consonant that has to be swallowed (-acked, -ashed,
-  -isped, -ilked) — EXCEPT where the style calls for that percussive bite:
-  hip-hop, punk, hardcore, thrash and other rhythm-forward genres land hard
-  consonants on purpose, so let the style prompt decide.
-- STRESS ON THE BEAT. Keep each line's natural spoken stress on the strong beats,
-  and keep rhymed lines close in syllable count so the phrasing repeats. Never
-  end a line on an unstressed syllable the singer has to rush past.
+- NO STOCK IMAGERY. Language models fall back on a small set of borrowed pictures.
+  These are statistical defaults, not writing — never use them:
+    light: neon signs, neon lights, city lights, flickering lights, "the glow of"
+    dark: whispers in the dark, shadows in the dark, shadows dancing, "in the
+          silence", "the edge of the night"
+    echo/ghost: echoes of you, the ghost of you, silhouettes, "your memory haunts me"
+    body: running through my veins, hearts beating as one, an "electric" touch
+    struggle: rise from the ashes, break these chains, the storm inside me,
+          fire/flames within, "we're still alive"
+  The test: could this line appear UNCHANGED in a thousand other songs? Then it is
+  a default — cut it and put a specific observed detail from this song's world in
+  its place (a named street, a particular object, an exact hour, something someone
+  actually said), never another generic phrase. The list is not exhaustive: treat
+  any image that feels instantly, effortlessly familiar with suspicion, because
+  that familiarity is the symptom.
 - CONCRETE OVER ABSTRACT. One specific image — a room, an object, a time of day —
   outperforms a stack of feeling-words. Show the situation, do not summarize it.
-  This is the positive form of NO MACHINE APHORISMS above: when you catch yourself
-  writing the abstraction, put a person somewhere doing something instead.
+  This is the positive form of the two rules above: when you catch yourself
+  writing the abstraction, put a person somewhere doing something instead. Never
+  name the emotion when an object can carry it — not "I miss you and I'm sad" but
+  "your sweater's hanging in the hall upstairs". Understatement beats melodrama:
+  a narrator who answers "yeah, I'm doing fine" lands harder than one who explains
+  the pain. Run ONE central metaphor through the song and extend it; do not stack
+  competing ones.
+
+HOOK AND STRUCTURE
 - REPEAT THE CHORUS VERBATIM. The same words every time it comes around; that is
-  what makes a hook. Vary a verse if you like, never the chorus.
-- SAY IT ALOUD IN YOUR HEAD before you commit a couplet. If it would feel
-  embarrassing to sing, rewrite it.
+  what makes a hook. Vary a verse if you like, never the chorus — at most one
+  meaningful word.
+- PROTECT THE HOOK. Pick the hook word or phrase, keep it in the chorus, and do
+  not spend it in the verses, so it lands with full weight when it arrives. The
+  chorus carries the SIMPLEST language in the song: open vowels, short words,
+  easy to repeat. Repetition is a feature, not filler — an outro that repeats a
+  hook fragment usually beats new material.
+- SHAPE THE SONG. Default form: Intro, Verse 1, Chorus, Verse 2, Chorus,
+  (Instrumental), Bridge, Final Chorus, Outro — deviate deliberately, never by
+  accident, and when the researched reference song is plainly built differently,
+  follow the reference instead of this default. Verses advance the story or shift
+  perspective. The bridge brings a NEW angle — an accusation, a reveal, a jump in
+  time — not a third verse in disguise. Build a dynamic arc: quietest at the
+  start, fullest at the final chorus, stripped back for the outro.
 
 Worked example of the trap to avoid:
   BAD:  "the sidewalk cracked / it was something I always lacked"
@@ -65,7 +115,12 @@ Worked example of the trap to avoid:
         — an aphorism, not a sentence anyone says. No person, no place, no moment;
         it could sit in any song about anything, which means it belongs in none.
   GOOD: "you kept talking through the radio hiss"
-        — the same idea, but somebody is doing something somewhere.`
+        — the same idea, but somebody is doing something somewhere.
+
+  BAD:  "your ghost in the neon light"
+        — two borrowed pictures in six words; it belongs to no particular song.
+  GOOD: "your sweater by the door"
+        — one plain object out of this song's own world, and it does the same job.`
 
 // sunoTagReference is the Suno meta/structure tag vocabulary, kept STATIC ON
 // PURPOSE. It used to be researched: the system prompt told the model to search
@@ -92,7 +147,23 @@ Prefer this core vocabulary: these are the tags Suno honors most reliably, and
 short plain-English tags beat invented ones. It is still a floor, not a ceiling —
 if the song genuinely calls for another well-known tag, use it (just do not
 research one). Tags are hints, not commands — Suno follows them most of the time
-and may ignore one.`
+and may ignore one.
+
+HOW TO PLACE THEM:
+- Every section opens with ONE structure tag on its own line.
+- Under that header you may stack AT MOST ONE OR TWO short delivery/production
+  cues, each on its own line, before the first sung line — e.g. [Whispered],
+  [Layered Vocals], [Harmonies], [Build]. Hard ceiling of FOUR tags per section.
+- Keep tags SHORT. A long tag gets sung instead of obeyed, so write [Whispered],
+  never [Whispered, close-mic'd and full of regret].
+- No grand or mood-loaded words in a tag (epic, soaring, massive, hypnotic,
+  brooding): name what HAPPENS, not how it should feel.
+- No genre or style description in a tag — that belongs in the style prompt.
+
+Example of the shape:
+[Verse 1]
+[Whispered]
+you left your sweater by the door`
 
 // generateSystemPrompt frames the whole generate conversation. The deliverables
 // are split across three turns of one message history (see generateTurn*Prompt)
@@ -127,21 +198,38 @@ prompt, the lyrics, the titles, the albums, the bands and the cover-art prompt.`
 const generateTurn1Prompt = `Research the reference song named at the end of this message, then produce THREE things:
 
 1. stylePrompt — a comma-separated list of style/genre descriptors for Suno's
-   "Style" box. Rules: NO spaces after commas; lowercase except proper nouns;
-   at most 500 characters; describe era/epoch (inferred from the song's SONIC
-   aesthetic, not its release date), genre/subgenre, tempo/energy,
-   instrumentation, and atmosphere/mood. Describe ONLY THIS SPECIFIC SONG's own
-   sound as heard on the actual recording — NOT the artist's signature or typical
-   style, and NOT the album's overall style. The same artist, and even the same
-   album, routinely spans different genres from one track to the next, so a
-   generic artist/album descriptor will misdescribe this song; if the track
-   departs from what the artist is known for, capture the track. DESCRIBE THE
-   VOICE, starting with its REGISTER — this is required, not optional, and
-   "clean vocals" alone is not a description. Name the lead vocal's register as
-   heard on the recording ("baritone lead vocal", "tenor lead vocal", "alto lead
-   vocal", "low-register vocal", "high-register vocal"). You may add AT MOST ONE
-   further vocal attribute when the recording plainly calls for it — delivery or
-   timbre ("clean vocals", "breathy", "belted", "spoken-word phrasing",
+   "Style" box. Format: a SINGLE flat line, NO spaces after commas, NO line
+   breaks, lowercase except proper nouns, at most 500 characters.
+
+   ORDER MATTERS — Suno weighs the earliest words most, so put the descriptors in
+   this order, 5 to 12 of them in total, each one adding a distinct dimension:
+     a) GENRE — one or two SPECIFIC labels, the dominant one first ("alt-country,
+        indie folk-rock", never just "rock").
+     b) TEMPO — a BPM or a feel ("92 BPM", "mid-tempo", "driving").
+     c) MOOD — one or two words, and never two words that mean the same thing.
+     d) INSTRUMENTS — AT MOST 3-4 melodic instruments, each named specifically
+        ("jangly electric guitar", not "guitar"). More than four turns to mush.
+     e) VOCAL — always present, see below.
+     f) PRODUCTION / ERA — production traits ("close-mic'd", "warm analog mix")
+        and, when the sound has a recognizable period, an era cue ("2010s indie",
+        "90s grunge"): it is a strong, compact signal. SKIP the era when the genre
+        already implies it (synthwave is 80s by definition) or when it fights the
+        production traits; a retro-modern fusion has to be deliberate ("60s soul,
+        modern polished production"). Infer the era from the song's SONIC
+        aesthetic, not from its release date.
+   Cut any descriptor that merely restates an earlier one.
+
+   Describe ONLY THIS SPECIFIC SONG's own sound as heard on the actual recording —
+   NOT the artist's signature or typical style, and NOT the album's overall style.
+   The same artist, and even the same album, routinely spans different genres from
+   one track to the next, so a generic artist/album descriptor will misdescribe
+   this song; if the track departs from what the artist is known for, capture the
+   track. DESCRIBE THE VOICE, starting with its REGISTER — this is required, not
+   optional, and "clean vocals" alone is not a description. Name the lead vocal's
+   register as heard on the recording ("baritone lead vocal", "tenor lead vocal",
+   "alto lead vocal", "low-register vocal", "high-register vocal"). You may add AT
+   MOST ONE further vocal attribute when the recording plainly calls for it —
+   delivery or timbre ("clean vocals", "breathy", "belted", "spoken-word phrasing",
    "close-mic'd", "double-tracked") — plus a short backing-vocal note if the track
    has one ("harmonized backing vocals", "gang-vocal chorus"). Never stack vocal
    adjectives, and stay away from the loud ones (raspy, powerful, soaring, gritty,
@@ -149,16 +237,26 @@ const generateTurn1Prompt = `Research the reference song named at the end of thi
    same wide, raspy voice on every song. NEVER write "male vocals", "female
    vocals", or otherwise name the singer's sex — give the register and let that
    speak. Keep every descriptor MEASURED — Suno over-reacts to hyperbolic adjectives
-   (e.g. psychedelic, massive, roaring, epic, explosive, brutal, thunderous)
-   and generates chaotic, off-genre output, so use restrained wording instead
-   (hazy/atmospheric, full/wide, driven/overdriven, grand/cinematic,
-   dynamic/punchy, heavy) and never stack more than one intensity word; convey
-   energy through tempo and dynamics. Suno also tends to add unwanted wordless
-   humming, so ALWAYS end the style prompt with the literal token "no humming".
+   (e.g. psychedelic, massive, roaring, epic, cinematic, anthemic, powerful,
+   explosive, brutal, thunderous) and generates chaotic, off-genre output, so use
+   restrained wording instead (hazy/atmospheric, full/wide, driven/overdriven,
+   grand, dynamic/punchy, heavy) and never stack more than one intensity word;
+   convey energy through tempo and dynamics. Prefer a concrete production
+   descriptor to a pure atmosphere word — "intimate" says little, "close-mic'd
+   vocal, room-mic'd drums" says the same thing in terms Suno can act on.
+
+   NO NEGATIVES. Never write "no X", "without X", or "not X" anywhere in the style
+   prompt. Negation PRIMES the model toward the very thing it names, so "no
+   humming" reliably produces more humming; state the positive you want instead
+   ("clear enunciated lead vocal"). Anything you genuinely need excluded belongs in
+   Suno's separate Exclude field, which is not yours to fill.
+
    NEVER mention real artist, band, or song names — describe only musical
-   characteristics. This is a SINGLE flat line of descriptors: NO line breaks,
-   and NO Suno meta/structure/section tags (e.g. [Verse], [Chorus], [Intro]) —
-   song structure belongs ONLY in the lyrics field, never here.
+   characteristics. Translate a comparison into its traits: "like Phoebe Bridgers"
+   becomes "hushed indie folk,breathy close-mic'd alto lead vocal,fingerpicked
+   acoustic guitar". And NO Suno meta/structure/section tags (e.g. [Verse],
+   [Chorus], [Intro]) or vocal-delivery cues ([Whispered]) — those live only in the
+   lyrics, never here.
 
 2. genres — an array of UP TO 3 concise genre names that best classify the song
    (1-3 words each, e.g. "synthwave", "dream pop", "drum and bass"). Lowercase,
@@ -251,6 +349,16 @@ do not reproduce the reference song's distinctive lines, hook, or chorus verbati
 but do not word-swap or paraphrase the original into awkward phrasing either —
 ordinary words and the shared theme are fine. Do not research; rewrite only the
 lyrics you are given.
+
+EDIT, DO NOT REPLACE. Preserve the writer's voice and core images, and change the
+MINIMUM the instruction demands — a refine that hands back a wholly different song
+has failed even if the new song is good. Where the original is defensible, keep it.
+Work in this order of priority, stopping once the instruction is satisfied:
+  1. word sounds a singer cannot land   2. broken scansion
+  3. forced rhymes                      4. a hook diluted by reuse in the verses
+  5. weak or abstract images
+For every line you change, you should be able to say in one sentence why it had to
+change; if you cannot, put the original back.
 
 ` + sunoTagReference + `
 

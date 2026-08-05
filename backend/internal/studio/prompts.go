@@ -165,14 +165,15 @@ Example of the shape:
 [Whispered]
 you left your sweater by the door`
 
-// imagePromptCraft is the shared standard for the COVER-ART prompts — song cover
-// art, album covers, and the refine pass over an image prompt. It lives in one
-// const for the same reason lyricCraftRules does: a refine without these rules
-// would undo them on the first revision.
+// imagePromptFormat is the part of the image-prompt standard that holds for EVERY
+// image the studio generates, cover or background: write a comma-separated list
+// rather than prose, lead with an explicit medium, name camera technique instead
+// of describing its effect, and keep interpretation out.
 //
-// genrePromptSystemPrompt deliberately does NOT carry it yet. That prompt writes
-// a wide page background depicting a whole scene rather than a cover's single
-// subject, so it needs its own pass — see the note on that const.
+// It is split from the cover-only rules below because genrePromptSystemPrompt
+// needs all of this and none of that: its subject is a whole scene — a juke
+// joint, a street, a crowd — so "one subject, no clutter" and "one action" would
+// forbid the very thing it is asked for.
 //
 // The rules come from a measured before/after. Asking for "one or two vivid
 // sentences" produced narrative prose that read as generic AI illustration; the
@@ -180,7 +181,7 @@ you left your sweater by the door`
 // medium and using named camera terms instead of described effects, rendered as a
 // real photograph. Both versions are quoted at the bottom as the worked example —
 // keep them, they teach the difference faster than the rules do.
-const imagePromptCraft = `HOW TO WRITE THE PROMPT — an image generator is not a reader. It matches
+const imagePromptFormat = `HOW TO WRITE THE PROMPT — an image generator is not a reader. It matches
 fragments, so give it a COMMA-SEPARATED LIST of concrete visual facts, never
 narrative prose. Roughly 8-12 fragments, at most ~50 words, in this order:
 
@@ -190,12 +191,11 @@ narrative prose. Roughly 8-12 fragments, at most ~50 words, in this order:
      photograph", "high-contrast black-and-white photograph", "oil painting on
      canvas", "screenprinted gig poster", "airbrushed illustration", "grainy
      Polaroid").
-  2. SUBJECT and how it is SEEN — one subject, plus its vantage ("woman seen from
-     behind", "low-angle view of a drum kit"). For a person, prefer seen from
-     behind, in silhouette, or partly turned away: faces are where generators
-     break, and a turned figure reads as a real photograph.
-  3. ONE action or pose — one only ("one hand pressed flat against the wall",
-     "head slightly bowed"). Never two simultaneous actions.
+  2. WHAT IS PICTURED, and the VANTAGE it is seen from ("woman seen from behind",
+     "low-angle view of a drum kit", "shot from inside the crowd"). For a person,
+     prefer seen from behind, in silhouette, or partly turned away: faces are
+     where generators break, and a turned figure reads as a real photograph.
+  3. WHAT IS HAPPENING, and the few concrete objects that carry it.
   4. SETTING — the place in a few words ("in a narrow hallway").
   5. LIGHT — the source, its direction and its colour ("warm amber light from a
      single window at the end", "hard blue stage light from above").
@@ -211,11 +211,9 @@ RULES:
   review the generator cannot act on.
 - NO INTERPRETATION, NO MOOD WORDS. Cut every "evoking", "suggesting", "a sense
   of", "conveying", and every named feeling (melancholy, stillness, longing,
-  nostalgia, unease). Mood is a RESULT of the light, palette, texture and pose —
-  state those and the mood arrives on its own. A named feeling in the prompt just
-  spends words the generator cannot use.
-- ONE SUBJECT, NO CLUTTER. Every extra prop is one more thing to render wrong. A
-  second object earns its place only if the image is meaningless without it.
+  nostalgia, unease, rebellion, euphoria). Mood is a RESULT of the light, palette,
+  texture and pose — state those and the mood arrives on its own. A named feeling
+  in the prompt just spends words the generator cannot use.
 - NO CONNECTING CLAUSES. Fragments joined by commas — no "while", "as", "nearby",
   "with the other hand". Each fragment stands alone.
 - ERA THROUGH THE MEDIUM, NOT AS A LABEL. The film stock, the grain, the palette
@@ -223,6 +221,9 @@ RULES:
   feeling ("2010s indie-folk melancholy") and never name a music genre in the
   prompt — the generator does not know what a genre looks like, it knows what
   Kodachrome looks like.
+- IF THE SCENE IS DARK, SAY HOW DARK. A dim venue renders as flat grey unless you
+  ask otherwise: "high contrast, deep true-black shadows, crushed blacks, never
+  washed-out or grey", with the light sources named as beams cutting through it.
 - NO TEXT of any kind in the image: no letters, words, titles, logos or
   watermarks. They are added separately, and generators render them as gibberish.
 
@@ -245,6 +246,19 @@ Worked example — the SAME scene, and the difference is the whole rule set:
         — medium first, one subject seen from behind, one pose, a located light
         source, two named camera terms, a palette and a grain weight. Same scene,
         and it rendered as a real photograph.`
+
+// imagePromptCraft is imagePromptFormat plus the rules that apply only to a
+// COVER — song cover art, album covers, and the refine pass over either. A cover
+// is one object on a square tile, so it tightens slots 2 and 3 of the format down
+// to a single subject doing a single thing. The genre background deliberately
+// takes imagePromptFormat WITHOUT this addendum; see genrePromptSystemPrompt.
+const imagePromptCraft = imagePromptFormat + `
+
+BECAUSE THIS IS A COVER, NOT A SCENE:
+- ONE SUBJECT, NO CLUTTER. Every extra prop is one more thing to render wrong. A
+  second object earns its place only if the image is meaningless without it.
+- ONE ACTION OR POSE, never two at once ("one hand pressed flat against the wall",
+  "head slightly bowed"). A figure doing two things reads as neither.`
 
 // generateSystemPrompt frames the whole generate conversation. The deliverables
 // are split across three turns of one message history (see generateTurn*Prompt)
@@ -452,46 +466,60 @@ Respond with ONLY a single JSON object and nothing else:
 {"lyrics":"..."}`
 
 // genrePromptSystemPrompt instructs the model to author a single image prompt
-// that depicts a MUSIC GENRE as a wide page background — NOT an album cover. The
-// central decision it must make is live-vs-aesthetic: genres that live on a
-// stage get a photorealistic gig photo; studio/electronic genres get their
-// signature visual world instead.
+// that depicts a MUSIC GENRE as a wide page background — NOT an album cover.
 //
-// It is the one image prompt still written to the old "one or two vivid
-// sentences" instruction: the cover-art prompts moved to imagePromptCraft's
-// ordered tag list, and this one is held back for its own pass because its
-// subject is a whole scene (a band on a stage) rather than a cover's single
-// object, so the one-subject and one-action rules do not transfer as written.
-// NOTE: refinePromptSystemPrompt is shared with this flow and DOES carry
-// imagePromptCraft, so refining a genre background rewrites it as a tag list.
+// It used to split genres into live-band and not, and send every live-band genre
+// to the same picture: "a band mid-performance under hard stage lighting". That
+// one branch covered thrash, rock, punk, jazz, blues, funk, reggae, hip-hop and
+// folk, which is why the backgrounds all looked alike — a stage shot is the most
+// generic image any of them has, and for reggae or hip-hop it is not even the
+// most iconic one. It now derives the scene from the genre's own culture (juke
+// joint, Kingston street, record shop, bedroom setup, dance floor) and treats
+// performance as one option among many.
+//
+// It takes imagePromptFormat but NOT imagePromptCraft: a scene is many subjects
+// doing many things, so the cover-only single-subject rules would forbid what
+// this prompt exists to ask for.
 const genrePromptSystemPrompt = `You write ONE image-generation prompt that visually captures a MUSIC GENRE, to be
 used as a wide background image for that genre's page. You are given only a genre
-name.
+name. This is NOT an album cover and NOT a logo — depict the genre's own culture,
+and never write the words "album cover" or "poster" into the prompt.
 
-This is NOT an album cover and NOT a logo. Depict the genre itself — its scene,
-culture, setting, and aesthetic. Never put any text, letters, words, or watermarks
-in the image.
+DERIVE BEFORE YOU WRITE. Work these out silently first, then write the prompt;
+never show your reasoning:
+  1. ERA — the decade of the genre's defining culture.
+  2. SCENE — the single most iconic setting that culture has. A performance stage
+     is ONE option among many, and usually the weakest: also consider the crowd in
+     a specific venue type, a street, a sound system, a club interior, a studio, a
+     bedroom setup, a record shop, a dance floor, a close-up of the gear, or a
+     landscape. Choose performance ONLY when performance genuinely is the genre's
+     most iconic image.
+  3. DETAILS — two or three concrete objects, instruments or items of clothing
+     that belong to this genre and would look wrong in any other.
+  4. LIGHT AND PALETTE — the lighting and colours native to this culture, not a
+     universal look.
+  5. MEDIUM — the capture style that is period-correct for the era you chose
+     (grainy black-and-white 35mm, flash-lit candid, VHS still, medium-format
+     colour, clean digital, or an illustrated/rendered look where the genre's
+     aesthetic is itself graphic, as with synthwave and vaporwave).
 
-Decide the approach from the genre:
-- If the genre is one typically PERFORMED LIVE by musicians on a stage (e.g. thrash
-  metal, rock, punk, jazz, blues, funk, reggae, hip-hop, folk), render it as a
-  PHOTOREALISTIC STILL FRAME GRABBED FROM A LIVE CONCERT VIDEO: a band
-  mid-performance under hard stage lighting. It must
-  read like a sharp video still — tack-sharp crisp focus, high contrast, and DEEP
-  TRUE BLACK blacks with crushed inky shadows (never washed-out or grey), where
-  colored stage lights and spotlight beams cut through the darkness. Gritty,
-  energetic, high-dynamic-range concert-video realism.
-- If the genre is NOT typically a live-band genre (e.g. synthwave, vaporwave,
-  ambient, lo-fi, IDM, downtempo, chillwave), instead render its CHARACTERISTIC
-  VISUAL AESTHETIC / SCENE (e.g. synthwave -> a neon-drenched 1980s cityscape with
-  chrome and a sunset grid; ambient -> a vast calm minimal landscape).
+How that derivation goes:
+  blues   -> 1950s juke joint, sweat and cigarette haze, tungsten bulbs, B&W 35mm
+  reggae  -> 1970s Kingston street, hand-painted sound system speaker stacks,
+             golden daylight, faded Kodachrome
+  thrash  -> 1986, shot from inside the pit, denim and long hair, harsh white
+             strobe, high-shutter 35mm
 
-Rules for the prompt itself:
-- One or two vivid sentences, at most ~60 words. Image models degrade on long
-  rambling descriptions, so favor a single strong subject plus palette and mood.
-- Bake in the era/epoch that fits the genre's SONIC aesthetic so it is
-  period-correct.
-- WIDE LANDSCAPE composition (this is a page background, not a square tile).
+THE UNIQUENESS TEST, applied before you answer: swap a neighbouring genre into
+your draft. If it still fits, the draft is too generic — rewrite it with sharper
+details. "Band on stage, colored spotlights, smoke, dark background" is THE
+default cliché and fits fifty genres; when you do choose performance framing, the
+venue, the crowd, the clothes, the colour of the light and the film stock all have
+to be specific to this one genre.
+
+COMPOSITION: WIDE LANDSCAPE. This is a page background, not a square tile.
+
+` + imagePromptFormat + `
 
 Respond with ONLY a single JSON object and nothing else (no prose, no code fences):
 {"prompt":"..."}`

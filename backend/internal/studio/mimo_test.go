@@ -337,7 +337,7 @@ func TestPrompts_lyricRulesBanMachineAphorisms(t *testing.T) {
 // "sentences" instruction would turn a working prompt back into prose on the
 // first edit.
 func TestPrompts_imagePromptsShareTheCraftRules(t *testing.T) {
-	rules := flattenWS(imagePromptCraft)
+	rules := flattenWS(imagePromptFormat)
 	for _, want := range []string{
 		"COMMA-SEPARATED LIST",
 		"MEDIUM — FIRST and always explicit",
@@ -346,23 +346,58 @@ func TestPrompts_imagePromptsShareTheCraftRules(t *testing.T) {
 		"35mm film photograph, woman seen from behind",
 	} {
 		if !strings.Contains(rules, want) {
-			t.Fatalf("image prompt rules lost %q: %q", want, imagePromptCraft)
+			t.Fatalf("image prompt rules lost %q: %q", want, imagePromptFormat)
 		}
+	}
+	// EVERY prompt that writes an image prompt carries the format rules, the
+	// refine one most of all: written to the old "vivid sentences" instruction it
+	// would turn a working tag-list prompt back into prose on the first edit.
+	for name, p := range map[string]string{
+		"generate turn 3":  generateTurn3Prompt,
+		"album cover":      albumCoverPromptSystemPrompt,
+		"genre background": genrePromptSystemPrompt,
+		"refine prompt":    refinePromptSystemPrompt,
+	} {
+		if !strings.Contains(p, imagePromptFormat) {
+			t.Fatalf("%s prompt is missing the shared image-prompt format rules: %q", name, p)
+		}
+	}
+	// The single-subject rules are COVER-ONLY. A genre background depicts a whole
+	// scene — a juke joint, a crowd, a street — so folding them in there would
+	// forbid the very thing that prompt asks for.
+	if strings.Contains(genrePromptSystemPrompt, "ONE SUBJECT, NO CLUTTER") {
+		t.Fatal("genre background must not carry the cover-only single-subject rules: its subject is a scene")
 	}
 	for name, p := range map[string]string{
 		"generate turn 3": generateTurn3Prompt,
 		"album cover":     albumCoverPromptSystemPrompt,
-		"refine prompt":   refinePromptSystemPrompt,
 	} {
 		if !strings.Contains(p, imagePromptCraft) {
-			t.Fatalf("%s prompt is missing the shared image-prompt rules: %q", name, p)
+			t.Fatalf("%s is a cover prompt and must carry the single-subject rules: %q", name, p)
 		}
 	}
-	// The genre background is deliberately excluded until it gets its own pass:
-	// its subject is a whole scene, not a cover's single object. Pinned so the
-	// exclusion reads as a decision rather than an oversight.
-	if strings.Contains(genrePromptSystemPrompt, imagePromptCraft) {
-		t.Fatal("genre background now carries the cover-art rules — if that is intended, move it into the map above")
+}
+
+// The old prompt sent thrash, rock, punk, jazz, blues, funk, reggae, hip-hop and
+// folk to one picture — "a band mid-performance under hard stage lighting" —
+// which is why every genre background looked the same. The scene must now be
+// derived from the genre's own culture, with performance one option among many.
+func TestPrompts_genreBackgroundDoesNotDefaultToAStageShot(t *testing.T) {
+	p := flattenWS(genrePromptSystemPrompt)
+	for _, want := range []string{
+		"DERIVE BEFORE YOU WRITE",
+		"A performance stage is ONE option among many",
+		"THE UNIQUENESS TEST",
+		"Band on stage, colored spotlights, smoke, dark background",
+	} {
+		if !strings.Contains(p, want) {
+			t.Fatalf("genre prompt lost %q: %q", want, genrePromptSystemPrompt)
+		}
+	}
+	// The live-vs-not branch is what forced the stage shot; it must be gone, not
+	// merely softened.
+	if strings.Contains(p, "PHOTOREALISTIC STILL FRAME GRABBED FROM A LIVE CONCERT VIDEO") {
+		t.Fatalf("genre prompt still hard-codes the concert-video branch: %q", genrePromptSystemPrompt)
 	}
 }
 

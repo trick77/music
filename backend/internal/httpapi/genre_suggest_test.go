@@ -10,11 +10,15 @@ import (
 	"github.com/trick77/music/internal/config"
 	"github.com/trick77/music/internal/library"
 	"github.com/trick77/music/internal/store"
+	"github.com/trick77/music/internal/studio"
 )
 
 type fakeGenrePrompter struct {
 	prompt string
 	err    error
+	// gotShape records the PromptShape the handler passed to RefinePrompt. It is
+	// a pointer so the fake can stay a value receiver while still recording.
+	gotShape *studio.PromptShape
 }
 
 func (f fakeGenrePrompter) GenrePrompt(_ context.Context, _ string) (string, error) {
@@ -25,7 +29,10 @@ func (f fakeGenrePrompter) AlbumCoverPrompt(_ context.Context, _, _ string, _ []
 	return f.prompt, f.err
 }
 
-func (f fakeGenrePrompter) RefinePrompt(_ context.Context, _, _, _ string) (string, error) {
+func (f fakeGenrePrompter) RefinePrompt(_ context.Context, _, _, _ string, shape studio.PromptShape) (string, error) {
+	if f.gotShape != nil {
+		*f.gotShape = shape
+	}
 	return f.prompt, f.err
 }
 

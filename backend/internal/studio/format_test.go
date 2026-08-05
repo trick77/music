@@ -34,26 +34,33 @@ func TestFormatLyrics_normalizesCRLF(t *testing.T) {
 	}
 }
 
+// The prompts ask for one or two short delivery cues stacked directly under a
+// section header. Splitting those apart with a blank line would read as two
+// separate sections, so only the first tag of a run opens one.
+func TestFormatLyrics_keepsStackedCueTagsWithTheirSection(t *testing.T) {
+	in := "[Verse 1]\n[Whispered Vocals]\nyou left your sweater by the door\n[Chorus]\n[Layered Harmonies]\nhook line"
+	want := "[Verse 1]\n[Whispered Vocals]\nyou left your sweater by the door\n\n[Chorus]\n[Layered Harmonies]\nhook line"
+	if got := formatLyrics(in); got != want {
+		t.Fatalf("formatLyrics =\n%q\nwant\n%q", got, want)
+	}
+}
+
 func TestSanitizeStylePrompt_flattensStripsTagsAndDedupes(t *testing.T) {
 	// Structure tags, newlines, spaced commas, and a case-insensitive dup all get
 	// normalized to a single flat comma-joined line with no spaces after commas.
 	in := "[Verse] thrash metal, fast tempo\n[Chorus] aggressive, Thrash Metal, raspy vocals"
-	want := "thrash metal,fast tempo,aggressive,raspy vocals,no humming"
+	want := "thrash metal,fast tempo,aggressive,raspy vocals"
 	if got := sanitizeStylePrompt(in); got != want {
 		t.Fatalf("sanitizeStylePrompt =\n%q\nwant\n%q", got, want)
 	}
 }
 
-func TestSanitizeStylePrompt_appendsNoHummingWhenAbsent(t *testing.T) {
-	if got := sanitizeStylePrompt("dream pop,dreamy"); got != "dream pop,dreamy,no humming" {
-		t.Fatalf("sanitizeStylePrompt =\n%q\nwant\n%q", got, "dream pop,dreamy,no humming")
-	}
-}
-
-func TestSanitizeStylePrompt_doesNotDuplicateNoHumming(t *testing.T) {
-	// The token is preserved (case-insensitively) and never appended twice.
-	if got := sanitizeStylePrompt("dream pop,No Humming"); got != "dream pop,No Humming" {
-		t.Fatalf("sanitizeStylePrompt =\n%q\nwant\n%q", got, "dream pop,No Humming")
+// A "no humming" token was once force-appended to every style prompt. Negation
+// primes Suno toward the thing it names — it hummed more often with the token
+// than without — so nothing is appended now and the reply passes through as-is.
+func TestSanitizeStylePrompt_appendsNoNegative(t *testing.T) {
+	if got := sanitizeStylePrompt("dream pop,dreamy"); got != "dream pop,dreamy" {
+		t.Fatalf("sanitizeStylePrompt =\n%q\nwant\n%q", got, "dream pop,dreamy")
 	}
 }
 
@@ -68,11 +75,7 @@ func TestSanitizeStylePrompt_capsAt500WithoutCuttingMidDescriptor(t *testing.T) 
 	if len(got) > 500 {
 		t.Fatalf("style prompt exceeds 500 chars: %d", len(got))
 	}
-	// The no-humming token is guaranteed even when the cap is hit.
-	if !strings.HasSuffix(got, ",no humming") {
-		t.Fatalf("style prompt must end with the no-humming token: %q", got)
-	}
-	for _, d := range strings.Split(strings.TrimSuffix(got, ",no humming"), ",") {
+	for _, d := range strings.Split(got, ",") {
 		if !strings.HasPrefix(d, "descriptor-") {
 			t.Fatalf("descriptor cut mid-word: %q", d)
 		}

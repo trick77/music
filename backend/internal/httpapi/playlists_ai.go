@@ -12,6 +12,7 @@ import (
 
 	"github.com/trick77/music/internal/imageutil"
 	"github.com/trick77/music/internal/library"
+	"github.com/trick77/music/internal/studio"
 )
 
 // postSuggestPrompt returns an editable square-cover prompt grounded in the
@@ -104,7 +105,8 @@ func (h *playlistHandlers) postRefinePrompt(w http.ResponseWriter, r *http.Reque
 	}
 	ctx, cancel := context.WithTimeout(r.Context(), suggestPromptTimeout)
 	defer cancel()
-	prompt, err := h.genrePrompter.RefinePrompt(ctx, req.Current, req.Instruction, name)
+	// A playlist cover is a square tile, so it takes the cover discipline.
+	prompt, err := h.genrePrompter.RefinePrompt(ctx, req.Current, req.Instruction, name, studio.ShapeCover)
 	if err != nil {
 		serverError(w, "refine playlist prompt", err)
 		return

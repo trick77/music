@@ -41,7 +41,7 @@ func (e *effortChat) Chat(ctx context.Context, _ []llm.Message, _ []llm.Tool) (l
 func TestReasoningEffort_lowOnTheMechanicalFlowsOnly(t *testing.T) {
 	t.Run("refining a prompt", func(t *testing.T) {
 		chat := &effortChat{reply: `{"prompt":"a quieter version"}`}
-		if _, err := NewGenrePrompter(chat).RefinePrompt(context.Background(), "loud", "calmer", ""); err != nil {
+		if _, err := NewGenrePrompter(chat).RefinePrompt(context.Background(), "loud", "calmer", "", ShapeCover); err != nil {
 			t.Fatal(err)
 		}
 		if chat.effort != llm.EffortLow {

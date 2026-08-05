@@ -44,23 +44,11 @@ func sanitizeStylePrompt(s string) string {
 		out = append(out, part)
 		length += next
 	}
-
-	// Suno tends to inject unwanted wordless humming, so the style prompt must
-	// always end with the "no humming" negative. A prompt can't guarantee the
-	// model emits it, so enforce it here: append the token unless it is already
-	// present, dropping trailing descriptors if needed to stay within the cap.
-	const noHumming = "no humming"
-	if !seen[noHumming] {
-		for len(out) > 0 && length+len(noHumming)+1 > 500 {
-			last := out[len(out)-1]
-			out = out[:len(out)-1]
-			length -= len(last)
-			if len(out) > 0 {
-				length-- // the comma that had joined it
-			}
-		}
-		out = append(out, noHumming)
-	}
+	// No negative is appended here. A "no humming" token used to be forced onto
+	// every style prompt, but negation primes Suno toward the very thing it names
+	// and it hummed more often with the token than without. Exclusions belong in
+	// Suno's separate Exclude field, which this pipeline deliberately leaves to
+	// the user; the style prompt now carries no negatives at all.
 	return strings.Join(out, ",")
 }
 
@@ -68,12 +56,18 @@ func sanitizeStylePrompt(s string) string {
 // structure/meta tag section (a line that is exactly "[...]"), except a leading
 // one — so sections read clearly. It never doubles an existing blank separator.
 // Applied server-side so the copied text and the display share one formatting.
+//
+// A tag directly under another tag gets NO blank line: the prompts ask for one or
+// two short delivery cues stacked under a section header ("[Verse 1]" then
+// "[Whispered Vocals]"), and splitting those apart would read as two sections.
+// Only the first tag of a run opens a new section.
 func formatLyrics(s string) string {
 	s = strings.ReplaceAll(s, "\r\n", "\n")
 	lines := strings.Split(s, "\n")
 	out := make([]string, 0, len(lines)+4)
 	for i, line := range lines {
-		if isTagLine(line) && i > 0 && len(out) > 0 && strings.TrimSpace(out[len(out)-1]) != "" {
+		prevIsTag := len(out) > 0 && isTagLine(out[len(out)-1])
+		if isTagLine(line) && i > 0 && len(out) > 0 && !prevIsTag && strings.TrimSpace(out[len(out)-1]) != "" {
 			out = append(out, "")
 		}
 		out = append(out, line)

@@ -18,7 +18,7 @@ function run(over: Partial<StudioRun> = {}): StudioRun {
     reference: "Metallica, Enter Sandman",
     referenceArtist: "Metallica",
     referenceTitle: "Enter Sandman",
-    stylePrompt: "1991,thrash metal,no humming",
+    stylePrompt: "1991,thrash metal",
     lyrics: "[Verse]\nthe hallway light stays on till four",
     coverArtPrompt: "a single unlit hallway door standing open",
     genres: ["thrash metal"],

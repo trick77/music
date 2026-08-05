@@ -329,6 +329,38 @@ func TestPrompts_lyricRulesBanMachineAphorisms(t *testing.T) {
 	}
 }
 
+// Asking for "one or two vivid sentences" produced narrative prose that rendered
+// as generic AI art; the same scene as an ordered comma-separated list, led by an
+// explicit medium and naming camera terms instead of describing them, rendered as
+// a real photograph. Every prompt that writes an image prompt must carry those
+// rules — the REFINE path most of all, since a refine written to the old
+// "sentences" instruction would turn a working prompt back into prose on the
+// first edit.
+func TestPrompts_imagePromptsShareTheCraftRules(t *testing.T) {
+	rules := flattenWS(imagePromptCraft)
+	for _, want := range []string{
+		"COMMA-SEPARATED LIST",
+		"MEDIUM — FIRST and always explicit",
+		"NAME THE TECHNIQUE, DO NOT DESCRIBE ITS EFFECT",
+		"NO INTERPRETATION, NO MOOD WORDS",
+		"35mm film photograph, woman seen from behind",
+	} {
+		if !strings.Contains(rules, want) {
+			t.Fatalf("image prompt rules lost %q: %q", want, imagePromptCraft)
+		}
+	}
+	for name, p := range map[string]string{
+		"generate turn 3":  generateTurn3Prompt,
+		"album cover":      albumCoverPromptSystemPrompt,
+		"genre background": genrePromptSystemPrompt,
+		"refine prompt":    refinePromptSystemPrompt,
+	} {
+		if !strings.Contains(p, imagePromptCraft) {
+			t.Fatalf("%s prompt is missing the shared image-prompt rules: %q", name, p)
+		}
+	}
+}
+
 // "clean vocals" on every song is a non-description. Turn 1 must ask for the
 // lead vocal's register — while still refusing to name the singer's sex, which
 // stays a literal-wording ban rather than a ban on describing the voice at all.

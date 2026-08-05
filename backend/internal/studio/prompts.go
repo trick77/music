@@ -165,6 +165,83 @@ Example of the shape:
 [Whispered]
 you left your sweater by the door`
 
+// imagePromptCraft is the shared standard for every image prompt the studio
+// writes — song cover art, album covers, genre backgrounds, and the refine pass
+// over any of them. It lives in one const for the same reason lyricCraftRules
+// does: a refine without these rules would undo them on the first revision.
+//
+// The rules come from a measured before/after. Asking for "one or two vivid
+// sentences" produced narrative prose that read as generic AI illustration; the
+// same subject rewritten as an ordered comma-separated list, led by an explicit
+// medium and using named camera terms instead of described effects, rendered as a
+// real photograph. Both versions are quoted at the bottom as the worked example —
+// keep them, they teach the difference faster than the rules do.
+const imagePromptCraft = `HOW TO WRITE THE PROMPT — an image generator is not a reader. It matches
+fragments, so give it a COMMA-SEPARATED LIST of concrete visual facts, never
+narrative prose. Roughly 8-12 fragments, at most ~50 words, in this order:
+
+  1. MEDIUM — FIRST and always explicit. This is the single most important
+     fragment: without it the generator falls back on generic digital-art
+     rendering. Name a real one that suits the genre and era ("35mm film
+     photograph", "high-contrast black-and-white photograph", "oil painting on
+     canvas", "screenprinted gig poster", "airbrushed illustration", "grainy
+     Polaroid").
+  2. SUBJECT and how it is SEEN — one subject, plus its vantage ("woman seen from
+     behind", "low-angle view of a drum kit"). For a person, prefer seen from
+     behind, in silhouette, or partly turned away: faces are where generators
+     break, and a turned figure reads as a real photograph.
+  3. ONE action or pose — one only ("one hand pressed flat against the wall",
+     "head slightly bowed"). Never two simultaneous actions.
+  4. SETTING — the place in a few words ("in a narrow hallway").
+  5. LIGHT — the source, its direction and its colour ("warm amber light from a
+     single window at the end", "hard blue stage light from above").
+  6. CAMERA / COMPOSITION — the technique BY NAME ("subtle Dutch angle", "shallow
+     depth of field", "centered symmetrical composition", "wide establishing shot").
+  7. PALETTE — two or three words ("muted earth tones", "bleached reds and black").
+  8. TEXTURE / FINISH — and how much ("heavy film grain", "visible canvas texture",
+     "halftone dot print texture").
+
+RULES:
+- NAME THE TECHNIQUE, DO NOT DESCRIBE ITS EFFECT. "subtle Dutch angle" is a
+  renderable instruction; "the tilted composition suggesting vertigo" is a film
+  review the generator cannot act on.
+- NO INTERPRETATION, NO MOOD WORDS. Cut every "evoking", "suggesting", "a sense
+  of", "conveying", and every named feeling (melancholy, stillness, longing,
+  nostalgia, unease). Mood is a RESULT of the light, palette, texture and pose —
+  state those and the mood arrives on its own. A named feeling in the prompt just
+  spends words the generator cannot use.
+- ONE SUBJECT, NO CLUTTER. Every extra prop is one more thing to render wrong. A
+  second object earns its place only if the image is meaningless without it.
+- NO CONNECTING CLAUSES. Fragments joined by commas — no "while", "as", "nearby",
+  "with the other hand". Each fragment stands alone.
+- ERA THROUGH THE MEDIUM, NOT AS A LABEL. The film stock, the grain, the palette
+  and the printing process carry the period. Never write a decade attached to a
+  feeling ("2010s indie-folk melancholy") and never name a music genre in the
+  prompt — the generator does not know what a genre looks like, it knows what
+  Kodachrome looks like.
+- NO TEXT of any kind in the image: no letters, words, titles, logos or
+  watermarks. They are added separately, and generators render them as gibberish.
+
+Worked example — the SAME scene, and the difference is the whole rule set:
+  BAD:  "A woman in a dim hallway braces one hand against a worn plaster wall
+        while the other reaches forward into empty air, a forgotten sweater
+        draped over a doorknob nearby. Warm amber light filters through a window,
+        the tilted composition suggesting vertigo on solid ground. Muted earth
+        tones, intimate domestic stillness, soft film grain evoking 2010s
+        indie-folk melancholy."
+        — prose, no medium named, two simultaneous actions, a clutter prop, the
+        camera move described instead of named, and three interpretations
+        ("suggesting vertigo", "intimate domestic stillness", "evoking ...
+        melancholy") the generator has to throw away. It rendered as generic
+        digital art.
+  GOOD: "35mm film photograph, woman seen from behind in a narrow hallway, one
+        hand pressed flat against faded plaster wall, head slightly bowed, warm
+        amber light from a single window at the end, subtle Dutch angle, muted
+        earth tones, heavy film grain, shallow depth of field"
+        — medium first, one subject seen from behind, one pose, a located light
+        source, two named camera terms, a palette and a grain weight. Same scene,
+        and it rendered as a real photograph.`
+
 // generateSystemPrompt frames the whole generate conversation. The deliverables
 // are split across three turns of one message history (see generateTurn*Prompt)
 // rather than crammed into a single reply: each turn has one job, the craft
@@ -305,14 +382,15 @@ fences):
 const generateTurn3Prompt = `Now name the track and picture it. Do not call any tools. Produce FOUR things,
 all grounded in the lyrics you just wrote:
 
-1. coverArtPrompt — a CONCISE prompt for a downstream image generator: one or two
-   vivid sentences, at most ~60 words. Ground the imagery in the THEMES, STORY, and
-   KEY IMAGES of the lyrics you just wrote — not just the genre and era.
-   Image models degrade on long rambling descriptions, so favor a single strong
-   central subject, palette, and mood over exhaustive detail. It MUST also bake in
-   the researched genre and era/epoch so the aesthetic is period-correct (e.g. a
-   1991 thrash-metal cover, not a modern one). No text in the image; square album
-   composition.
+1. coverArtPrompt — a prompt for a downstream image generator, written to the
+   rules at the end of this message. Pick its SUBJECT from the THEMES, STORY and
+   KEY IMAGES of the lyrics you just wrote — one object, place or figure that
+   actually appears in them — not from the genre and era alone. Then choose a
+   MEDIUM that a record from that genre and era would plausibly have used, and let
+   that medium carry the period: a 1991 thrash record and a 2010s indie-folk
+   record do not just differ in mood, they differ in whether the cover is a
+   high-contrast black-and-white photograph or a grainy colour one. SQUARE album
+   composition, centered and balanced for a 1:1 tile.
 
 2. titles — an array of EXACTLY 3 original song-title ideas for the lyrics you
    just wrote. They must VARY IN DIRECTNESS: the FIRST is the most obvious
@@ -335,6 +413,8 @@ all grounded in the lyrics you just wrote:
    oblique last): typically 1-3 words each, Title Case, no surrounding quotes, all
    distinct from one another AND from the titles and albums, and NEVER the
    reference song's real artist or band name.
+
+` + imagePromptCraft + `
 
 Respond with ONLY a single JSON object and nothing else (no prose, no code
 fences):
@@ -384,22 +464,24 @@ Decide the approach from the genre:
 - If the genre is one typically PERFORMED LIVE by musicians on a stage (e.g. thrash
   metal, rock, punk, jazz, blues, funk, reggae, hip-hop, folk), render it as a
   PHOTOREALISTIC STILL FRAME GRABBED FROM A LIVE CONCERT VIDEO: a band
-  mid-performance under hard stage lighting. It must
-  read like a sharp video still — tack-sharp crisp focus, high contrast, and DEEP
-  TRUE BLACK blacks with crushed inky shadows (never washed-out or grey), where
-  colored stage lights and spotlight beams cut through the darkness. Gritty,
-  energetic, high-dynamic-range concert-video realism.
+  mid-performance under hard stage lighting. Its medium fragment is that video
+  still, and it must read like one — tack-sharp crisp focus, high contrast, DEEP
+  TRUE BLACK blacks with crushed inky shadows (never washed-out or grey), colored
+  stage lights and spotlight beams cutting through the darkness, high dynamic
+  range.
 - If the genre is NOT typically a live-band genre (e.g. synthwave, vaporwave,
   ambient, lo-fi, IDM, downtempo, chillwave), instead render its CHARACTERISTIC
   VISUAL AESTHETIC / SCENE (e.g. synthwave -> a neon-drenched 1980s cityscape with
   chrome and a sunset grid; ambient -> a vast calm minimal landscape).
 
-Rules for the prompt itself:
-- One or two vivid sentences, at most ~60 words. Image models degrade on long
-  rambling descriptions, so favor a single strong subject plus palette and mood.
-- Bake in the era/epoch that fits the genre's SONIC aesthetic so it is
-  period-correct.
-- WIDE LANDSCAPE composition (this is a page background, not a square tile).
+Either way, WIDE LANDSCAPE composition — this is a page background, not a square
+tile — and let the chosen MEDIUM carry the genre's era rather than naming it.
+
+This is the one prompt whose subject is a SCENE rather than a single object, so
+the one-subject rule below relaxes to: one scene, one focal point in it. Every
+other rule applies unchanged.
+
+` + imagePromptCraft + `
 
 Respond with ONLY a single JSON object and nothing else (no prose, no code fences):
 {"prompt":"..."}`
@@ -412,22 +494,18 @@ const albumCoverPromptSystemPrompt = `You write ONE image-generation prompt for 
 artist name, an album title, its genre(s), and — when available — lyric excerpts
 from the album's songs.
 
-Depict a strong, single central subject or motif that fits the album — its genre,
-mood, and era. This is an album cover, not a movie poster and not a page banner.
-Never put any text, letters, words, logos, or watermarks in the image (the title
-and artist are added separately).
+Depict ONE central subject or motif that fits the album. This is an album cover,
+not a movie poster and not a page banner: SQUARE composition, centered and
+balanced for a 1:1 tile.
 
-If lyric excerpts are provided, ground the subject and imagery in their THEMES and
-STORY rather than genre/era alone — the lyrics are the strongest signal for what
-the cover should actually depict. If no lyrics are provided, fall back to genre,
-mood, and era.
+If lyric excerpts are provided, take the subject from their THEMES and STORY
+rather than genre/era alone — the lyrics are the strongest signal for what the
+cover should actually depict. If no lyrics are provided, fall back to the genre's
+own imagery. Either way, choose a MEDIUM that a record from that genre and era
+would plausibly have used, and let the medium carry the period rather than saying
+the period out loud.
 
-Rules for the prompt itself:
-- One or two vivid sentences, at most ~60 words. Image models degrade on long
-  rambling descriptions, so favor a single strong subject plus palette and mood.
-- Bake in the era/epoch that fits the genre's SONIC aesthetic so it is
-  period-correct.
-- SQUARE composition, centered and balanced for a 1:1 album tile.
+` + imagePromptCraft + `
 
 Respond with ONLY a single JSON object and nothing else (no prose, no code fences):
 {"prompt":"..."}`
@@ -438,9 +516,16 @@ Respond with ONLY a single JSON object and nothing else (no prose, no code fence
 // context (e.g. the genre name or artist/album) in the user message.
 const refinePromptSystemPrompt = `You revise image-generation prompts. You are given the CURRENT prompt, optional
 context, and a refinement instruction. Rewrite the prompt to satisfy the
-instruction while keeping it a single concise image prompt (one or two vivid
-sentences, at most ~60 words, no text/letters/logos in the image). Keep whatever
-the instruction does not change.
+instruction, and keep whatever the instruction does not change — including the
+current prompt's composition (square tile or wide landscape), which the
+instruction alone may change.
+
+The result must obey the rules below in full, even when the prompt you were given
+does not. If the current prompt is written as prose, or names no medium, or
+describes a camera move instead of naming it, fix that while you are in there:
+the rewritten prompt is the one that gets rendered.
+
+` + imagePromptCraft + `
 
 Respond with ONLY a single JSON object and nothing else (no prose, no code fences):
 {"prompt":"..."}`

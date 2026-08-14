@@ -95,42 +95,49 @@ function AccountSlot({
     );
   }
   return (
-    <a
-      href="/api/auth/logout"
-      aria-label="Log out"
-      title="Log out"
-      style={{
-        ...ring,
-        position: "relative",
-        display: "grid",
-        placeItems: "center",
-        background: "var(--color-accent)",
-        color: "var(--color-ink)",
-        textDecoration: "none",
-        fontFamily: "var(--font-sans)",
-        fontSize: "var(--text-label)",
-        fontWeight: 600,
-      }}
-    >
-      {username ? (
-        username.charAt(0).toUpperCase()
-      ) : (
-        <Glyph name="user" size={16} />
-      )}
-      <span
-        aria-hidden
+    // A form post, not a link: GET /api/auth/logout would let any page on the
+    // internet log the visitor out with an <img> tag. The button carries the
+    // avatar styling the anchor used to.
+    <form method="post" action="/api/auth/logout" style={{ display: "grid" }}>
+      <button
+        type="submit"
+        aria-label="Log out"
+        title="Log out"
         style={{
-          position: "absolute",
-          right: -1,
-          bottom: -1,
-          width: 9,
-          height: 9,
-          borderRadius: 999,
-          background: "var(--color-online)",
-          border: "2px solid var(--color-panel)",
+          ...ring,
+          position: "relative",
+          display: "grid",
+          placeItems: "center",
+          background: "var(--color-accent)",
+          color: "var(--color-ink)",
+          border: "none",
+          padding: 0,
+          cursor: "pointer",
+          fontFamily: "var(--font-sans)",
+          fontSize: "var(--text-label)",
+          fontWeight: 600,
         }}
-      />
-    </a>
+      >
+        {username ? (
+          username.charAt(0).toUpperCase()
+        ) : (
+          <Glyph name="user" size={16} />
+        )}
+        <span
+          aria-hidden
+          style={{
+            position: "absolute",
+            right: -1,
+            bottom: -1,
+            width: 9,
+            height: 9,
+            borderRadius: 999,
+            background: "var(--color-online)",
+            border: "2px solid var(--color-panel)",
+          }}
+        />
+      </button>
+    </form>
   );
 }
 

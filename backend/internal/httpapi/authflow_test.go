@@ -208,7 +208,7 @@ func TestOIDCFlow_logoutClearsSession(t *testing.T) {
 	rr := e.callback(t, code, stateFrom(cookies), cookies)
 	sessionCookies := rr.Result().Cookies()
 
-	req := httptest.NewRequest("GET", "/api/auth/logout", nil)
+	req := httptest.NewRequest("POST", "/api/auth/logout", nil)
 	for _, c := range sessionCookies {
 		req.AddCookie(c)
 	}
@@ -223,6 +223,34 @@ func TestOIDCFlow_logoutClearsSession(t *testing.T) {
 	}
 	if loc := lr.Header().Get("Location"); loc != e.cfg.OIDC.PostLogoutRedirectURL {
 		t.Fatalf("logout redirect = %q, want %q", loc, e.cfg.OIDC.PostLogoutRedirectURL)
+	}
+}
+
+// A GET logout is reachable by any third-party page -- an <img> or a plain
+// link is enough, and the handler clears the session before looking at
+// anything. Only POST logs out, so a cross-site attempt costs an attacker a
+// form the SameSite cookie will not travel with.
+func TestOIDCFlow_logoutRejectsGET(t *testing.T) {
+	e := newOIDCEnv(t, "music-users")
+	cookies, authorizeURL := e.login(t)
+	code := authorizeCode(t, authorizeURL)
+	rr := e.callback(t, code, stateFrom(cookies), cookies)
+	sessionCookies := rr.Result().Cookies()
+
+	req := httptest.NewRequest("GET", "/api/auth/logout", nil)
+	for _, c := range sessionCookies {
+		req.AddCookie(c)
+	}
+	lr := httptest.NewRecorder()
+	e.handler.ServeHTTP(lr, req)
+
+	if lr.Code == http.StatusFound {
+		t.Fatalf("GET /api/auth/logout must not log out, got %d", lr.Code)
+	}
+	// The session cookie must survive untouched: a cleared cookie here is the
+	// forced-logout this test exists to prevent, whatever status came with it.
+	if c := cookieByName(lr.Result().Cookies(), auth.SessionCookieName); c != nil && c.MaxAge < 0 {
+		t.Fatal("GET /api/auth/logout cleared the session cookie")
 	}
 }
 

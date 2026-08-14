@@ -146,7 +146,11 @@ func build(cfg config.Config, st *store.Store, spa http.Handler, gen imagegen.Pr
 		ah := &authHandlers{cfg: cfg, authr: authr, secure: cfg.OIDC.CookieSecure}
 		mux.HandleFunc("GET /api/auth/login", ah.login)
 		mux.HandleFunc("GET /api/auth/callback", ah.callback)
-		mux.HandleFunc("GET /api/auth/logout", ah.logout)
+		// POST, not GET: the handler clears the session before reading anything,
+		// so a GET route lets any third-party page log a visitor out with an
+		// <img> or a plain link. A form post is not something a cross-site page
+		// can send with the SameSite=Lax session cookie attached.
+		mux.HandleFunc("POST /api/auth/logout", ah.logout)
 	}
 
 	// Song routes require a store and a media root; both are present in normal

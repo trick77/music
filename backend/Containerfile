@@ -7,7 +7,7 @@ COPY ui/ ./
 RUN npm run build
 
 # Stage 2: build the Go binary with the embedded SPA
-FROM golang:1.26-alpine AS build
+FROM golang:1.27-alpine AS build
 # Set by release.yaml to the semver it just computed, so the running container can
 # report what it is (startup log + /api/health). Defaults to "dev" for local builds.
 ARG BACKEND_VERSION=dev

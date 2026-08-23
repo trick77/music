@@ -15,7 +15,7 @@ services:
       BACKEND_OIDC_CLIENT_ID: "${BACKEND_OIDC_CLIENT_ID}"
       BACKEND_OIDC_CLIENT_SECRET: "${BACKEND_OIDC_CLIENT_SECRET}"
       BACKEND_OIDC_REDIRECT_URL: "${BACKEND_OIDC_REDIRECT_URL}"
-      BACKEND_OIDC_POST_LOGOUT_REDIRECT_URL: "${BACKEND_OIDC_POST_LOGOUT_REDIRECT_URL}"
+      BACKEND_OIDC_POST_LOGOUT_REDIRECT_URL: "${BACKEND_OIDC_POST_LOGOUT_REDIRECT_URL:-}"
       # Optional: restrict the full-access role to one Authentik group (unset = any valid login).
       BACKEND_OIDC_ALLOWED_GROUP: "${BACKEND_OIDC_ALLOWED_GROUP:-}"
       # Image generation (optional; leave the API key empty to disable the Generate button).

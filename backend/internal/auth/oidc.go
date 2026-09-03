@@ -30,7 +30,7 @@ type Authenticator struct {
 // issuer's well-known document) and builds the verifier and OAuth2 config.
 func NewAuthenticator(ctx context.Context, cfg config.OIDCConfig) (*Authenticator, error) {
 	// Pass the issuer verbatim: go-oidc requires the discovery document's
-	// "issuer" to match exactly (Authentik issuers keep their trailing slash).
+	// "issuer" to match exactly (some issuers keep a trailing slash).
 	provider, err := oidc.NewProvider(ctx, cfg.Issuer)
 	if err != nil {
 		return nil, fmt.Errorf("oidc discovery: %w", err)

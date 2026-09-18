@@ -1,16 +1,16 @@
 module github.com/trick77/music
 
-go 1.25.0
+go 1.26.0
 
 require (
 	github.com/bogem/id3v2/v2 v2.1.4
-	github.com/coreos/go-oidc/v3 v3.20.0
+	github.com/coreos/go-oidc/v3 v3.21.0
 	github.com/dhowden/tag v0.0.0-20240417053706-3d75831295e8
 	github.com/hajimehoshi/go-mp3 v0.3.4
-	github.com/ncruces/go-sqlite3 v0.35.3
+	github.com/ncruces/go-sqlite3 v0.35.4
 	github.com/trick77/webfetch v0.1.8
-	golang.org/x/image v0.45.0
-	golang.org/x/oauth2 v0.36.0
+	golang.org/x/image v0.46.0
+	golang.org/x/oauth2 v0.37.0
 )
 
 require (
@@ -23,9 +23,9 @@ require (
 	github.com/gogs/chardet v0.0.0-20211120154057-b7413eaefb8f // indirect
 	github.com/itlightning/dateparse v0.2.1 // indirect
 	github.com/ledongthuc/pdf v0.0.0-20250511090121-5959a4027728 // indirect
-	github.com/ncruces/go-sqlite3-wasm/v3 v3.2.35304 // indirect
+	github.com/ncruces/go-sqlite3-wasm/v5 v5.0.35304 // indirect
 	github.com/ncruces/julianday v1.0.0 // indirect
 	golang.org/x/net v0.58.0 // indirect
-	golang.org/x/sys v0.47.0 // indirect
-	golang.org/x/text v0.41.0 // indirect
+	golang.org/x/sys v0.48.0 // indirect
+	golang.org/x/text v0.42.0 // indirect
 )

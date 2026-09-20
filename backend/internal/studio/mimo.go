@@ -132,6 +132,10 @@ func decodeTurn(raw string, dst any) error {
 // sanitizeList trims, drops blanks, de-duplicates case-insensitively, and caps
 // the list at max — the ceiling the dialog shows for genres, bands, titles and
 // albums.
+// Only one caller passes max today, but it names the per-field ceiling at the
+// call site, which is where it belongs.
+//
+//nolint:unparam // max is the caller's ceiling, not a constant
 func sanitizeList(in []string, max int) []string {
 	seen := map[string]bool{}
 	out := make([]string, 0, max)

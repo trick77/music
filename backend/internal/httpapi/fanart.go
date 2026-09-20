@@ -17,8 +17,8 @@ func (h *songHandlers) postFanart(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	defer os.Remove(tmp.Name())
-	defer tmp.Close()
+	defer func() { _ = os.Remove(tmp.Name()) }()
+	defer func() { _ = tmp.Close() }()
 
 	kind := r.FormValue("kind")
 	genreID := r.FormValue("genreId")

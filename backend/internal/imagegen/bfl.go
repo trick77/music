@@ -22,6 +22,7 @@ const (
 	maxDownloadedImageSize = 25 << 20
 )
 
+// BFLConfig contains the configuration needed to create a BFL image generation client.
 type BFLConfig struct {
 	BaseURL      string
 	APIKey       string
@@ -31,6 +32,7 @@ type BFLConfig struct {
 	HTTPClient   *http.Client
 }
 
+// BFLClient communicates with the BFL image generation API.
 type BFLClient struct {
 	baseURL      string
 	apiKey       string
@@ -40,6 +42,7 @@ type BFLClient struct {
 	httpClient   *http.Client
 }
 
+// NewBFLClient creates a new BFL client with the given configuration.
 func NewBFLClient(cfg BFLConfig) *BFLClient {
 	pollInterval := cfg.PollInterval
 	if pollInterval <= 0 {
@@ -63,6 +66,7 @@ func NewBFLClient(cfg BFLConfig) *BFLClient {
 	}
 }
 
+// Generate creates an image from the given request using the BFL API.
 func (c *BFLClient) Generate(ctx context.Context, input GenerateRequest) (GenerateResult, error) {
 	start := time.Now()
 	req, err := input.Normalized()
@@ -170,7 +174,7 @@ func (c *BFLClient) submit(ctx context.Context, req GenerateRequest, model strin
 	if err != nil {
 		return bflSubmitResponse{}, err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		body, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
 		return bflSubmitResponse{}, fmt.Errorf("BFL submit failed: status %d: %s", resp.StatusCode, strings.TrimSpace(string(body)))
@@ -238,7 +242,7 @@ func (c *BFLClient) fetchStatus(ctx context.Context, pollingURL string) (bflStat
 	if err != nil {
 		return bflStatusResponse{}, err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		body, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
 		return bflStatusResponse{}, fmt.Errorf("BFL poll failed: status %d: %s", resp.StatusCode, strings.TrimSpace(string(body)))
@@ -259,7 +263,7 @@ func (c *BFLClient) download(ctx context.Context, imageURL string) ([]byte, stri
 	if err != nil {
 		return nil, "", err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		return nil, "", fmt.Errorf("download generated image failed: status %d", resp.StatusCode)
 	}

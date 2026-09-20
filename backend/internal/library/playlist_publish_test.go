@@ -84,8 +84,8 @@ func TestPlaylist_anonymousCountExcludesUnpublishedTracks(t *testing.T) {
 		t.Fatalf("publish playlist: %v", err)
 	}
 	// One published + one unpublished track.
-	pub := mkPubSong(t, r, ctx, "A", "Rock", "hp", true)
-	unpub := mkPubSong(t, r, ctx, "A", "Rock", "hu", false)
+	pub := mkPubSong(ctx, t, r, "A", "Rock", "hp", true)
+	unpub := mkPubSong(ctx, t, r, "A", "Rock", "hu", false)
 	for _, sid := range []string{pub, unpub} {
 		if err := r.AddSong(ctx, pid, sid); err != nil {
 			t.Fatalf("AddSong: %v", err)

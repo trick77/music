@@ -43,7 +43,7 @@ func newOIDCEnv(t *testing.T, allowedGroup string) *oidcTestEnv {
 	if err != nil {
 		t.Fatalf("NewAuthenticator: %v", err)
 	}
-	spa := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { w.Write([]byte("SPA")) })
+	spa := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { w.Write([]byte("SPA")) })
 	return &oidcTestEnv{handler: NewWithAuth(cfg, nil, spa, authr), mock: mock, cfg: cfg}
 }
 

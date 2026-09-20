@@ -73,7 +73,7 @@ func (r *Repo) genreSongs(ctx context.Context, genreID string, limit int, includ
 
 // hydrateSongs scans a songSelect rowset and fills each song's genres.
 func (r *Repo) hydrateSongs(ctx context.Context, rows *sql.Rows) ([]Song, error) {
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	out := []Song{}
 	for rows.Next() {
 		s, err := scanSong(rows)

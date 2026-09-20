@@ -30,7 +30,7 @@ func alignEnabledServer(t *testing.T, stubURL string) http.Handler {
 		AlignURL:     stubURL,
 		AlignTimeout: 30 * time.Second,
 	}
-	spa := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { w.Write([]byte("SPA")) })
+	spa := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { w.Write([]byte("SPA")) })
 	return New(cfg, st, spa)
 }
 
@@ -45,7 +45,7 @@ func alignDevAndAnon(t *testing.T, stubURL string) (dev http.Handler, anon http.
 	}
 	t.Cleanup(func() { st.Close() })
 	media := t.TempDir()
-	spa := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { w.Write([]byte("SPA")) })
+	spa := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { w.Write([]byte("SPA")) })
 	mk := func(mode config.AuthMode) http.Handler {
 		cfg := config.Config{
 			AuthMode: mode, DevUser: config.DevUserConfig{Username: "dev"}, MediaDir: media,
@@ -58,7 +58,7 @@ func alignDevAndAnon(t *testing.T, stubURL string) (dev http.Handler, anon http.
 
 func stubSidecar(t *testing.T) *httptest.Server {
 	t.Helper()
-	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		io.WriteString(w, `{"engine":"stub","lines":[{"text":"la la","start":0.1,"end":0.9,"words":[{"w":"la","start":0.1,"end":0.4,"conf":0.9},{"w":"la","start":0.5,"end":0.9,"conf":0.8}]}]}`)
 	}))

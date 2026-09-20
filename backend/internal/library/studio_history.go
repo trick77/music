@@ -116,7 +116,7 @@ func (r *Repo) ListStudioRuns(ctx context.Context, limit int, beforeRowID int64)
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	out := []StudioRun{}
 	for rows.Next() {
 		run, err := scanStudioRun(rows)

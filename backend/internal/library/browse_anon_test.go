@@ -6,7 +6,7 @@ import (
 )
 
 // mkPubSong creates a song with a given artist + single genre and publish state.
-func mkPubSong(t *testing.T, r *Repo, ctx context.Context, artist, genre, hash string, published bool) string {
+func mkPubSong(ctx context.Context, t *testing.T, r *Repo, artist, genre, hash string, published bool) string {
 	t.Helper()
 	p := sampleParams()
 	p.ArtistName = artist
@@ -38,8 +38,8 @@ func findByName[T any](items []T, name func(T) string, want string) (T, bool) {
 func TestListArtists_anonymousHidesUnpublishedOnly(t *testing.T) {
 	r := newRepo(t)
 	ctx := context.Background()
-	mkPubSong(t, r, ctx, "Published Artist", "Rock", "h1", true)
-	mkPubSong(t, r, ctx, "Draft Artist", "Rock", "h2", false)
+	mkPubSong(ctx, t, r, "Published Artist", "Rock", "h1", true)
+	mkPubSong(ctx, t, r, "Draft Artist", "Rock", "h2", false)
 
 	anon, err := r.ListArtists(ctx, false)
 	if err != nil {
@@ -57,9 +57,9 @@ func TestListArtists_anonymousHidesUnpublishedOnly(t *testing.T) {
 func TestGetArtist_anonymousCountsPublishedAndHidesEmpty(t *testing.T) {
 	r := newRepo(t)
 	ctx := context.Background()
-	mkPubSong(t, r, ctx, "Mixed", "Rock", "h1", true)  // published
-	mkPubSong(t, r, ctx, "Mixed", "Rock", "h2", false) // unpublished, same artist
-	mkPubSong(t, r, ctx, "Draft", "Rock", "h3", false) // all-unpublished artist
+	mkPubSong(ctx, t, r, "Mixed", "Rock", "h1", true)  // published
+	mkPubSong(ctx, t, r, "Mixed", "Rock", "h2", false) // unpublished, same artist
+	mkPubSong(ctx, t, r, "Draft", "Rock", "h3", false) // all-unpublished artist
 
 	all, _ := r.ListArtists(ctx, true)
 	mixed, _ := findByName(all, func(a ArtistSummary) string { return a.Name }, "Mixed")
@@ -90,8 +90,8 @@ func TestGetArtist_anonymousCountsPublishedAndHidesEmpty(t *testing.T) {
 func TestListGenres_anonymousHidesUnpublishedOnly(t *testing.T) {
 	r := newRepo(t)
 	ctx := context.Background()
-	mkPubSong(t, r, ctx, "Artist", "PubGenre", "h1", true)
-	mkPubSong(t, r, ctx, "Artist", "DraftGenre", "h2", false)
+	mkPubSong(ctx, t, r, "Artist", "PubGenre", "h1", true)
+	mkPubSong(ctx, t, r, "Artist", "DraftGenre", "h2", false)
 
 	anon, _ := r.ListGenres(ctx, false)
 	if len(anon) != 1 || anon[0].Name != "pubgenre" || anon[0].SongCount != 1 {
@@ -106,9 +106,9 @@ func TestListGenres_anonymousHidesUnpublishedOnly(t *testing.T) {
 func TestGetGenre_anonymousCountsPublishedAndHidesEmpty(t *testing.T) {
 	r := newRepo(t)
 	ctx := context.Background()
-	mkPubSong(t, r, ctx, "Artist", "Mixed", "h1", true)
-	mkPubSong(t, r, ctx, "Artist", "Mixed", "h2", false)
-	mkPubSong(t, r, ctx, "Artist", "Draft", "h3", false)
+	mkPubSong(ctx, t, r, "Artist", "Mixed", "h1", true)
+	mkPubSong(ctx, t, r, "Artist", "Mixed", "h2", false)
+	mkPubSong(ctx, t, r, "Artist", "Draft", "h3", false)
 
 	all, _ := r.ListGenres(ctx, true)
 	mixed, _ := findByName(all, func(g GenreSummary) string { return g.Name }, "mixed")
@@ -132,7 +132,7 @@ func TestGetGenre_anonymousCountsPublishedAndHidesEmpty(t *testing.T) {
 func TestSearch_anonymousHidesUnpublishedArtistsAndGenres(t *testing.T) {
 	r := newRepo(t)
 	ctx := context.Background()
-	mkPubSong(t, r, ctx, "Neon Artist", "Neon Genre", "h1", false) // all unpublished
+	mkPubSong(ctx, t, r, "Neon Artist", "Neon Genre", "h1", false) // all unpublished
 
 	anon, err := r.Search(ctx, "Neon", 20, false)
 	if err != nil {

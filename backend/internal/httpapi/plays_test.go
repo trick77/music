@@ -22,7 +22,7 @@ func devAndAnon(t *testing.T) (dev http.Handler, anon http.Handler) {
 	}
 	t.Cleanup(func() { st.Close() })
 	media := t.TempDir()
-	spa := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { w.Write([]byte("SPA")) })
+	spa := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { w.Write([]byte("SPA")) })
 	mk := func(mode config.AuthMode) http.Handler {
 		cfg := config.Config{AuthMode: mode, DevUser: config.DevUserConfig{Username: "dev"}, MediaDir: media, MaxUploadMB: 50}
 		h := New(cfg, st, spa)

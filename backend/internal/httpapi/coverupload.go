@@ -32,7 +32,7 @@ func bufferProbeImage(w http.ResponseWriter, r *http.Request, maxBytes int64) (*
 		httpError(w, http.StatusBadRequest, "missing file field")
 		return nil, "", 0, 0, "", false
 	}
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 	defer func() {
 		if r.MultipartForm != nil {
 			_ = r.MultipartForm.RemoveAll()
@@ -80,8 +80,8 @@ func storeUploadedCover(w http.ResponseWriter, r *http.Request, store *media.Sto
 	if !ok {
 		return "", false
 	}
-	defer os.Remove(tmp.Name())
-	defer tmp.Close()
+	defer func() { _ = os.Remove(tmp.Name()) }()
+	defer func() { _ = tmp.Close() }()
 
 	coverID, _, err := repo.FindCoverByHash(r.Context(), hash)
 	if err != nil {
@@ -99,7 +99,7 @@ func storeUploadedCover(w http.ResponseWriter, r *http.Request, store *media.Sto
 		return "", false
 	}
 	if _, err := io.Copy(dst, tmp); err != nil {
-		dst.Close()
+		_ = dst.Close()
 		serverError(w, "write cover", err)
 		return "", false
 	}

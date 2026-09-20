@@ -192,7 +192,7 @@ func startSSE(w http.ResponseWriter) (stream func(event string, data any), flush
 		if err != nil {
 			return
 		}
-		fmt.Fprintf(w, "event: %s\ndata: %s\n\n", event, payload)
+		_, _ = fmt.Fprintf(w, "event: %s\ndata: %s\n\n", event, payload)
 	}
 	return stream, func() { flusher.Flush() }, true
 }

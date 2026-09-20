@@ -113,7 +113,7 @@ func (h *songHandlers) upload(w http.ResponseWriter, r *http.Request) {
 		httpError(w, http.StatusBadRequest, "missing file field")
 		return
 	}
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 	// net/http spills large multipart parts to disk and does not auto-delete
 	// them; clean those up regardless of outcome.
 	defer func() {
@@ -131,8 +131,8 @@ func (h *songHandlers) upload(w http.ResponseWriter, r *http.Request) {
 		serverError(w, "temp file", err)
 		return
 	}
-	defer os.Remove(tmp.Name())
-	defer tmp.Close()
+	defer func() { _ = os.Remove(tmp.Name()) }()
+	defer func() { _ = tmp.Close() }()
 
 	hasher := sha256.New()
 	size, err := io.Copy(io.MultiWriter(tmp, hasher), file)
@@ -172,12 +172,12 @@ func (h *songHandlers) upload(w http.ResponseWriter, r *http.Request) {
 		}
 	}()
 	if _, err := tmp.Seek(0, io.SeekStart); err != nil {
-		dst.Close()
+		_ = dst.Close()
 		serverError(w, "seek", err)
 		return
 	}
 	if _, err := io.Copy(dst, tmp); err != nil {
-		dst.Close()
+		_ = dst.Close()
 		serverError(w, "write file", err)
 		return
 	}
@@ -300,7 +300,7 @@ func (h *songHandlers) serveFile(w http.ResponseWriter, r *http.Request, attach 
 			httpError(w, http.StatusNotFound, "audio file missing")
 			return
 		}
-		defer f.Close()
+		defer func() { _ = f.Close() }()
 		info, err := f.Stat()
 		if err != nil {
 			serverError(w, "stat file", err)
@@ -318,11 +318,11 @@ func (h *songHandlers) serveFile(w http.ResponseWriter, r *http.Request, attach 
 	// Download/export: the DB is the source of truth for tags, so bake the current
 	// tags into a throwaway copy and serve that. The stored file is never mutated.
 	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=%q", downloadName(song)))
-	if srcAbs, err := h.media.Resolve(song.FilePath); err == nil {
+	if srcAbs, err := h.media.Resolve(song.FilePath); err == nil { //nolint:gosec // G703: path is validated by media.Store.Resolve
 		if tmpName, err := stampToTemp(srcAbs, h.songTags(r.Context(), song)); err == nil {
-			defer os.Remove(tmpName)
-			if f, err := os.Open(tmpName); err == nil {
-				defer f.Close()
+			defer func() { _ = os.Remove(tmpName) }()   //nolint:gosec // G703: path is validated by media.Store.Resolve
+			if f, err := os.Open(tmpName); err == nil { //nolint:gosec // G304: path is validated by media.Store.Resolve
+				defer func() { _ = f.Close() }()
 				if info, err := f.Stat(); err == nil {
 					http.ServeContent(w, r, song.ID+".mp3", info.ModTime(), f)
 					return
@@ -341,7 +341,7 @@ func (h *songHandlers) serveFile(w http.ResponseWriter, r *http.Request, attach 
 		httpError(w, http.StatusNotFound, "audio file missing")
 		return
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 	info, err := f.Stat()
 	if err != nil {
 		serverError(w, "stat file", err)
@@ -359,9 +359,9 @@ func stampToTemp(srcAbs string, t metadata.WriteableTags) (string, error) {
 		return "", err
 	}
 	name := tmp.Name()
-	tmp.Close()
+	_ = tmp.Close()
 	if err := metadata.StampTags(srcAbs, name, t); err != nil {
-		os.Remove(name)
+		_ = os.Remove(name)
 		return "", err
 	}
 	return name, nil
@@ -478,7 +478,7 @@ func httpError(w http.ResponseWriter, code int, msg string) {
 	// still running could keep hiding the finished image afterwards.
 	setNoStore(w)
 	w.WriteHeader(code)
-	json.NewEncoder(w).Encode(map[string]string{"error": msg})
+	_ = json.NewEncoder(w).Encode(map[string]string{"error": msg})
 }
 
 // serverError logs the underlying cause and returns a 500 to the client with a
@@ -492,5 +492,5 @@ func serverError(w http.ResponseWriter, msg string, err error) {
 func writeJSONStatus(w http.ResponseWriter, code int, v any) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(code)
-	json.NewEncoder(w).Encode(v)
+	_ = json.NewEncoder(w).Encode(v)
 }

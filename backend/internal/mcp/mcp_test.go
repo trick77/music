@@ -137,7 +137,7 @@ func TestService_allDiscoveryFailingReturnsErrorAndRetries(t *testing.T) {
 func TestService_skipsServerThatFailsDiscovery(t *testing.T) {
 	good := jsonrpcServer(t, false)
 	defer good.Close()
-	bad := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	bad := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		http.Error(w, "down", http.StatusInternalServerError)
 	}))
 	defer bad.Close()

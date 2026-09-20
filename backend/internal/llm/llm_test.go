@@ -48,7 +48,7 @@ func TestChat_sendsOpenAIRequestAndParsesToolCalls(t *testing.T) {
 }
 
 func TestChat_parsesPlainContent(t *testing.T) {
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		io.WriteString(w, `{"choices":[{"message":{"content":"hello world"},"finish_reason":"stop"}]}`)
 	}))
 	defer srv.Close()
@@ -63,7 +63,7 @@ func TestChat_parsesPlainContent(t *testing.T) {
 }
 
 func TestChat_errorsOnNon2xx(t *testing.T) {
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		http.Error(w, "boom", http.StatusInternalServerError)
 	}))
 	defer srv.Close()

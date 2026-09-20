@@ -35,7 +35,9 @@ func main() {
 	}
 
 	slog.Info("mockoidc listening", "issuer", issuer, "addr", addr, "user", srv.Username, "groups", srv.Groups)
-	if err := http.ListenAndServe(addr, srv.Handler()); err != nil {
+	// G114: a mock OIDC provider for local dev and tests. It is never built
+	// into the release image, so the timeouts the real server sets do not apply.
+	if err := http.ListenAndServe(addr, srv.Handler()); err != nil { //nolint:gosec // G114
 		slog.Error("mockoidc failed", "err", err)
 		os.Exit(1)
 	}

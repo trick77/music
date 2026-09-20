@@ -96,7 +96,7 @@ func (s *Server) discovery(w http.ResponseWriter, _ *http.Request) {
 func (s *Server) jwks(w http.ResponseWriter, _ *http.Request) {
 	pub := s.key.PublicKey
 	eBytes := make([]byte, 8)
-	binary.BigEndian.PutUint64(eBytes, uint64(pub.E))
+	binary.BigEndian.PutUint64(eBytes, uint64(pub.E)) //nolint:gosec // G115: mock OIDC provider, test and dev only
 	eBytes = trimLeadingZeros(eBytes)
 	writeJSON(w, map[string]any{
 		"keys": []map[string]any{{
@@ -133,7 +133,7 @@ func (s *Server) authorize(w http.ResponseWriter, r *http.Request) {
 	if st := q.Get("state"); st != "" {
 		loc += "&state=" + st
 	}
-	http.Redirect(w, r, loc, http.StatusFound)
+	http.Redirect(w, r, loc, http.StatusFound) //nolint:gosec // G710: mock OIDC provider, test and dev only
 }
 
 func (s *Server) token(w http.ResponseWriter, r *http.Request) {

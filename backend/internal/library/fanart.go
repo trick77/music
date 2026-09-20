@@ -132,7 +132,7 @@ func (r *Repo) ListGenreFanart(ctx context.Context, genreID string) ([]Fanart, e
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	out := []Fanart{}
 	for rows.Next() {
 		f, err := scanFanart(rows)
@@ -151,7 +151,7 @@ func (r *Repo) SetActiveBackground(ctx context.Context, genreID, fanartID string
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 	var status string
 	err = tx.QueryRowContext(ctx,
 		`SELECT status FROM fanart WHERE id=? AND genre_id=? AND kind='genre'`, fanartID, genreID).Scan(&status)
@@ -185,7 +185,7 @@ func (r *Repo) SetHero(ctx context.Context, fanartID string) error {
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 	var status string
 	if err := tx.QueryRowContext(ctx, `SELECT status FROM fanart WHERE id=?`, fanartID).Scan(&status); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {

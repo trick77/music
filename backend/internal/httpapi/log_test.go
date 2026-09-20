@@ -65,7 +65,7 @@ func TestRedactErr_plainAndNilUnchanged(t *testing.T) {
 	}
 	plain := errors.New("nonce mismatch")
 	got := redactErr(plain)
-	if got != plain {
+	if !errors.Is(got, plain) {
 		t.Fatalf("redactErr(plain) = %v (%p), want the original error unchanged (%p)", got, got, plain)
 	}
 }

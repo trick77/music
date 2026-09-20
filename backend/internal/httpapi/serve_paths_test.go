@@ -35,7 +35,7 @@ func newServeServer(t *testing.T, maxUploadMB int) *serveTS {
 	}
 	t.Cleanup(func() { st.Close() })
 	mediaDir := t.TempDir()
-	spa := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { w.Write([]byte("SPA")) })
+	spa := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { w.Write([]byte("SPA")) })
 	mk := func(mode config.AuthMode) http.Handler {
 		cfg := config.Config{
 			AuthMode: mode, DevUser: config.DevUserConfig{Username: "dev"},

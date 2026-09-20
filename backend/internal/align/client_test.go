@@ -45,7 +45,7 @@ func TestAlign_postsMultipartAndParsesResult(t *testing.T) {
 }
 
 func TestAlign_nonJSONErrorSurfaced(t *testing.T) {
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
 		io.WriteString(w, `{"error":"model not loaded"}`)
 	}))

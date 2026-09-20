@@ -80,7 +80,7 @@ func (h *songHandlers) readAudioInfo(relPath string) (metadata.Audio, error) {
 	if err != nil {
 		return metadata.Audio{}, fmt.Errorf("%w: %w", errUnreadable, err)
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 	tags, err := metadata.Parse(f)
 	if err != nil {
 		return metadata.Audio{}, err

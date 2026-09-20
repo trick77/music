@@ -23,7 +23,7 @@ func deleteTestServer(t *testing.T, mode config.AuthMode) (http.Handler, string)
 	t.Cleanup(func() { st.Close() })
 	mediaDir := t.TempDir()
 	cfg := config.Config{AuthMode: mode, DevUser: config.DevUserConfig{Username: "dev"}, MediaDir: mediaDir, MaxUploadMB: 50}
-	spa := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { w.Write([]byte("SPA")) })
+	spa := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { w.Write([]byte("SPA")) })
 	return New(cfg, st, spa), mediaDir
 }
 

@@ -90,7 +90,7 @@ func (h *songHandlers) resampleAccent(r *http.Request, genreID, fanartID string)
 		return
 	}
 	data, err := io.ReadAll(f)
-	f.Close()
+	_ = f.Close()
 	if err != nil {
 		return
 	}

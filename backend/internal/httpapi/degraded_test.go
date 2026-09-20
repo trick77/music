@@ -21,7 +21,7 @@ func TestRoutes_databaseUnavailableIs5xx(t *testing.T) {
 		t.Fatalf("store.Open: %v", err)
 	}
 	mediaDir := t.TempDir()
-	spa := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { w.Write([]byte("SPA")) })
+	spa := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { w.Write([]byte("SPA")) })
 	cfg := config.Config{
 		AuthMode: config.AuthModeDev, DevUser: config.DevUserConfig{Username: "dev"},
 		MediaDir: mediaDir, MaxUploadMB: 50,

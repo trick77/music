@@ -30,7 +30,7 @@ func (r *Repo) Update(ctx context.Context, id string, p UpdateSongParams) (*Song
 	if err != nil {
 		return nil, err
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 
 	// A tag edit is the user typing the name, so a spelling fix that folds to the
 	// same name_key ("SIngers" -> "Singers") updates the artist rather than being
@@ -194,7 +194,7 @@ func (r *Repo) Suggest(ctx context.Context, field, q string) ([]Suggestion, erro
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	out := []Suggestion{}
 	for rows.Next() {
 		var s Suggestion

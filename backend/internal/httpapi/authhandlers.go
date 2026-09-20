@@ -40,7 +40,9 @@ func randToken() string {
 
 // setCookie writes a hardened cookie. maxAge<0 clears it.
 func (h *authHandlers) setCookie(w http.ResponseWriter, name, value string, maxAge int) {
-	http.SetCookie(w, &http.Cookie{
+	// G124: HttpOnly, Secure and SameSite are all set below. gosec cannot see
+	// that h.secure is a bool field rather than a literal.
+	http.SetCookie(w, &http.Cookie{ //nolint:gosec // G124
 		Name:     name,
 		Value:    value,
 		Path:     "/",

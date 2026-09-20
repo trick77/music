@@ -92,13 +92,14 @@ func (r *Repo) ListPlaylists(ctx context.Context, includeUnpublished bool) ([]Pl
 	if !includeUnpublished {
 		where = " WHERE p.is_published = 1"
 	}
+	//nolint:gosec // G202: playlistCountExpr returns hardcoded SQL
 	rows, err := r.db.QueryContext(ctx,
 		`SELECT p.id, p.name, p.description, p.cover_art_id, `+playlistCountExpr(includeUnpublished)+`, p.is_published
 		 FROM playlists p`+where+` ORDER BY p.created_at DESC, p.rowid DESC`)
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	out := []PlaylistSummary{}
 	for rows.Next() {
 		s, err := scanPlaylistSummary(rows)
@@ -115,6 +116,7 @@ func (r *Repo) ListPlaylists(ctx context.Context, includeUnpublished bool) ([]Pl
 // track list and returns unpublished playlists; anonymous callers only see
 // published tracks and get (nil,nil) for an unpublished playlist (→ 404).
 func (r *Repo) GetPlaylist(ctx context.Context, id string, includeUnpublished bool) (*PlaylistDetail, error) {
+	//nolint:gosec // G202: playlistCountExpr returns hardcoded SQL
 	row := r.db.QueryRowContext(ctx,
 		`SELECT p.id, p.name, p.description, p.cover_art_id, `+playlistCountExpr(includeUnpublished)+`, p.is_published
 		 FROM playlists p WHERE p.id = ?`, id)
@@ -144,7 +146,7 @@ func (r *Repo) playlistSongs(ctx context.Context, playlistID string, includeUnpu
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	songs := []Song{}
 	for rows.Next() {
 		s, err := scanSong(rows)
@@ -188,7 +190,7 @@ func (r *Repo) PlaylistContext(ctx context.Context, playlistID string) (string, 
 	if err != nil {
 		return "", nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	briefs := []PlaylistTrackBrief{}
 	for rows.Next() {
@@ -235,7 +237,7 @@ func (r *Repo) Reorder(ctx context.Context, playlistID string, songIDs []string)
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 
 	current := map[string]bool{}
 	rows, err := tx.QueryContext(ctx,
@@ -246,16 +248,16 @@ func (r *Repo) Reorder(ctx context.Context, playlistID string, songIDs []string)
 	for rows.Next() {
 		var sid string
 		if err := rows.Scan(&sid); err != nil {
-			rows.Close()
+			_ = rows.Close()
 			return err
 		}
 		current[sid] = true
 	}
 	if err := rows.Err(); err != nil {
-		rows.Close()
+		_ = rows.Close()
 		return err
 	}
-	rows.Close()
+	_ = rows.Close()
 
 	if len(songIDs) != len(current) {
 		return ErrReorderMismatch

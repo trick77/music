@@ -49,7 +49,7 @@ func suggestServer(t *testing.T, gp *fakeGenrePrompter) (dev, anon http.Handler,
 		`INSERT INTO genres(id,name) VALUES('g-jazz','Jazz')`); err != nil {
 		t.Fatalf("seed genre: %v", err)
 	}
-	spa := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { w.Write([]byte("SPA")) })
+	spa := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { w.Write([]byte("SPA")) })
 	mk := func(mode config.AuthMode) http.Handler {
 		cfg := config.Config{AuthMode: mode, DevUser: config.DevUserConfig{Username: "dev"}, MediaDir: t.TempDir(), MaxUploadMB: 50}
 		if gp != nil {

@@ -47,7 +47,7 @@ func serveSizedImage(w http.ResponseWriter, r *http.Request, store *media.Store,
 	}
 	cacheRel := relPath + "." + name + ".jpg"
 	if f, err := store.Open(cacheRel); err == nil {
-		defer f.Close()
+		defer func() { _ = f.Close() }()
 		if info, err := f.Stat(); err == nil {
 			w.Header().Set("Content-Type", "image/jpeg")
 			http.ServeContent(w, r, filepath.Base(cacheRel), info.ModTime(), f)
@@ -61,7 +61,7 @@ func serveSizedImage(w http.ResponseWriter, r *http.Request, store *media.Store,
 		return
 	}
 	data, err := io.ReadAll(src)
-	src.Close()
+	_ = src.Close()
 	if err != nil {
 		serverError(w, "read image", err)
 		return
@@ -96,7 +96,7 @@ func serveStoreFile(w http.ResponseWriter, r *http.Request, store *media.Store, 
 		httpError(w, http.StatusNotFound, "image missing")
 		return
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 	info, err := f.Stat()
 	if err != nil {
 		serverError(w, "stat image", err)
@@ -115,7 +115,7 @@ func writeStoreFile(store *media.Store, relPath string, src io.Reader) error {
 		return err
 	}
 	if _, err := io.Copy(dst, src); err != nil {
-		dst.Close()
+		_ = dst.Close()
 		return err
 	}
 	return dst.Close()

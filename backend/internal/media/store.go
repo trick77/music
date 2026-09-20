@@ -12,6 +12,7 @@ import (
 // ErrUnsafePath is returned when a store-relative path would escape the root.
 var ErrUnsafePath = errors.New("media: unsafe path")
 
+// Store manages audio and image files within a sandboxed root directory.
 type Store struct {
 	rootReal string // root with symlinks resolved; the sandbox boundary
 }
@@ -21,7 +22,8 @@ func New(root string) (*Store, error) {
 	if root == "" {
 		return nil, errors.New("media: empty root")
 	}
-	if err := os.MkdirAll(root, 0o755); err != nil {
+	// Directory holds the media library and has no reason to be world-readable.
+	if err := os.MkdirAll(root, 0o750); err != nil {
 		return nil, err
 	}
 	real, err := filepath.EvalSymlinks(root)
@@ -85,10 +87,10 @@ func (s *Store) Create(rel string) (*os.File, error) {
 	if err != nil {
 		return nil, err
 	}
-	if err := os.MkdirAll(filepath.Dir(abs), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(abs), 0o750); err != nil {
 		return nil, err
 	}
-	return os.Create(abs)
+	return os.Create(abs) //nolint:gosec // G304: path is validated by media.Store.Resolve
 }
 
 // Open opens rel for reading.
@@ -97,7 +99,7 @@ func (s *Store) Open(rel string) (*os.File, error) {
 	if err != nil {
 		return nil, err
 	}
-	return os.Open(abs)
+	return os.Open(abs) //nolint:gosec // G304: path is validated by media.Store.Resolve
 }
 
 // Remove deletes rel from the store. A missing file is not an error, so callers

@@ -86,7 +86,7 @@ func build(cfg config.Config, st *store.Store, spa http.Handler, gen imagegen.Pr
 	// before their temp dirs are torn down (see server.Wait).
 	var bg sync.WaitGroup
 
-	mux.HandleFunc("GET /api/health", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("GET /api/health", func(w http.ResponseWriter, _ *http.Request) {
 		writeJSON(w, map[string]string{"status": "ok", "version": buildinfo.Version})
 	})
 
@@ -297,6 +297,10 @@ func build(cfg config.Config, st *store.Store, spa http.Handler, gen imagegen.Pr
 	// a 304 instead of the payload. Images, audio, SSE and every write pass through
 	// untouched — they set their own cache headers where they are served.
 	root.Handle("/api/", withJSONETag(mux))
+	// The explicit http.Handler type is load-bearing, not redundant: the
+	// branch below reassigns spaHandler to withShareMeta's concrete type, so
+	// inferring it from spa would not compile.
+	//nolint:staticcheck // ST1023: the interface type is required here
 	var spaHandler http.Handler = spa
 	if shareRepo != nil {
 		if shell, err := web.IndexHTML(); err == nil {
@@ -321,5 +325,5 @@ func build(cfg config.Config, st *store.Store, spa http.Handler, gen imagegen.Pr
 
 func writeJSON(w http.ResponseWriter, v any) {
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(v)
+	_ = json.NewEncoder(w).Encode(v)
 }

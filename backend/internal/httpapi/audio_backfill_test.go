@@ -152,7 +152,7 @@ func backfillEnv(t *testing.T) (*store.Store, string, config.Config, http.Handle
 	t.Cleanup(func() { st.Close() })
 	mediaDir := t.TempDir()
 	cfg := config.Config{AuthMode: config.AuthModeDev, DevUser: config.DevUserConfig{Username: "dev"}, MediaDir: mediaDir, MaxUploadMB: 50}
-	spa := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { w.Write([]byte("SPA")) })
+	spa := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { w.Write([]byte("SPA")) })
 	return st, mediaDir, cfg, New(cfg, st, spa)
 }
 

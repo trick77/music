@@ -42,7 +42,7 @@ func encodeUTF16(s string) []byte {
 	b := make([]byte, 0, 2+len(units)*2+2)
 	b = append(b, 0xFF, 0xFE) // BOM (little-endian)
 	for _, u := range units {
-		b = append(b, byte(u), byte(u>>8)) //nolint:gosec // G115: deliberate big-endian split
+		b = append(b, byte(u), byte(u>>8)) //nolint:gosec // G115: deliberate little-endian split, matching the BOM above
 	}
 	b = append(b, 0x00, 0x00) // UTF-16 terminator
 	return b

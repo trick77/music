@@ -118,14 +118,17 @@ func parseLogLevel(raw string) slog.Level {
 // client open a connection, stall, and hold a goroutine and a file descriptor
 // indefinitely (slow loris).
 //
-// WriteTimeout is deliberately absent. The studio endpoint streams
-// text/event-stream responses that outlive any sane write deadline.
+// ReadHeaderTimeout is the one that closes slow loris, and it is the ONLY read
+// deadline set here. ReadTimeout would be wrong: it bounds the whole request
+// including the body, so a legal 50 MB upload (BACKEND_MAX_UPLOAD_MB) would be
+// cut off on any ordinary uplink, and once the body is read the same deadline
+// cancels r.Context(), which would kill the 4 minute studio loop and the SSE
+// stream leaving WriteTimeout unset is meant to protect.
 func newServer(addr string, handler http.Handler) *http.Server {
 	return &http.Server{
 		Addr:              addr,
 		Handler:           handler,
 		ReadHeaderTimeout: 10 * time.Second,
-		ReadTimeout:       30 * time.Second,
 		IdleTimeout:       120 * time.Second,
 	}
 }

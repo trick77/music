@@ -320,7 +320,7 @@ func (h *songHandlers) serveFile(w http.ResponseWriter, r *http.Request, attach 
 	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=%q", downloadName(song)))
 	if srcAbs, err := h.media.Resolve(song.FilePath); err == nil { //nolint:gosec // G703: path is validated by media.Store.Resolve
 		if tmpName, err := stampToTemp(srcAbs, h.songTags(r.Context(), song)); err == nil {
-			defer func() { _ = os.Remove(tmpName) }()   //nolint:gosec // G703: path is validated by media.Store.Resolve
+			defer func() { _ = os.Remove(tmpName) }()   //nolint:gosec // G703: tmpName is an os.CreateTemp path, not caller input
 			if f, err := os.Open(tmpName); err == nil { //nolint:gosec // G304: path is validated by media.Store.Resolve
 				defer func() { _ = f.Close() }()
 				if info, err := f.Stat(); err == nil {

@@ -134,9 +134,7 @@ func decodeTurn(raw string, dst any) error {
 // albums.
 // Only one caller passes max today, but it names the per-field ceiling at the
 // call site, which is where it belongs.
-//
-//nolint:unparam // max is the caller's ceiling, not a constant
-func sanitizeList(in []string, max int) []string {
+func sanitizeList(in []string, max int) []string { //nolint:unparam // max is the caller's ceiling, not a constant
 	seen := map[string]bool{}
 	out := make([]string, 0, max)
 	for _, s := range in {

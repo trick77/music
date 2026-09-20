@@ -126,7 +126,7 @@ func copyFile(src, dst string) error {
 		return err
 	}
 	defer func() { _ = in.Close() }()
-	out, err := os.Create(dst) //nolint:gosec // G304: path is validated by media.Store.Resolve
+	out, err := os.Create(dst) //nolint:gosec // G304: dst is an os.CreateTemp path, not caller input
 	if err != nil {
 		return err
 	}

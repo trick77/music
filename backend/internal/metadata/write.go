@@ -41,7 +41,7 @@ func WriteTags(path string, t WriteableTags) error {
 	if err != nil {
 		return err
 	}
-	defer tag.Close()
+	defer func() { _ = tag.Close() }()
 
 	tag.SetTitle(t.Title)
 	tag.SetArtist(t.Artist)
@@ -121,17 +121,17 @@ func StampTags(srcPath, dstPath string, t WriteableTags) error {
 }
 
 func copyFile(src, dst string) error {
-	in, err := os.Open(src)
+	in, err := os.Open(src) //nolint:gosec // G304: path is validated by media.Store.Resolve
 	if err != nil {
 		return err
 	}
-	defer in.Close()
-	out, err := os.Create(dst)
+	defer func() { _ = in.Close() }()
+	out, err := os.Create(dst) //nolint:gosec // G304: dst is an os.CreateTemp path, not caller input
 	if err != nil {
 		return err
 	}
 	if _, err := io.Copy(out, in); err != nil {
-		out.Close()
+		_ = out.Close()
 		return err
 	}
 	return out.Close()

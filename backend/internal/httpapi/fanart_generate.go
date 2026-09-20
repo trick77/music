@@ -77,7 +77,9 @@ func (h *songHandlers) postFanartGenerate(w http.ResponseWriter, r *http.Request
 		serverError(w, "create fanart", err)
 		return
 	}
-	go h.runGeneration(id, req.Prompt, model, seed)
+	// G118: detached on purpose. The generation outlives the request that
+	// started it, which is the whole point of answering 202 here.
+	go h.runGeneration(id, req.Prompt, model, seed) //nolint:gosec // G118
 	w.WriteHeader(http.StatusAccepted)
 	writeJSON(w, map[string]any{"id": id, "status": "generating"})
 }

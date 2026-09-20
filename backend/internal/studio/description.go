@@ -10,18 +10,21 @@ import (
 	"github.com/trick77/music/internal/llm"
 )
 
+// PlaylistTones holds the three-tone description of a playlist.
 type PlaylistTones struct {
 	Punchy    string `json:"punchy"`
 	Evocative string `json:"evocative"`
 	Factual   string `json:"factual"`
 }
 
+// DescriptionWriter generates playlist tone descriptions using an LLM.
 type DescriptionWriter interface {
 	PlaylistDescriptions(ctx context.Context, name string, songs []library.PlaylistTrackBrief) (PlaylistTones, error)
 }
 
 type descriptionWriter struct{ chat llm.Chat }
 
+// NewDescriptionWriter creates a new playlist description writer backed by the given LLM chat client.
 func NewDescriptionWriter(chat llm.Chat) DescriptionWriter { return &descriptionWriter{chat: chat} }
 
 // Low effort: three one-sentence lines with hard word caps, written from a song

@@ -43,7 +43,7 @@ func (f fakeStudio) Refine(_ context.Context, _ studio.RefineRequest, onProgress
 }
 
 func studioSPA() http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { w.Write([]byte("SPA")) })
+	return http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { w.Write([]byte("SPA")) })
 }
 
 func TestStudioGenerate_streamsProgressThenResult(t *testing.T) {

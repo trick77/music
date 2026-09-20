@@ -53,7 +53,7 @@ func (r *Repo) ListAlbums(ctx context.Context) ([]AlbumSummary, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	out := []AlbumSummary{}
 	for rows.Next() {
 		var al AlbumSummary
@@ -73,13 +73,13 @@ func (r *Repo) ListAlbums(ctx context.Context) ([]AlbumSummary, error) {
 // exist publicly until one of its songs is published.
 func (r *Repo) ListArtists(ctx context.Context, includeUnpublished bool) ([]ArtistSummary, error) {
 	rows, err := r.db.QueryContext(ctx,
-		`SELECT a.id, a.name, COUNT(s.id) c FROM artists a JOIN songs s ON s.artist_id = a.id`+
+		`SELECT a.id, a.name, COUNT(s.id) c FROM artists a JOIN songs s ON s.artist_id = a.id`+ //nolint:gosec // G202: publishedFilter returns one of three literals
 			publishedFilter(includeUnpublished, false)+
 			` GROUP BY a.id ORDER BY a.name`)
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	out := []ArtistSummary{}
 	for rows.Next() {
 		var a ArtistSummary
@@ -91,6 +91,7 @@ func (r *Repo) ListArtists(ctx context.Context, includeUnpublished bool) ([]Arti
 	return out, rows.Err()
 }
 
+// GetArtist retrieves a specific artist with their songs, or nil if the artist has no published songs.
 func (r *Repo) GetArtist(ctx context.Context, id string, includeUnpublished bool) (*ArtistSummary, []Song, error) {
 	// Anonymous viewers count published songs only; an artist with none is hidden
 	// (nil → 404 in the handler), matching ListArtists/search.
@@ -131,7 +132,7 @@ func (r *Repo) ListGenres(ctx context.Context, includeUnpublished bool) ([]Genre
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	out := []GenreSummary{}
 	for rows.Next() {
 		var g GenreSummary
@@ -146,6 +147,7 @@ func (r *Repo) ListGenres(ctx context.Context, includeUnpublished bool) ([]Genre
 	return out, rows.Err()
 }
 
+// GetGenre retrieves a specific genre with its songs, or nil if the genre has no published songs.
 func (r *Repo) GetGenre(ctx context.Context, id string, includeUnpublished bool) (*GenreSummary, []Song, error) {
 	// Anonymous viewers count published songs only; a genre with none is hidden
 	// (nil → 404 in the handler).
@@ -185,7 +187,7 @@ func (r *Repo) songsWhere(ctx context.Context, includeUnpublished bool, where st
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	var songs []Song
 	for rows.Next() {
 		s, err := scanSong(rows)

@@ -58,8 +58,10 @@ type CreateSongParams struct {
 	Lyrics      string
 }
 
+// Repo persists songs, artists, and genres to the SQLite store.
 type Repo struct{ db *sql.DB }
 
+// NewRepo creates a new library repository over the given database.
 func NewRepo(db *sql.DB) *Repo { return &Repo{db: db} }
 
 // Create upserts artist + genres and inserts the song and its genre links in a
@@ -69,7 +71,7 @@ func (r *Repo) Create(ctx context.Context, id string, p CreateSongParams) (*Song
 	if err != nil {
 		return nil, err
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 
 	// An upload reports whatever its ID3 tag says; it must not restyle an artist
 	// the library already knows under a different capitalisation.
@@ -187,7 +189,7 @@ func (r *Repo) DeleteSong(ctx context.Context, id string) (filePath string, exis
 	if err != nil {
 		return "", false, err
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 	// Remember the group so the survivors can be renumbered once this song is gone.
 	var artistID string
 	var album sql.NullString
@@ -217,7 +219,7 @@ func (r *Repo) List(ctx context.Context, includeUnpublished bool) ([]Song, error
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	var songs []Song
 	for rows.Next() {
 		s, err := scanSong(rows)
@@ -308,7 +310,7 @@ func (r *Repo) genresFor(ctx context.Context, songID string) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	genres := []string{}
 	for rows.Next() {
 		var name string

@@ -193,5 +193,7 @@ func serveShell(w http.ResponseWriter, shell []byte, tags string) {
 	// Same shell, same rule as the SPA handler: this response names the hashed
 	// bundles, so it must be revalidated or a client keeps booting an old build.
 	w.Header().Set("Cache-Control", "no-cache")
-	w.Write([]byte(out))
+	// G705: every injected value goes through html.EscapeString in metaTags
+	// before it reaches this shell.
+	_, _ = w.Write([]byte(out)) //nolint:gosec // G705
 }

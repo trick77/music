@@ -9,11 +9,17 @@ import (
 )
 
 const (
-	DefaultWidth        = 1024
-	DefaultHeight       = 1024
+	// DefaultWidth is the default output image width in pixels.
+	DefaultWidth = 1024
+	// DefaultHeight is the default output image height in pixels.
+	DefaultHeight = 1024
+	// DefaultOutputFormat is the default output image format.
 	DefaultOutputFormat = "png"
-	MaxPromptRunes      = 4000
-	MaxOutputPixels     = 4_000_000
+	// MaxPromptRunes caps the prompt length accepted from a caller.
+	MaxPromptRunes = 4000
+	// MaxOutputPixels caps width*height, so a request cannot ask for an
+	// image large enough to exhaust memory.
+	MaxOutputPixels = 4_000_000
 	// MaxInputImages caps how many source images may be forwarded for editing.
 	// FLUX.2 [klein] (the default model) accepts up to 4 reference images
 	// (input_image..input_image_4); the larger [pro]/[max] tiers allow 8. The
@@ -24,6 +30,7 @@ const (
 	MaxInputImageBytes = 20 << 20
 )
 
+// GenerateRequest contains the parameters for an image generation request.
 type GenerateRequest struct {
 	Prompt          string
 	Filename        string
@@ -45,6 +52,7 @@ type GenerateRequest struct {
 	InputImages [][]byte
 }
 
+// GenerateResult contains the output of a successful image generation.
 type GenerateResult struct {
 	Filename    string
 	Extension   string
@@ -60,10 +68,12 @@ type GenerateResult struct {
 	CostCredits *float64
 }
 
+// Provider is an interface for image generation services.
 type Provider interface {
 	Generate(context.Context, GenerateRequest) (GenerateResult, error)
 }
 
+// Normalized validates and fills in default values for a GenerateRequest.
 func (r GenerateRequest) Normalized() (GenerateRequest, error) {
 	out := r
 	out.Prompt = strings.TrimSpace(out.Prompt)
@@ -218,6 +228,7 @@ func slugFromPrompt(prompt string) string {
 	return strings.Join(words, "-")
 }
 
+// MIMEType returns the MIME type for the given image format.
 func MIMEType(format string) string {
 	switch strings.ToLower(strings.TrimPrefix(format, ".")) {
 	case "png":

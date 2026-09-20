@@ -41,6 +41,7 @@ func (r *Repo) Search(ctx context.Context, q string, limit int, includeUnpublish
 	}
 	like := "%" + escapeLike(q) + "%"
 
+	//nolint:gosec // G202: publishedFilter returns one of three literals
 	songRows, err := r.db.QueryContext(ctx,
 		songSelect+` WHERE s.title LIKE ? ESCAPE '\'`+publishedFilter(includeUnpublished, true)+` ORDER BY lower(s.title), s.id LIMIT ?`, like, limit)
 	if err != nil {
@@ -67,13 +68,14 @@ func (r *Repo) Search(ctx context.Context, q string, limit int, includeUnpublish
 // searchArtists matches artists by name. Anonymous viewers see published-only
 // counts and no artist whose songs are all unpublished.
 func (r *Repo) searchArtists(ctx context.Context, like string, limit int, includeUnpublished bool) ([]ArtistSummary, error) {
+	//nolint:gosec // G202: publishedFilter returns one of three literals
 	rows, err := r.db.QueryContext(ctx,
 		`SELECT a.id, a.name, COUNT(s.id) FROM artists a JOIN songs s ON s.artist_id = a.id
 		 WHERE a.name LIKE ? ESCAPE '\'`+publishedFilter(includeUnpublished, true)+` GROUP BY a.id ORDER BY a.name LIMIT ?`, like, limit)
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	out := []ArtistSummary{}
 	for rows.Next() {
 		var a ArtistSummary
@@ -99,7 +101,7 @@ func (r *Repo) searchGenres(ctx context.Context, like string, limit int, include
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	out := []GenreSummary{}
 	for rows.Next() {
 		var g GenreSummary
@@ -118,13 +120,14 @@ func (r *Repo) searchPlaylists(ctx context.Context, like string, limit int, incl
 	if !includeUnpublished {
 		pubFilter = " AND p.is_published = 1"
 	}
+	//nolint:gosec // G202: playlistCountExpr returns hardcoded SQL
 	rows, err := r.db.QueryContext(ctx,
 		`SELECT p.id, p.name, p.description, p.cover_art_id, `+playlistCountExpr(includeUnpublished)+`, p.is_published
 		 FROM playlists p WHERE p.name LIKE ? ESCAPE '\'`+pubFilter+` ORDER BY p.name LIMIT ?`, like, limit)
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	out := []PlaylistSummary{}
 	for rows.Next() {
 		s, err := scanPlaylistSummary(rows)

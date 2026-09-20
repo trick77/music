@@ -22,7 +22,7 @@ func (r *Repo) SongsMissingAudioInfo(ctx context.Context) ([]SongFile, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	out := []SongFile{}
 	for rows.Next() {
 		var f SongFile

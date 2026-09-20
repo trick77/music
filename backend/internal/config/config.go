@@ -11,13 +11,17 @@ import (
 
 const defaultBFLPollTimeout = 1 * time.Minute
 
+// AuthMode specifies the authentication method used (dev auto-login or OIDC).
 type AuthMode string
 
 const (
-	AuthModeDev  AuthMode = "dev"
+	// AuthModeDev enables automatic login with a configured username.
+	AuthModeDev AuthMode = "dev"
+	// AuthModeOIDC enables OpenID Connect authentication via an external provider.
 	AuthModeOIDC AuthMode = "oidc"
 )
 
+// DevUserConfig holds the settings for dev-mode automatic login.
 type DevUserConfig struct {
 	Username string
 }
@@ -39,6 +43,7 @@ type OIDCConfig struct {
 	CookieSecure bool
 }
 
+// Config holds the runtime configuration for the backend.
 type Config struct {
 	AuthMode      AuthMode
 	DevUser       DevUserConfig
@@ -92,6 +97,7 @@ func env(key, def string) string {
 	return def
 }
 
+// Load reads the configuration from BACKEND_* environment variables and returns it.
 func Load() (Config, error) {
 	cfg := Config{
 		AuthMode:      AuthMode(strings.TrimSpace(env("BACKEND_AUTH_MODE", "dev"))),

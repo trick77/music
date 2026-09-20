@@ -184,7 +184,7 @@ func TestGrantsAccess_groupGating(t *testing.T) {
 
 // driveAuthorize walks the mock authorize endpoint to obtain a real code bound
 // to a nonce, mirroring the browser redirect.
-func driveAuthorize(t *testing.T, a *Authenticator, mock *mockoidc.Server) (code, nonce string) {
+func driveAuthorize(t *testing.T, a *Authenticator, _ *mockoidc.Server) (code, nonce string) {
 	t.Helper()
 	nonce = "nonce-" + randToken(t)
 	state := "state-" + randToken(t)

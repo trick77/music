@@ -38,17 +38,18 @@ func run() error {
 	if err != nil {
 		return fmt.Errorf("config: %w", err)
 	}
-	if err := os.MkdirAll(filepath.Dir(cfg.DBPath), 0o755); err != nil {
+	// Directories hold database and media files and have no reason to be world-readable.
+	if err := os.MkdirAll(filepath.Dir(cfg.DBPath), 0o750); err != nil {
 		return fmt.Errorf("mkdir db dir: %w", err)
 	}
-	if err := os.MkdirAll(cfg.MediaDir, 0o755); err != nil {
+	if err := os.MkdirAll(cfg.MediaDir, 0o750); err != nil {
 		return fmt.Errorf("mkdir media dir: %w", err)
 	}
 	st, err := store.Open(cfg.DBPath)
 	if err != nil {
 		return fmt.Errorf("store: %w", err)
 	}
-	defer st.Close()
+	defer func() { _ = st.Close() }()
 
 	var authr *auth.Authenticator
 	if cfg.AuthMode == config.AuthModeOIDC {
@@ -59,7 +60,7 @@ func run() error {
 	}
 
 	handler := httpapi.NewWithAuth(cfg, st, web.SPAHandler(), authr)
-	srv := &http.Server{Addr: cfg.ListenAddr, Handler: handler}
+	srv := newServer(cfg.ListenAddr, handler)
 
 	errCh := make(chan error, 1)
 	go func() {
@@ -109,5 +110,25 @@ func parseLogLevel(raw string) slog.Level {
 		return slog.LevelError
 	default:
 		return slog.LevelInfo
+	}
+}
+
+// newServer builds the listening server. It is split out of main so the
+// timeouts are assertable: a zero value means "no limit", which is what lets a
+// client open a connection, stall, and hold a goroutine and a file descriptor
+// indefinitely (slow loris).
+//
+// ReadHeaderTimeout is the one that closes slow loris, and it is the ONLY read
+// deadline set here. ReadTimeout would be wrong: it bounds the whole request
+// including the body, so a legal 50 MB upload (BACKEND_MAX_UPLOAD_MB) would be
+// cut off on any ordinary uplink, and once the body is read the same deadline
+// cancels r.Context(), which would kill the 4 minute studio loop and the SSE
+// stream leaving WriteTimeout unset is meant to protect.
+func newServer(addr string, handler http.Handler) *http.Server {
+	return &http.Server{
+		Addr:              addr,
+		Handler:           handler,
+		ReadHeaderTimeout: 10 * time.Second,
+		IdleTimeout:       120 * time.Second,
 	}
 }

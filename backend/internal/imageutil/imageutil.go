@@ -5,11 +5,12 @@ import (
 	"errors"
 	"fmt"
 	"image"
+	"io"
+	"math"
+
 	// Blank imports register the JPEG/PNG decoders with image.DecodeConfig.
 	_ "image/jpeg"
 	_ "image/png"
-	"io"
-	"math"
 )
 
 // ErrUnsupported is returned for inputs that are not a supported image format.

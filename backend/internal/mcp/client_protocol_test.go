@@ -377,7 +377,7 @@ func TestScrubURLError(t *testing.T) {
 
 	t.Run("passes through non-url errors unchanged", func(t *testing.T) {
 		in := errors.New("plain failure")
-		if got := scrubURLError(in); got != in {
+		if got := scrubURLError(in); !errors.Is(got, in) {
 			t.Errorf("got %v, want the original error", got)
 		}
 	})
@@ -410,7 +410,7 @@ func TestCall_dialFailureDoesNotLeakKey(t *testing.T) {
 
 // A body that is not JSON at all must be a decode error, not a silent zero value.
 func TestCall_nonJSONBodyIsAnError(t *testing.T) {
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		io.WriteString(w, "<html>gateway error</html>")
 	}))

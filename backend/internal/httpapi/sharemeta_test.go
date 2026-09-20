@@ -410,7 +410,7 @@ func TestShareMeta_staticFileNotWrapped(t *testing.T) {
 	// embeds only index.html (manifest and bundles are built by the UI job in CI),
 	// so a request through the real embed FS could not exercise this branch.
 	const assetBody = `{"name":"Music"}`
-	spa := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	spa := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.Write([]byte(assetBody))
 	})
 	// repo is only nil-checked on the static-file branch, never dereferenced.

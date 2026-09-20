@@ -219,7 +219,7 @@ func (c *remoteClient) notify(ctx context.Context, method string) {
 	if err != nil {
 		return
 	}
-	resp.Body.Close()
+	_ = resp.Body.Close()
 }
 
 func (c *remoteClient) resetSession() {
@@ -259,7 +259,7 @@ func (c *remoteClient) call(ctx context.Context, method string, params any, out 
 	if err != nil {
 		return scrubURLError(err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	if sid := resp.Header.Get("Mcp-Session-Id"); sid != "" {
 		c.mu.Lock()
 		c.sessionID = sid

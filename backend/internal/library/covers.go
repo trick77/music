@@ -66,7 +66,7 @@ func (r *Repo) SetSongCover(ctx context.Context, songID, coverID string) error {
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 
 	var artistID string
 	var album sql.NullString
@@ -98,7 +98,7 @@ func (r *Repo) RemoveSongCover(ctx context.Context, songID string) error {
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 
 	var artistID string
 	var album sql.NullString
@@ -142,7 +142,7 @@ func (r *Repo) SetAlbumCover(ctx context.Context, artistID, album, coverID strin
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 	if err := setAlbumCoverTx(ctx, tx, artistID, key, coverID); err != nil {
 		return err
 	}

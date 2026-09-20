@@ -40,12 +40,12 @@ const topTenSelect = `SELECT ` + songColumns + `,
 
 // TopTen returns the ten most-played songs with their play counts.
 func (r *Repo) TopTen(ctx context.Context, includeUnpublished bool) ([]TopTenEntry, error) {
-	query := fmt.Sprintf(topTenSelect, publishedFilter(includeUnpublished, true))
+	query := fmt.Sprintf(topTenSelect, publishedFilter(includeUnpublished, true)) //nolint:gosec // G201: publishedFilter returns one of three literals
 	rows, err := r.db.QueryContext(ctx, query)
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	out := []TopTenEntry{}
 	for rows.Next() {
 		var e TopTenEntry

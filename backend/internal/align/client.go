@@ -80,7 +80,7 @@ func (c *Client) Align(ctx context.Context, audio io.Reader, filename, lyrics st
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	body, _ := io.ReadAll(io.LimitReader(resp.Body, 8<<20))
 	if resp.StatusCode/100 != 2 {
 		var e struct {

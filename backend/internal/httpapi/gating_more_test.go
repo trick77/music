@@ -363,7 +363,7 @@ func TestStudioRefine_gating(t *testing.T) {
 // rather than tearing down the server. Driven directly because the assembled
 // mux has no route that panics on demand.
 func TestRecovery_panicBecomes500(t *testing.T) {
-	h := logging(recovery(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	h := logging(recovery(http.HandlerFunc(func(_ http.ResponseWriter, _ *http.Request) {
 		panic("boom")
 	})))
 	rr := httptest.NewRecorder()
@@ -381,7 +381,7 @@ func TestStatusRecorder_forwardsWriterCapabilities(t *testing.T) {
 		gotUnwrap bool
 		copied    int64
 	)
-	inner := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	inner := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		rec, ok := w.(*statusRecorder)
 		if !ok {
 			t.Errorf("handler did not receive the recorder, got %T", w)
@@ -420,7 +420,7 @@ func TestStatusRecorder_forwardsWriterCapabilities(t *testing.T) {
 
 // /api/health is the one path the logger skips; it must still be served intact.
 func TestLogging_healthIsPassedThrough(t *testing.T) {
-	h := logging(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	h := logging(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		io.WriteString(w, "pong")
 	}))
 	rr := httptest.NewRecorder()

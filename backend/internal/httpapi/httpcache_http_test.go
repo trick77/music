@@ -63,7 +63,7 @@ func TestAssembledServer_notReadyImageIsNotStored(t *testing.T) {
 		MediaDir:    t.TempDir(),
 		MaxUploadMB: 50,
 	}
-	spa := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { w.Write([]byte("SPA")) })
+	spa := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { w.Write([]byte("SPA")) })
 	h := New(cfg, st, spa)
 	if s, ok := h.(*server); ok {
 		t.Cleanup(s.Wait)

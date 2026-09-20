@@ -9,17 +9,21 @@ import (
 	"sort"
 
 	_ "github.com/ncruces/go-sqlite3/driver"
-	_ "github.com/ncruces/go-sqlite3/embed"
 )
 
 //go:embed migrations/*.sql
 var migrationsFS embed.FS
 
+// Store manages the SQLite database and runs migrations on open.
 type Store struct{ db *sql.DB }
 
-func (s *Store) DB() *sql.DB  { return s.db }
+// DB returns the underlying SQL database connection.
+func (s *Store) DB() *sql.DB { return s.db }
+
+// Close closes the database connection.
 func (s *Store) Close() error { return s.db.Close() }
 
+// Open opens the SQLite database at the given path and applies pending migrations.
 func Open(dbPath string) (*Store, error) {
 	// busy_timeout must come first: the ncruces driver only applies its default
 	// 1-minute busy timeout when NO _pragma is given, so specifying any pragma opts
@@ -32,7 +36,7 @@ func Open(dbPath string) (*Store, error) {
 	}
 	s := &Store{db: db}
 	if err := s.migrate(); err != nil {
-		db.Close()
+		_ = db.Close()
 		return nil, err
 	}
 	return s, nil
@@ -78,7 +82,7 @@ func (s *Store) applyMigration(name, body string) error {
 	if err != nil {
 		return fmt.Errorf("begin migration %s: %w", name, err)
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 	if _, err := tx.Exec(body); err != nil {
 		return fmt.Errorf("apply migration %s: %w", name, err)
 	}

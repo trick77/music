@@ -36,7 +36,7 @@ func TestETagMatch(t *testing.T) {
 // compute an ETag would stall a stream forever, so the first Flush must abandon
 // buffering and hand over everything written so far.
 func TestWithJSONETag_flushingHandlerStreams(t *testing.T) {
-	h := withJSONETag(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	h := withJSONETag(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.Write([]byte(`{"first":1}`))
 		w.(http.Flusher).Flush()
@@ -58,7 +58,7 @@ func TestWithJSONETag_flushingHandlerStreams(t *testing.T) {
 func TestWithJSONETag_oversizedBodyPassesThrough(t *testing.T) {
 	chunk := strings.Repeat("x", 1<<20)
 	const chunks = 9 // 9 MiB, past etagBufferLimit
-	h := withJSONETag(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	h := withJSONETag(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		for i := 0; i < chunks; i++ {
 			w.Write([]byte(chunk))
@@ -78,7 +78,7 @@ func TestWithJSONETag_oversizedBodyPassesThrough(t *testing.T) {
 // A handler that sets its own Cache-Control keeps it — the wrapper adds a
 // validator, it does not overrule a policy the handler chose deliberately.
 func TestWithJSONETag_keepsHandlerCacheControl(t *testing.T) {
-	h := withJSONETag(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	h := withJSONETag(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.Header().Set("Cache-Control", "public, max-age=60")
 		fmt.Fprint(w, `{"ok":true}`)
@@ -99,7 +99,7 @@ func TestWithJSONETag_keepsHandlerCacheControl(t *testing.T) {
 // cache could hand one caller's copy to the next.
 func TestWithJSONETag_oversizedBodyStaysPrivate(t *testing.T) {
 	chunk := strings.Repeat("x", 1<<20)
-	h := withJSONETag(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	h := withJSONETag(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		for i := 0; i < 9; i++ {
 			w.Write([]byte(chunk))
@@ -125,17 +125,17 @@ func TestWithJSONETag_doesNotWriteHeaderTwice(t *testing.T) {
 		name string
 		fn   http.HandlerFunc
 	}{
-		{"error", func(w http.ResponseWriter, r *http.Request) {
+		{"error", func(w http.ResponseWriter, _ *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusNotFound)
 			w.Write([]byte(`{"error":"nope"}`))
 		}},
-		{"image", func(w http.ResponseWriter, r *http.Request) {
+		{"image", func(w http.ResponseWriter, _ *http.Request) {
 			w.Header().Set("Content-Type", "image/jpeg")
 			w.WriteHeader(http.StatusOK)
 			w.Write([]byte("\xff\xd8\xff"))
 		}},
-		{"json", func(w http.ResponseWriter, r *http.Request) {
+		{"json", func(w http.ResponseWriter, _ *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
 			w.Write([]byte(`{"ok":true}`))
 		}},

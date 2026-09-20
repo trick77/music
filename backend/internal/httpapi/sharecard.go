@@ -84,7 +84,7 @@ func (h *songHandlers) writeCard(w http.ResponseWriter, r *http.Request, cover i
 	if r.Method == http.MethodHead {
 		return // headers only; Content-Length above still advertises the full size
 	}
-	w.Write(jpg)
+	_, _ = w.Write(jpg) //nolint:gosec // G705: a rendered JPEG, never an HTML context
 }
 
 // loadCover decodes a cover into an image, or returns nil (no art / unreadable /
@@ -101,7 +101,7 @@ func (h *songHandlers) loadCover(ctx context.Context, coverID string) image.Imag
 	if err != nil {
 		return nil
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 	data, err := io.ReadAll(f)
 	if err != nil {
 		return nil

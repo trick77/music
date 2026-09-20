@@ -13,7 +13,7 @@ import (
 func testHandler(t *testing.T, mode config.AuthMode) http.Handler {
 	t.Helper()
 	cfg := config.Config{AuthMode: mode, DevUser: config.DevUserConfig{Username: "dev"}}
-	spa := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { w.Write([]byte("SPA")) })
+	spa := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { w.Write([]byte("SPA")) })
 	return New(cfg, nil, spa)
 }
 
@@ -66,7 +66,7 @@ func TestSession_oidcAnonymousByDefault(t *testing.T) {
 }
 
 func TestSession_imageGenEnabledGatedByAuthAndKey(t *testing.T) {
-	spa := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { w.Write([]byte("SPA")) })
+	spa := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { w.Write([]byte("SPA")) })
 	get := func(cfg config.Config) string {
 		rr := httptest.NewRecorder()
 		New(cfg, nil, spa).ServeHTTP(rr, httptest.NewRequest("GET", "/api/auth/session", nil))
@@ -85,7 +85,7 @@ func TestSession_imageGenEnabledGatedByAuthAndKey(t *testing.T) {
 }
 
 func TestSession_studioEnabledGatedByAuthAndKeys(t *testing.T) {
-	spa := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { w.Write([]byte("SPA")) })
+	spa := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { w.Write([]byte("SPA")) })
 	get := func(cfg config.Config) string {
 		rr := httptest.NewRecorder()
 		New(cfg, nil, spa).ServeHTTP(rr, httptest.NewRequest("GET", "/api/auth/session", nil))

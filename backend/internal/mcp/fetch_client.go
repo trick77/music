@@ -104,7 +104,7 @@ func (c *fetchClient) listTools(context.Context) ([]Tool, error) {
 	}}, nil
 }
 
-func (c *fetchClient) callTool(ctx context.Context, name string, arguments map[string]any) (string, error) {
+func (c *fetchClient) callTool(ctx context.Context, _ string, arguments map[string]any) (string, error) {
 	url, _ := arguments["url"].(string)
 	return webfetch.Fetch(ctx, url, webfetch.Options{
 		MaxLength:        argInt(arguments, "max_length"),

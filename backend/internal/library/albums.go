@@ -65,7 +65,7 @@ func (r *Repo) AlbumContext(ctx context.Context, artistID, album string) (AlbumP
 	if err != nil {
 		return AlbumPromptContext{}, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	for rows.Next() {
 		var name string
 		if err := rows.Scan(&name); err != nil {
@@ -85,7 +85,7 @@ func (r *Repo) AlbumContext(ctx context.Context, artistID, album string) (AlbumP
 	if err != nil {
 		return AlbumPromptContext{}, err
 	}
-	defer lyricRows.Close()
+	defer func() { _ = lyricRows.Close() }()
 	for lyricRows.Next() {
 		var sl SongLyric
 		if err := lyricRows.Scan(&sl.Title, &sl.Lyrics); err != nil {

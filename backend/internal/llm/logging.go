@@ -2,6 +2,7 @@ package llm
 
 import (
 	"context"
+	"errors"
 	"log/slog"
 	"time"
 )
@@ -45,7 +46,7 @@ func logInferenceFailed(ctx context.Context, model string, duration time.Duratio
 		slog.Int64("duration_ms", duration.Milliseconds()),
 		slog.String("err", err.Error()),
 	}
-	if cause := context.Cause(ctx); cause != nil && cause != err {
+	if cause := context.Cause(ctx); cause != nil && !errors.Is(cause, err) {
 		attrs = append(attrs, slog.String("cancel_cause", cause.Error()))
 	}
 	slog.LogAttrs(ctx, slog.LevelError, "llm inference failed", attrs...)

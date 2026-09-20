@@ -121,7 +121,7 @@ func (h *songHandlers) runAlignment(songID, relPath, lyrics string) {
 		h.failAlignment(songID, "open audio: "+err.Error())
 		return
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	genCtx, cancel := context.WithTimeout(context.Background(), h.cfg.AlignTimeout+30*time.Second)
 	defer cancel()

@@ -36,18 +36,21 @@ type Tool struct {
 	Function ToolFunction `json:"function"`
 }
 
+// ToolFunction specifies the name and parameters of a callable tool.
 type ToolFunction struct {
 	Name        string         `json:"name"`
 	Description string         `json:"description,omitempty"`
 	Parameters  map[string]any `json:"parameters,omitempty"`
 }
 
+// ToolCall is a tool invoked by the model during a chat response.
 type ToolCall struct {
 	ID       string           `json:"id"`
 	Type     string           `json:"type"`
 	Function ToolCallFunction `json:"function"`
 }
 
+// ToolCallFunction contains the name and arguments of a tool call.
 type ToolCallFunction struct {
 	Name      string `json:"name"`
 	Arguments string `json:"arguments"`
@@ -147,7 +150,7 @@ func (c *Client) chat(ctx context.Context, model string, messages []Message, too
 	if err != nil {
 		return Message{}, "", tokenUsage{}, err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		snippet, _ := io.ReadAll(io.LimitReader(resp.Body, maxErrorBodyBytes))
 		return Message{}, "", tokenUsage{}, fmt.Errorf("chat completion failed with status %d: %s", resp.StatusCode, strings.TrimSpace(string(snippet)))

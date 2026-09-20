@@ -224,7 +224,9 @@ func (cw *condWriter) passthrough() {
 	}
 	cw.ResponseWriter.WriteHeader(cw.status)
 	if len(cw.buf) > 0 {
-		_, _ = cw.ResponseWriter.Write(cw.buf)
+		// G705: cw.buf is this cache wrapper's own buffered response, already
+		// produced and content-typed by the wrapped handler.
+		_, _ = cw.ResponseWriter.Write(cw.buf) //nolint:gosec // G705
 		cw.buf = nil
 	}
 }

@@ -14,7 +14,7 @@ Self-hosted, song-first music player: Go backend serving a JSON API + an embedde
   self-merge unreviewed. PRs target this repo's `master`, never an upstream.
 
 ## Locked technical choices
-- Module `github.com/trick77/music`, Go 1.25, `CGO_ENABLED=0`.
+- Module `github.com/trick77/music`, Go 1.26, `CGO_ENABLED=0`.
 - Pure-Go SQLite `ncruces/go-sqlite3` v0.35.2 (never `mattn/go-sqlite3`). One SQLite file.
 - HTTP: stdlib `net/http` (Go 1.22 method routing), no framework.
 - Caching: the route sets `Cache-Control`, never the serve helper. Content-addressed images

@@ -21,3 +21,6 @@ backend/web/dist/*
 # Python bytecode
 __pycache__/
 *.pyc
+
+# Local git worktrees
+.agents/worktrees/

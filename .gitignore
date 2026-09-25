@@ -16,6 +16,7 @@ backend/web/dist/*
 .playwright-mcp/
 # Claude Code local state and worktrees
 .claude/
+.agents/
 /backend/music
 
 # Python bytecode

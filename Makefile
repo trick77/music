@@ -6,8 +6,8 @@ tidy:
 test:
 	cd backend && go test ./...
 
-# The coverage floor is NOT defined here. It lives in hack/coverage-floors and is
-# enforced by hack/coverage-gate.sh, which CI calls too — so `make backend-coverage`
+# The coverage floor is NOT defined here. It lives in scripts/coverage-floors and is
+# enforced by scripts/coverage-gate.sh, which CI calls too — so `make backend-coverage`
 # and a CI run answer with the same number against the same threshold. These targets
 # only produce the artifacts; the gate decides pass or fail.
 #
@@ -24,14 +24,14 @@ backend-coverage:
 	mkdir -p coverage
 	cd backend && go test ./... -covermode=atomic -coverpkg=./... -coverprofile=../coverage/backend.out
 	cd backend && go run github.com/boumenot/gocover-cobertura@v1.5.0 < ../coverage/backend.out > ../coverage/backend.xml
-	./hack/coverage-gate.sh backend
+	./scripts/coverage-gate.sh backend
 
 fe-test:
 	cd ui && npm run test -- --run --passWithNoTests
 
 fe-coverage:
 	cd ui && npm run test:coverage
-	./hack/coverage-gate.sh ui
+	./scripts/coverage-gate.sh ui
 
 fe-build:
 	cd ui && npm ci && npm run build

@@ -26,7 +26,7 @@ on:
       # a sidecar-only change cannot alter what this workflow builds.
       - "sidecar/**"
       # Coverage gate scripts: CI-only, never copied into the image.
-      - "hack/**"
+      - "scripts/**"
       - ".github/**"
       - "**/*.md"
       - "LICENSE"

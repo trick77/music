@@ -72,7 +72,7 @@
   <li><b>TDD.</b> Failing test first, then the minimal implementation. (<code>AGENTS.md:6</code>)</li>
   <li><b>No assertion library.</b> Backend uses stdlib <code>testing</code> and <code>t.Fatalf("x = %v, want %v", got, want)</code>. No testify.</li>
   <li><b>Never edit an applied migration.</b> New behaviour goes in a new <code>NNNN_*.sql</code>. (<code>AGENTS.md:47-48</code>)</li>
-  <li><b>Coverage floors are hard:</b> <code>backend=75.0</code>, <code>ui=75.0</code> in <code>hack/coverage-floors</code>. Untested files fail the gate.</li>
+  <li><b>Coverage floors are hard:</b> <code>backend=75.0</code>, <code>ui=75.0</code> in <code>scripts/coverage-floors</code>. Untested files fail the gate.</li>
   <li><b>Two-tier gate on every endpoint:</b> 403 when not authenticated, 404 when the feature is not configured. Copy <code>studioHandlers.guard</code> (<code>httpapi/studio.go:110-121</code>).</li>
   <li><b>Cache-Control is set by the route, never the serve helper.</b> (<code>AGENTS.md:21-24</code>)</li>
   <li><b>Icons are lucide only</b> via <code>&lt;Icon name="…" /&gt;</code>. No unicode glyphs, no icon font. (<code>AGENTS.md:31</code>)</li>

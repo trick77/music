@@ -14,8 +14,8 @@ export default defineConfig({
     setupFiles: ["./src/test-setup.ts"],
     coverage: {
       provider: "v8",
-      // json-summary feeds hack/coverage-gate.sh, lcov feeds
-      // hack/patch-coverage.sh, and text-summary is for whoever reads the log.
+      // json-summary feeds scripts/coverage-gate.sh, lcov feeds
+      // scripts/patch-coverage.sh, and text-summary is for whoever reads the log.
       reporter: ["text-summary", "json-summary", "lcov"],
       // Both gates resolve coverage artifacts from the repo root, alongside the
       // backend's, so these reports land outside ui/.
@@ -31,13 +31,13 @@ export default defineConfig({
         "src/testHooks.ts",
         // The vitest setup file, for the same reason. It also runs before the
         // instrumented modules load, so it never appears in the report at all —
-        // leaving it included makes hack/patch-coverage.sh see a changed source
+        // leaving it included makes scripts/patch-coverage.sh see a changed source
         // file with no coverage data and report a path-mapping bug that isn't one.
         "src/test-setup.ts",
         "**/*.test.*",
       ],
-      // No thresholds block on purpose. The floor lives in hack/coverage-floors
-      // and is enforced by hack/coverage-gate.sh, so there is exactly one
+      // No thresholds block on purpose. The floor lives in scripts/coverage-floors
+      // and is enforced by scripts/coverage-gate.sh, so there is exactly one
       // definition of it; a second one here would inevitably drift.
     },
   },

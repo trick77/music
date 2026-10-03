@@ -8,7 +8,7 @@ require (
 	github.com/dhowden/tag v0.0.0-20240417053706-3d75831295e8
 	github.com/hajimehoshi/go-mp3 v0.3.4
 	github.com/ncruces/go-sqlite3 v0.35.6
-	github.com/trick77/webfetch v0.1.10
+	github.com/trick77/webfetch v0.1.11
 	golang.org/x/image v0.46.0
 	golang.org/x/oauth2 v0.37.0
 )

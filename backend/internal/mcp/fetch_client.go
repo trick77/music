@@ -12,7 +12,7 @@ import (
 // dropped: it is legacy framing that carries no operational intent and only
 // costs tokens in every tool-list injection. This is a deliberate divergence
 // from byte-for-byte sidecar parity, kept minimal so tool dispatch is unchanged.
-const fetchClientDescription = `Fetches a URL from the internet and extracts its contents as markdown. Set 'raw' for the unsimplified HTML, 'extract_pdf' to extract text from PDF responses, or 'include_metadata' to prepend a title/author/date block. If the default extraction drops content you need, use 'full_page' (whole page) or 'selector' (a specific CSS region); 'exclude_selectors' strips unwanted elements.`
+const fetchClientDescription = `Fetches a URL from the internet and extracts its contents as markdown. Set 'raw' for the unsimplified HTML, or 'include_metadata' to prepend a title/author/date block. If the default extraction drops content you need, use 'full_page' (whole page) or 'selector' (a specific CSS region); 'exclude_selectors' strips unwanted elements.`
 
 // fetchClient is an in-process client that replaces the external web-fetch MCP
 // sidecar. It performs the fetch directly via the shared
@@ -35,7 +35,10 @@ func (c *fetchClient) listTools(context.Context) ([]Tool, error) {
 		Description:  fetchClientDescription,
 		ServerName:   c.serverName,
 		// Schema mirrors the JSON Schema upstream's pydantic model emits, plus
-		// fields that surface webfetch options the sidecar never had.
+		// fields that surface webfetch options the sidecar never had. webfetch's
+		// ExtractPDF is deliberately not exposed: its PDF parser has no resource
+		// limits, so a crafted PDF at a model-chosen URL could exhaust backend
+		// memory.
 		InputSchema: map[string]any{
 			"type":  "object",
 			"title": "Fetch",
@@ -66,12 +69,6 @@ func (c *fetchClient) listTools(context.Context) ([]Tool, error) {
 					"default":     false,
 					"description": "Get the actual HTML content of the requested page, without simplification.",
 					"title":       "Raw",
-					"type":        "boolean",
-				},
-				"extract_pdf": map[string]any{
-					"default":     false,
-					"description": "Extract the text of PDF responses instead of returning raw bytes. Ignored for non-PDF content.",
-					"title":       "Extract Pdf",
 					"type":        "boolean",
 				},
 				"include_metadata": map[string]any{
@@ -110,7 +107,6 @@ func (c *fetchClient) callTool(ctx context.Context, _ string, arguments map[stri
 		MaxLength:        argInt(arguments, "max_length"),
 		StartIndex:       argInt(arguments, "start_index"),
 		Raw:              argBool(arguments, "raw"),
-		ExtractPDF:       argBool(arguments, "extract_pdf"),
 		IncludeMetadata:  argBool(arguments, "include_metadata"),
 		FullPage:         argBool(arguments, "full_page"),
 		Selector:         argString(arguments, "selector"),

@@ -1,6 +1,6 @@
 module github.com/trick77/music
 
-go 1.26.0
+go 1.27.2
 
 require (
 	github.com/bogem/id3v2/v2 v2.1.4
@@ -8,13 +8,13 @@ require (
 	github.com/dhowden/tag v0.0.0-20240417053706-3d75831295e8
 	github.com/hajimehoshi/go-mp3 v0.3.4
 	github.com/ncruces/go-sqlite3 v0.35.6
-	github.com/trick77/webfetch v0.2.3
-	golang.org/x/image v0.46.0
+	github.com/trick77/webfetch v0.4.4
+	golang.org/x/image v0.47.0
 	golang.org/x/oauth2 v0.37.0
 )
 
 require (
-	codeberg.org/readeck/go-readability/v2 v2.1.2 // indirect
+	codeberg.org/readeck/go-readability/v2 v2.1.3 // indirect
 	github.com/JohannesKaufmann/html-to-markdown v1.6.0 // indirect
 	github.com/PuerkitoBio/goquery v1.13.0 // indirect
 	github.com/andybalholm/cascadia v1.3.4 // indirect
@@ -22,10 +22,9 @@ require (
 	github.com/go-shiori/dom v0.0.0-20230515143342-73569d674e1c // indirect
 	github.com/gogs/chardet v0.0.0-20211120154057-b7413eaefb8f // indirect
 	github.com/itlightning/dateparse v0.2.1 // indirect
-	github.com/ledongthuc/pdf v0.0.0-20250511090121-5959a4027728 // indirect
 	github.com/ncruces/go-sqlite3-wasm/v6 v6.3.35304 // indirect
 	github.com/ncruces/julianday v1.0.0 // indirect
-	golang.org/x/net v0.59.0 // indirect
-	golang.org/x/sys v0.48.0 // indirect
-	golang.org/x/text v0.42.0 // indirect
+	golang.org/x/net v0.60.0 // indirect
+	golang.org/x/sys v0.49.0 // indirect
+	golang.org/x/text v0.43.0 // indirect
 )

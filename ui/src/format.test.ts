@@ -24,8 +24,8 @@ describe("formatDuration", () => {
   });
 });
 
-// Zero means "unknown" across all three: a row the backfill hasn't reached, or a
-// file that wouldn't decode. It must never render as "0 Hz" / "0 kbps".
+// Zero means "unknown" across all three: a file that wouldn't decode. It must
+// never render as "0 Hz" / "0 kbps".
 describe("audio info formatters", () => {
   it("renders sample rate in kHz", () => {
     expect(formatSampleRate(44100)).toBe("44.1 kHz");

@@ -45,11 +45,6 @@ func newStudioHistoryServer(t *testing.T, provider studio.Provider) *studioHistT
 			ChatAPIKey: "chat-key", TavilyAPIKey: "tavily-key",
 		}
 		h := NewWithStudioProvider(cfg, st, studioSPA(), provider)
-		// The audio-info backfill runs on a goroutine that must not outlive the
-		// temp dirs it reads from (see server.Wait).
-		if s, ok := h.(*server); ok {
-			t.Cleanup(s.Wait)
-		}
 		return h
 	}
 	return &studioHistTS{

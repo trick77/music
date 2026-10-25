@@ -27,9 +27,6 @@ func TestRoutes_databaseUnavailableIs5xx(t *testing.T) {
 		MediaDir: mediaDir, MaxUploadMB: 50,
 	}
 	h := New(cfg, st, spa)
-	if s, ok := h.(*server); ok {
-		t.Cleanup(s.Wait)
-	}
 
 	// Seed real ids so the routes get past their path parsing.
 	repo := library.NewRepo(st.DB())

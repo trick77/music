@@ -26,11 +26,6 @@ func devAndAnon(t *testing.T) (dev http.Handler, anon http.Handler) {
 	mk := func(mode config.AuthMode) http.Handler {
 		cfg := config.Config{AuthMode: mode, DevUser: config.DevUserConfig{Username: "dev"}, MediaDir: media, MaxUploadMB: 50}
 		h := New(cfg, st, spa)
-		// Drain each server's backfill goroutine before the shared temp dirs are
-		// removed; registered last so it runs first (LIFO), ahead of st.Close.
-		if s, ok := h.(*server); ok {
-			t.Cleanup(s.Wait)
-		}
 		return h
 	}
 	return mk(config.AuthModeDev), mk(config.AuthModeOIDC)

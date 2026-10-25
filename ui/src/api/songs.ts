@@ -15,7 +15,7 @@ export type Song = {
   trackTotal: number;
   durationMs: number;
   // Audio properties of the stored file. 0 means unknown — the file couldn't be
-  // decoded. Render "—".
+  // decoded, or a pre-0006 row was never measured. Render "—".
   sampleRate: number;
   channels: number;
   bitrateKbps: number;

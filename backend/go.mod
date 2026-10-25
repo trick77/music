@@ -8,7 +8,7 @@ require (
 	github.com/dhowden/tag v0.0.0-20240417053706-3d75831295e8
 	github.com/hajimehoshi/go-mp3 v0.3.4
 	github.com/ncruces/go-sqlite3 v0.35.6
-	github.com/trick77/webfetch v0.4.4
+	github.com/trick77/webfetch v0.4.5
 	golang.org/x/image v0.47.0
 	golang.org/x/oauth2 v0.37.0
 )
@@ -24,7 +24,7 @@ require (
 	github.com/itlightning/dateparse v0.2.1 // indirect
 	github.com/ncruces/go-sqlite3-wasm/v6 v6.3.35304 // indirect
 	github.com/ncruces/julianday v1.0.0 // indirect
-	golang.org/x/net v0.60.0 // indirect
+	golang.org/x/net v0.61.0 // indirect
 	golang.org/x/sys v0.49.0 // indirect
 	golang.org/x/text v0.43.0 // indirect
 )

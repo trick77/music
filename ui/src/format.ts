@@ -9,8 +9,8 @@ export function formatDuration(ms: number): string {
 /** Placeholder for a value we don't have, so columns still line up. */
 const EMPTY = "—";
 
-// Audio info. The server sends 0 for "unknown" — a row the backfill hasn't reached,
-// or a file that wouldn't decode — so every one of these guards zero rather than
+// Audio info. The server sends 0 for "unknown" — a file that wouldn't decode, or a
+// pre-0006 row never measured — so every one of these guards zero rather than
 // rendering a confident "0 Hz".
 
 /**

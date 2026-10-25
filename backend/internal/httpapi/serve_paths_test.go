@@ -42,9 +42,6 @@ func newServeServer(t *testing.T, maxUploadMB int) *serveTS {
 			MediaDir: mediaDir, MaxUploadMB: maxUploadMB,
 		}
 		h := New(cfg, st, spa)
-		if s, ok := h.(*server); ok {
-			t.Cleanup(s.Wait)
-		}
 		return h
 	}
 	return &serveTS{dev: mk(config.AuthModeDev), anon: mk(config.AuthModeOIDC), repo: library.NewRepo(st.DB()), mediaDir: mediaDir}

@@ -14,8 +14,8 @@ export type Song = {
   // order), so the tag editor shows "N of Y" read-only rather than an editable field.
   trackTotal: number;
   durationMs: number;
-  // Audio properties of the stored file. 0 means unknown — either the backfill
-  // hasn't reached this row yet, or the file couldn't be decoded. Render "—".
+  // Audio properties of the stored file. 0 means unknown — the file couldn't be
+  // decoded, or a pre-0006 row was never measured. Render "—".
   sampleRate: number;
   channels: number;
   bitrateKbps: number;

@@ -65,9 +65,6 @@ func TestAssembledServer_notReadyImageIsNotStored(t *testing.T) {
 	}
 	spa := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { w.Write([]byte("SPA")) })
 	h := New(cfg, st, spa)
-	if s, ok := h.(*server); ok {
-		t.Cleanup(s.Wait)
-	}
 
 	repo := library.NewRepo(st.DB())
 	id, err := repo.CreateFanart(t.Context(), library.FanartParams{Kind: "hero", Status: "generating"})

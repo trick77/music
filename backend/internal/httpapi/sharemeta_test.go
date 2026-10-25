@@ -342,9 +342,6 @@ func TestShareMeta_retiredIconPathsAre404NotTheShell(t *testing.T) {
 		MaxUploadMB: 50,
 	}
 	h := New(cfg, st, web.SPAHandler())
-	if s, ok := h.(*server); ok {
-		t.Cleanup(s.Wait)
-	}
 
 	for _, path := range []string{"/favicon.ico", "/favicon.svg"} {
 		t.Run(path, func(t *testing.T) {
@@ -380,9 +377,6 @@ func TestRobotsTxt_isPlainTextNotTheShell(t *testing.T) {
 		MaxUploadMB: 50,
 	}
 	h := New(cfg, st, web.SPAHandler())
-	if s, ok := h.(*server); ok {
-		t.Cleanup(s.Wait)
-	}
 
 	rr := httptest.NewRecorder()
 	h.ServeHTTP(rr, httptest.NewRequest("GET", "/robots.txt", nil))

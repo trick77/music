@@ -22,7 +22,7 @@ type Song struct {
 	TrackTotal int   `json:"trackTotal"`
 	DurationMS int64 `json:"durationMs"`
 	// Audio properties of the stored file, for the tag editor's Info tab. 0 means
-	// "unknown" — not yet backfilled, or undecodable; the UI renders "—".
+	// "unknown" — undecodable, or a pre-0006 row never measured; the UI renders "—".
 	SampleRate  int      `json:"sampleRate"`
 	Channels    int      `json:"channels"`
 	BitrateKbps int      `json:"bitrateKbps"`
@@ -88,8 +88,6 @@ func (r *Repo) Create(ctx context.Context, id string, p CreateSongParams) (*Song
 		 VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
 		id, p.Title, artistID, normalizeAlbum(p.Album), nullInt(p.Year), nullInt(p.TrackNo),
 		p.DurationMS, p.FilePath, p.FileSize, p.ContentHash, nullStr(coverID), nullStr(p.Lyrics),
-		// NULL rather than 0 for an undecodable file, so it's indistinguishable from
-		// a not-yet-backfilled row and the backfill can retry it.
 		nullInt(p.SampleRate), nullInt(p.Channels), nullInt(p.BitrateKbps),
 	); err != nil {
 		return nil, err
@@ -275,8 +273,8 @@ func scanSongInto(row scanner, count *int) (*Song, error) {
 	var s Song
 	var album, cover, lyrics sql.NullString
 	var year, track, trackTotal sql.NullInt64
-	// Audio info is NULL for rows the backfill hasn't reached and for files that
-	// can't be decoded; both surface as 0 and render "—".
+	// Audio info is NULL for undecodable files and pre-0006 rows never measured;
+	// both surface as 0 and render "—".
 	var sampleRate, channels, bitrate sql.NullInt64
 	var published int64
 	dest := []any{&s.ID, &s.Title, &s.ArtistID, &s.ArtistName, &album, &year, &track, &trackTotal,

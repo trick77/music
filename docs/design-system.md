@@ -178,9 +178,9 @@ one intentional literal.
     (`GET /api/songs/{id}/stats`, editor-only), deliberately unlike the top-ten chart's rolling
     30-day window — a song's own stats should mean what they say. `fileSize` is the **stored**
     file's size; tags are baked in at download time, so a download differs slightly.
-    - **Audio info is 0 = unknown, and renders `—`.** A row imported before migration 0006 has
-      NULL until the background backfill reaches it, and a file that won't decode stays unknown
-      forever. Never render a confident `0 Hz` / `0 kbps`; duration already degrades this way.
+    - **Audio info is 0 = unknown, and renders `—`.** A file that won't decode, or a pre-0006 row
+      never measured, stays unknown. Never render a confident `0 Hz` / `0 kbps`; duration already
+      degrades this way.
     - **Bitrate is an average, derived — not read from a frame header.** A frame header's rate is
       exact for CBR and *wrong* for VBR (it describes frame 1, not the file), which would drag in
       Xing detection and frame counting. `audio bytes × 8 ÷ duration ms` is an average by

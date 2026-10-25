@@ -29,11 +29,6 @@ func testServer(t *testing.T, mode config.AuthMode) http.Handler {
 	}
 	spa := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { w.Write([]byte("SPA")) })
 	h := New(cfg, st, spa)
-	// Drain the startup backfill goroutine before the temp dirs are removed;
-	// registered last so it runs first (LIFO), ahead of st.Close and RemoveAll.
-	if s, ok := h.(*server); ok {
-		t.Cleanup(s.Wait)
-	}
 	return h
 }
 

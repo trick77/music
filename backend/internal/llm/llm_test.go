@@ -23,7 +23,7 @@ func TestChat_sendsOpenAIRequestAndParsesToolCalls(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	c := &Client{BaseURL: srv.URL, APIKey: "k", Model: "mimo-v2.6-pro", ReasoningEffort: "high"}
+	c := &Client{BaseURL: srv.URL, APIKey: "k"} // no Model or effort: the defaults are what production sends
 	msg, err := c.Chat(context.Background(),
 		[]Message{{Role: "user", Content: "hi"}},
 		[]Tool{{Type: "function", Function: ToolFunction{Name: "fetch__fetch"}}})

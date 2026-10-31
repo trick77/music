@@ -1,5 +1,5 @@
 // Package llm is a minimal OpenAI-compatible chat client with tool-calling,
-// used by the Studio feature to drive MiMo 2.5 Pro through a web-research loop.
+// used by the Studio feature to drive MiMo 2.6 Pro through a web-research loop.
 // It is a trimmed, non-streaming port of the client in ../loom.
 package llm
 
@@ -15,7 +15,7 @@ import (
 )
 
 const (
-	defaultModel           = "mimo-v2.5-pro"
+	defaultModel           = "mimo-v2.6-pro"
 	defaultReasoningEffort = "high"
 	defaultTimeout         = 2 * time.Minute
 	maxErrorBodyBytes      = 4096
@@ -66,7 +66,7 @@ type Chat interface {
 type Client struct {
 	BaseURL         string
 	APIKey          string
-	Model           string // defaults to mimo-v2.5-pro
+	Model           string // defaults to mimo-v2.6-pro
 	ReasoningEffort string // defaults to high
 	HTTP            *http.Client
 }

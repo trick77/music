@@ -107,7 +107,7 @@ func build(cfg config.Config, st *store.Store, spa http.Handler, gen imagegen.Pr
 			"fetch": mcp.FetchServerConfig(),
 		}
 		studioProvider = studio.New(
-			&llm.Client{BaseURL: cfg.ChatBaseURL, APIKey: cfg.ChatAPIKey, Model: "mimo-v2.5-pro", ReasoningEffort: "high"},
+			&llm.Client{BaseURL: cfg.ChatBaseURL, APIKey: cfg.ChatAPIKey, Model: "mimo-v2.6-pro", ReasoningEffort: "high"},
 			mcp.NewService(servers, nil),
 		)
 	}
@@ -148,14 +148,14 @@ func build(cfg config.Config, st *store.Store, spa http.Handler, gen imagegen.Pr
 			// was injected. Independent of Studio (no Tavily/MCP research loop).
 			if genrePrompter == nil && cfg.ChatEnabled() {
 				genrePrompter = studio.NewGenrePrompter(
-					&llm.Client{BaseURL: cfg.ChatBaseURL, APIKey: cfg.ChatAPIKey, Model: "mimo-v2.5-pro", ReasoningEffort: "high"},
+					&llm.Client{BaseURL: cfg.ChatBaseURL, APIKey: cfg.ChatAPIKey, Model: "mimo-v2.6-pro", ReasoningEffort: "high"},
 				)
 			}
 			// Real one-shot playlist-description writer when the chat key is set
 			// and none was injected (tests inject their own).
 			if descriptionWriter == nil && cfg.ChatEnabled() {
 				descriptionWriter = studio.NewDescriptionWriter(
-					&llm.Client{BaseURL: cfg.ChatBaseURL, APIKey: cfg.ChatAPIKey, Model: "mimo-v2.5-pro", ReasoningEffort: "high"},
+					&llm.Client{BaseURL: cfg.ChatBaseURL, APIKey: cfg.ChatAPIKey, Model: "mimo-v2.6-pro", ReasoningEffort: "high"},
 				)
 			}
 			h := &songHandlers{

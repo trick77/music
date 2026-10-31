@@ -23,7 +23,7 @@ func TestChat_sendsOpenAIRequestAndParsesToolCalls(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	c := &Client{BaseURL: srv.URL, APIKey: "k", Model: "mimo-v2.5-pro", ReasoningEffort: "high"}
+	c := &Client{BaseURL: srv.URL, APIKey: "k", Model: "mimo-v2.6-pro", ReasoningEffort: "high"}
 	msg, err := c.Chat(context.Background(),
 		[]Message{{Role: "user", Content: "hi"}},
 		[]Tool{{Type: "function", Function: ToolFunction{Name: "fetch__fetch"}}})
@@ -33,7 +33,7 @@ func TestChat_sendsOpenAIRequestAndParsesToolCalls(t *testing.T) {
 	if gotAuth != "Bearer k" {
 		t.Fatalf("auth header = %q", gotAuth)
 	}
-	if gotBody["model"] != "mimo-v2.5-pro" || gotBody["reasoning_effort"] != "high" {
+	if gotBody["model"] != "mimo-v2.6-pro" || gotBody["reasoning_effort"] != "high" {
 		t.Fatalf("request body = %v", gotBody)
 	}
 	if gotBody["stream"] != false {

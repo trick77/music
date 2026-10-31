@@ -1,4 +1,4 @@
-// Package studio implements the Phase 9 Studio feature: it drives MiMo 2.5 Pro
+// Package studio implements the Phase 9 Studio feature: it drives MiMo 2.6 Pro
 // through a bounded web-research loop (Tavily search + fetch) to turn a named
 // song into a Suno prompt — a style prompt, original theme-matched lyrics, and
 // an epoch-correct cover-art prompt. This package itself stores nothing; the

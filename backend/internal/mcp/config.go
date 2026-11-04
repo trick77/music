@@ -59,7 +59,7 @@ func TavilyServerConfig(baseURL, apiKey string) ServerConfig {
 }
 
 // FetchServerConfig builds the web-fetch server config. Fetch runs in-process
-// (via the shared github.com/trick77/webfetch module), so there is no URL; the
+// (via the shared github.com/trick77/toolkit/webfetch package), so there is no URL; the
 // exposed tool name ("fetch__fetch") is unchanged.
 func FetchServerConfig() ServerConfig {
 	return ServerConfig{InProcess: true, Tools: []string{fetchTool}}

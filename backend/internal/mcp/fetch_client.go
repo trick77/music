@@ -3,7 +3,7 @@ package mcp
 import (
 	"context"
 
-	"github.com/trick77/webfetch"
+	"github.com/trick77/toolkit/webfetch"
 )
 
 // fetchClientDescription is the fetch tool description shown to the model. The
@@ -16,7 +16,7 @@ const fetchClientDescription = `Fetches a URL from the internet and extracts its
 
 // fetchClient is an in-process client that replaces the external web-fetch MCP
 // sidecar. It performs the fetch directly via the shared
-// github.com/trick77/webfetch module (a faithful Go port of mcp-server-fetch),
+// github.com/trick77/toolkit/webfetch package (a faithful Go port of mcp-server-fetch),
 // so no separate container, Python runtime, or stdio bridge is required. It
 // exposes exactly one tool, "fetch" (as "fetch__fetch"), with the same schema
 // and behaviour the sidecar did.

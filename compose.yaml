@@ -24,7 +24,7 @@ services:
       BACKEND_BFL_MODEL: "${BACKEND_BFL_MODEL:-flux-2-klein-4b}"
       BACKEND_BFL_POLL_TIMEOUT: "${BACKEND_BFL_POLL_TIMEOUT:-1m}"
       # Studio: Suno-prompt generation (optional; needs BOTH the chat and Tavily
-      # keys to enable). Page-fetch runs in-process (github.com/trick77/webfetch).
+      # keys to enable). Page-fetch runs in-process (github.com/trick77/toolkit/webfetch).
       BACKEND_CHAT_BASE_URL: "${BACKEND_CHAT_BASE_URL:-}"
       BACKEND_CHAT_API_KEY: "${BACKEND_CHAT_API_KEY:-}"
       BACKEND_TAVILY_URL: "${BACKEND_TAVILY_URL:-https://mcp.tavily.com/mcp/}"

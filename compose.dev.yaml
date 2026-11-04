@@ -11,7 +11,7 @@ services:
       BACKEND_DB_PATH: /data/music.db
       BACKEND_MEDIA_DIR: /data/media
       # Studio (optional): set the chat + Tavily keys in your shell/.env to enable
-      # it. Page-fetch runs in-process (github.com/trick77/webfetch).
+      # it. Page-fetch runs in-process (github.com/trick77/toolkit/webfetch).
       BACKEND_CHAT_BASE_URL: "${BACKEND_CHAT_BASE_URL:-}"
       BACKEND_CHAT_API_KEY: "${BACKEND_CHAT_API_KEY:-}"
       BACKEND_TAVILY_URL: "${BACKEND_TAVILY_URL:-https://mcp.tavily.com/mcp/}"

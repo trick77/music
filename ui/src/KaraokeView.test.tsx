@@ -165,7 +165,7 @@ describe("KaraokeView line focus", () => {
     expect(lines[1].style.opacity).toBe("0.38");
     expect(lines[1].style.filter).toBe("blur(2.5px)");
     expect(lines[2].style.opacity).toBe("0.28");
-    expect(lines[2].style.filter).toBe("blur(4.0px)");
+    expect(lines[2].style.filter).toBe("blur(4px)");
   });
 
   it("when the focused line regains focus, then its dimming is cleared again", () => {
@@ -321,9 +321,8 @@ describe("KaraokeView auto-scroll", () => {
 
     // The focused line sits at 40% of the viewport height rather than centred.
     const inner = container.querySelector<HTMLElement>(".kv-inner");
-    expect(inner?.style.transform).toBe(
-      `translateY(${window.innerHeight * 0.4}px)`,
-    );
+    const y = /^translateY\((-?[\d.]+)px\)$/.exec(inner?.style.transform ?? "");
+    expect(Number(y?.[1])).toBeCloseTo(window.innerHeight * 0.4);
   });
 
   it("when the window is resized, then the scroll position is recomputed", () => {

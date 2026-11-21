@@ -8,8 +8,8 @@ require (
 	github.com/dhowden/tag v0.0.0-20240417053706-3d75831295e8
 	github.com/hajimehoshi/go-mp3 v0.3.4
 	github.com/ncruces/go-sqlite3 v0.37.0
-	github.com/trick77/toolkit v0.3.2
-	golang.org/x/image v0.47.0
+	github.com/trick77/toolkit v0.4.0
+	golang.org/x/image v0.48.0
 	golang.org/x/oauth2 v0.38.0
 )
 
@@ -22,6 +22,6 @@ require (
 	github.com/ncruces/julianday v1.0.0 // indirect
 	github.com/sergi/go-diff v1.4.0 // indirect
 	golang.org/x/net v0.62.0 // indirect
-	golang.org/x/sys v0.49.0 // indirect
-	golang.org/x/text v0.43.0 // indirect
+	golang.org/x/sys v0.50.0 // indirect
+	golang.org/x/text v0.44.0 // indirect
 )
